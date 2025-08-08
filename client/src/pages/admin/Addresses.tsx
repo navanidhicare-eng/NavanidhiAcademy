@@ -98,17 +98,17 @@ function AddAddressModal({ isOpen, onClose, type, editing }: AddModalProps) {
     defaultValues: editing || {},
   });
 
-  const { data: states = [] } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
     enabled: type === 'district',
   });
 
-  const { data: districts = [] } = useQuery({
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts'],
     enabled: type === 'mandal',
   });
 
-  const { data: mandals = [] } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals'],
     enabled: type === 'village',
   });
@@ -293,19 +293,19 @@ export default function Addresses() {
   const [editingItem, setEditingItem] = useState<any>(null);
 
   // Fetch real data from Supabase database
-  const { data: states = [] } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
   });
 
-  const { data: districts = [] } = useQuery({
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts'],
   });
 
-  const { data: mandals = [] } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals'],
   });
 
-  const { data: villages = [] } = useQuery({
+  const { data: villages = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages'],
   });
 
