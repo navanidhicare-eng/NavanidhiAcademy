@@ -79,15 +79,16 @@ export function Sidebar({ className }: SidebarProps) {
       case 'teacher':
         return [
           ...baseItems,
-          { icon: Presentation, label: 'My Students', href: '/teacher/students' },
-          { icon: CheckSquare, label: 'Topic Updates', href: '/teacher/topics' },
+          { icon: Users, label: 'Students', href: '/students' },
+          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
         ];
       
       case 'academic_admin':
         return [
           ...baseItems,
-          { icon: TrendingUp, label: 'Academic Overview', href: '/academic/overview' },
-          { icon: Building, label: 'SO Centers', href: '/academic/centers' },
+          { icon: Users, label: 'Students', href: '/students' },
+          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
+          { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
         ];
       
       default:
