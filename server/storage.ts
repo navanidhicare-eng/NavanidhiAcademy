@@ -224,8 +224,25 @@ export class DrizzleStorage implements IStorage {
   }
 
   async createSoCenter(center: InsertSoCenter): Promise<SoCenter> {
-    const result = await db.insert(schema.soCenters).values(center).returning();
-    return result[0];
+    return await db.transaction(async (tx) => {
+      // Create the SO Center record
+      const [newCenter] = await tx.insert(schema.soCenters).values(center).returning();
+      
+      // Create corresponding user authentication record
+      const userData: schema.InsertUser = {
+        email: center.email || `${center.centerId}@navanidhi.com`,
+        name: center.name,
+        role: 'so_center' as const,
+        password: center.password || '12345678',
+        phone: center.phone,
+        villageId: center.villageId,
+        isActive: true
+      };
+      
+      await tx.insert(schema.users).values(userData);
+      
+      return newCenter;
+    });
   }
 
   async updateSoCenterWallet(id: string, amount: string): Promise<SoCenter> {

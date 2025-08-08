@@ -28,6 +28,7 @@ import { useState } from 'react';
 
 const addSoCenterSchema = z.object({
   name: z.string().min(1, 'Center name is required'),
+  email: z.string().email('Valid email address is required'),
   address: z.string().min(1, 'Complete address is required'),
   villageId: z.string().min(1, 'Village selection is required'),
   phone: z.string().min(10, 'Valid phone number required'),
@@ -127,6 +128,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     resolver: zodResolver(addSoCenterSchema),
     defaultValues: {
       name: '',
+      email: '',
       address: '',
       villageId: '',
       phone: '',
@@ -280,6 +282,20 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
               />
 
               <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Center Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="center.kukatpally@navanidhi.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <FormField
                   control={form.control}
                   name="phone"

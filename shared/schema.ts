@@ -99,10 +99,13 @@ export const soCenters = pgTable("so_centers", {
   internetAmount: decimal("internet_amount", { precision: 10, scale: 2 }),
   monthlyInternetDate: integer("monthly_internet_date"), // Day of month (1-31)
   internetServiceProvider: text("internet_service_provider"),
+  electricBillAccountNumber: text("electric_bill_account_number"),
+  internetBillAccountNumber: text("internet_bill_account_number"),
+  email: text("email"),
   capacity: integer("capacity"),
   facilities: text("facilities").array(),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).default("0"),
-  isActive: boolean("is_active").default(true),
+  isActive: boolean("is_active").notNull().default(true),
   isPasswordChanged: boolean("is_password_changed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
