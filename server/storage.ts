@@ -137,6 +137,9 @@ export interface IStorage {
 
   // Address hierarchy methods
   getAllStates(): Promise<any[]>;
+  getAllDistricts(): Promise<any[]>;
+  getAllMandals(): Promise<any[]>;
+  getAllVillages(): Promise<any[]>;
   getDistrictsByState(stateId: string): Promise<any[]>;
   getMandalsByDistrict(districtId: string): Promise<any[]>;
   getVillagesByMandal(mandalId: string): Promise<any[]>;
@@ -373,6 +376,18 @@ export class DrizzleStorage implements IStorage {
   // Address hierarchy methods
   async getAllStates(): Promise<any[]> {
     return await db.select().from(schema.states).where(eq(schema.states.isActive, true)).orderBy(asc(schema.states.name));
+  }
+
+  async getAllDistricts(): Promise<any[]> {
+    return await db.select().from(schema.districts).where(eq(schema.districts.isActive, true)).orderBy(asc(schema.districts.name));
+  }
+
+  async getAllMandals(): Promise<any[]> {
+    return await db.select().from(schema.mandals).where(eq(schema.mandals.isActive, true)).orderBy(asc(schema.mandals.name));
+  }
+
+  async getAllVillages(): Promise<any[]> {
+    return await db.select().from(schema.villages).where(eq(schema.villages.isActive, true)).orderBy(asc(schema.villages.name));
   }
 
   async getDistrictsByState(stateId: string): Promise<any[]> {

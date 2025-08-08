@@ -509,6 +509,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all districts
+  app.get("/api/admin/addresses/districts", authenticateToken, async (req, res) => {
+    try {
+      const districts = await storage.getAllDistricts();
+      res.json(districts);
+    } catch (error) {
+      console.error('Error fetching all districts:', error);
+      res.status(500).json({ message: 'Failed to fetch districts' });
+    }
+  });
+
   app.get("/api/admin/addresses/districts/:stateId", authenticateToken, async (req, res) => {
     try {
       const districts = await storage.getDistrictsByState(req.params.stateId);
@@ -519,6 +530,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all mandals
+  app.get("/api/admin/addresses/mandals", authenticateToken, async (req, res) => {
+    try {
+      const mandals = await storage.getAllMandals();
+      res.json(mandals);
+    } catch (error) {
+      console.error('Error fetching all mandals:', error);
+      res.status(500).json({ message: 'Failed to fetch mandals' });
+    }
+  });
+
   app.get("/api/admin/addresses/mandals/:districtId", authenticateToken, async (req, res) => {
     try {
       const mandals = await storage.getMandalsByDistrict(req.params.districtId);
@@ -526,6 +548,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching mandals:', error);
       res.status(500).json({ message: 'Failed to fetch mandals' });
+    }
+  });
+
+  // Get all villages
+  app.get("/api/admin/addresses/villages", authenticateToken, async (req, res) => {
+    try {
+      const villages = await storage.getAllVillages();
+      res.json(villages);
+    } catch (error) {
+      console.error('Error fetching all villages:', error);
+      res.status(500).json({ message: 'Failed to fetch villages' });
     }
   });
 
