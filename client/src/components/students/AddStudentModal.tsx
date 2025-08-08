@@ -284,6 +284,9 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   const onSubmit = (data: AddStudentFormData) => {
+    console.log('Form submission started with data:', data);
+    console.log('Form errors:', form.formState.errors);
+    
     // Set parent phone for compatibility (using father's mobile)
     data.parentPhone = data.fatherMobile;
     data.parentName = data.fatherName;
@@ -1056,6 +1059,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 type="submit" 
                 disabled={createStudentMutation.isPending}
                 className="bg-primary text-white hover:bg-blue-700"
+                onClick={() => console.log('Register button clicked')}
               >
                 {createStudentMutation.isPending ? (
                   'Registering Student...'

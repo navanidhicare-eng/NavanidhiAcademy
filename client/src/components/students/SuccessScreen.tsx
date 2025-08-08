@@ -32,9 +32,9 @@ export function SuccessScreen({ isOpen, onClose, studentData }: SuccessScreenPro
       const animationEnd = Date.now() + duration;
       const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
 
-      function randomInRange(min: number, max: number) {
+      const randomInRange = (min: number, max: number) => {
         return Math.random() * (max - min) + min;
-      }
+      };
 
       const interval = setInterval(() => {
         const timeLeft = animationEnd - Date.now();
