@@ -313,6 +313,19 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     }
   };
   
+  // Auto-sync parentPhone and parentName from father details
+  useEffect(() => {
+    const fatherMobile = form.watch('fatherMobile');
+    const fatherName = form.watch('fatherName');
+    
+    if (fatherMobile) {
+      form.setValue('parentPhone', fatherMobile);
+    }
+    if (fatherName) {
+      form.setValue('parentName', fatherName);
+    }
+  }, [form.watch('fatherMobile'), form.watch('fatherName'), form]);
+
   // Cleanup timeout on component unmount
   useEffect(() => {
     return () => {
@@ -522,7 +535,15 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       <FormItem>
                         <FormLabel>Father's Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter father's full name" {...field} />
+                          <Input 
+                            placeholder="Enter father's full name" 
+                            {...field}
+                            onChange={(e) => {
+                              field.onChange(e);
+                              // Auto-sync with parentName for compatibility
+                              form.setValue('parentName', e.target.value);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -552,7 +573,15 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       <FormItem>
                         <FormLabel>Father's Mobile Number *</FormLabel>
                         <FormControl>
-                          <Input placeholder="+91 98765 43210" {...field} />
+                          <Input 
+                            placeholder="+91 98765 43210" 
+                            {...field} 
+                            onChange={(e) => {
+                              field.onChange(e);
+                              // Auto-sync with parentPhone for compatibility
+                              form.setValue('parentPhone', e.target.value);
+                            }}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
