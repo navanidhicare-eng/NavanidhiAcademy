@@ -98,53 +98,37 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     enabled: isOpen,
   });
 
-  // Fetch address hierarchy data
-  const { data: states = [] } = useQuery({
+  // Fetch address hierarchy data from database
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
-    queryFn: async () => {
-      return [
-        { id: '1', name: 'Telangana', code: 'TS' },
-        { id: '2', name: 'Andhra Pradesh', code: 'AP' },
-        { id: '3', name: 'Karnataka', code: 'KA' },
-      ];
-    },
   });
 
-  const { data: districts = [] } = useQuery({
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts', selectedState],
     queryFn: async () => {
       if (!selectedState) return [];
-      return [
-        { id: '1', name: 'Hyderabad', code: 'HYD', stateId: selectedState },
-        { id: '2', name: 'Warangal', code: 'WGL', stateId: selectedState },
-        { id: '3', name: 'Nizamabad', code: 'NZB', stateId: selectedState },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
+      return await response.json();
     },
     enabled: !!selectedState,
   });
 
-  const { data: mandals = [] } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     queryFn: async () => {
       if (!selectedDistrict) return [];
-      return [
-        { id: '1', name: 'Secunderabad', code: 'SEC', districtId: selectedDistrict },
-        { id: '2', name: 'Kukatpally', code: 'KKP', districtId: selectedDistrict },
-        { id: '3', name: 'Uppal', code: 'UPL', districtId: selectedDistrict },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
+      return await response.json();
     },
     enabled: !!selectedDistrict,
   });
 
-  const { data: villages = [] } = useQuery({
+  const { data: villages = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     queryFn: async () => {
       if (!selectedMandal) return [];
-      return [
-        { id: '1', name: 'Alwal', code: 'ALW', mandalId: selectedMandal },
-        { id: '2', name: 'Bollarum', code: 'BLR', mandalId: selectedMandal },
-        { id: '3', name: 'Kompally', code: 'KMP', mandalId: selectedMandal },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
+      return await response.json();
     },
     enabled: !!selectedMandal,
   });

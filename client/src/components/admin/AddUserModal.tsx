@@ -102,7 +102,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     queryFn: async () => {
       if (!selectedState) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
-      return response.json();
+      return await response.json();
     },
     enabled: !!selectedState,
   });
@@ -112,7 +112,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     queryFn: async () => {
       if (!selectedDistrict) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
-      return response.json();
+      return await response.json();
     },
     enabled: !!selectedDistrict,
   });
@@ -122,7 +122,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     queryFn: async () => {
       if (!selectedMandal) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
-      return response.json();
+      return await response.json();
     },
     enabled: !!selectedMandal,
   });
