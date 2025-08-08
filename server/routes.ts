@@ -603,7 +603,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
-      const userData = insertUserSchema.parse(req.body);
+      // Convert numeric fields to strings before validation
+      const bodyWithStringFields = {
+        ...req.body,
+        salary: req.body.salary ? String(req.body.salary) : undefined,
+      };
+
+      const userData = insertUserSchema.parse(bodyWithStringFields);
       const hashedPassword = await bcrypt.hash(userData.password, 12);
       
       const newUser = await storage.createUser({
@@ -648,11 +654,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
-      const centerData = req.body;
-      const hashedPassword = await bcrypt.hash(centerData.password || '12345678', 12);
+      // Convert numeric fields to strings before validation
+      const centerDataWithStringFields = {
+        ...req.body,
+        rentAmount: req.body.rentAmount ? String(req.body.rentAmount) : undefined,
+        rentalAdvance: req.body.rentalAdvance ? String(req.body.rentalAdvance) : undefined,
+        electricityAmount: req.body.electricityAmount ? String(req.body.electricityAmount) : undefined,
+        internetAmount: req.body.internetAmount ? String(req.body.internetAmount) : undefined,
+      };
+
+      const hashedPassword = await bcrypt.hash(centerDataWithStringFields.password || '12345678', 12);
       
       const newCenter = await storage.createSoCenter({
-        ...centerData,
+        ...centerDataWithStringFields,
         password: hashedPassword
         // isPasswordChanged defaults to false in schema
       });
