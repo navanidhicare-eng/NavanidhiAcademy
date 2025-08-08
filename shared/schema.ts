@@ -249,6 +249,9 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
   isPasswordChanged: true,
+}).extend({
+  // Transform salary from number to string if needed
+  salary: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
 });
 
 export const insertSoCenterSchema = createInsertSchema(soCenters).omit({
@@ -256,6 +259,12 @@ export const insertSoCenterSchema = createInsertSchema(soCenters).omit({
   createdAt: true,
   walletBalance: true,
   isPasswordChanged: true,
+}).extend({
+  // Transform decimal fields from number to string if needed
+  rentAmount: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
+  rentalAdvance: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
+  electricityAmount: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
+  internetAmount: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
 });
 
 export const insertClassSchema = createInsertSchema(classes).omit({
