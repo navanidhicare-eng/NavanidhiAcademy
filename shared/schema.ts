@@ -15,6 +15,8 @@ export const userRoleEnum = pgEnum("user_role", [
 ]);
 
 export const courseTypeEnum = pgEnum("course_type", ["fixed_fee", "monthly_tuition"]);
+export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
+export const schoolTypeEnum = pgEnum("school_type", ["government", "private"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "pending", "overdue"]);
 export const topicStatusEnum = pgEnum("topic_status", ["pending", "learned"]);
 export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "commission"]);
@@ -150,10 +152,25 @@ export const topics = pgTable("topics", {
 // Students
 export const students = pgTable("students", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: text("student_id").notNull().unique(), // NNAS25000001 format
   name: text("name").notNull(),
+  aadharNumber: text("aadhar_number").notNull().unique(),
+  fatherName: text("father_name").notNull(),
+  motherName: text("mother_name").notNull(),
+  fatherMobile: text("father_mobile").notNull(),
+  motherMobile: text("mother_mobile"),
+  gender: genderEnum("gender").notNull(),
+  dateOfBirth: text("date_of_birth").notNull(),
+  presentSchoolName: text("present_school_name").notNull(),
+  schoolType: schoolTypeEnum("school_type").notNull(),
+  fatherQualification: text("father_qualification"),
+  motherQualification: text("mother_qualification"),
+  landmark: text("landmark"),
+  villageId: varchar("village_id").references(() => villages.id),
+  address: text("address").notNull(),
   classId: varchar("class_id").references(() => classes.id),
-  parentPhone: text("parent_phone").notNull(),
-  parentName: text("parent_name"),
+  parentPhone: text("parent_phone").notNull(), // Keep for compatibility
+  parentName: text("parent_name"), // Keep for compatibility
   soCenterId: varchar("so_center_id").references(() => soCenters.id),
   courseType: courseTypeEnum("course_type").notNull(),
   qrCode: text("qr_code").unique(),
@@ -226,6 +243,37 @@ export const nearbyTuitions = pgTable("nearby_tuitions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Student Siblings
+export const studentSiblings = pgTable("student_siblings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id),
+  name: text("name").notNull(),
+  className: text("class_name").notNull(),
+  schoolName: text("school_name").notNull(),
+  schoolType: schoolTypeEnum("school_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Class Fees
+export const classFees = pgTable("class_fees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  classId: varchar("class_id").references(() => classes.id),
+  courseType: courseTypeEnum("course_type").notNull(),
+  admissionFee: decimal("admission_fee", { precision: 10, scale: 2 }).notNull(),
+  monthlyFee: decimal("monthly_fee", { precision: 10, scale: 2 }),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Student Counter for ID generation
+export const studentCounter = pgTable("student_counter", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  year: integer("year").notNull().unique(),
+  currentNumber: integer("current_number").notNull().default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
   id: true,
@@ -290,6 +338,22 @@ export const insertStudentSchema = createInsertSchema(students).omit({
   id: true,
   createdAt: true,
   qrCode: true,
+  studentId: true,
+});
+
+export const insertStudentSiblingSchema = createInsertSchema(studentSiblings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertClassFeeSchema = createInsertSchema(classFees).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStudentCounterSchema = createInsertSchema(studentCounter).omit({
+  id: true,
+  updatedAt: true,
 });
 
 export const insertTopicProgressSchema = createInsertSchema(topicProgress).omit({
@@ -332,6 +396,12 @@ export type Topic = typeof topics.$inferSelect;
 export type InsertTopic = z.infer<typeof insertTopicSchema>;
 export type Student = typeof students.$inferSelect;
 export type InsertStudent = z.infer<typeof insertStudentSchema>;
+export type StudentSibling = typeof studentSiblings.$inferSelect;
+export type InsertStudentSibling = z.infer<typeof insertStudentSiblingSchema>;
+export type ClassFee = typeof classFees.$inferSelect;
+export type InsertClassFee = z.infer<typeof insertClassFeeSchema>;
+export type StudentCounter = typeof studentCounter.$inferSelect;
+export type InsertStudentCounter = z.infer<typeof insertStudentCounterSchema>;
 export type TopicProgress = typeof topicProgress.$inferSelect;
 export type InsertTopicProgress = z.infer<typeof insertTopicProgressSchema>;
 export type Payment = typeof payments.$inferSelect;

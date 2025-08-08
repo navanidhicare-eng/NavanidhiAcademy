@@ -7,6 +7,12 @@ import type {
   InsertUser,
   Student,
   InsertStudent,
+  StudentSibling,
+  InsertStudentSibling,
+  ClassFee,
+  InsertClassFee,
+  StudentCounter,
+  InsertStudentCounter,
   SoCenter,
   InsertSoCenter,
   Class,
@@ -186,6 +192,17 @@ export interface IStorage {
   // Enhanced Student methods
   getAllStudents(): Promise<Student[]>;
   deleteStudent(id: string): Promise<void>;
+  generateStudentId(): Promise<string>;
+  createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student>;
+  validateAadharNumber(aadharNumber: string): Promise<boolean>;
+  getStudentSiblings(studentId: string): Promise<StudentSibling[]>;
+  
+  // Class Fees methods
+  getClassFees(classId: string, courseType: string): Promise<ClassFee | undefined>;
+  getAllClassFees(): Promise<ClassFee[]>;
+  createClassFee(classFee: InsertClassFee): Promise<ClassFee>;
+  updateClassFee(id: string, updates: Partial<InsertClassFee>): Promise<ClassFee>;
+  deleteClassFee(id: string): Promise<void>;
 
   // Enhanced Payment methods
   getAllPayments(): Promise<Payment[]>;
@@ -735,6 +752,135 @@ export class DrizzleStorage implements IStorage {
 
   async deletePayment(id: string): Promise<void> {
     await db.delete(schema.payments).where(eq(schema.payments.id, id));
+  }
+
+  // Student ID Generation with NNAS25000001 format
+  async generateStudentId(): Promise<string> {
+    const currentYear = new Date().getFullYear();
+    const yearSuffix = currentYear.toString().slice(-2); // Get last 2 digits (e.g., 25 for 2025)
+    
+    return await db.transaction(async (tx) => {
+      // Get or create counter for current year
+      let counter = await tx.select()
+        .from(schema.studentCounter)
+        .where(eq(schema.studentCounter.year, currentYear))
+        .limit(1);
+      
+      if (counter.length === 0) {
+        // Create new counter for the year
+        const [newCounter] = await tx.insert(schema.studentCounter)
+          .values({
+            year: currentYear,
+            currentNumber: 1
+          })
+          .returning();
+        
+        const paddedNumber = String(1).padStart(7, '0');
+        return `NNAS${yearSuffix}${paddedNumber}`;
+      } else {
+        // Increment existing counter
+        const nextNumber = counter[0].currentNumber + 1;
+        await tx.update(schema.studentCounter)
+          .set({ 
+            currentNumber: nextNumber,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.studentCounter.year, currentYear));
+        
+        const paddedNumber = String(nextNumber).padStart(7, '0');
+        return `NNAS${yearSuffix}${paddedNumber}`;
+      }
+    });
+  }
+
+  // Validate Aadhar Number uniqueness
+  async validateAadharNumber(aadharNumber: string): Promise<boolean> {
+    const existing = await db.select()
+      .from(schema.students)
+      .where(eq(schema.students.aadharNumber, aadharNumber))
+      .limit(1);
+    
+    return existing.length === 0; // Returns true if Aadhar is unique
+  }
+
+  // Create student with siblings in a transaction
+  async createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student> {
+    return await db.transaction(async (tx) => {
+      // Generate unique student ID
+      const studentId = await this.generateStudentId();
+      
+      // Create the student record
+      const [newStudent] = await tx.insert(schema.students)
+        .values({
+          ...studentData,
+          studentId,
+          qrCode: `QR_${studentId}_${Date.now()}`
+        })
+        .returning();
+      
+      // Create sibling records if provided
+      if (siblings && siblings.length > 0) {
+        const siblingsWithStudentId = siblings.map(sibling => ({
+          ...sibling,
+          studentId: newStudent.id
+        }));
+        
+        await tx.insert(schema.studentSiblings)
+          .values(siblingsWithStudentId);
+      }
+      
+      return newStudent;
+    });
+  }
+
+  // Get student siblings
+  async getStudentSiblings(studentId: string): Promise<StudentSibling[]> {
+    return await db.select()
+      .from(schema.studentSiblings)
+      .where(eq(schema.studentSiblings.studentId, studentId))
+      .orderBy(asc(schema.studentSiblings.createdAt));
+  }
+
+  // Class Fees Management
+  async getClassFees(classId: string, courseType: string): Promise<ClassFee | undefined> {
+    const result = await db.select()
+      .from(schema.classFees)
+      .where(and(
+        eq(schema.classFees.classId, classId),
+        eq(schema.classFees.courseType, courseType as any),
+        eq(schema.classFees.isActive, true)
+      ))
+      .limit(1);
+    
+    return result[0];
+  }
+
+  async getAllClassFees(): Promise<ClassFee[]> {
+    return await db.select()
+      .from(schema.classFees)
+      .where(eq(schema.classFees.isActive, true))
+      .orderBy(asc(schema.classFees.createdAt));
+  }
+
+  async createClassFee(classFee: InsertClassFee): Promise<ClassFee> {
+    const [result] = await db.insert(schema.classFees)
+      .values(classFee)
+      .returning();
+    return result;
+  }
+
+  async updateClassFee(id: string, updates: Partial<InsertClassFee>): Promise<ClassFee> {
+    const [result] = await db.update(schema.classFees)
+      .set(updates)
+      .where(eq(schema.classFees.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteClassFee(id: string): Promise<void> {
+    await db.update(schema.classFees)
+      .set({ isActive: false })
+      .where(eq(schema.classFees.id, id));
   }
 }
 

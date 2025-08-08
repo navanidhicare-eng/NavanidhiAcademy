@@ -19,6 +19,8 @@ import jwt from "jsonwebtoken";
 import { 
   insertUserSchema, 
   insertStudentSchema, 
+  insertStudentSiblingSchema,
+  insertClassFeeSchema,
   insertPaymentSchema, 
   insertTopicProgressSchema,
   insertStateSchema,
@@ -304,6 +306,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(student);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch student" });
+    }
+  });
+
+  // Comprehensive Student Registration with Siblings
+  app.post("/api/students/comprehensive", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      if (req.user.role !== 'so_center' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { studentData, siblings, admissionFeePaid, receiptNumber } = req.body;
+      
+      console.log('📝 Comprehensive student registration:', {
+        studentName: studentData.name,
+        aadhar: studentData.aadharNumber,
+        siblingsCount: siblings?.length || 0,
+        admissionFeePaid,
+        receiptNumber
+      });
+
+      // Validate Aadhar number uniqueness
+      const isAadharUnique = await storage.validateAadharNumber(studentData.aadharNumber);
+      if (!isAadharUnique) {
+        return res.status(400).json({ 
+          message: "Aadhar number already registered. Contact admin if this is an error." 
+        });
+      }
+
+      // Create student with siblings
+      const student = await storage.createStudentWithSiblings(studentData, siblings);
+      
+      // Handle admission fee if paid
+      if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
+        try {
+          // Get class fee information
+          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
+          
+          if (classFee) {
+            // Create payment record
+            await storage.createPayment({
+              studentId: student.id,
+              amount: classFee.admissionFee,
+              paymentMethod: 'cash',
+              description: `Admission fee payment - Receipt: ${receiptNumber}`,
+              recordedBy: req.user.userId
+            });
+
+            // Add amount to SO Center wallet
+            await storage.updateSoCenterWallet(studentData.soCenterId, classFee.admissionFee.toString());
+            
+            console.log('💰 Admission fee processed:', classFee.admissionFee);
+          }
+        } catch (error) {
+          console.error('❌ Error processing admission fee:', error);
+          // Continue with student creation even if fee processing fails
+        }
+      }
+      
+      res.status(201).json({
+        student,
+        message: admissionFeePaid ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!'
+      });
+    } catch (error: any) {
+      console.error('❌ Comprehensive student registration error:', error);
+      res.status(400).json({ 
+        message: error.message || "Failed to register student" 
+      });
+    }
+  });
+
+  // Validate Aadhar Number
+  app.post("/api/students/validate-aadhar", authenticateToken, async (req, res) => {
+    try {
+      const { aadharNumber } = req.body;
+      
+      if (!aadharNumber) {
+        return res.status(400).json({ message: "Aadhar number is required" });
+      }
+
+      const isUnique = await storage.validateAadharNumber(aadharNumber);
+      
+      res.json({ 
+        isUnique,
+        message: isUnique ? "Aadhar number is available" : "Aadhar number already registered"
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to validate Aadhar number" });
+    }
+  });
+
+  // Get Student Siblings
+  app.get("/api/students/:id/siblings", authenticateToken, async (req, res) => {
+    try {
+      const siblings = await storage.getStudentSiblings(req.params.id);
+      res.json(siblings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch siblings" });
+    }
+  });
+
+  // Class Fees Management
+  app.get("/api/class-fees", authenticateToken, async (req, res) => {
+    try {
+      const { classId, courseType } = req.query;
+      
+      if (classId && courseType) {
+        const classFee = await storage.getClassFees(classId as string, courseType as string);
+        res.json(classFee);
+      } else {
+        const allClassFees = await storage.getAllClassFees();
+        res.json(allClassFees);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch class fees" });
+    }
+  });
+
+  app.post("/api/class-fees", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can manage class fees" });
+      }
+      
+      const classFeeData = insertClassFeeSchema.parse(req.body);
+      const classFee = await storage.createClassFee(classFeeData);
+      res.status(201).json(classFee);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to create class fee" });
+    }
+  });
+
+  app.put("/api/class-fees/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can manage class fees" });
+      }
+      
+      const updates = insertClassFeeSchema.partial().parse(req.body);
+      const classFee = await storage.updateClassFee(req.params.id, updates);
+      res.json(classFee);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to update class fee" });
+    }
+  });
+
+  app.delete("/api/class-fees/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can manage class fees" });
+      }
+      
+      await storage.deleteClassFee(req.params.id);
+      res.json({ message: "Class fee deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete class fee" });
     }
   });
 
