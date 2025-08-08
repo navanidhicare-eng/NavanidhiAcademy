@@ -130,19 +130,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("No demo user found, trying database...");
       // Try database users
       try {
+        console.log(`🔍 Looking up user by email: ${email}`);
         const user = await storage.getUserByEmail(email);
+        
         if (!user) {
+          console.log(`❌ User not found in database for email: ${email}`);
           return res.status(401).json({ message: "Invalid credentials" });
         }
-
+        
+        console.log(`✅ User found: ${user.name} (${user.email}) with role: ${user.role}`);
+        console.log(`🔐 Comparing password... (provided: '${password}')`);
+        
         const isValidPassword = await bcrypt.compare(password, user.password);
+        console.log(`🔐 Password comparison result: ${isValidPassword}`);
+        
         if (!isValidPassword) {
+          console.log(`❌ Password mismatch for user: ${email}`);
           return res.status(401).json({ message: "Invalid credentials" });
         }
-
+        
+        console.log(`👤 Checking role: provided '${role}' vs user role '${user.role}'`);
         if (user.role !== role) {
+          console.log(`❌ Role mismatch: expected '${role}' but user has '${user.role}'`);
           return res.status(401).json({ message: "Invalid role selection" });
         }
+        
+        console.log(`🎉 Authentication successful for ${email}`);
 
         const token = jwt.sign(
           { userId: user.id, email: user.email, role: user.role },
