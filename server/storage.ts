@@ -32,6 +32,65 @@ if (!process.env.DATABASE_URL) {
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const db = drizzle(sql, { schema });
 
+// Initialize database with default data
+async function initializeDatabase() {
+  try {
+    // Check if states exist
+    const existingStates = await db.select().from(schema.states);
+    
+    if (existingStates.length === 0) {
+      console.log('Initializing database with default states...');
+      
+      // Add default states
+      const defaultStates = [
+        { name: 'Andhra Pradesh', code: 'AP' },
+        { name: 'Telangana', code: 'TS' },
+        { name: 'Karnataka', code: 'KA' },
+        { name: 'Tamil Nadu', code: 'TN' },
+        { name: 'Kerala', code: 'KL' }
+      ];
+      
+      for (const state of defaultStates) {
+        await db.insert(schema.states).values(state);
+      }
+      
+      console.log('Database initialized with default states');
+    }
+    
+    // Check if classes exist
+    const existingClasses = await db.select().from(schema.classes);
+    
+    if (existingClasses.length === 0) {
+      console.log('Initializing database with default classes...');
+      
+      // Add default classes
+      const defaultClasses = [
+        { name: '1st Class', description: 'First standard' },
+        { name: '2nd Class', description: 'Second standard' },
+        { name: '3rd Class', description: 'Third standard' },
+        { name: '4th Class', description: 'Fourth standard' },
+        { name: '5th Class', description: 'Fifth standard' },
+        { name: '6th Class', description: 'Sixth standard' },
+        { name: '7th Class', description: 'Seventh standard' },
+        { name: '8th Class', description: 'Eighth standard' },
+        { name: '9th Class', description: 'Ninth standard' },
+        { name: '10th Class', description: 'Tenth standard' }
+      ];
+      
+      for (const classData of defaultClasses) {
+        await db.insert(schema.classes).values(classData);
+      }
+      
+      console.log('Database initialized with default classes');
+    }
+  } catch (error) {
+    console.error('Error initializing database:', error);
+  }
+}
+
+// Initialize database on startup
+initializeDatabase();
+
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
