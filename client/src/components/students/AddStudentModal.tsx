@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -109,6 +109,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const [selectedCourseType, setSelectedCourseType] = useState('');
   const [classFeesData, setClassFeesData] = useState<any>(null);
   const [aadharValidation, setAadharValidation] = useState<{ isChecking: boolean; isValid: boolean | null }>({ isChecking: false, isValid: null });
+  const aadharTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch available classes from API
   const { data: classesData = [] } = useQuery({
@@ -204,9 +205,12 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
 
   // Aadhar validation mutation
   const validateAadharMutation = useMutation({
-    mutationFn: (aadharNumber: string) => 
-      apiRequest('POST', '/api/students/validate-aadhar', { aadharNumber }),
+    mutationFn: async (aadharNumber: string) => {
+      const response = await apiRequest('POST', '/api/students/validate-aadhar', { aadharNumber });
+      return await response.json();
+    },
     onSuccess: (response: any) => {
+      console.log('Aadhar validation response:', response);
       setAadharValidation({ isChecking: false, isValid: response.isUnique });
       if (!response.isUnique) {
         toast({
@@ -216,8 +220,14 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
         });
       }
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Aadhar validation error:', error);
       setAadharValidation({ isChecking: false, isValid: null });
+      toast({
+        title: 'Validation Error',
+        description: 'Unable to validate Aadhar number. Please try again.',
+        variant: 'destructive',
+      });
     },
   });
 
@@ -245,6 +255,10 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       setSelectedCourseType('');
       setClassFeesData(null);
       setAadharValidation({ isChecking: false, isValid: null });
+      // Clear any pending validation timeout
+      if (aadharTimeoutRef.current) {
+        clearTimeout(aadharTimeoutRef.current);
+      }
       onClose();
     },
     onError: (error: any) => {
@@ -274,15 +288,34 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     createStudentMutation.mutate(data);
   };
   
-  // Handle Aadhar number validation
+  // Handle Aadhar number validation with 2-3 second delay
   const handleAadharValidation = async (aadharNumber: string) => {
+    // Clear any existing timeout
+    if (aadharTimeoutRef.current) {
+      clearTimeout(aadharTimeoutRef.current);
+    }
+    
     if (aadharNumber.length === 12) {
       setAadharValidation({ isChecking: true, isValid: null });
-      validateAadharMutation.mutate(aadharNumber);
+      
+      // Add 2.5 second delay before validation
+      aadharTimeoutRef.current = setTimeout(() => {
+        console.log('Validating Aadhar number:', aadharNumber);
+        validateAadharMutation.mutate(aadharNumber);
+      }, 2500);
     } else {
       setAadharValidation({ isChecking: false, isValid: null });
     }
   };
+  
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (aadharTimeoutRef.current) {
+        clearTimeout(aadharTimeoutRef.current);
+      }
+    };
+  }, []);
   
   // Handle address cascade changes
   const handleStateChange = (stateId: string) => {
@@ -397,7 +430,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                           />
                         </FormControl>
                         {aadharValidation.isChecking && (
-                          <p className="text-sm text-blue-600">Validating Aadhar number...</p>
+                          <p className="text-sm text-blue-600">🔍 Validating Aadhar number... Please wait 2-3 seconds</p>
                         )}
                         {aadharValidation.isValid === false && (
                           <p className="text-sm text-red-600">❌ Aadhar number already registered</p>
