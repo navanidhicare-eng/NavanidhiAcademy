@@ -193,6 +193,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
 
   const form = useForm<AddStudentFormData>({
     resolver: zodResolver(addStudentSchema),
+    mode: 'onChange',
     defaultValues: {
       name: '',
       aadharNumber: '',
@@ -202,16 +203,16 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       motherMobile: '',
       fatherQualification: '',
       motherQualification: '',
-      gender: 'male',
+      gender: 'male' as const,
       dateOfBirth: '',
       presentSchoolName: '',
-      schoolType: 'government',
+      schoolType: 'government' as const,
       villageId: '',
       address: '',
       landmark: '',
       classId: '',
-      courseType: 'monthly',
-      soCenterId: user?.role === 'so_center' ? user.id : '',
+      courseType: 'monthly' as const,
+      soCenterId: user?.role === 'so_center' ? user.id || '' : '',
       parentPhone: '',
       parentName: '',
       siblings: [],
@@ -283,36 +284,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   const onSubmit = (data: AddStudentFormData) => {
-    // Check for form validation errors first
-    if (Object.keys(form.formState.errors).length > 0) {
-      toast({
-        title: 'Form Validation Errors',
-        description: 'Please fix all form errors before submitting. Check all required fields.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Final Aadhar validation before submission
-    if (aadharValidation.isValid === false) {
-      toast({
-        title: 'Invalid Aadhar Number',
-        description: 'Please use a unique Aadhar number.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Check if Aadhar validation is still pending
-    if (aadharValidation.isValid === null) {
-      toast({
-        title: 'Aadhar Validation Pending',
-        description: 'Please wait for Aadhar number validation to complete.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     // Set parent phone for compatibility (using father's mobile)
     data.parentPhone = data.fatherMobile;
     data.parentName = data.fatherName;
@@ -1083,7 +1054,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
               </Button>
               <Button 
                 type="submit" 
-                disabled={createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0}
+                disabled={createStudentMutation.isPending}
                 className="bg-primary text-white hover:bg-blue-700"
               >
                 {createStudentMutation.isPending ? (
@@ -1093,13 +1064,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
               </Button>
               
-              {/* Helper text for disabled button */}
-              {(aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0) && !createStudentMutation.isPending && (
-                <div className="text-sm text-red-600 mt-2">
-                  {aadharValidation.isValid === false && 'Please enter a valid Aadhar number'}
-                  {Object.keys(form.formState.errors).length > 0 && 'Please fix all form errors above'}
-                </div>
-              )}
+
             </div>
           </form>
         </Form>

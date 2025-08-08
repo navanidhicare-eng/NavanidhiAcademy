@@ -111,7 +111,7 @@ Contact: support@navanidhi.com
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" aria-describedby="success-description">
         <div className="text-center space-y-6">
           {/* Success Icon */}
           <div className="relative">
@@ -130,7 +130,7 @@ Contact: support@navanidhi.com
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Registration Successful!
             </h2>
-            <p className="text-gray-600">
+            <p id="success-description" className="text-gray-600">
               Student has been successfully registered with Navanidhi Academy
             </p>
           </div>
