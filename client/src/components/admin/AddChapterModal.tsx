@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const addChapterSchema = z.object({
   name: z.string().min(1, 'Chapter name is required'),
+  classId: z.string().min(1, 'Class selection is required'),
   subjectId: z.string().min(1, 'Subject selection is required'),
 });
 
@@ -38,21 +39,45 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Mock classes data - replace with actual API call
+  const mockClasses = [
+    { id: '1', name: 'Class 10' },
+    { id: '2', name: 'Class 12' },
+    { id: '3', name: 'Navodaya' },
+    { id: '4', name: 'POLYCET' }
+  ];
+
   // Mock subjects data - replace with actual API call
   const mockSubjects = [
-    { id: '1', name: 'Mathematics - Class 10' },
-    { id: '2', name: 'Physics - Class 10' },
-    { id: '3', name: 'Chemistry - Class 10' },
-    { id: '4', name: 'Mathematics - Navodaya' }
+    { id: '1', name: 'Mathematics', classId: '1' },
+    { id: '2', name: 'Physics', classId: '1' },
+    { id: '3', name: 'Chemistry', classId: '1' },
+    { id: '4', name: 'Mathematics', classId: '3' },
+    { id: '5', name: 'English', classId: '3' },
+    { id: '6', name: 'Science', classId: '3' }
   ];
 
   const form = useForm<AddChapterFormData>({
     resolver: zodResolver(addChapterSchema),
     defaultValues: {
       name: '',
+      classId: '',
       subjectId: '',
     },
   });
+
+  const selectedClassId = form.watch('classId');
+  
+  // Filter subjects based on selected class
+  const filteredSubjects = mockSubjects.filter(subject => 
+    selectedClassId ? subject.classId === selectedClassId : false
+  );
+
+  // Reset subject when class changes
+  const handleClassChange = (classId: string) => {
+    form.setValue('classId', classId);
+    form.setValue('subjectId', ''); // Reset subject selection
+  };
 
   const createChapterMutation = useMutation({
     mutationFn: async (data: AddChapterFormData) => {
@@ -106,17 +131,42 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
 
             <FormField
               control={form.control}
+              name="classId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Class</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={handleClassChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mockClasses.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="subjectId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Subject</FormLabel>
                   <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClassId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select subject" />
+                        <SelectValue placeholder={selectedClassId ? "Select subject" : "Select class first"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockSubjects.map((subject) => (
+                        {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
                             {subject.name}
                           </SelectItem>
