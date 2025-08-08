@@ -14,7 +14,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "marketing_staff"
 ]);
 
-export const courseTypeEnum = pgEnum("course_type", ["fixed_fee", "monthly_tuition"]);
+export const courseTypeEnum = pgEnum("course_type", ["monthly", "yearly"]);
 export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 export const schoolTypeEnum = pgEnum("school_type", ["government", "private"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "pending", "overdue"]);
@@ -261,6 +261,7 @@ export const classFees = pgTable("class_fees", {
   courseType: courseTypeEnum("course_type").notNull(),
   admissionFee: decimal("admission_fee", { precision: 10, scale: 2 }).notNull(),
   monthlyFee: decimal("monthly_fee", { precision: 10, scale: 2 }),
+  yearlyFee: decimal("yearly_fee", { precision: 10, scale: 2 }),
   description: text("description"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),

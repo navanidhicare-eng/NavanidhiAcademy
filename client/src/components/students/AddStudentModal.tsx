@@ -67,7 +67,7 @@ const addStudentSchema = z.object({
   
   // Academic Information
   classId: z.string().min(1, 'Class is required'),
-  courseType: z.enum(['fixed_fee', 'monthly_tuition']),
+  courseType: z.enum(['monthly', 'yearly']),
   
   // System fields
   soCenterId: z.string().min(1, 'SO Center is required'),
@@ -187,7 +187,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       address: '',
       landmark: '',
       classId: '',
-      courseType: 'monthly_tuition',
+      courseType: 'monthly',
       soCenterId: user?.role === 'so_center' ? user.id : '',
       parentPhone: '',
       parentName: '',
@@ -311,7 +311,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   
   const handleCourseTypeChange = (courseType: string) => {
     setSelectedCourseType(courseType);
-    form.setValue('courseType', courseType as 'fixed_fee' | 'monthly_tuition');
+    form.setValue('courseType', courseType as 'monthly' | 'yearly');
   };
   
   // Add new sibling
@@ -802,8 +802,8 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                               <SelectValue placeholder="Select course type" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="monthly_tuition">Monthly Tuition</SelectItem>
-                              <SelectItem value="fixed_fee">Fixed Fee Course</SelectItem>
+                              <SelectItem value="monthly">Monthly Fee</SelectItem>
+                              <SelectItem value="yearly">Yearly Fee</SelectItem>
                             </SelectContent>
                           </Select>
                         </FormControl>
@@ -822,10 +822,16 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                         <span className="text-gray-600">Admission Fee:</span>
                         <span className="font-semibold text-green-600 ml-2">₹{classFeesData.admissionFee}</span>
                       </div>
-                      {classFeesData.monthlyFee && (
+                      {selectedCourseType === 'monthly' && classFeesData.monthlyFee && (
                         <div>
                           <span className="text-gray-600">Monthly Fee:</span>
                           <span className="font-semibold text-blue-600 ml-2">₹{classFeesData.monthlyFee}</span>
+                        </div>
+                      )}
+                      {selectedCourseType === 'yearly' && classFeesData.yearlyFee && (
+                        <div>
+                          <span className="text-gray-600">Yearly Fee:</span>
+                          <span className="font-semibold text-purple-600 ml-2">₹{classFeesData.yearlyFee}</span>
                         </div>
                       )}
                     </div>
