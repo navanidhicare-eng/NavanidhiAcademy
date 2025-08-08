@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Table,
   TableBody,
@@ -195,13 +196,11 @@ export default function Teachers() {
   const totalStudents = teachers.reduce((sum, teacher) => sum + teacher.totalStudents, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Teacher Management</h1>
-          <p className="text-gray-600 mt-1">Track teaching progress and lesson completion</p>
-        </div>
-      </div>
+    <DashboardLayout 
+      title="Teacher Management" 
+      subtitle="Track teaching progress and lesson completion"
+    >
+      <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -468,6 +467,7 @@ export default function Teachers() {
           </TableBody>
         </Table>
       </div>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

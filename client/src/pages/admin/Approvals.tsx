@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Table,
   TableBody,
@@ -324,13 +325,8 @@ export default function Approvals() {
   const totalAmount = approvals.filter(a => a.amount && a.status === 'approved').reduce((sum, a) => sum + (a.amount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Approvals</h1>
-          <p className="text-gray-600 mt-1">Review and approve various requests</p>
-        </div>
-      </div>
+    <DashboardLayout title="Approvals" subtitle="Review and approve various requests">
+      <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -536,11 +532,12 @@ export default function Approvals() {
         </Table>
       </div>
 
-      <ApprovalDetailsModal 
-        isOpen={isDetailsModalOpen}
-        onClose={handleCloseDetailsModal}
-        approval={selectedApproval}
-      />
-    </div>
+        <ApprovalDetailsModal 
+          isOpen={isDetailsModalOpen}
+          onClose={handleCloseDetailsModal}
+          approval={selectedApproval}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

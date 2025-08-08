@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Dialog,
   DialogContent,
@@ -499,20 +500,13 @@ export default function Academics() {
   const passRate = results.length > 0 ? (results.filter(r => r.status === 'pass').length / results.length) * 100 : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Academic Management</h1>
-          <p className="text-gray-600 mt-1">Create exams and manage academic results</p>
-        </div>
-        <Button 
-          onClick={() => setIsExamModalOpen(true)}
-          className="bg-primary text-white hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Exam
-        </Button>
-      </div>
+    <DashboardLayout 
+      title="Academic Management" 
+      subtitle="Create exams and manage academic results"
+      showAddButton={true}
+      onAddClick={() => setIsExamModalOpen(true)}
+    >
+      <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -691,11 +685,12 @@ export default function Academics() {
         </TabsContent>
       </Tabs>
 
-      <AddExamModal 
-        isOpen={isExamModalOpen}
-        onClose={handleCloseExamModal}
-        editingExam={editingExam}
-      />
-    </div>
+        <AddExamModal 
+          isOpen={isExamModalOpen}
+          onClose={handleCloseExamModal}
+          editingExam={editingExam}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

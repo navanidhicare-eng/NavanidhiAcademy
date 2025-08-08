@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Dialog,
   DialogContent,
@@ -386,20 +387,13 @@ export default function Expenses() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Expense & Salary Management</h1>
-          <p className="text-gray-600 mt-1">Track expenses and manage payroll</p>
-        </div>
-        <Button 
-          onClick={() => setIsExpenseModalOpen(true)}
-          className="bg-primary text-white hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Expense
-        </Button>
-      </div>
+    <DashboardLayout 
+      title="Expense & Salary Management" 
+      subtitle="Track expenses and manage payroll"
+      showAddButton={true}
+      onAddClick={() => setIsExpenseModalOpen(true)}
+    >
+      <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -555,11 +549,12 @@ export default function Expenses() {
         </TabsContent>
       </Tabs>
 
-      <AddExpenseModal 
-        isOpen={isExpenseModalOpen}
-        onClose={handleCloseExpenseModal}
-        editingExpense={editingExpense}
-      />
-    </div>
+        <AddExpenseModal 
+          isOpen={isExpenseModalOpen}
+          onClose={handleCloseExpenseModal}
+          editingExpense={editingExpense}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

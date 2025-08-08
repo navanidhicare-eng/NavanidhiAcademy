@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Dialog,
   DialogContent,
@@ -367,20 +368,13 @@ export default function Fees() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Fee Management</h1>
-          <p className="text-gray-600 mt-1">Manage class-wise fee structures</p>
-        </div>
-        <Button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-primary text-white hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Fee Structure
-        </Button>
-      </div>
+    <DashboardLayout 
+      title="Fee Management" 
+      subtitle="Manage class-wise fee structures"
+      showAddButton={true}
+      onAddClick={() => setIsAddModalOpen(true)}
+    >
+      <div className="space-y-6">
 
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
@@ -497,11 +491,12 @@ export default function Fees() {
         </div>
       </div>
 
-      <AddEditFeeModal 
-        isOpen={isAddModalOpen}
-        onClose={handleCloseModal}
-        editingFee={editingFee}
-      />
-    </div>
+        <AddEditFeeModal 
+          isOpen={isAddModalOpen}
+          onClose={handleCloseModal}
+          editingFee={editingFee}
+        />
+      </div>
+    </DashboardLayout>
   );
 }

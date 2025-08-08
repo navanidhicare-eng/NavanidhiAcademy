@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Table,
   TableBody,
@@ -160,19 +161,17 @@ export default function Attendance() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Attendance Monitoring</h1>
-          <p className="text-gray-600 mt-1">Track student attendance across all centers and classes</p>
-        </div>
-        <div className="flex space-x-2">
+    <DashboardLayout 
+      title="Attendance Monitoring" 
+      subtitle="Track student attendance across all centers and classes"
+    >
+      <div className="space-y-6">
+        <div className="flex justify-end">
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export Report
           </Button>
         </div>
-      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -425,7 +424,8 @@ export default function Attendance() {
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

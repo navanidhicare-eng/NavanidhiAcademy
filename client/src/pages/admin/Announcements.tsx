@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import {
   Dialog,
   DialogContent,
@@ -454,20 +455,13 @@ export default function Announcements() {
   const scheduledAnnouncements = announcements.filter(a => a.status === 'scheduled').length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-gray-600 mt-1">Create and manage system-wide announcements</p>
-        </div>
-        <Button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-primary text-white hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Announcement
-        </Button>
-      </div>
+    <DashboardLayout 
+      title="Announcements" 
+      subtitle="Create and manage system-wide announcements"
+      showAddButton={true}
+      onAddClick={() => setIsAddModalOpen(true)}
+    >
+      <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -622,11 +616,12 @@ export default function Announcements() {
         </Table>
       </div>
 
-      <AddAnnouncementModal 
-        isOpen={isAddModalOpen}
-        onClose={handleCloseModal}
-        editingAnnouncement={editingAnnouncement}
-      />
-    </div>
+        <AddAnnouncementModal 
+          isOpen={isAddModalOpen}
+          onClose={handleCloseModal}
+          editingAnnouncement={editingAnnouncement}
+        />
+      </div>
+    </DashboardLayout>
   );
 }
