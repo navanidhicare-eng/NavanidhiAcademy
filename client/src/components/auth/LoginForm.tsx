@@ -158,7 +158,13 @@ export function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
+            <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
+              <strong>Demo Credentials:</strong><br/>
+              • Admin: admin@demo.com / admin123 / Admin<br/>
+              • SO Center: so@demo.com / so123 / SO Center<br/>
+              • Teacher: teacher@demo.com / teacher123 / Teacher
+            </div>
             <a href="#" className="text-primary hover:text-blue-700 text-sm">
               Forgot Password?
             </a>

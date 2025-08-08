@@ -45,35 +45,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password, role } = req.body;
       
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      if (user.role !== role) {
-        return res.status(401).json({ message: "Invalid role selection" });
-      }
-
-      const token = jwt.sign(
-        { userId: user.id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      res.json({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
+      // Demo users for testing
+      const demoUsers = [
+        {
+          id: "demo-admin-1",
+          email: "admin@demo.com",
+          password: "admin123",
+          name: "Admin User",
+          role: "admin"
+        },
+        {
+          id: "demo-so-1", 
+          email: "so@demo.com",
+          password: "so123",
+          name: "SO Center Manager",
+          role: "so_center"
+        },
+        {
+          id: "demo-teacher-1",
+          email: "teacher@demo.com", 
+          password: "teacher123",
+          name: "Math Teacher",
+          role: "teacher"
         }
-      });
+      ];
+
+      // Check for demo users first
+      const demoUser = demoUsers.find(u => u.email === email && u.password === password && u.role === role);
+      if (demoUser) {
+        const token = jwt.sign(
+          { userId: demoUser.id, email: demoUser.email, role: demoUser.role },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        return res.json({
+          token,
+          user: {
+            id: demoUser.id,
+            email: demoUser.email,
+            name: demoUser.name,
+            role: demoUser.role,
+          }
+        });
+      }
+
+      // Try database users
+      try {
+        const user = await storage.getUserByEmail(email);
+        if (!user) {
+          return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+          return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        if (user.role !== role) {
+          return res.status(401).json({ message: "Invalid role selection" });
+        }
+
+        const token = jwt.sign(
+          { userId: user.id, email: user.email, role: user.role },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        res.json({
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        });
+      } catch (dbError) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
     } catch (error) {
       res.status(500).json({ message: "Login failed" });
     }
