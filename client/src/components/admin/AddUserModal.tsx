@@ -92,72 +92,43 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
   const selectedRole = form.watch('role');
   const selectedSalaryType = form.watch('salaryType');
 
-  // Fetch address hierarchy data
-  const { data: states = [] } = useQuery({
+  // Fetch address hierarchy data from database
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
-    queryFn: async () => {
-      // Mock data for now
-      return [
-        { id: '1', name: 'Telangana', code: 'TS' },
-        { id: '2', name: 'Andhra Pradesh', code: 'AP' },
-        { id: '3', name: 'Karnataka', code: 'KA' },
-      ];
-    },
   });
 
-  const { data: districts = [] } = useQuery({
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts', selectedState],
     queryFn: async () => {
       if (!selectedState) return [];
-      // Mock data based on selected state
-      return [
-        { id: '1', name: 'Hyderabad', code: 'HYD', stateId: selectedState },
-        { id: '2', name: 'Warangal', code: 'WGL', stateId: selectedState },
-        { id: '3', name: 'Nizamabad', code: 'NZB', stateId: selectedState },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
+      return response.json();
     },
     enabled: !!selectedState,
   });
 
-  const { data: mandals = [] } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     queryFn: async () => {
       if (!selectedDistrict) return [];
-      // Mock data based on selected district
-      return [
-        { id: '1', name: 'Secunderabad', code: 'SEC', districtId: selectedDistrict },
-        { id: '2', name: 'Kukatpally', code: 'KKP', districtId: selectedDistrict },
-        { id: '3', name: 'Uppal', code: 'UPL', districtId: selectedDistrict },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
+      return response.json();
     },
     enabled: !!selectedDistrict,
   });
 
-  const { data: villages = [] } = useQuery({
+  const { data: villages = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     queryFn: async () => {
       if (!selectedMandal) return [];
-      // Mock data based on selected mandal
-      return [
-        { id: '1', name: 'Alwal', code: 'ALW', mandalId: selectedMandal },
-        { id: '2', name: 'Bollarum', code: 'BLR', mandalId: selectedMandal },
-        { id: '3', name: 'Kompally', code: 'KMP', mandalId: selectedMandal },
-      ];
+      const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
+      return response.json();
     },
     enabled: !!selectedMandal,
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/products'],
-    queryFn: async () => {
-      // Mock products data for commission calculation
-      return [
-        { id: '1', name: 'Class 10 Course', commissionPercentage: 5 },
-        { id: '2', name: 'Class 12 Course', commissionPercentage: 7 },
-        { id: '3', name: 'Navodaya Course', commissionPercentage: 6 },
-        { id: '4', name: 'POLYCET Course', commissionPercentage: 8 },
-      ];
-    },
     enabled: selectedRole === 'agent' && selectedSalaryType === 'commission',
   });
 
