@@ -422,6 +422,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard stats endpoint
+  app.get("/api/dashboard/stats", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Return mock stats for now - replace with actual calculations
+      const stats = {
+        totalStudents: 156,
+        paymentsThisMonth: 45200,
+        topicsCompleted: 1247,
+        walletBalance: 12450,
+      };
+
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Wallet endpoint
+  app.get("/api/wallet/:userId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      // Return mock wallet data for now
+      const walletData = {
+        balance: 12450,
+        transactions: [
+          { 
+            id: 1, 
+            type: 'credit', 
+            amount: 2500, 
+            description: 'Payment from Arjun Reddy', 
+            date: new Date().toLocaleDateString() 
+          },
+          { 
+            id: 2, 
+            type: 'credit', 
+            amount: 3000, 
+            description: 'Payment from Sneha Patel', 
+            date: new Date(Date.now() - 86400000).toLocaleDateString() 
+          },
+          { 
+            id: 3, 
+            type: 'debit', 
+            amount: 5000, 
+            description: 'Collection by Agent', 
+            date: new Date(Date.now() - 172800000).toLocaleDateString() 
+          },
+        ]
+      };
+
+      res.json(walletData);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch wallet data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

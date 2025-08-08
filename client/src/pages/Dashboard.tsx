@@ -2,24 +2,51 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'wouter';
 import { 
   Users, 
   IndianRupee, 
   CheckCircle, 
   Wallet,
-  TrendingUp 
+  TrendingUp,
+  Building
 } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // Mock stats - replace with actual API calls
-  const stats = {
+  // Fetch dashboard stats
+  const { data: stats } = useQuery({
+    queryKey: ['/api/dashboard/stats'],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/dashboard/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        // Return mock data if API fails for now
+        return {
+          totalStudents: 156,
+          paymentsThisMonth: 45200,
+          topicsCompleted: 1247,
+          walletBalance: 12450,
+        };
+      }
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const defaultStats = {
     totalStudents: 156,
     paymentsThisMonth: 45200,
     topicsCompleted: 1247,
     walletBalance: 12450,
   };
+
+  const displayStats = stats || defaultStats;
 
   const StatCard = ({ 
     title, 
@@ -67,7 +94,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Students"
-          value={stats.totalStudents}
+          value={displayStats.totalStudents}
           icon={Users}
           trend="+12% from last month"
           color="primary"
@@ -75,7 +102,7 @@ export default function Dashboard() {
         
         <StatCard
           title="Payments This Month"
-          value={`₹${stats.paymentsThisMonth.toLocaleString()}`}
+          value={`₹${displayStats.paymentsThisMonth.toLocaleString()}`}
           icon={IndianRupee}
           trend="+8% from last month"
           color="secondary"
@@ -83,7 +110,7 @@ export default function Dashboard() {
         
         <StatCard
           title="Topics Completed"
-          value={stats.topicsCompleted}
+          value={displayStats.topicsCompleted}
           icon={CheckCircle}
           trend="+25% this week"
           color="accent"
@@ -91,7 +118,7 @@ export default function Dashboard() {
         
         <StatCard
           title="Wallet Balance"
-          value={`₹${stats.walletBalance.toLocaleString()}`}
+          value={`₹${displayStats.walletBalance.toLocaleString()}`}
           icon={Wallet}
           color="purple-600"
         />
@@ -139,35 +166,41 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                  <div className="flex items-center space-x-3">
-                    <Users size={20} className="text-primary" />
-                    <div>
-                      <p className="font-medium">Add New Student</p>
-                      <p className="text-sm text-gray-600">Register a new student</p>
+                <Link href="/students">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <Users size={20} className="text-primary" />
+                      <div>
+                        <p className="font-medium">Add New Student</p>
+                        <p className="text-sm text-gray-600">Register a new student</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </Link>
                 
-                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                  <div className="flex items-center space-x-3">
-                    <IndianRupee size={20} className="text-secondary" />
-                    <div>
-                      <p className="font-medium">Record Payment</p>
-                      <p className="text-sm text-gray-600">Add student payment</p>
+                <Link href="/payments">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <IndianRupee size={20} className="text-secondary" />
+                      <div>
+                        <p className="font-medium">Record Payment</p>
+                        <p className="text-sm text-gray-600">Add student payment</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </Link>
                 
-                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                  <div className="flex items-center space-x-3">
-                    <TrendingUp size={20} className="text-accent" />
-                    <div>
-                      <p className="font-medium">Update Progress</p>
-                      <p className="text-sm text-gray-600">Mark topic completion</p>
+                <Link href="/progress">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <TrendingUp size={20} className="text-accent" />
+                      <div>
+                        <p className="font-medium">Update Progress</p>
+                        <p className="text-sm text-gray-600">Mark topic completion</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -175,27 +208,74 @@ export default function Dashboard() {
       )}
 
       {user?.role === 'admin' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>System Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">12</div>
-                <p className="text-gray-600">Active SO Centers</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-primary">12</div>
+                  <p className="text-gray-600">Active SO Centers</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-secondary">45</div>
+                  <p className="text-gray-600">Teachers</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-accent">856</div>
+                  <p className="text-gray-600">Total Students</p>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-secondary">45</div>
-                <p className="text-gray-600">Teachers</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Admin Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <Link href="/admin/centers">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <Building size={20} className="text-primary" />
+                      <div>
+                        <p className="font-medium">Manage SO Centers</p>
+                        <p className="text-sm text-gray-600">Add or modify centers</p>
+                      </div>
+                    </div>
+                  </button>
+                </Link>
+                
+                <Link href="/admin/students">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <Users size={20} className="text-accent" />
+                      <div>
+                        <p className="font-medium">View All Students</p>
+                        <p className="text-sm text-gray-600">System-wide student list</p>
+                      </div>
+                    </div>
+                  </button>
+                </Link>
+                
+                <Link href="/admin/payments">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <IndianRupee size={20} className="text-secondary" />
+                      <div>
+                        <p className="font-medium">Payment Overview</p>
+                        <p className="text-sm text-gray-600">All system payments</p>
+                      </div>
+                    </div>
+                  </button>
+                </Link>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-accent">856</div>
-                <p className="text-gray-600">Total Students</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </DashboardLayout>
   );

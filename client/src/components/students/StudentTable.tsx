@@ -38,28 +38,21 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const mockStudents = [
-    {
-      id: '1',
-      name: 'Arjun Reddy',
-      classId: 'Class 10',
-      parentPhone: '+91 98765 43210',
-      qrCode: 'student_123',
-      paymentStatus: 'paid',
-      progress: 78
-    },
-    {
-      id: '2',
-      name: 'Sneha Patel',
-      classId: 'Navodaya',
-      parentPhone: '+91 87654 32109',
-      qrCode: 'student_124',
-      paymentStatus: 'pending',
-      progress: 45
-    }
-  ];
+  // Filter students based on search and class filter
+  const filteredStudents = students.filter((student: any) => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.parentPhone.includes(searchTerm);
+    const matchesClass = classFilter === 'all' || student.classId.toLowerCase().includes(classFilter.replace('-', ' '));
+    return matchesSearch && matchesClass;
+  });
 
-  const displayStudents = mockStudents; // Use mock data for now
+  // Mock additional data for students that might not come from API
+  const displayStudents = filteredStudents.map((student: any) => ({
+    ...student,
+    paymentStatus: Math.random() > 0.3 ? 'paid' : 'pending', // Mock payment status
+    progress: Math.floor(Math.random() * 100), // Mock progress
+    qrCode: student.qrCode || `student_${student.id}` // Ensure QR code exists
+  }));
 
   const handleShowQR = (student: any) => {
     setSelectedStudent(student);
@@ -116,31 +109,36 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
 
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Student
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Class
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Payment Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    QR Code
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {displayStudents.map((student) => (
+            {displayStudents.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No students found</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Class
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Payment Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Progress
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      QR Code
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {displayStudents.map((student) => (
                   <tr key={student.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -207,9 +205,10 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* Pagination */}

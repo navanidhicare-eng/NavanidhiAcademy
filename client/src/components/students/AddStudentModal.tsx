@@ -1,9 +1,10 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
   DialogContent,
@@ -40,7 +41,40 @@ interface AddStudentModalProps {
 
 export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Fetch available classes from API
+  const { data: classesData = [] } = useQuery({
+    queryKey: ['/api/classes'],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/classes', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: isOpen,
+  });
+
+  // Fetch SO centers for admin
+  const { data: soCenters = [] } = useQuery({
+    queryKey: ['/api/so-centers'],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/so-centers', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: isOpen && user?.role === 'admin',
+  });
 
   const form = useForm<AddStudentFormData>({
     resolver: zodResolver(addStudentSchema),
@@ -50,7 +84,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       parentPhone: '',
       parentName: '',
       courseType: 'monthly_tuition',
-      soCenterId: '',
+      soCenterId: user?.role === 'so_center' ? user.id : '',
     },
   });
 
@@ -79,7 +113,10 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     createStudentMutation.mutate(data);
   };
 
-  const classes = [
+  const classes = classesData && classesData.length > 0 ? classesData.map((cls: any) => ({
+    value: cls.id,
+    label: cls.name
+  })) : [
     { value: 'class-10', label: 'Class 10' },
     { value: 'class-12', label: 'Class 12' },
     { value: 'navodaya', label: 'Navodaya' },
@@ -157,6 +194,34 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
               />
             </div>
+
+            {/* SO Center Selection for Admin */}
+            {user?.role === 'admin' && (
+              <FormField
+                control={form.control}
+                name="soCenterId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SO Center</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select SO Center" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {soCenters.map((center: any) => (
+                            <SelectItem key={center.id} value={center.id}>
+                              {center.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
