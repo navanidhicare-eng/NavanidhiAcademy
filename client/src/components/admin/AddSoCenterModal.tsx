@@ -35,7 +35,13 @@ const addSoCenterSchema = z.object({
   ownerName: z.string().min(1, 'Owner name is required'),
   ownerPhone: z.string().min(10, 'Owner phone number is required'),
   rentAmount: z.string().min(1, 'Rent amount is required'),
+  rentalAdvance: z.string().min(1, 'Rental advance is required'),
   dateOfHouseTaken: z.string().min(1, 'Date of house taken is required'),
+  monthlyRentDate: z.string().min(1, 'Monthly rent date is required'),
+  electricityAmount: z.string().min(1, 'Electricity amount is required'),
+  monthlyElectricityDate: z.string().min(1, 'Monthly electricity date is required'),
+  internetAmount: z.string().min(1, 'Internet amount is required'),
+  monthlyInternetDate: z.string().min(1, 'Monthly internet date is required'),
   capacity: z.string().min(1, 'Center capacity is required'),
   facilities: z.array(z.string()).min(1, 'At least one facility must be selected'),
 });
@@ -145,7 +151,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       ownerName: '',
       ownerPhone: '',
       rentAmount: '',
+      rentalAdvance: '',
       dateOfHouseTaken: '',
+      monthlyRentDate: '',
+      electricityAmount: '',
+      monthlyElectricityDate: '',
+      internetAmount: '',
+      monthlyInternetDate: '',
       capacity: '',
       facilities: [],
     },
@@ -198,6 +210,12 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         centerId: nextCenterId,
         password: '12345678', // Default password as requested
         rentAmount: parseFloat(data.rentAmount),
+        rentalAdvance: parseFloat(data.rentalAdvance),
+        monthlyRentDate: parseInt(data.monthlyRentDate),
+        electricityAmount: parseFloat(data.electricityAmount),
+        monthlyElectricityDate: parseInt(data.monthlyElectricityDate),
+        internetAmount: parseFloat(data.internetAmount),
+        monthlyInternetDate: parseInt(data.monthlyInternetDate),
         capacity: parseInt(data.capacity),
         facilities: selectedFacilities,
       };
@@ -452,12 +470,102 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
                 <FormField
                   control={form.control}
+                  name="rentalAdvance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rental Advance (₹)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="50000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
                   name="dateOfHouseTaken"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Date of House Taken for Rent</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="monthlyRentDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Rent Date (Day of Month)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" max="31" placeholder="5" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="electricityAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Electricity Bill (₹)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="3000" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="monthlyElectricityDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Electricity Bill Date (Day of Month)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" max="31" placeholder="10" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="internetAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Internet Bill (₹)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="1500" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="monthlyInternetDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Internet Bill Date (Day of Month)</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" max="31" placeholder="15" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

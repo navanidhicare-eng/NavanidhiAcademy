@@ -85,7 +85,13 @@ export const soCenters = pgTable("so_centers", {
   ownerName: text("owner_name"),
   ownerPhone: text("owner_phone"),
   rentAmount: decimal("rent_amount", { precision: 10, scale: 2 }),
+  rentalAdvance: decimal("rental_advance", { precision: 10, scale: 2 }),
   dateOfHouseTaken: text("date_of_house_taken"),
+  monthlyRentDate: integer("monthly_rent_date"), // Day of month (1-31)
+  electricityAmount: decimal("electricity_amount", { precision: 10, scale: 2 }),
+  monthlyElectricityDate: integer("monthly_electricity_date"), // Day of month (1-31)
+  internetAmount: decimal("internet_amount", { precision: 10, scale: 2 }),
+  monthlyInternetDate: integer("monthly_internet_date"), // Day of month (1-31)
   capacity: integer("capacity"),
   facilities: text("facilities").array(),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).default("0"),
