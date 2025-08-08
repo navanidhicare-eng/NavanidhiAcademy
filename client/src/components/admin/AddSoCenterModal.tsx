@@ -34,19 +34,17 @@ const addSoCenterSchema = z.object({
   managerId: z.string().optional().transform(val => val === 'none' ? undefined : val),
   ownerName: z.string().min(1, 'Owner name is required'),
   ownerLastName: z.string().min(1, 'Owner last name is required'),
-  ownerFatherName: z.string().min(1, 'Owner father name is required'),
-  ownerMotherName: z.string().min(1, 'Owner mother name is required'),
   ownerPhone: z.string().min(10, 'Owner phone number is required'),
   landmarks: z.string().optional(),
   roomSize: z.string().min(1, 'Room size is required'),
-  electricalServiceProvider: z.string().min(1, 'Electrical service provider is required'),
+  electricBillAccountNumber: z.string().min(1, 'Electric bill account number is required'),
   internetServiceProvider: z.string().min(1, 'Internet service provider is required'),
+  internetBillAccountNumber: z.string().min(1, 'Internet bill account number is required'),
   rentAmount: z.string().min(1, 'Rent amount is required'),
   rentalAdvance: z.string().min(1, 'Rental advance is required'),
   dateOfHouseTaken: z.string().min(1, 'Date of house taken is required'),
   monthlyRentDate: z.string().min(1, 'Monthly rent date is required'),
   electricityAmount: z.string().min(1, 'Electricity amount is required'),
-  monthlyElectricityDate: z.string().min(1, 'Monthly electricity date is required'),
   internetAmount: z.string().min(1, 'Internet amount is required'),
   monthlyInternetDate: z.string().min(1, 'Monthly internet date is required'),
   capacity: z.string().min(1, 'Center capacity is required'),
@@ -84,17 +82,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     enabled: isOpen,
   });
 
-  // Fetch available managers (users with so_center role or admins)
-  const { data: availableManagers = [] } = useQuery({
-    queryKey: ['/api/admin/users', 'managers'],
-    queryFn: async () => {
-      // Mock managers data
-      return [
-        { id: '1', name: 'Rajesh Kumar', email: 'rajesh@navanidhi.com' },
-        { id: '2', name: 'Priya Sharma', email: 'priya@navanidhi.com' },
-        { id: '3', name: 'Amit Patel', email: 'amit@navanidhi.com' },
-      ];
-    },
+  // Fetch available managers from database
+  const { data: availableManagers = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/users/managers'],
     enabled: isOpen,
   });
 
@@ -143,19 +133,17 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       managerId: 'none',
       ownerName: '',
       ownerLastName: '',
-      ownerFatherName: '',
-      ownerMotherName: '',
       ownerPhone: '',
       landmarks: '',
       roomSize: '',
-      electricalServiceProvider: '',
+      electricBillAccountNumber: '',
       internetServiceProvider: '',
+      internetBillAccountNumber: '',
       rentAmount: '',
       rentalAdvance: '',
       dateOfHouseTaken: '',
       monthlyRentDate: '',
       electricityAmount: '',
-      monthlyElectricityDate: '',
       internetAmount: '',
       monthlyInternetDate: '',
       capacity: '',
@@ -213,10 +201,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         rentalAdvance: parseFloat(data.rentalAdvance),
         monthlyRentDate: parseInt(data.monthlyRentDate),
         electricityAmount: parseFloat(data.electricityAmount),
-        monthlyElectricityDate: parseInt(data.monthlyElectricityDate),
+        electricBillAccountNumber: data.electricBillAccountNumber,
         internetAmount: parseFloat(data.internetAmount),
         monthlyInternetDate: parseInt(data.monthlyInternetDate),
-        electricalServiceProvider: data.electricalServiceProvider,
         internetServiceProvider: data.internetServiceProvider,
         roomSize: data.roomSize,
         capacity: parseInt(data.capacity),
@@ -486,35 +473,6 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="ownerFatherName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Father Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter owner father name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="ownerMotherName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mother Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter owner mother name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
               <FormField
                 control={form.control}
@@ -607,12 +565,12 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
                 <FormField
                   control={form.control}
-                  name="monthlyElectricityDate"
+                  name="electricBillAccountNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monthly Electricity Bill Date (Day of Month)</FormLabel>
+                      <FormLabel>Electric Bill Account Number</FormLabel>
                       <FormControl>
-                        <Input type="number" min="1" max="31" placeholder="10" {...field} />
+                        <Input placeholder="Enter account number" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -620,19 +578,6 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="electricalServiceProvider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Electrical Service Provider</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., TSSPDCL, APSPDCL" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -651,6 +596,22 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
                 <FormField
                   control={form.control}
+                  name="internetBillAccountNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Internet Bill Account Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter account number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
                   name="monthlyInternetDate"
                   render={({ field }) => (
                     <FormItem>
@@ -662,21 +623,22 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="internetServiceProvider"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Internet Service Provider</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Airtel, Jio, BSNL" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField
-                control={form.control}
-                name="internetServiceProvider"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Internet Service Provider</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Airtel, Jio, BSNL" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             {/* Center Management */}

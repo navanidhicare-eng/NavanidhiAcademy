@@ -143,10 +143,11 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
       };
       return apiRequest('POST', '/api/admin/users', processedData);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const userData = form.getValues();
       toast({
-        title: 'User Created',
-        description: 'User has been successfully created.',
+        title: 'User Created Successfully! 🎉',
+        description: `Login Credentials Created:\n📧 Email: ${userData.email}\n🔒 Password: ${userData.password}\n👤 Role: ${userData.role}\n\nPlease share these credentials with the user securely.`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       form.reset();
@@ -575,11 +576,19 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
 
             <div className="bg-blue-50 p-4 rounded-lg mt-6">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> The user will be required to change their password on first login for security reasons.
-                {selectedRole === 'agent' && selectedSalaryType === 'commission' && (
-                  <span> Commission will be calculated based on selected products and their respective percentages.</span>
-                )}
+                <strong>📌 Important:</strong> After creating the user, you will receive their login credentials. Please share the following information with them:
               </p>
+              <ul className="text-sm text-blue-800 mt-2 ml-4 list-disc">
+                <li><strong>Login with:</strong> Email address (not name)</li>
+                <li><strong>Website:</strong> This admin portal URL</li>
+                <li><strong>Role:</strong> They must select their correct role during login</li>
+                <li><strong>Security:</strong> Ask them to change password after first login</li>
+              </ul>
+              {selectedRole === 'agent' && selectedSalaryType === 'commission' && (
+                <p className="text-sm text-blue-800 mt-2">
+                  <strong>💰 Commission:</strong> Will be calculated based on selected products and their respective percentages.
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
