@@ -191,6 +191,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
+
+      // Handle demo users (they don't exist in database)
+      if (req.user.userId.startsWith('demo-')) {
+        const demoUsers = [
+          {
+            id: "demo-admin-1",
+            email: "admin@demo.com",
+            name: "Admin User",
+            role: "admin"
+          },
+          {
+            id: "demo-so-1",
+            email: "so@demo.com",
+            name: "SO Center Manager",
+            role: "so_center"
+          },
+          {
+            id: "demo-teacher-1",
+            email: "teacher@demo.com",
+            name: "Math Teacher",
+            role: "teacher"
+          }
+        ];
+
+        const demoUser = demoUsers.find(u => u.id === req.user.userId);
+        if (demoUser) {
+          return res.json({
+            id: demoUser.id,
+            email: demoUser.email,
+            name: demoUser.name,
+            role: demoUser.role,
+          });
+        }
+      }
+
+      // Handle database users
       const user = await storage.getUser(req.user.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -203,6 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: user.role,
       });
     } catch (error) {
+      console.error("Auth me error:", error);
       res.status(500).json({ message: "Failed to get user info" });
     }
   });
