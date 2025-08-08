@@ -1,0 +1,249 @@
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { QRModal } from '@/components/qr/QRModal';
+import { 
+  Search, 
+  QrCode, 
+  Edit, 
+  TrendingUp, 
+  IndianRupee,
+  ChevronLeft,
+  ChevronRight 
+} from 'lucide-react';
+
+interface Student {
+  id: string;
+  name: string;
+  classId: string;
+  parentPhone: string;
+  qrCode: string;
+}
+
+interface StudentTableProps {
+  students: Student[];
+  isLoading: boolean;
+}
+
+export function StudentTable({ students, isLoading }: StudentTableProps) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const mockStudents = [
+    {
+      id: '1',
+      name: 'Arjun Reddy',
+      classId: 'Class 10',
+      parentPhone: '+91 98765 43210',
+      qrCode: 'student_123',
+      paymentStatus: 'paid',
+      progress: 78
+    },
+    {
+      id: '2',
+      name: 'Sneha Patel',
+      classId: 'Navodaya',
+      parentPhone: '+91 87654 32109',
+      qrCode: 'student_124',
+      paymentStatus: 'pending',
+      progress: 45
+    }
+  ];
+
+  const displayStudents = mockStudents; // Use mock data for now
+
+  const handleShowQR = (student: any) => {
+    setSelectedStudent(student);
+    setIsQRModalOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading students...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-semibold text-gray-900">Recent Students</CardTitle>
+            <div className="flex items-center space-x-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                <Input
+                  placeholder="Search students..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+              
+              {/* Filter */}
+              <Select value={classFilter} onValueChange={setClassFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  <SelectItem value="class-10">Class 10</SelectItem>
+                  <SelectItem value="class-12">Class 12</SelectItem>
+                  <SelectItem value="navodaya">Navodaya</SelectItem>
+                  <SelectItem value="polycet">POLYCET</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Student
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Class
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    QR Code
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {displayStudents.map((student) => (
+                  <tr key={student.id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-medium text-sm">
+                            {getInitials(student.name)}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                          <div className="text-sm text-gray-500">{student.parentPhone}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant="outline" className="text-blue-800 border-blue-200">
+                        {student.classId}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge 
+                        variant={student.paymentStatus === 'paid' ? 'default' : 'secondary'}
+                        className={student.paymentStatus === 'paid' 
+                          ? 'bg-success text-white' 
+                          : 'bg-warning text-white'
+                        }
+                      >
+                        {student.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-24 bg-gray-200 rounded-full h-2 mr-3">
+                          <div 
+                            className="bg-success h-2 rounded-full" 
+                            style={{width: `${student.progress}%`}}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{student.progress}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleShowQR(student)}
+                        className="text-gray-700 hover:bg-gray-100"
+                      >
+                        <QrCode className="mr-2" size={16} />
+                        View QR
+                      </Button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="text-primary" size={16} />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <TrendingUp className="text-accent" size={16} />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <IndianRupee className="text-secondary" size={16} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">1</span> to <span className="font-medium">2</span> of{' '}
+              <span className="font-medium">156</span> students
+            </p>
+            <nav className="flex space-x-2">
+              <Button variant="outline" size="sm">
+                <ChevronLeft size={16} />
+              </Button>
+              <Button variant="outline" size="sm" className="bg-primary text-white">
+                1
+              </Button>
+              <Button variant="outline" size="sm">
+                2
+              </Button>
+              <Button variant="outline" size="sm">
+                3
+              </Button>
+              <Button variant="outline" size="sm">
+                <ChevronRight size={16} />
+              </Button>
+            </nav>
+          </div>
+        </CardContent>
+      </Card>
+
+      <QRModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        student={selectedStudent}
+      />
+    </>
+  );
+}

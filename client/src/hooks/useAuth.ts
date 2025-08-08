@@ -1,0 +1,55 @@
+import { useState, useEffect } from 'react';
+import { authService, type User } from '@/lib/auth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+export function useAuth() {
+  const [user, setUser] = useState<User | null>(authService.getUser());
+  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/auth/me'],
+    queryFn: () => authService.getCurrentUser(),
+    enabled: authService.isAuthenticated(),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: ({ email, password, role }: { email: string; password: string; role: string }) =>
+      authService.login(email, password, role),
+    onSuccess: (data) => {
+      setUser(data.user);
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
+    },
+  });
+
+  const logoutMutation = useMutation({
+    mutationFn: () => {
+      authService.logout();
+      return Promise.resolve();
+    },
+    onSuccess: () => {
+      setUser(null);
+      queryClient.clear();
+    },
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      setUser(currentUser);
+    }
+    setIsLoading(false);
+  }, [currentUser]);
+
+  return {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login: async (email: string, password: string, role: string) => {
+      return await loginMutation.mutateAsync({ email, password, role });
+    },
+    logout: () => logoutMutation.mutate(),
+    isLoginLoading: loginMutation.isPending,
+    loginError: loginMutation.error,
+  };
+}

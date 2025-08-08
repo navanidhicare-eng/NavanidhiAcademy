@@ -1,0 +1,147 @@
+import { Link, useLocation } from 'wouter';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import {
+  GraduationCap,
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  TrendingUp,
+  Wallet,
+  UserCog,
+  Table,
+  Building,
+  Presentation,
+  CheckSquare,
+  LogOut,
+} from 'lucide-react';
+
+interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps) {
+  const [location] = useLocation();
+  const { user, logout } = useAuth();
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const getRoleNavItems = (role: string) => {
+    const baseItems = [
+      { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
+    ];
+
+    switch (role) {
+      case 'admin':
+        return [
+          ...baseItems,
+          { icon: UserCog, label: 'Manage Users', href: '/admin/users' },
+          { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
+          { icon: Building, label: 'SO Centers', href: '/admin/centers' },
+          { icon: Users, label: 'All Students', href: '/admin/students' },
+          { icon: CreditCard, label: 'All Payments', href: '/admin/payments' },
+        ];
+      
+      case 'so_center':
+        return [
+          ...baseItems,
+          { icon: Users, label: 'Students', href: '/students' },
+          { icon: CreditCard, label: 'Payments', href: '/payments' },
+          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
+          { icon: Wallet, label: 'Wallet', href: '/wallet' },
+        ];
+      
+      case 'teacher':
+        return [
+          ...baseItems,
+          { icon: Presentation, label: 'My Students', href: '/teacher/students' },
+          { icon: CheckSquare, label: 'Topic Updates', href: '/teacher/topics' },
+        ];
+      
+      case 'academic_admin':
+        return [
+          ...baseItems,
+          { icon: TrendingUp, label: 'Academic Overview', href: '/academic/overview' },
+          { icon: Building, label: 'SO Centers', href: '/academic/centers' },
+        ];
+      
+      default:
+        return baseItems;
+    }
+  };
+
+  const navItems = getRoleNavItems(user?.role || '');
+
+  return (
+    <div className={cn("flex flex-col h-full bg-white shadow-xl", className)}>
+      {/* Header */}
+      <div className="flex items-center justify-center h-16 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <GraduationCap className="text-white text-sm" size={16} />
+          </div>
+          <h2 className="font-bold text-xl text-gray-900">Navanidhi</h2>
+        </div>
+      </div>
+
+      {/* User Info */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-semibold text-sm">
+              {user ? getInitials(user.name) : 'NA'}
+            </span>
+          </div>
+          <div>
+            <p className="font-medium text-gray-900">{user?.name || 'User'}</p>
+            <p className="text-sm text-gray-600 capitalize">
+              {user?.role?.replace('_', ' ') || 'Role'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 mt-4 px-4 pb-4 space-y-2">
+        {navItems.map((item) => {
+          const isActive = location === item.href;
+          const Icon = item.icon;
+          
+          return (
+            <Link key={item.href} href={item.href}>
+              <div className={cn(
+                "flex items-center px-4 py-3 rounded-lg transition-colors",
+                isActive 
+                  ? "text-primary bg-blue-50" 
+                  : "text-gray-700 hover:bg-gray-100"
+              )}>
+                <Icon className="mr-3" size={18} />
+                {item.label}
+              </div>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Logout */}
+      <div className="p-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-gray-700 hover:bg-gray-100"
+          onClick={() => logout()}
+        >
+          <LogOut className="mr-3" size={18} />
+          Logout
+        </Button>
+      </div>
+    </div>
+  );
+}
