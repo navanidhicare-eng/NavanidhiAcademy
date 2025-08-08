@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,40 +22,102 @@ import {
 
 export default function AdminStructure() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('classes');
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
 
-  // Mock academic structure data
-  const mockClasses = [
-    { id: '1', name: 'Class 10', description: 'Secondary School Class 10', subjectCount: 3 },
-    { id: '2', name: 'Class 12', description: 'Higher Secondary Class 12', subjectCount: 4 },
-    { id: '3', name: 'Navodaya', description: 'Navodaya Entrance Preparation', subjectCount: 3 },
-    { id: '4', name: 'POLYCET', description: 'Polytechnic Common Entrance Test', subjectCount: 2 }
-  ];
+  // Fetch real data from API
+  const { data: classes = [], isLoading: classesLoading } = useQuery({
+    queryKey: ['/api/classes'],
+  });
 
-  const mockSubjects = [
-    { id: '1', name: 'Mathematics', classId: '1', className: 'Class 10', chapterCount: 15 },
-    { id: '2', name: 'Physics', classId: '1', className: 'Class 10', chapterCount: 12 },
-    { id: '3', name: 'Chemistry', classId: '1', className: 'Class 10', chapterCount: 10 },
-    { id: '4', name: 'Mathematics', classId: '3', className: 'Navodaya', chapterCount: 20 }
-  ];
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+    queryKey: ['/api/admin/subjects'],
+  });
 
-  const mockChapters = [
-    { id: '1', name: 'Quadratic Equations', subjectId: '1', subjectName: 'Mathematics', topicCount: 8 },
-    { id: '2', name: 'Arithmetic Progressions', subjectId: '1', subjectName: 'Mathematics', topicCount: 6 },
-    { id: '3', name: 'Light - Reflection and Refraction', subjectId: '2', subjectName: 'Physics', topicCount: 10 },
-    { id: '4', name: 'Acids, Bases and Salts', subjectId: '3', subjectName: 'Chemistry', topicCount: 12 }
-  ];
+  const { data: chapters = [], isLoading: chaptersLoading } = useQuery({
+    queryKey: ['/api/admin/chapters'],
+  });
 
-  const mockTopics = [
-    { id: '1', name: 'Introduction to Quadratic Equations', chapterId: '1', chapterName: 'Quadratic Equations', orderIndex: 1 },
-    { id: '2', name: 'Methods of Solving', chapterId: '1', chapterName: 'Quadratic Equations', orderIndex: 2 },
-    { id: '3', name: 'Nature of Roots', chapterId: '1', chapterName: 'Quadratic Equations', orderIndex: 3 },
-    { id: '4', name: 'Introduction to AP', chapterId: '2', chapterName: 'Arithmetic Progressions', orderIndex: 1 }
-  ];
+  const { data: topics = [], isLoading: topicsLoading } = useQuery({
+    queryKey: ['/api/admin/topics'],
+  });
+
+  // Delete mutations
+  const deleteClassMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/classes/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Class deleted successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete class', variant: 'destructive' });
+    },
+  });
+
+  const deleteSubjectMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/subjects/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Subject deleted successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subjects'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete subject', variant: 'destructive' });
+    },
+  });
+
+  const deleteChapterMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/chapters/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Chapter deleted successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/chapters'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete chapter', variant: 'destructive' });
+    },
+  });
+
+  const deleteTopicMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest('DELETE', `/api/admin/topics/${id}`),
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Topic deleted successfully' });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to delete topic', variant: 'destructive' });
+    },
+  });
+
+  // Helper functions
+  const getSubjectCountForClass = (classId: string) => {
+    return (subjects as any[]).filter((subject: any) => subject.classId === classId).length;
+  };
+
+  const getChapterCountForSubject = (subjectId: string) => {
+    return (chapters as any[]).filter((chapter: any) => chapter.subjectId === subjectId).length;
+  };
+
+  const getTopicCountForChapter = (chapterId: string) => {
+    return (topics as any[]).filter((topic: any) => topic.chapterId === chapterId).length;
+  };
+
+  const getClassName = (classId: string) => {
+    const cls = (classes as any[]).find((c: any) => c.id === classId);
+    return cls?.name || 'Unknown';
+  };
+
+  const getSubjectName = (subjectId: string) => {
+    const subject = (subjects as any[]).find((s: any) => s.id === subjectId);
+    return subject?.name || 'Unknown';
+  };
+
+  const getChapterName = (chapterId: string) => {
+    const chapter = (chapters as any[]).find((c: any) => c.id === chapterId);
+    return chapter?.name || 'Unknown';
+  };
 
   const handleAdd = (type: string) => {
     switch (type) {
@@ -104,23 +167,37 @@ export default function AdminStructure() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {mockClasses.map((cls) => (
-                  <div key={cls.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{cls.name}</h3>
-                      <p className="text-sm text-gray-600">{cls.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">{cls.subjectCount} subjects</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
+                {classesLoading ? (
+                  <div className="text-center py-4">Loading classes...</div>
+                ) : (classes as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No classes found. Add your first class to get started.</p>
                   </div>
-                ))}
+                ) : (
+                  (classes as any[]).map((cls: any) => (
+                    <div key={cls.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{cls.name}</h3>
+                        <p className="text-sm text-gray-600">{cls.description}</p>
+                        <p className="text-xs text-gray-500 mt-1">{getSubjectCountForClass(cls.id)} subjects</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="text-primary" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteClassMutation.mutate(cls.id)}
+                          disabled={deleteClassMutation.isPending}
+                        >
+                          <Trash2 className="text-destructive" size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -142,25 +219,39 @@ export default function AdminStructure() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {mockSubjects.map((subject) => (
-                  <div key={subject.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{subject.name}</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline">{subject.className}</Badge>
-                        <span className="text-xs text-gray-500">{subject.chapterCount} chapters</span>
+                {subjectsLoading ? (
+                  <div className="text-center py-4">Loading subjects...</div>
+                ) : (subjects as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No subjects found. Add your first subject to get started.</p>
+                  </div>
+                ) : (
+                  (subjects as any[]).map((subject: any) => (
+                    <div key={subject.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{subject.name}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline">{getClassName(subject.classId)}</Badge>
+                          <span className="text-xs text-gray-500">{getChapterCountForSubject(subject.id)} chapters</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="text-primary" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteSubjectMutation.mutate(subject.id)}
+                          disabled={deleteSubjectMutation.isPending}
+                        >
+                          <Trash2 className="text-destructive" size={16} />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -182,25 +273,39 @@ export default function AdminStructure() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {mockChapters.map((chapter) => (
-                  <div key={chapter.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{chapter.name}</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline">{chapter.subjectName}</Badge>
-                        <span className="text-xs text-gray-500">{chapter.topicCount} topics</span>
+                {chaptersLoading ? (
+                  <div className="text-center py-4">Loading chapters...</div>
+                ) : (chapters as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <List className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No chapters found. Add your first chapter to get started.</p>
+                  </div>
+                ) : (
+                  (chapters as any[]).map((chapter: any) => (
+                    <div key={chapter.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{chapter.name}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline">{getSubjectName(chapter.subjectId)}</Badge>
+                          <span className="text-xs text-gray-500">{getTopicCountForChapter(chapter.id)} topics</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="text-primary" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteChapterMutation.mutate(chapter.id)}
+                          disabled={deleteChapterMutation.isPending}
+                        >
+                          <Trash2 className="text-destructive" size={16} />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -222,25 +327,39 @@ export default function AdminStructure() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                {mockTopics.map((topic) => (
-                  <div key={topic.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{topic.name}</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline">{topic.chapterName}</Badge>
-                        <span className="text-xs text-gray-500">Order: {topic.orderIndex}</span>
+                {topicsLoading ? (
+                  <div className="text-center py-4">Loading topics...</div>
+                ) : (topics as any[]).length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <List className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No topics found. Add your first topic to get started.</p>
+                  </div>
+                ) : (
+                  (topics as any[]).map((topic: any) => (
+                    <div key={topic.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{topic.name}</h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Badge variant="outline">{getChapterName(topic.chapterId)}</Badge>
+                          <span className="text-xs text-gray-500">Order: {topic.orderIndex || 0}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="text-primary" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteTopicMutation.mutate(topic.id)}
+                          disabled={deleteTopicMutation.isPending}
+                        >
+                          <Trash2 className="text-destructive" size={16} />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>

@@ -94,6 +94,41 @@ export interface IStorage {
   getNextSoCenterId(): Promise<string>;
   getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined>;
   getAvailableManagers(): Promise<User[]>;
+  updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter>;
+  deleteSoCenter(id: string): Promise<void>;
+
+  // Enhanced User methods
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: string, updates: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: string): Promise<void>;
+
+  // Enhanced Academic structure methods
+  updateClass(id: string, updates: Partial<InsertClass>): Promise<Class>;
+  deleteClass(id: string): Promise<void>;
+  updateSubject(id: string, updates: Partial<InsertSubject>): Promise<Subject>;
+  deleteSubject(id: string): Promise<void>;
+  updateChapter(id: string, updates: Partial<InsertChapter>): Promise<Chapter>;
+  deleteChapter(id: string): Promise<void>;
+  updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic>;
+  deleteTopic(id: string): Promise<void>;
+  getAllSubjects(): Promise<Subject[]>;
+  getAllChapters(): Promise<Chapter[]>;
+  getAllTopics(): Promise<Topic[]>;
+
+  // Fee Structure methods
+  getAllFeeStructures(): Promise<any[]>;
+  createFeeStructure(fee: any): Promise<any>;
+  updateFeeStructure(id: string, updates: any): Promise<any>;
+  deleteFeeStructure(id: string): Promise<void>;
+
+  // Enhanced Student methods
+  getAllStudents(): Promise<Student[]>;
+  deleteStudent(id: string): Promise<void>;
+
+  // Enhanced Payment methods
+  getAllPayments(): Promise<Payment[]>;
+  updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment>;
+  deletePayment(id: string): Promise<void>;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -349,6 +384,165 @@ export class DrizzleStorage implements IStorage {
         eq(schema.users.role, 'so_center')
       )
     ).orderBy(asc(schema.users.name));
+  }
+
+  async updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter> {
+    const result = await db.update(schema.soCenters)
+      .set(updates)
+      .where(eq(schema.soCenters.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSoCenter(id: string): Promise<void> {
+    await db.update(schema.soCenters)
+      .set({ isActive: false })
+      .where(eq(schema.soCenters.id, id));
+  }
+
+  // Enhanced User methods
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(schema.users)
+      .where(eq(schema.users.isActive, true))
+      .orderBy(asc(schema.users.name));
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.update(schema.users)
+      .set({ isActive: false })
+      .where(eq(schema.users.id, id));
+  }
+
+  // Enhanced Academic structure methods
+  async updateClass(id: string, updates: Partial<InsertClass>): Promise<Class> {
+    const result = await db.update(schema.classes)
+      .set(updates)
+      .where(eq(schema.classes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteClass(id: string): Promise<void> {
+    await db.update(schema.classes)
+      .set({ isActive: false })
+      .where(eq(schema.classes.id, id));
+  }
+
+  async updateSubject(id: string, updates: Partial<InsertSubject>): Promise<Subject> {
+    const result = await db.update(schema.subjects)
+      .set(updates)
+      .where(eq(schema.subjects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteSubject(id: string): Promise<void> {
+    await db.update(schema.subjects)
+      .set({ isActive: false })
+      .where(eq(schema.subjects.id, id));
+  }
+
+  async updateChapter(id: string, updates: Partial<InsertChapter>): Promise<Chapter> {
+    const result = await db.update(schema.chapters)
+      .set(updates)
+      .where(eq(schema.chapters.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteChapter(id: string): Promise<void> {
+    await db.update(schema.chapters)
+      .set({ isActive: false })
+      .where(eq(schema.chapters.id, id));
+  }
+
+  async updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic> {
+    const result = await db.update(schema.topics)
+      .set(updates)
+      .where(eq(schema.topics.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    await db.update(schema.topics)
+      .set({ isActive: false })
+      .where(eq(schema.topics.id, id));
+  }
+
+  async getAllSubjects(): Promise<Subject[]> {
+    return await db.select().from(schema.subjects)
+      .where(eq(schema.subjects.isActive, true))
+      .orderBy(asc(schema.subjects.name));
+  }
+
+  async getAllChapters(): Promise<Chapter[]> {
+    return await db.select().from(schema.chapters)
+      .where(eq(schema.chapters.isActive, true))
+      .orderBy(asc(schema.chapters.name));
+  }
+
+  async getAllTopics(): Promise<Topic[]> {
+    return await db.select().from(schema.topics)
+      .where(eq(schema.topics.isActive, true))
+      .orderBy(asc(schema.topics.name));
+  }
+
+  // Fee Structure methods (using products table for now)
+  async getAllFeeStructures(): Promise<any[]> {
+    return await db.select().from(schema.products)
+      .where(eq(schema.products.isActive, true))
+      .orderBy(asc(schema.products.name));
+  }
+
+  async createFeeStructure(fee: any): Promise<any> {
+    const result = await db.insert(schema.products).values(fee).returning();
+    return result[0];
+  }
+
+  async updateFeeStructure(id: string, updates: any): Promise<any> {
+    const result = await db.update(schema.products)
+      .set(updates)
+      .where(eq(schema.products.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteFeeStructure(id: string): Promise<void> {
+    await db.update(schema.products)
+      .set({ isActive: false })
+      .where(eq(schema.products.id, id));
+  }
+
+  // Enhanced Student methods
+  async getAllStudents(): Promise<Student[]> {
+    return await db.select().from(schema.students)
+      .where(eq(schema.students.isActive, true))
+      .orderBy(desc(schema.students.createdAt));
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    await db.update(schema.students)
+      .set({ isActive: false })
+      .where(eq(schema.students.id, id));
+  }
+
+  // Enhanced Payment methods
+  async getAllPayments(): Promise<Payment[]> {
+    return await db.select().from(schema.payments)
+      .orderBy(desc(schema.payments.createdAt));
+  }
+
+  async updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment> {
+    const result = await db.update(schema.payments)
+      .set(updates)
+      .where(eq(schema.payments.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deletePayment(id: string): Promise<void> {
+    await db.delete(schema.payments).where(eq(schema.payments.id, id));
   }
 }
 

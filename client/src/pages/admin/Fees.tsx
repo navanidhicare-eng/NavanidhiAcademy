@@ -60,14 +60,10 @@ function AddEditFeeModal({ isOpen, onClose, editingFee }: AddEditFeeModalProps) 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock classes data - replace with actual API call
-  const mockClasses = [
-    { id: '1', name: 'Class 10' },
-    { id: '2', name: 'Class 12' },
-    { id: '3', name: 'Navodaya' },
-    { id: '4', name: 'POLYCET' },
-    { id: '5', name: 'EAMCET' },
-  ];
+  // Fetch real classes data from API
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
 
   const form = useForm<FeeFormData>({
     resolver: zodResolver(feeSchema),
@@ -136,7 +132,7 @@ function AddEditFeeModal({ isOpen, onClose, editingFee }: AddEditFeeModalProps) 
                           <SelectValue placeholder="Select class" />
                         </SelectTrigger>
                         <SelectContent>
-                          {mockClasses.map((cls) => (
+                          {(classes as any[]).map((cls: any) => (
                             <SelectItem key={cls.id} value={cls.id}>
                               {cls.name}
                             </SelectItem>
@@ -269,54 +265,9 @@ export default function Fees() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data - replace with actual API call
+  // Fetch real fees data from API
   const { data: fees = [], isLoading } = useQuery({
     queryKey: ['/api/admin/fees'],
-    queryFn: async () => {
-      // Mock data for now
-      return [
-        {
-          id: '1',
-          classId: '1',
-          className: 'Class 10',
-          monthlyFee: 3000,
-          yearlyFee: 30000,
-          admissionFee: 5000,
-          isActive: true,
-          studentsEnrolled: 25,
-        },
-        {
-          id: '2',
-          classId: '2',
-          className: 'Class 12',
-          monthlyFee: 3500,
-          yearlyFee: 35000,
-          admissionFee: 6000,
-          isActive: true,
-          studentsEnrolled: 18,
-        },
-        {
-          id: '3',
-          classId: '3',
-          className: 'Navodaya',
-          monthlyFee: 4000,
-          yearlyFee: 40000,
-          admissionFee: 7000,
-          isActive: true,
-          studentsEnrolled: 12,
-        },
-        {
-          id: '4',
-          classId: '4',
-          className: 'POLYCET',
-          monthlyFee: 2500,
-          yearlyFee: 25000,
-          admissionFee: 4000,
-          isActive: false,
-          studentsEnrolled: 8,
-        },
-      ];
-    },
   });
 
   const deleteFeeMutation = useMutation({
@@ -353,6 +304,11 @@ export default function Fees() {
   const handleCloseModal = () => {
     setIsAddModalOpen(false);
     setEditingFee(null);
+  };
+
+  const getClassName = (classId: string) => {
+    const cls = (classes as any[]).find((c: any) => c.id === classId);
+    return cls?.name || 'Unknown';
   };
 
   const formatCurrency = (amount: number) => {
@@ -395,9 +351,9 @@ export default function Fees() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {fees.map((fee: any) => (
+            {(fees as any[]).map((fee: any) => (
               <TableRow key={fee.id}>
-                <TableCell className="font-medium">{fee.className}</TableCell>
+                <TableCell className="font-medium">{getClassName(fee.classId)}</TableCell>
                 <TableCell>
                   <div className="flex items-center space-x-1">
                     <IndianRupee className="w-4 h-4 text-green-600" />
@@ -459,7 +415,7 @@ export default function Fees() {
             <div>
               <p className="text-green-600 text-sm font-medium">Total Monthly Revenue</p>
               <p className="text-2xl font-bold text-green-800">
-                {formatCurrency(fees.reduce((sum, fee) => sum + (fee.monthlyFee * fee.studentsEnrolled), 0))}
+                {formatCurrency((fees as any[]).reduce((sum, fee) => sum + ((fee.monthlyFee || 0) * (fee.studentsEnrolled || 0)), 0))}
               </p>
             </div>
             <IndianRupee className="w-8 h-8 text-green-600" />
@@ -471,7 +427,7 @@ export default function Fees() {
             <div>
               <p className="text-blue-600 text-sm font-medium">Active Fee Structures</p>
               <p className="text-2xl font-bold text-blue-800">
-                {fees.filter(fee => fee.isActive).length}
+                {(fees as any[]).filter(fee => fee.isActive).length}
               </p>
             </div>
             <Calendar className="w-8 h-8 text-blue-600" />
@@ -483,7 +439,7 @@ export default function Fees() {
             <div>
               <p className="text-purple-600 text-sm font-medium">Total Students</p>
               <p className="text-2xl font-bold text-purple-800">
-                {fees.reduce((sum, fee) => sum + fee.studentsEnrolled, 0)}
+                {(fees as any[]).reduce((sum, fee) => sum + (fee.studentsEnrolled || 0), 0)}
               </p>
             </div>
             <Calendar className="w-8 h-8 text-purple-600" />

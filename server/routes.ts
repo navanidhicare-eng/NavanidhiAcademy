@@ -24,7 +24,12 @@ import {
   insertStateSchema,
   insertDistrictSchema,
   insertMandalSchema,
-  insertVillageSchema
+  insertVillageSchema,
+  insertClassSchema,
+  insertSubjectSchema,
+  insertChapterSchema,
+  insertTopicSchema,
+  insertSoCenterSchema
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
@@ -612,6 +617,420 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching products:', error);
       res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Get all users for admin
+  app.get("/api/admin/users", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+
+  // Update user
+  app.put("/api/admin/users/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      if (updates.password) {
+        updates.password = await bcrypt.hash(updates.password, 12);
+      }
+      const user = await storage.updateUser(req.params.id, updates);
+      const { password, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      res.status(500).json({ message: 'Failed to update user' });
+    }
+  });
+
+  // Delete user
+  app.delete("/api/admin/users/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteUser(req.params.id);
+      res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Failed to delete user' });
+    }
+  });
+
+  // Classes CRUD
+  app.post("/api/admin/classes", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const classData = insertClassSchema.parse(req.body);
+      const newClass = await storage.createClass(classData);
+      res.status(201).json(newClass);
+    } catch (error) {
+      console.error('Error creating class:', error);
+      res.status(500).json({ message: 'Failed to create class' });
+    }
+  });
+
+  app.put("/api/admin/classes/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      const updatedClass = await storage.updateClass(req.params.id, updates);
+      res.json(updatedClass);
+    } catch (error) {
+      console.error('Error updating class:', error);
+      res.status(500).json({ message: 'Failed to update class' });
+    }
+  });
+
+  app.delete("/api/admin/classes/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteClass(req.params.id);
+      res.json({ message: 'Class deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting class:', error);
+      res.status(500).json({ message: 'Failed to delete class' });
+    }
+  });
+
+  // Subjects CRUD
+  app.get("/api/admin/subjects", authenticateToken, async (req, res) => {
+    try {
+      const subjects = await storage.getAllSubjects();
+      res.json(subjects);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      res.status(500).json({ message: 'Failed to fetch subjects' });
+    }
+  });
+
+  app.post("/api/admin/subjects", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const subjectData = insertSubjectSchema.parse(req.body);
+      const newSubject = await storage.createSubject(subjectData);
+      res.status(201).json(newSubject);
+    } catch (error) {
+      console.error('Error creating subject:', error);
+      res.status(500).json({ message: 'Failed to create subject' });
+    }
+  });
+
+  app.put("/api/admin/subjects/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      const updatedSubject = await storage.updateSubject(req.params.id, updates);
+      res.json(updatedSubject);
+    } catch (error) {
+      console.error('Error updating subject:', error);
+      res.status(500).json({ message: 'Failed to update subject' });
+    }
+  });
+
+  app.delete("/api/admin/subjects/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteSubject(req.params.id);
+      res.json({ message: 'Subject deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting subject:', error);
+      res.status(500).json({ message: 'Failed to delete subject' });
+    }
+  });
+
+  // Chapters CRUD
+  app.get("/api/admin/chapters", authenticateToken, async (req, res) => {
+    try {
+      const chapters = await storage.getAllChapters();
+      res.json(chapters);
+    } catch (error) {
+      console.error('Error fetching chapters:', error);
+      res.status(500).json({ message: 'Failed to fetch chapters' });
+    }
+  });
+
+  app.post("/api/admin/chapters", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const chapterData = insertChapterSchema.parse(req.body);
+      const newChapter = await storage.createChapter(chapterData);
+      res.status(201).json(newChapter);
+    } catch (error) {
+      console.error('Error creating chapter:', error);
+      res.status(500).json({ message: 'Failed to create chapter' });
+    }
+  });
+
+  app.put("/api/admin/chapters/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      const updatedChapter = await storage.updateChapter(req.params.id, updates);
+      res.json(updatedChapter);
+    } catch (error) {
+      console.error('Error updating chapter:', error);
+      res.status(500).json({ message: 'Failed to update chapter' });
+    }
+  });
+
+  app.delete("/api/admin/chapters/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteChapter(req.params.id);
+      res.json({ message: 'Chapter deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting chapter:', error);
+      res.status(500).json({ message: 'Failed to delete chapter' });
+    }
+  });
+
+  // Topics CRUD
+  app.get("/api/admin/topics", authenticateToken, async (req, res) => {
+    try {
+      const topics = await storage.getAllTopics();
+      res.json(topics);
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      res.status(500).json({ message: 'Failed to fetch topics' });
+    }
+  });
+
+  app.post("/api/admin/topics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const topicData = insertTopicSchema.parse(req.body);
+      const newTopic = await storage.createTopic(topicData);
+      res.status(201).json(newTopic);
+    } catch (error) {
+      console.error('Error creating topic:', error);
+      res.status(500).json({ message: 'Failed to create topic' });
+    }
+  });
+
+  app.put("/api/admin/topics/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      const updatedTopic = await storage.updateTopic(req.params.id, updates);
+      res.json(updatedTopic);
+    } catch (error) {
+      console.error('Error updating topic:', error);
+      res.status(500).json({ message: 'Failed to update topic' });
+    }
+  });
+
+  app.delete("/api/admin/topics/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteTopic(req.params.id);
+      res.json({ message: 'Topic deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      res.status(500).json({ message: 'Failed to delete topic' });
+    }
+  });
+
+  // SO Centers CRUD
+  app.put("/api/admin/so-centers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      if (updates.password) {
+        updates.password = await bcrypt.hash(updates.password, 12);
+      }
+      const updatedCenter = await storage.updateSoCenter(req.params.id, updates);
+      const { password, ...centerResponse } = updatedCenter;
+      res.json(centerResponse);
+    } catch (error) {
+      console.error('Error updating SO Center:', error);
+      res.status(500).json({ message: 'Failed to update SO Center' });
+    }
+  });
+
+  app.delete("/api/admin/so-centers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteSoCenter(req.params.id);
+      res.json({ message: 'SO Center deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting SO Center:', error);
+      res.status(500).json({ message: 'Failed to delete SO Center' });
+    }
+  });
+
+  // Fee Structure CRUD
+  app.get("/api/admin/fees", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const fees = await storage.getAllFeeStructures();
+      res.json(fees);
+    } catch (error) {
+      console.error('Error fetching fees:', error);
+      res.status(500).json({ message: 'Failed to fetch fees' });
+    }
+  });
+
+  app.post("/api/admin/fees", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const feeData = req.body;
+      const newFee = await storage.createFeeStructure(feeData);
+      res.status(201).json(newFee);
+    } catch (error) {
+      console.error('Error creating fee:', error);
+      res.status(500).json({ message: 'Failed to create fee' });
+    }
+  });
+
+  app.put("/api/admin/fees/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const updates = req.body;
+      const updatedFee = await storage.updateFeeStructure(req.params.id, updates);
+      res.json(updatedFee);
+    } catch (error) {
+      console.error('Error updating fee:', error);
+      res.status(500).json({ message: 'Failed to update fee' });
+    }
+  });
+
+  app.delete("/api/admin/fees/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      await storage.deleteFeeStructure(req.params.id);
+      res.json({ message: 'Fee deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting fee:', error);
+      res.status(500).json({ message: 'Failed to delete fee' });
+    }
+  });
+
+  // Students CRUD for admin
+  app.get("/api/admin/students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const students = await storage.getAllStudents();
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      res.status(500).json({ message: 'Failed to fetch students' });
+    }
+  });
+
+  app.put("/api/admin/students/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {
+        return res.status(403).json({ message: 'Admin or SO Center access required' });
+      }
+      const updates = req.body;
+      const updatedStudent = await storage.updateStudent(req.params.id, updates);
+      res.json(updatedStudent);
+    } catch (error) {
+      console.error('Error updating student:', error);
+      res.status(500).json({ message: 'Failed to update student' });
+    }
+  });
+
+  app.delete("/api/admin/students/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {
+        return res.status(403).json({ message: 'Admin or SO Center access required' });
+      }
+      await storage.deleteStudent(req.params.id);
+      res.json({ message: 'Student deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting student:', error);
+      res.status(500).json({ message: 'Failed to delete student' });
+    }
+  });
+
+  // Payments CRUD for admin
+  app.get("/api/admin/payments", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const payments = await storage.getAllPayments();
+      res.json(payments);
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      res.status(500).json({ message: 'Failed to fetch payments' });
+    }
+  });
+
+  app.put("/api/admin/payments/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {
+        return res.status(403).json({ message: 'Admin or SO Center access required' });
+      }
+      const updates = req.body;
+      const updatedPayment = await storage.updatePayment(req.params.id, updates);
+      res.json(updatedPayment);
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      res.status(500).json({ message: 'Failed to update payment' });
+    }
+  });
+
+  app.delete("/api/admin/payments/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {
+        return res.status(403).json({ message: 'Admin or SO Center access required' });
+      }
+      await storage.deletePayment(req.params.id);
+      res.json({ message: 'Payment deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      res.status(500).json({ message: 'Failed to delete payment' });
     }
   });
 

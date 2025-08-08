@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,51 +27,28 @@ export default function AdminUsers() {
   // Fetch users from API
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['/api/admin/users'],
-    queryFn: async () => {
-      const token = localStorage.getItem('auth_token');
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        // Return mock data if API fails
-        return mockUsers;
-      }
-      return response.json();
-    },
   });
 
-  // Mock users data - replace with actual API call
-  const mockUsers = [
-    {
-      id: 'demo-admin-1',
-      name: 'Admin User',
-      email: 'admin@demo.com',
-      role: 'admin',
-      phone: '+91 98765 43210',
-      status: 'active',
-      createdAt: '2024-01-15'
+  // Delete user mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/users/${id}`);
     },
-    {
-      id: 'demo-so-1',
-      name: 'SO Center Manager',
-      email: 'so@demo.com',
-      role: 'so_center',
-      phone: '+91 87654 32109',
-      status: 'active',
-      createdAt: '2024-02-10'
+    onSuccess: () => {
+      toast({
+        title: 'User Deleted',
+        description: 'User has been successfully deleted.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
-    {
-      id: 'demo-teacher-1',
-      name: 'Math Teacher',
-      email: 'teacher@demo.com',
-      role: 'teacher',
-      phone: '+91 76543 21098',
-      status: 'active',
-      createdAt: '2024-03-05'
-    }
-  ];
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete user.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -86,7 +64,7 @@ export default function AdminUsers() {
     }
   };
 
-  const filteredUsers = users.filter((user: any) => {
+  const filteredUsers = (users as any[]).filter((user: any) => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
@@ -190,7 +168,12 @@ export default function AdminUsers() {
                         <Button variant="ghost" size="sm">
                           <Edit className="text-primary" size={16} />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => deleteUserMutation.mutate(user.id)}
+                          disabled={deleteUserMutation.isPending}
+                        >
                           <Trash2 className="text-destructive" size={16} />
                         </Button>
                       </div>
