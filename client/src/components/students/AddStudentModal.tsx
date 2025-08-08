@@ -271,6 +271,22 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   const onSubmit = (data: AddStudentFormData) => {
+    console.log('Form submission started');
+    console.log('Form data:', data);
+    console.log('Aadhar validation state:', aadharValidation);
+    console.log('Form errors:', form.formState.errors);
+    
+    // Check for form validation errors first
+    if (Object.keys(form.formState.errors).length > 0) {
+      toast({
+        title: 'Form Validation Errors',
+        description: 'Please fix all form errors before submitting. Check all required fields.',
+        variant: 'destructive',
+      });
+      console.error('Form validation errors:', form.formState.errors);
+      return;
+    }
+    
     // Final Aadhar validation before submission
     if (aadharValidation.isValid === false) {
       toast({
@@ -281,10 +297,21 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       return;
     }
     
+    // Check if Aadhar validation is still pending
+    if (aadharValidation.isValid === null) {
+      toast({
+        title: 'Aadhar Validation Pending',
+        description: 'Please wait for Aadhar number validation to complete.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     // Set parent phone for compatibility (using father's mobile)
     data.parentPhone = data.fatherMobile;
     data.parentName = data.fatherName;
     
+    console.log('Submitting student registration...');
     createStudentMutation.mutate(data);
   };
   
@@ -1036,14 +1063,39 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
               </Card>
             )}
 
+            {/* Debug information for SO Centers */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4">
+                <p className="text-sm font-medium text-yellow-800">Debug Info (SO Centers):</p>
+                <ul className="text-xs text-yellow-700 mt-1 space-y-1">
+                  <li>Aadhar Valid: {aadharValidation.isValid === null ? 'Not checked' : aadharValidation.isValid ? 'Yes' : 'No'}</li>
+                  <li>Form Valid: {form.formState.isValid ? 'Yes' : 'No'}</li>
+                  <li>Form Errors: {Object.keys(form.formState.errors).length} errors</li>
+                  <li>Button Status: {createStudentMutation.isPending || aadharValidation.isValid === false ? 'Disabled' : 'Enabled'}</li>
+                </ul>
+                {Object.keys(form.formState.errors).length > 0 && (
+                  <details className="mt-2">
+                    <summary className="text-xs cursor-pointer text-yellow-800">View Form Errors</summary>
+                    <pre className="text-xs mt-1 bg-yellow-100 p-2 rounded overflow-x-auto">
+                      {JSON.stringify(form.formState.errors, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+            
             <div className="flex justify-end space-x-3 pt-6">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
               <Button 
                 type="submit" 
-                disabled={createStudentMutation.isPending || aadharValidation.isValid === false}
+                disabled={createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0}
                 className="bg-primary text-white hover:bg-blue-700"
+                onClick={() => {
+                  console.log('Register button clicked');
+                  console.log('Button disabled?', createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0);
+                }}
               >
                 {createStudentMutation.isPending ? (
                   'Registering Student...'
@@ -1051,6 +1103,39 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                   'Register Student'
                 )}
               </Button>
+              
+              {/* Test Form Validation Button for SO Centers */}
+              {process.env.NODE_ENV === 'development' && (
+                <Button 
+                  type="button" 
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    console.log('=== FORM DEBUG INFO ===');
+                    console.log('Form is valid:', form.formState.isValid);
+                    console.log('Form errors:', form.formState.errors);
+                    console.log('Form values:', form.getValues());
+                    console.log('Aadhar validation:', aadharValidation);
+                    console.log('Button should be disabled?', createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0);
+                    
+                    toast({
+                      title: 'Debug Info',
+                      description: `Form Valid: ${form.formState.isValid}, Errors: ${Object.keys(form.formState.errors).length}, Aadhar: ${aadharValidation.isValid}`,
+                    });
+                  }}
+                  className="ml-2"
+                >
+                  🔍 Debug
+                </Button>
+              )}
+              
+              {/* Helper text for disabled button */}
+              {(aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0) && !createStudentMutation.isPending && (
+                <div className="text-sm text-red-600 mt-2">
+                  {aadharValidation.isValid === false && 'Please enter a valid Aadhar number'}
+                  {Object.keys(form.formState.errors).length > 0 && 'Please fix all form errors above'}
+                </div>
+              )}
             </div>
           </form>
         </Form>

@@ -327,8 +327,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aadhar: studentData.aadharNumber,
         siblingsCount: siblings?.length || 0,
         admissionFeePaid,
-        receiptNumber
+        receiptNumber,
+        userId: req.user.userId,
+        userRole: req.user.role
       });
+      
+      // Detailed validation for SO Centers
+      const missingFields = [];
+      if (!studentData.name) missingFields.push('Student Name');
+      if (!studentData.aadharNumber) missingFields.push('Aadhar Number');
+      if (!studentData.classId) missingFields.push('Class');
+      if (!studentData.fatherName) missingFields.push('Father Name');
+      if (!studentData.motherName) missingFields.push('Mother Name');
+      if (!studentData.fatherMobile) missingFields.push('Father Mobile');
+      if (!studentData.villageId) missingFields.push('Village');
+      if (!studentData.soCenterId) missingFields.push('SO Center');
+      
+      if (missingFields.length > 0) {
+        console.log('❌ Missing required fields:', missingFields);
+        return res.status(400).json({ 
+          message: `Missing required information: ${missingFields.join(', ')}. Please fill all mandatory fields marked with *.`,
+          missingFields
+        });
+      }
+      
+      console.log('✅ All required fields present, proceeding with registration...');
 
       // Validate Aadhar number uniqueness
       const isAadharUnique = await storage.validateAadharNumber(studentData.aadharNumber);
@@ -373,9 +396,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: admissionFeePaid ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!'
       });
     } catch (error: any) {
-      console.error('❌ Comprehensive student registration error:', error);
-      res.status(400).json({ 
-        message: error.message || "Failed to register student" 
+      console.error('❌ Comprehensive student registration error:', {
+        error: error.message,
+        stack: error.stack,
+        userId: req.user?.userId,
+        userRole: req.user?.role
+      });
+      
+      let userFriendlyMessage = "Failed to register student. Please try again.";
+      
+      // Provide specific error messages for common issues
+      if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
+        userFriendlyMessage = "A student with this information already exists. Please check the Aadhar number and other details.";
+      } else if (error.message?.includes('foreign key') || error.message?.includes('reference')) {
+        userFriendlyMessage = "Invalid reference data. Please check that the selected class, village, and SO center are valid.";
+      } else if (error.message?.includes('validation') || error.message?.includes('constraint')) {
+        userFriendlyMessage = "Data validation failed. Please check all form fields and try again.";
+      } else if (error.message?.includes('transaction') || error.message?.includes('rollback')) {
+        userFriendlyMessage = "Database transaction failed. Please try again in a moment.";
+      } else if (error.message?.includes('connection') || error.message?.includes('timeout')) {
+        userFriendlyMessage = "Database connection issue. Please check your internet connection and try again.";
+      }
+      
+      res.status(500).json({ 
+        message: userFriendlyMessage,
+        debugInfo: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   });
