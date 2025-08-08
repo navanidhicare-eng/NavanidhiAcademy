@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { authService, type User } from '@/lib/auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(authService.getUser());
   const [isLoading, setIsLoading] = useState(true);
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const { data: currentUser } = useQuery({
     queryKey: ['/api/auth/me'],
@@ -31,6 +33,7 @@ export function useAuth() {
     onSuccess: () => {
       setUser(null);
       queryClient.clear();
+      navigate('/login');
     },
   });
 
