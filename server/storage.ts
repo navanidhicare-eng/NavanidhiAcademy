@@ -457,23 +457,26 @@ export class DrizzleStorage implements IStorage {
 
   // Enhanced SO Center methods
   async getNextSoCenterId(): Promise<string> {
-    const centers = await db.select({ centerId: schema.soCenters.centerId }).from(schema.soCenters);
+    // Get all existing center IDs
+    const centers = await db.select().from(schema.soCenters);
+    console.log('Existing centers:', centers.map(c => c.centerId));
     
-    // Extract numeric parts from existing center IDs and find the maximum
+    // Extract numeric parts and find maximum
     let maxNumber = 0;
-    for (const center of centers) {
-      const match = center.centerId.match(/NNASOC(\d+)/);
-      if (match) {
-        const number = parseInt(match[1], 10);
-        if (number > maxNumber) {
-          maxNumber = number;
+    centers.forEach(center => {
+      if (center.centerId) {
+        const match = center.centerId.match(/NNASOC(\d+)/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          console.log(`Found center ID: ${center.centerId}, extracted number: ${num}`);
+          maxNumber = Math.max(maxNumber, num);
         }
       }
-    }
+    });
     
-    // Increment and format the next ID
-    const nextNumber = (maxNumber + 1).toString().padStart(5, '0');
-    return `NNASOC${nextNumber}`;
+    const nextId = `NNASOC${String(maxNumber + 1).padStart(5, '0')}`;
+    console.log(`Next center ID will be: ${nextId}`);
+    return nextId;
   }
 
   async getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined> {
