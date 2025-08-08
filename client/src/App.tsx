@@ -13,6 +13,13 @@ import Wallet from "@/pages/Wallet";
 import PublicProgress from "@/pages/PublicProgress";
 import NotFound from "@/pages/not-found";
 
+// Admin Pages
+import AdminUsers from "@/pages/admin/Users";
+import AdminStructure from "@/pages/admin/Structure";
+import AdminCenters from "@/pages/admin/Centers";
+import AdminAllStudents from "@/pages/admin/AllStudents";
+import AdminAllPayments from "@/pages/admin/AllPayments";
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   
@@ -70,6 +77,33 @@ function Router() {
       <Route path="/wallet">
         <ProtectedRoute>
           <Wallet />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Admin routes */}
+      <Route path="/admin/users">
+        <ProtectedRoute>
+          <AdminUsers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/structure">
+        <ProtectedRoute>
+          <AdminStructure />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/centers">
+        <ProtectedRoute>
+          <AdminCenters />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/students">
+        <ProtectedRoute>
+          <AdminAllStudents />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/payments">
+        <ProtectedRoute>
+          <AdminAllPayments />
         </ProtectedRoute>
       </Route>
       
