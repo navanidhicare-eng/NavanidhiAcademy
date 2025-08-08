@@ -16,6 +16,7 @@ import NotFound from "@/pages/not-found";
 // Admin Pages
 import AdminUsers from "@/pages/admin/Users";
 import AdminRoles from "@/pages/admin/Roles";
+import AdminAddresses from "@/pages/admin/Addresses";
 import AdminStructure from "@/pages/admin/Structure";
 import AdminCenters from "@/pages/admin/Centers";
 import AdminAllStudents from "@/pages/admin/AllStudents";
@@ -117,6 +118,11 @@ function Router() {
       <Route path="/admin/roles">
         <ProtectedRoute>
           <AdminRoles />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/addresses">
+        <ProtectedRoute>
+          <AdminAddresses />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/fees">

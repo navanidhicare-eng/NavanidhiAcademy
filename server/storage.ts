@@ -75,6 +75,25 @@ export interface IStorage {
   // Wallet methods
   createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction>;
   getWalletTransactions(soCenterId: string): Promise<WalletTransaction[]>;
+
+  // Address hierarchy methods
+  getAllStates(): Promise<any[]>;
+  getDistrictsByState(stateId: string): Promise<any[]>;
+  getMandalsByDistrict(districtId: string): Promise<any[]>;
+  getVillagesByMandal(mandalId: string): Promise<any[]>;
+  createState(data: any): Promise<any>;
+  createDistrict(data: any): Promise<any>;
+  createMandal(data: any): Promise<any>;
+  createVillage(data: any): Promise<any>;
+
+  // Products methods (for commission calculation)
+  getAllProducts(): Promise<any[]>;
+  createProduct(data: any): Promise<any>;
+
+  // Enhanced SO Center methods
+  getNextSoCenterId(): Promise<string>;
+  getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined>;
+  getAvailableManagers(): Promise<User[]>;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -256,6 +275,80 @@ export class DrizzleStorage implements IStorage {
     return await db.select().from(schema.walletTransactions)
       .where(eq(schema.walletTransactions.soCenterId, soCenterId))
       .orderBy(desc(schema.walletTransactions.createdAt));
+  }
+  // Address hierarchy methods
+  async getAllStates(): Promise<any[]> {
+    return await db.select().from(schema.states).where(eq(schema.states.isActive, true)).orderBy(asc(schema.states.name));
+  }
+
+  async getDistrictsByState(stateId: string): Promise<any[]> {
+    return await db.select().from(schema.districts).where(
+      and(eq(schema.districts.stateId, stateId), eq(schema.districts.isActive, true))
+    ).orderBy(asc(schema.districts.name));
+  }
+
+  async getMandalsByDistrict(districtId: string): Promise<any[]> {
+    return await db.select().from(schema.mandals).where(
+      and(eq(schema.mandals.districtId, districtId), eq(schema.mandals.isActive, true))
+    ).orderBy(asc(schema.mandals.name));
+  }
+
+  async getVillagesByMandal(mandalId: string): Promise<any[]> {
+    return await db.select().from(schema.villages).where(
+      and(eq(schema.villages.mandalId, mandalId), eq(schema.villages.isActive, true))
+    ).orderBy(asc(schema.villages.name));
+  }
+
+  async createState(data: any): Promise<any> {
+    const result = await db.insert(schema.states).values(data).returning();
+    return result[0];
+  }
+
+  async createDistrict(data: any): Promise<any> {
+    const result = await db.insert(schema.districts).values(data).returning();
+    return result[0];
+  }
+
+  async createMandal(data: any): Promise<any> {
+    const result = await db.insert(schema.mandals).values(data).returning();
+    return result[0];
+  }
+
+  async createVillage(data: any): Promise<any> {
+    const result = await db.insert(schema.villages).values(data).returning();
+    return result[0];
+  }
+
+  // Products methods (for commission calculation)
+  async getAllProducts(): Promise<any[]> {
+    return await db.select().from(schema.products).where(eq(schema.products.isActive, true)).orderBy(asc(schema.products.name));
+  }
+
+  async createProduct(data: any): Promise<any> {
+    const result = await db.insert(schema.products).values(data).returning();
+    return result[0];
+  }
+
+  // Enhanced SO Center methods
+  async getNextSoCenterId(): Promise<string> {
+    const centers = await db.select().from(schema.soCenters);
+    const count = centers.length;
+    const nextNumber = (count + 1).toString().padStart(5, '0');
+    return `NNASOC${nextNumber}`;
+  }
+
+  async getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined> {
+    const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.centerId, centerId));
+    return result[0];
+  }
+
+  async getAvailableManagers(): Promise<User[]> {
+    return await db.select().from(schema.users).where(
+      and(
+        eq(schema.users.isActive, true),
+        eq(schema.users.role, 'so_center')
+      )
+    ).orderBy(asc(schema.users.name));
   }
 }
 

@@ -16,7 +16,16 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertStudentSchema, insertPaymentSchema, insertTopicProgressSchema } from "@shared/schema";
+import { 
+  insertUserSchema, 
+  insertStudentSchema, 
+  insertPaymentSchema, 
+  insertTopicProgressSchema,
+  insertStateSchema,
+  insertDistrictSchema,
+  insertMandalSchema,
+  insertVillageSchema
+} from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
@@ -193,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Handle demo users (they don't exist in database)
-      if (req.user.userId.startsWith('demo-')) {
+      if (req.user!.userId.startsWith('demo-')) {
         const demoUsers = [
           {
             id: "demo-admin-1",
@@ -215,7 +224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         ];
 
-        const demoUser = demoUsers.find(u => u.id === req.user.userId);
+        const demoUser = demoUsers.find(u => u.id === req.user!.userId);
         if (demoUser) {
           return res.json({
             id: demoUser.id,
@@ -227,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Handle database users
-      const user = await storage.getUser(req.user.userId);
+      const user = await storage.getUser(req.user!.userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -481,6 +490,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(walletData);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch wallet data" });
+    }
+  });
+
+  // Address hierarchy endpoints
+  app.get("/api/admin/addresses/states", authenticateToken, async (req, res) => {
+    try {
+      const states = await storage.getAllStates();
+      res.json(states);
+    } catch (error) {
+      console.error('Error fetching states:', error);
+      res.status(500).json({ message: 'Failed to fetch states' });
+    }
+  });
+
+  app.get("/api/admin/addresses/districts/:stateId", authenticateToken, async (req, res) => {
+    try {
+      const districts = await storage.getDistrictsByState(req.params.stateId);
+      res.json(districts);
+    } catch (error) {
+      console.error('Error fetching districts:', error);
+      res.status(500).json({ message: 'Failed to fetch districts' });
+    }
+  });
+
+  app.get("/api/admin/addresses/mandals/:districtId", authenticateToken, async (req, res) => {
+    try {
+      const mandals = await storage.getMandalsByDistrict(req.params.districtId);
+      res.json(mandals);
+    } catch (error) {
+      console.error('Error fetching mandals:', error);
+      res.status(500).json({ message: 'Failed to fetch mandals' });
+    }
+  });
+
+  app.get("/api/admin/addresses/villages/:mandalId", authenticateToken, async (req, res) => {
+    try {
+      const villages = await storage.getVillagesByMandal(req.params.mandalId);
+      res.json(villages);
+    } catch (error) {
+      console.error('Error fetching villages:', error);
+      res.status(500).json({ message: 'Failed to fetch villages' });
+    }
+  });
+
+  // Enhanced user creation endpoint
+  app.post("/api/admin/users", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const userData = insertUserSchema.parse(req.body);
+      const hashedPassword = await bcrypt.hash(userData.password, 12);
+      
+      const newUser = await storage.createUser({
+        ...userData,
+        password: hashedPassword
+        // isPasswordChanged defaults to false in schema
+      });
+
+      // Remove password from response
+      const { password, ...userResponse } = newUser;
+      res.status(201).json(userResponse);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      res.status(500).json({ message: 'Failed to create user' });
+    }
+  });
+
+  // SO Center endpoints
+  app.get("/api/admin/so-centers/next-id", authenticateToken, async (req, res) => {
+    try {
+      const nextId = await storage.getNextSoCenterId();
+      res.json(nextId);
+    } catch (error) {
+      console.error('Error generating next SO Center ID:', error);
+      res.status(500).json({ message: 'Failed to generate next SO Center ID' });
+    }
+  });
+
+  app.get("/api/admin/users/managers", authenticateToken, async (req, res) => {
+    try {
+      const managers = await storage.getAvailableManagers();
+      res.json(managers);
+    } catch (error) {
+      console.error('Error fetching managers:', error);
+      res.status(500).json({ message: 'Failed to fetch managers' });
+    }
+  });
+
+  app.post("/api/admin/so-centers", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const centerData = req.body;
+      const hashedPassword = await bcrypt.hash(centerData.password || '12345678', 12);
+      
+      const newCenter = await storage.createSoCenter({
+        ...centerData,
+        password: hashedPassword
+        // isPasswordChanged defaults to false in schema
+      });
+
+      // Remove password from response
+      const { password, ...centerResponse } = newCenter;
+      res.status(201).json(centerResponse);
+    } catch (error) {
+      console.error('Error creating SO Center:', error);
+      res.status(500).json({ message: 'Failed to create SO Center' });
+    }
+  });
+
+  // Products endpoint (for commission calculation)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
     }
   });
 

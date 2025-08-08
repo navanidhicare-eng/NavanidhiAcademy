@@ -17,6 +17,40 @@ export const userRoleEnum = pgEnum("user_role", [
 export const courseTypeEnum = pgEnum("course_type", ["fixed_fee", "monthly_tuition"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "pending", "overdue"]);
 export const topicStatusEnum = pgEnum("topic_status", ["pending", "learned"]);
+export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "commission"]);
+export const maritalStatusEnum = pgEnum("marital_status", ["single", "married", "divorced", "widowed"]);
+
+// Address hierarchy tables
+export const states = pgTable("states", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(),
+  isActive: boolean("is_active").default(true),
+});
+
+export const districts = pgTable("districts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull(),
+  stateId: varchar("state_id").references(() => states.id),
+  isActive: boolean("is_active").default(true),
+});
+
+export const mandals = pgTable("mandals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull(),
+  districtId: varchar("district_id").references(() => districts.id),
+  isActive: boolean("is_active").default(true),
+});
+
+export const villages = pgTable("villages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull(),
+  mandalId: varchar("mandal_id").references(() => mandals.id),
+  isActive: boolean("is_active").default(true),
+});
 
 // Users table
 export const users = pgTable("users", {
@@ -25,20 +59,38 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   role: userRoleEnum("role").notNull(),
   name: text("name").notNull(),
+  fatherName: text("father_name"),
   phone: text("phone"),
+  dateOfBirth: text("date_of_birth"),
+  maritalStatus: maritalStatusEnum("marital_status"),
+  salary: decimal("salary", { precision: 10, scale: 2 }),
+  salaryType: salaryTypeEnum("salary_type").default("fixed"),
+  villageId: varchar("village_id").references(() => villages.id),
+  address: text("address"),
   isActive: boolean("is_active").default(true),
+  isPasswordChanged: boolean("is_password_changed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // SO Centers
 export const soCenters = pgTable("so_centers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  centerId: text("center_id").notNull().unique(), // NNASOC00001 format
   name: text("name").notNull(),
   address: text("address"),
+  villageId: varchar("village_id").references(() => villages.id),
   phone: text("phone"),
+  password: text("password").notNull().default("12345678"),
   managerId: varchar("manager_id").references(() => users.id),
+  ownerName: text("owner_name"),
+  ownerPhone: text("owner_phone"),
+  rentAmount: decimal("rent_amount", { precision: 10, scale: 2 }),
+  dateOfHouseTaken: text("date_of_house_taken"),
+  capacity: integer("capacity"),
+  facilities: text("facilities").array(),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).default("0"),
   isActive: boolean("is_active").default(true),
+  isPasswordChanged: boolean("is_password_changed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -128,16 +180,50 @@ export const walletTransactions = pgTable("wallet_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Products for commission calculation
+export const products = pgTable("products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }).default("0"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
+export const insertStateSchema = createInsertSchema(states).omit({
+  id: true,
+});
+
+export const insertDistrictSchema = createInsertSchema(districts).omit({
+  id: true,
+});
+
+export const insertMandalSchema = createInsertSchema(mandals).omit({
+  id: true,
+});
+
+export const insertVillageSchema = createInsertSchema(villages).omit({
+  id: true,
+});
+
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  isPasswordChanged: true,
 });
 
 export const insertSoCenterSchema = createInsertSchema(soCenters).omit({
   id: true,
   createdAt: true,
   walletBalance: true,
+  isPasswordChanged: true,
 });
 
 export const insertClassSchema = createInsertSchema(classes).omit({
@@ -178,6 +264,16 @@ export const insertWalletTransactionSchema = createInsertSchema(walletTransactio
 });
 
 // Types
+export type State = typeof states.$inferSelect;
+export type InsertState = z.infer<typeof insertStateSchema>;
+export type District = typeof districts.$inferSelect;
+export type InsertDistrict = z.infer<typeof insertDistrictSchema>;
+export type Mandal = typeof mandals.$inferSelect;
+export type InsertMandal = z.infer<typeof insertMandalSchema>;
+export type Village = typeof villages.$inferSelect;
+export type InsertVillage = z.infer<typeof insertVillageSchema>;
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type SoCenter = typeof soCenters.$inferSelect;

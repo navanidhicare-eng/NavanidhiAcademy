@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   Megaphone,
   FileCheck,
+  MapPin,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -52,6 +53,7 @@ export function Sidebar({ className }: SidebarProps) {
           ...baseItems,
           { icon: UserCog, label: 'Manage Users', href: '/admin/users' },
           { icon: Shield, label: 'Role Management', href: '/admin/roles' },
+          { icon: MapPin, label: 'Address Management', href: '/admin/addresses' },
           { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
           { icon: Building, label: 'SO Centers', href: '/admin/centers' },
           { icon: Users, label: 'All Students', href: '/admin/students' },
