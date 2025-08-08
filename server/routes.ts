@@ -18,7 +18,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { insertUserSchema, insertStudentSchema, insertPaymentSchema, insertTopicProgressSchema } from "@shared/schema";
 
-const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
 // Middleware to verify JWT token
 const authenticateToken = (req: Request, res: any, next: any) => {
@@ -43,7 +43,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("Login attempt:", req.body);
       const { email, password, role } = req.body;
+      
+      if (!email || !password || !role) {
+        return res.status(400).json({ message: "Email, password, and role are required" });
+      }
       
       // Demo users for testing
       const demoUsers = [
@@ -71,25 +76,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       // Check for demo users first
-      const demoUser = demoUsers.find(u => u.email === email && u.password === password && u.role === role);
+      console.log("Checking demo users for:", email, role);
+      const demoUser = demoUsers.find(u => 
+        u.email === email && 
+        u.password === password && 
+        u.role === role
+      );
+      
       if (demoUser) {
-        const token = jwt.sign(
-          { userId: demoUser.id, email: demoUser.email, role: demoUser.role },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
+        console.log("Demo user found:", demoUser.email);
+        try {
+          const token = jwt.sign(
+            { userId: demoUser.id, email: demoUser.email, role: demoUser.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+          );
 
-        return res.json({
-          token,
-          user: {
-            id: demoUser.id,
-            email: demoUser.email,
-            name: demoUser.name,
-            role: demoUser.role,
-          }
-        });
+          console.log("Token generated successfully");
+          return res.json({
+            token,
+            user: {
+              id: demoUser.id,
+              email: demoUser.email,
+              name: demoUser.name,
+              role: demoUser.role,
+            }
+          });
+        } catch (jwtError) {
+          console.error("JWT Error:", jwtError);
+          return res.status(500).json({ message: "Token generation failed" });
+        }
       }
 
+      console.log("No demo user found, trying database...");
       // Try database users
       try {
         const user = await storage.getUserByEmail(email);
@@ -122,9 +141,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } catch (dbError) {
+        console.error("Database error:", dbError);
         return res.status(401).json({ message: "Invalid credentials" });
       }
     } catch (error) {
+      console.error("Login error:", error);
       res.status(500).json({ message: "Login failed" });
     }
   });
