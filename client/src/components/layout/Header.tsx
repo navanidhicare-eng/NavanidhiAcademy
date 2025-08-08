@@ -32,10 +32,10 @@ export function Header({ title, subtitle, showAddButton, onAddClick }: HeaderPro
           </div>
 
           {/* Quick Actions */}
-          {showAddButton && user?.role === 'so_center' && (
+          {showAddButton && (user?.role === 'so_center' || user?.role === 'admin') && (
             <Button onClick={onAddClick} className="bg-primary text-white hover:bg-blue-700">
               <Plus className="mr-2" size={16} />
-              Add Student
+              {user?.role === 'admin' ? 'Add' : 'Add Student'}
             </Button>
           )}
         </div>

@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { AddClassModal } from '@/components/admin/AddClassModal';
+import { AddSubjectModal } from '@/components/admin/AddSubjectModal';
+import { AddChapterModal } from '@/components/admin/AddChapterModal';
+import { AddTopicModal } from '@/components/admin/AddTopicModal';
 import { 
   BookOpen, 
   FileText, 
@@ -17,6 +21,11 @@ import {
 
 export default function AdminStructure() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('classes');
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
+  const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
+  const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
 
   // Mock academic structure data
   const mockClasses = [
@@ -48,10 +57,22 @@ export default function AdminStructure() {
   ];
 
   const handleAdd = (type: string) => {
-    toast({ 
-      title: `Add ${type}`, 
-      description: `Add ${type.toLowerCase()} functionality coming soon!` 
-    });
+    switch (type) {
+      case 'Class':
+        setIsClassModalOpen(true);
+        break;
+      case 'Subject':
+        setIsSubjectModalOpen(true);
+        break;
+      case 'Chapter':
+        setIsChapterModalOpen(true);
+        break;
+      case 'Topic':
+        setIsTopicModalOpen(true);
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -59,7 +80,7 @@ export default function AdminStructure() {
       title="Academic Structure"
       subtitle="Manage classes, subjects, chapters, and topics"
     >
-      <Tabs defaultValue="classes" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="classes">Classes</TabsTrigger>
           <TabsTrigger value="subjects">Subjects</TabsTrigger>
@@ -225,6 +246,23 @@ export default function AdminStructure() {
           </Card>
         </TabsContent>
       </Tabs>
+      
+      <AddClassModal 
+        isOpen={isClassModalOpen} 
+        onClose={() => setIsClassModalOpen(false)} 
+      />
+      <AddSubjectModal 
+        isOpen={isSubjectModalOpen} 
+        onClose={() => setIsSubjectModalOpen(false)} 
+      />
+      <AddChapterModal 
+        isOpen={isChapterModalOpen} 
+        onClose={() => setIsChapterModalOpen(false)} 
+      />
+      <AddTopicModal 
+        isOpen={isTopicModalOpen} 
+        onClose={() => setIsTopicModalOpen(false)} 
+      />
     </DashboardLayout>
   );
 }
