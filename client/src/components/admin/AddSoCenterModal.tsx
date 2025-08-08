@@ -351,7 +351,6 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   </FormItem>
                 )}
               />
-              </div>
             </div>
 
             {/* Address Information */}
@@ -650,7 +649,6 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   </FormItem>
                 )}
               />
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
