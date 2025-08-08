@@ -127,7 +127,7 @@ export function Sidebar({ className }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 mt-4 px-4 pb-4 space-y-2">
+      <nav className="flex-1 mt-4 px-4 pb-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
@@ -135,7 +135,7 @@ export function Sidebar({ className }: SidebarProps) {
           return (
             <Link key={item.href} href={item.href}>
               <div className={cn(
-                "flex items-center px-4 py-3 rounded-lg transition-colors",
+                "flex items-center px-4 py-3 rounded-lg transition-colors text-sm",
                 isActive 
                   ? "text-primary bg-blue-50" 
                   : "text-gray-700 hover:bg-gray-100"
@@ -152,7 +152,7 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="p-4">
         <Button
           variant="ghost"
-          className="w-full justify-start text-gray-700 hover:bg-gray-100"
+          className="w-full justify-start text-gray-700 hover:bg-gray-100 text-sm"
           onClick={() => logout()}
         >
           <LogOut className="mr-3" size={18} />
