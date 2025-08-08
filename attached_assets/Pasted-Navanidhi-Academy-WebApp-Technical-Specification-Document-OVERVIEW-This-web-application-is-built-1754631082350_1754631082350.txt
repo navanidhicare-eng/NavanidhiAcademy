@@ -1,0 +1,265 @@
+Navanidhi Academy WebApp - Technical Specification Document
+
+OVERVIEW
+
+This web application is built to manage the operations of Navanidhi Academy and its SO (Satellite Office) Centers. It provides role-based dashboards and functionalities for admin, SO centers, agents, office staff, teachers, academic admins, collection agents, and marketing teams.
+
+The system is integrated with Supabase as the backend and database and will be hosted on Replit.
+
+Students will NOT log in. All tracking will be managed by SOs and shown to parents/admins via QR codes.
+
+USER ROLES AND CAPABILITIES
+
+1. Admin
+
+Add/Edit/Delete Classes
+
+Add/Edit/Delete Subjects
+
+Add Chapters and Topics
+
+Add Users by Role (SO, Teachers, Agents, Academic Admin, Collection Agent, Marketing Staff, etc.)
+
+View and manage dashboards for:
+
+Students
+
+Payments
+
+SO Centers
+
+Wallet Transactions
+
+Academic Progress
+
+View QR Code Reports of any student
+
+Send Push Notifications and Announcements
+
+Assign SOs to centers
+
+Manage Wallet balances and settlements manually
+
+Import/export data
+
+Set academic schedules and policies
+
+View error logs and system metrics
+
+2. SO Center (1–2 per center)
+
+Add/Onboard Students (Name, Class, Parent Phone, etc.)
+
+Record student payments (Fixed Fee / Monthly Fee)
+
+Update student topic progress: Select Student → Class → Subject → Chapter → Mark Learned Topics
+
+View students’ QR Code and share with parents
+
+View wallet (non-cash) and track income
+
+View reminders, pending payments, dues
+
+Filter students by class, payment status, topic progress
+
+Mark attendance manually (optional)
+
+3. Teacher
+
+View list of assigned students
+
+Tag students with issues or doubts
+
+Update topic-wise explanation status for batch
+
+Comment on topic completion quality
+
+Mark students for rework
+
+4. Academic Admin
+
+Oversee academic progress of all centers
+
+Monitor topic completion
+
+Generate reports (per class/subject/SO center)
+
+Intervene with alerts and instructions
+
+Filter lagging topics or low-performing SOs
+
+5. Agent
+
+Monitor SOs under them
+
+Remind them of payments and activity
+
+Report to admin weekly
+
+Get commission logs and wallet reports
+
+6. Office Staff
+
+Manage student onboarding (bulk entry, profile edits)
+
+Help in verification and cross-checks
+
+Manage fee receipt uploads or corrections
+
+Handle parent queries offline
+
+7. Collection Agent
+
+Collect offline money from SOs
+
+Use “Collect” button to transfer wallet balance (number only)
+
+Transfer gets updated in Admin’s view
+
+8. Marketing Staff
+
+Promote QR Code transparency
+
+Share progress reports with parents
+
+Handle feedback, complaints
+
+Conduct surveys
+
+STUDENT PROGRESS TRACKING (Without Login)
+
+Each student has a QR code that redirects to their progress page.
+
+Progress is updated by SOs via:
+
+Select Student → Select Class → Subject → Chapter → Tick topics as learned
+
+QR shows:
+
+Class, Subject, Chapter-wise: Pending vs Learned
+
+Date updated, Last activity
+
+Teacher feedback (optional)
+
+PAYMENT MANAGEMENT
+
+Course Types:
+
+Fixed Fee Course (e.g., Navodaya, POLYCET)
+
+Paid once
+
+SO updates payment manually
+
+Monthly Tuition Course
+
+Payment added to ledger every 30 days
+
+SO marks “Paid” or “Not Paid”
+
+Wallet System:
+
+Wallet values shown (not actual money)
+
+Admin sees all wallet balances
+
+Collection Agent clicks “Collect” to move SO wallet value into Collection Agent wallet
+
+Admin settles balances offline and logs it manually
+
+CORE LOGIC AND STORAGE OPTIMIZATION
+
+Topic Completion Logic:
+
+Topics are stored under:
+
+Class → Subject → Chapter → Topic
+
+Each topic has:
+
+Status: pending / learned
+
+Student ID
+
+SO ID
+
+Timestamp
+
+QR Code Logic:
+
+Unique QR per student → Dynamic page URL
+
+Progress page fetches only that student’s topic status
+
+No login or private data exposed
+
+Can be printed or shown from device
+
+Optimization:
+
+Use topic-mapping tables rather than duplicating per student
+
+Use foreign keys: Student ID + Topic ID + SO ID
+
+Display learned/pending by referencing status table, not full topic list per student
+
+ADDITIONAL FEATURES
+
+Auto Backup to Supabase Storage (weekly)
+
+Error Reporting and Debug Log per Role
+
+Daily Report to Admin (SO Activity, Collection Summary)
+
+Reminder System (SMS/API integration planned)
+
+Feedback Collection System
+
+Audit Trail per student (who updated, when)
+
+Export Reports (PDF, Excel)
+
+SO Leaderboard based on activity, accuracy, payments
+
+Role-based filter options
+
+Search by name, mobile, class, payment status
+
+Admin “Impersonate” feature to debug or view others’ dashboards
+
+FUTURE SCOPE
+
+Push Notification via Firebase
+
+Biometric Login for SOs
+
+AI-based student performance predictor
+
+SO Performance Scorecard
+
+Online payment gateway for students (Phase 2)
+
+TECHNOLOGY STACK
+
+Frontend: React (Replit Hosting)
+
+Backend & Auth: Supabase
+
+Database: Supabase PostgreSQL
+
+File Storage: Supabase Bucket
+
+QR Generation: API-based or frontend lib (e.g., qrcode.react)
+
+Analytics: Supabase logs, Google Analytics (optional)
+
+DEPLOYMENT STRATEGY
+
+Single workspace per environment (Test / Production)
+
+Role-based API security with Supabase Policies (RLS)
+
+Scheduled Backup Scripts
+
+Replit secrets for API keys & tokens
