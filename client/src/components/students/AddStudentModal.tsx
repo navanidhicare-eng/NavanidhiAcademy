@@ -83,7 +83,7 @@ const addStudentSchema = z.object({
   receiptNumber: z.string().optional(),
 }).refine((data) => {
   // If admission fee is paid, receipt number is required
-  if (data.admissionFeePaid && !data.receiptNumber) {
+  if (data.admissionFeePaid && (!data.receiptNumber || data.receiptNumber.trim() === '')) {
     return false;
   }
   return true;
@@ -391,7 +391,14 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            console.log('Form validation failed:', errors);
+            toast({
+              title: 'Form Validation Error',
+              description: 'Please check all required fields and correct any errors.',
+              variant: 'destructive',
+            });
+          })} className="space-y-6">
             
             {/* Student Personal Information */}
             <Card>
