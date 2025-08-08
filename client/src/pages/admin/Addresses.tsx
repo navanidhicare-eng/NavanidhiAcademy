@@ -361,7 +361,6 @@ export default function Addresses() {
                       <h3 className="font-semibold text-gray-900">{state.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="outline">{state.code}</Badge>
-                        <span className="text-xs text-gray-500">{state.districtCount} districts</span>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -401,8 +400,6 @@ export default function Addresses() {
                       <h3 className="font-semibold text-gray-900">{district.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="outline">{district.code}</Badge>
-                        <Badge variant="secondary">{district.stateName}</Badge>
-                        <span className="text-xs text-gray-500">{district.mandalCount} mandals</span>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -442,8 +439,6 @@ export default function Addresses() {
                       <h3 className="font-semibold text-gray-900">{mandal.name}</h3>
                       <div className="flex items-center space-x-2 mt-1">
                         <Badge variant="outline">{mandal.code}</Badge>
-                        <Badge variant="secondary">{mandal.districtName}</Badge>
-                        <span className="text-xs text-gray-500">{mandal.villageCount} villages</span>
                       </div>
                     </div>
                     <div className="flex space-x-2">
