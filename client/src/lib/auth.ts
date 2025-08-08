@@ -29,21 +29,44 @@ class AuthService {
   }
 
   async login(email: string, password: string, role: string): Promise<AuthResponse> {
-    const response = await apiRequest('POST', '/api/auth/login', {
-      email,
-      password,
-      role,
-    });
+    try {
+      console.log('Frontend login attempt:', { email, role });
+      
+      // Use fetch directly to avoid automatic error throwing
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          role,
+        }),
+      });
 
-    const data: AuthResponse = await response.json();
-    
-    this.token = data.token;
-    this.user = data.user;
-    
-    localStorage.setItem('auth_token', data.token);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
-    
-    return data;
+      console.log('Response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData);
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      const data: AuthResponse = await response.json();
+      console.log('Login successful:', data);
+      
+      this.token = data.token;
+      this.user = data.user;
+      
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      
+      return data;
+    } catch (error) {
+      console.error('Auth service login error:', error);
+      throw error;
+    }
   }
 
   async register(userData: {
