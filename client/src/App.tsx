@@ -12,6 +12,7 @@ import Payments from "@/pages/Payments";
 import Wallet from "@/pages/Wallet";
 import PublicProgress from "@/pages/PublicProgress";
 import NotFound from "@/pages/not-found";
+import StudentsAdmin from "@/pages/StudentsAdmin";
 
 // Admin Pages
 import AdminUsers from "@/pages/admin/Users";
@@ -71,6 +72,11 @@ function Router() {
       <Route path="/students">
         <ProtectedRoute>
           <Students />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/students">
+        <ProtectedRoute>
+          <StudentsAdmin />
         </ProtectedRoute>
       </Route>
       <Route path="/progress">

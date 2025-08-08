@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2, User, GraduationCap, MapPin, Users, CreditCard } from 'lucide-react';
+import { SuccessScreen } from './SuccessScreen';
 
 // Sibling schema
 const siblingSchema = z.object({
@@ -110,6 +111,27 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const [classFeesData, setClassFeesData] = useState<any>(null);
   const [aadharValidation, setAadharValidation] = useState<{ isChecking: boolean; isValid: boolean | null }>({ isChecking: false, isValid: null });
   const aadharTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [registrationResult, setRegistrationResult] = useState<any>(null);
+
+  const handleSuccessClose = () => {
+    setShowSuccessScreen(false);
+    setRegistrationResult(null);
+    // Reset form and state
+    form.reset();
+    setSelectedState('');
+    setSelectedDistrict('');
+    setSelectedMandal('');
+    setSelectedClass('');
+    setSelectedCourseType('');
+    setClassFeesData(null);
+    setAadharValidation({ isChecking: false, isValid: null });
+    // Clear any pending validation timeout
+    if (aadharTimeoutRef.current) {
+      clearTimeout(aadharTimeoutRef.current);
+    }
+    onClose();
+  };
 
   // Fetch available classes from API
   const { data: classesData = [] } = useQuery({
@@ -154,7 +176,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   // Fetch class fees when class and course type are selected
-  const { data: classFees } = useQuery({
+  const { data: classFees, isLoading: isLoadingFees } = useQuery({
     queryKey: ['/api/class-fees', selectedClass, selectedCourseType],
     queryFn: async () => {
       if (!selectedClass || !selectedCourseType) return null;
@@ -210,7 +232,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       return await response.json();
     },
     onSuccess: (response: any) => {
-      console.log('Aadhar validation response:', response);
       setAadharValidation({ isChecking: false, isValid: response.isUnique });
       if (!response.isUnique) {
         toast({
@@ -221,7 +242,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       }
     },
     onError: (error: any) => {
-      console.error('Aadhar validation error:', error);
       setAadharValidation({ isChecking: false, isValid: null });
       toast({
         title: 'Validation Error',
@@ -241,25 +261,17 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
         receiptNumber
       });
     },
-    onSuccess: (response: any) => {
-      toast({
-        title: 'Student Registered Successfully! 🎉',
-        description: response.message || 'Student has been successfully registered with unique ID.',
+    onSuccess: async (response: Response) => {
+      const result = await response.json();
+      setRegistrationResult({
+        studentId: result.student?.studentId || result.student?.id,
+        name: result.student?.name || form.getValues('name'),
+        transactionId: result.transactionId,
+        admissionFeePaid: result.admissionFeePaid || form.getValues('admissionFeePaid'),
+        amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
       });
+      setShowSuccessScreen(true);
       queryClient.invalidateQueries({ queryKey: ['/api/students'] });
-      form.reset();
-      setSelectedState('');
-      setSelectedDistrict('');
-      setSelectedMandal('');
-      setSelectedClass('');
-      setSelectedCourseType('');
-      setClassFeesData(null);
-      setAadharValidation({ isChecking: false, isValid: null });
-      // Clear any pending validation timeout
-      if (aadharTimeoutRef.current) {
-        clearTimeout(aadharTimeoutRef.current);
-      }
-      onClose();
     },
     onError: (error: any) => {
       toast({
@@ -271,11 +283,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   const onSubmit = (data: AddStudentFormData) => {
-    console.log('Form submission started');
-    console.log('Form data:', data);
-    console.log('Aadhar validation state:', aadharValidation);
-    console.log('Form errors:', form.formState.errors);
-    
     // Check for form validation errors first
     if (Object.keys(form.formState.errors).length > 0) {
       toast({
@@ -283,7 +290,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
         description: 'Please fix all form errors before submitting. Check all required fields.',
         variant: 'destructive',
       });
-      console.error('Form validation errors:', form.formState.errors);
       return;
     }
     
@@ -311,7 +317,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     data.parentPhone = data.fatherMobile;
     data.parentName = data.fatherName;
     
-    console.log('Submitting student registration...');
     createStudentMutation.mutate(data);
   };
   
@@ -327,7 +332,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       
       // Add 2.5 second delay before validation
       aadharTimeoutRef.current = setTimeout(() => {
-        console.log('Validating Aadhar number:', aadharNumber);
         validateAadharMutation.mutate(aadharNumber);
       }, 2500);
     } else {
@@ -874,7 +878,15 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 </div>
                 
                 {/* Fee Display */}
-                {classFeesData && (
+                {isLoadingFees && selectedClass && selectedCourseType && (
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      <span className="text-gray-600">Loading fee structure...</span>
+                    </div>
+                  </div>
+                )}
+                {classFeesData && !isLoadingFees && (
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <h4 className="font-medium text-blue-900 mb-2">📊 Fee Structure</h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1063,26 +1075,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
               </Card>
             )}
 
-            {/* Debug information for SO Centers */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mt-4">
-                <p className="text-sm font-medium text-yellow-800">Debug Info (SO Centers):</p>
-                <ul className="text-xs text-yellow-700 mt-1 space-y-1">
-                  <li>Aadhar Valid: {aadharValidation.isValid === null ? 'Not checked' : aadharValidation.isValid ? 'Yes' : 'No'}</li>
-                  <li>Form Valid: {form.formState.isValid ? 'Yes' : 'No'}</li>
-                  <li>Form Errors: {Object.keys(form.formState.errors).length} errors</li>
-                  <li>Button Status: {createStudentMutation.isPending || aadharValidation.isValid === false ? 'Disabled' : 'Enabled'}</li>
-                </ul>
-                {Object.keys(form.formState.errors).length > 0 && (
-                  <details className="mt-2">
-                    <summary className="text-xs cursor-pointer text-yellow-800">View Form Errors</summary>
-                    <pre className="text-xs mt-1 bg-yellow-100 p-2 rounded overflow-x-auto">
-                      {JSON.stringify(form.formState.errors, null, 2)}
-                    </pre>
-                  </details>
-                )}
-              </div>
-            )}
+
             
             <div className="flex justify-end space-x-3 pt-6">
               <Button type="button" variant="outline" onClick={onClose}>
@@ -1092,10 +1085,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 type="submit" 
                 disabled={createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0}
                 className="bg-primary text-white hover:bg-blue-700"
-                onClick={() => {
-                  console.log('Register button clicked');
-                  console.log('Button disabled?', createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0);
-                }}
               >
                 {createStudentMutation.isPending ? (
                   'Registering Student...'
@@ -1103,31 +1092,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                   'Register Student'
                 )}
               </Button>
-              
-              {/* Test Form Validation Button for SO Centers */}
-              {process.env.NODE_ENV === 'development' && (
-                <Button 
-                  type="button" 
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    console.log('=== FORM DEBUG INFO ===');
-                    console.log('Form is valid:', form.formState.isValid);
-                    console.log('Form errors:', form.formState.errors);
-                    console.log('Form values:', form.getValues());
-                    console.log('Aadhar validation:', aadharValidation);
-                    console.log('Button should be disabled?', createStudentMutation.isPending || aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0);
-                    
-                    toast({
-                      title: 'Debug Info',
-                      description: `Form Valid: ${form.formState.isValid}, Errors: ${Object.keys(form.formState.errors).length}, Aadhar: ${aadharValidation.isValid}`,
-                    });
-                  }}
-                  className="ml-2"
-                >
-                  🔍 Debug
-                </Button>
-              )}
               
               {/* Helper text for disabled button */}
               {(aadharValidation.isValid === false || Object.keys(form.formState.errors).length > 0) && !createStudentMutation.isPending && (
@@ -1140,6 +1104,13 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
           </form>
         </Form>
       </DialogContent>
+      
+      {/* Success Screen */}
+      <SuccessScreen 
+        isOpen={showSuccessScreen}
+        onClose={handleSuccessClose}
+        studentData={registrationResult}
+      />
     </Dialog>
   );
 }

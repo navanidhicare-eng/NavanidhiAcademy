@@ -269,8 +269,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const students = await storage.getStudentsBySoCenter(soCenterId as string);
         res.json(students);
       } else if (req.user.role === 'admin') {
-        // Admin can see all students - implement if needed
-        res.json([]);
+        // Admin can see all students
+        const students = await storage.getAllStudents();
+        res.json(students);
       } else {
         res.status(403).json({ message: "Unauthorized" });
       }
@@ -306,6 +307,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(student);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch student" });
+    }
+  });
+
+  // Update student
+  app.put("/api/students/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const student = await storage.getStudent(req.params.id);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Check permissions - admins can edit any student, SO centers can only edit their own
+      if (req.user.role !== 'admin' && student.soCenterId !== req.user.soCenterId) {
+        return res.status(403).json({ message: "Unauthorized to update this student" });
+      }
+
+      const updatedStudent = await storage.updateStudent(req.params.id, req.body);
+      res.json(updatedStudent);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message || "Failed to update student" });
+    }
+  });
+
+  // Delete student
+  app.delete("/api/students/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const student = await storage.getStudent(req.params.id);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Only admins can delete students
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can delete students" });
+      }
+
+      await storage.deleteStudent(req.params.id);
+      res.json({ message: "Student deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message || "Failed to delete student" });
     }
   });
 

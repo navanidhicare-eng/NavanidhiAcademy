@@ -415,17 +415,29 @@ export class DrizzleStorage implements IStorage {
   async createStudent(student: InsertStudent): Promise<Student> {
     const qrCode = `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const result = await db.insert(schema.students)
-      .values({ ...student, qrCode })
+      .values({ ...student, qrCode } as any)
       .returning();
     return result[0];
   }
 
+  async getAllStudents(): Promise<Student[]> {
+    return await db.select().from(schema.students)
+      .where(eq(schema.students.isActive, true))
+      .orderBy(desc(schema.students.createdAt));
+  }
+
   async updateStudent(id: string, updates: Partial<InsertStudent>): Promise<Student> {
     const result = await db.update(schema.students)
-      .set(updates)
+      .set({ ...updates, updatedAt: new Date() })
       .where(eq(schema.students.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteStudent(id: string): Promise<void> {
+    await db.update(schema.students)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(schema.students.id, id));
   }
 
   async getStudentProgress(studentId: string): Promise<TopicProgress[]> {
