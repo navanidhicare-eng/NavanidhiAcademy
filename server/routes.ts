@@ -59,109 +59,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
   });
 
-  // Auth routes
+  // Auth routes - Single login with automatic role detection
   app.post("/api/auth/login", async (req, res) => {
     try {
       console.log("Login attempt:", req.body);
-      const { email, password, role } = req.body;
+      const { email, password } = req.body;
       
-      if (!email || !password || !role) {
-        return res.status(400).json({ message: "Email, password, and role are required" });
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
       }
       
-      // Demo users for testing
-      const demoUsers = [
-        {
-          id: "demo-admin-1",
-          email: "admin@demo.com",
-          password: "admin123",
-          name: "Admin User",
-          role: "admin"
-        },
-        {
-          id: "demo-so-1", 
-          email: "so@demo.com",
-          password: "so123",
-          name: "SO Center Manager",
-          role: "so_center"
-        },
-        {
-          id: "demo-teacher-1",
-          email: "teacher@demo.com", 
-          password: "teacher123",
-          name: "Math Teacher",
-          role: "teacher"
-        }
-      ];
+      let user = null;
+      let loginIdentifier = email;
 
-      // Check for demo users first
-      console.log("Checking demo users for:", email, role);
-      const demoUser = demoUsers.find(u => 
-        u.email === email && 
-        u.password === password && 
-        u.role === role
-      );
-      
-      if (demoUser) {
-        console.log("Demo user found:", demoUser.email);
-        try {
-          const token = jwt.sign(
-            { userId: demoUser.id, email: demoUser.email, role: demoUser.role },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-          );
-
-          console.log("Token generated successfully");
-          return res.json({
-            token,
-            user: {
-              id: demoUser.id,
-              email: demoUser.email,
-              name: demoUser.name,
-              role: demoUser.role,
-            }
-          });
-        } catch (jwtError) {
-          console.error("JWT Error:", jwtError);
-          return res.status(500).json({ message: "Token generation failed" });
-        }
-      }
-
-      console.log("No demo user found, trying database...");
-      // Try database users
       try {
+        // First, try to find user by email
         console.log(`🔍 Looking up user by email: ${email}`);
-        const user = await storage.getUserByEmail(email);
+        user = await storage.getUserByEmail(email);
+        
+        // If not found by email, check if it's a SO Center ID
+        if (!user) {
+          console.log(`📱 Trying to find SO Center by Center ID: ${email}`);
+          const soCenter = await storage.getSoCenterByCenterId(email);
+          
+          if (soCenter && soCenter.email) {
+            console.log(`🏢 Found SO Center: ${soCenter.name}, looking up user by email: ${soCenter.email}`);
+            user = await storage.getUserByEmail(soCenter.email);
+            loginIdentifier = soCenter.email;
+          }
+        }
         
         if (!user) {
-          console.log(`❌ User not found in database for email: ${email}`);
+          console.log(`❌ User not found for identifier: ${email}`);
           return res.status(401).json({ message: "Invalid credentials" });
         }
-        
+
         console.log(`✅ User found: ${user.name} (${user.email}) with role: ${user.role}`);
-        console.log(`🔐 Comparing password... (provided: '${password}')`);
+        console.log(`🔐 Verifying password...`);
         
         const isValidPassword = await bcrypt.compare(password, user.password);
-        console.log(`🔐 Password comparison result: ${isValidPassword}`);
+        console.log(`🔐 Password verification result: ${isValidPassword}`);
         
         if (!isValidPassword) {
-          console.log(`❌ Password mismatch for user: ${email}`);
+          console.log(`❌ Password mismatch for user: ${loginIdentifier}`);
           return res.status(401).json({ message: "Invalid credentials" });
         }
         
-        console.log(`👤 Checking role: provided '${role}' vs user role '${user.role}'`);
-        if (user.role !== role) {
-          console.log(`❌ Role mismatch: expected '${role}' but user has '${user.role}'`);
-          return res.status(401).json({ message: "Invalid role selection" });
-        }
-        
-        console.log(`🎉 Authentication successful for ${email}`);
+        console.log(`🎉 Authentication successful for ${loginIdentifier}`);
 
         const token = jwt.sign(
           { userId: user.id, email: user.email, role: user.role },
           JWT_SECRET,
           { expiresIn: '24h' }
         );
+
+        // Determine dashboard route based on role
+        let dashboardRoute = '/dashboard';
+        switch (user.role) {
+          case 'admin':
+            dashboardRoute = '/admin/users';
+            break;
+          case 'so_center':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'teacher':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'academic_admin':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'agent':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'office_staff':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'collection_agent':
+            dashboardRoute = '/dashboard';
+            break;
+          case 'marketing_staff':
+            dashboardRoute = '/dashboard';
+            break;
+          default:
+            dashboardRoute = '/dashboard';
+        }
+
+        console.log(`📍 Redirecting ${user.role} to: ${dashboardRoute}`);
 
         res.json({
           token,
@@ -170,7 +153,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             email: user.email,
             name: user.name,
             role: user.role,
-          }
+          },
+          redirectTo: dashboardRoute
         });
       } catch (dbError) {
         console.error("Database error:", dbError);

@@ -17,8 +17,8 @@ export function useAuth() {
   });
 
   const loginMutation = useMutation({
-    mutationFn: ({ email, password, role }: { email: string; password: string; role: string }) =>
-      authService.login(email, password, role),
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      authService.login(email, password),
     onSuccess: (data) => {
       setUser(data.user);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/me'] });
@@ -48,8 +48,8 @@ export function useAuth() {
     user,
     isLoading,
     isAuthenticated: !!user,
-    login: async (email: string, password: string, role: string) => {
-      return await loginMutation.mutateAsync({ email, password, role });
+    login: async (email: string, password: string) => {
+      return await loginMutation.mutateAsync({ email, password });
     },
     logout: () => logoutMutation.mutate(),
     isLoginLoading: loginMutation.isPending,

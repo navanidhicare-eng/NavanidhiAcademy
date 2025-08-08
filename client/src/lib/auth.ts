@@ -10,6 +10,7 @@ export interface User {
 export interface AuthResponse {
   token: string;
   user: User;
+  redirectTo?: string;
 }
 
 class AuthService {
@@ -28,9 +29,9 @@ class AuthService {
     }
   }
 
-  async login(email: string, password: string, role: string): Promise<AuthResponse> {
+  async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      console.log('Frontend login attempt:', { email, role });
+      console.log('Frontend login attempt:', { email });
       
       // Use fetch directly to avoid automatic error throwing
       const response = await fetch('/api/auth/login', {
@@ -41,7 +42,6 @@ class AuthService {
         body: JSON.stringify({
           email,
           password,
-          role,
         }),
       });
 

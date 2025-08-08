@@ -5,16 +5,15 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { GraduationCap, Eye, EyeOff, LogIn } from 'lucide-react';
+import { useLocation } from 'wouter';
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  email: z.string().min(1, 'Please enter email or SO Center ID'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.string().min(1, 'Please select a role'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -23,23 +22,31 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, isLoginLoading, loginError } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
       password: '',
-      role: '',
     },
   });
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.email, data.password, data.role);
+      const result = await login(data.email, data.password);
+      
       toast({
         title: 'Login Successful',
-        description: 'Welcome to Navanidhi Academy',
+        description: `Welcome ${result.user.name}!`,
       });
+      
+      // Navigate to the appropriate dashboard based on role
+      if (result.redirectTo) {
+        navigate(result.redirectTo);
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error) {
       toast({
         title: 'Login Failed',
@@ -49,16 +56,6 @@ export function LoginForm() {
     }
   };
 
-  const roles = [
-    { value: 'admin', label: 'Admin' },
-    { value: 'so_center', label: 'SO Center' },
-    { value: 'teacher', label: 'Teacher' },
-    { value: 'academic_admin', label: 'Academic Admin' },
-    { value: 'agent', label: 'Agent' },
-    { value: 'office_staff', label: 'Office Staff' },
-    { value: 'collection_agent', label: 'Collection Agent' },
-    { value: 'marketing_staff', label: 'Marketing Staff' },
-  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-blue-600 p-4">
@@ -74,12 +71,12 @@ export function LoginForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
+                Email or SO Center ID
               </Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="Enter your email"
+                type="text"
+                placeholder="Enter email or SO Center ID (e.g., NAV001)"
                 {...form.register('email')}
                 className="w-full"
               />
@@ -119,28 +116,6 @@ export function LoginForm() {
               )}
             </div>
 
-            <div>
-              <Label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                Select Role
-              </Label>
-              <Select onValueChange={(value) => form.setValue('role', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose your role..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.role && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.role.message}
-                </p>
-              )}
-            </div>
 
             <Button
               type="submit"
@@ -160,10 +135,10 @@ export function LoginForm() {
 
           <div className="mt-6 text-center space-y-2">
             <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-              <strong>Demo Credentials:</strong><br/>
-              • Admin: admin@demo.com / admin123 / Admin<br/>
-              • SO Center: so@demo.com / so123 / SO Center<br/>
-              • Teacher: teacher@demo.com / teacher123 / Teacher
+              <strong>Login Instructions:</strong><br/>
+              • Use your registered email address<br/>
+              • SO Centers can use their Center ID (e.g., NAV001)<br/>
+              • System will automatically detect your role
             </div>
             <a href="#" className="text-primary hover:text-blue-700 text-sm">
               Forgot Password?
