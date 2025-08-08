@@ -661,6 +661,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SO Center endpoints
+  app.get("/api/admin/so-centers", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('📋 Fetching SO Centers list for admin...');
+      const centers = await storage.getAllSoCenters();
+      console.log(`✅ Found ${centers.length} SO Centers`);
+      res.json(centers);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO Centers:', error);
+      res.status(500).json({ message: 'Failed to fetch SO Centers' });
+    }
+  });
+
   app.get("/api/admin/so-centers/next-id", authenticateToken, async (req, res) => {
     try {
       const nextId = await storage.getNextSoCenterId();

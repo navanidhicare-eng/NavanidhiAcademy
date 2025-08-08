@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql as sqlQuery, inArray } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -219,8 +219,61 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getAllSoCenters(): Promise<SoCenter[]> {
-    return await db.select().from(schema.soCenters).where(eq(schema.soCenters.isActive, true));
+  async getAllSoCenters(): Promise<any[]> {
+    // Get SO Centers with manager info and student counts
+    const centers = await db
+      .select({
+        id: schema.soCenters.id,
+        name: schema.soCenters.name,
+        email: schema.soCenters.email,
+        centerId: schema.soCenters.centerId,
+        address: schema.soCenters.address,
+        phone: schema.soCenters.phone,
+        managerId: schema.soCenters.managerId,
+        ownerName: schema.soCenters.ownerName,
+        ownerLastName: schema.soCenters.ownerLastName,
+        ownerPhone: schema.soCenters.ownerPhone,
+        walletBalance: schema.soCenters.walletBalance,
+        isActive: schema.soCenters.isActive,
+        createdAt: schema.soCenters.createdAt,
+        villageId: schema.soCenters.villageId,
+        // Manager information
+        managerName: schema.users.name,
+        managerEmail: schema.users.email,
+        // Village information  
+        villageName: schema.villages.name,
+        mandalName: schema.mandals.name,
+        districtName: schema.districts.name,
+        stateName: schema.states.name,
+      })
+      .from(schema.soCenters)
+      .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+      .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+      .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+      .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+      .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+      .where(eq(schema.soCenters.isActive, true))
+      .orderBy(desc(schema.soCenters.createdAt));
+
+    // Get student counts for each center
+    const centerIds = centers.map(c => c.id);
+    const studentCounts = centerIds.length > 0 ? await db
+      .select({
+        centerId: schema.students.soCenterId,
+        count: sqlQuery<number>`count(*)::int`
+      })
+      .from(schema.students)
+      .where(and(
+        inArray(schema.students.soCenterId, centerIds),
+        eq(schema.students.isActive, true)
+      ))
+      .groupBy(schema.students.soCenterId) : [];
+
+    // Combine center data with student counts
+    return centers.map(center => ({
+      ...center,
+      studentCount: studentCounts.find(sc => sc.centerId === center.id)?.count || 0
+    }));
   }
 
   async createSoCenter(center: InsertSoCenter): Promise<SoCenter> {
