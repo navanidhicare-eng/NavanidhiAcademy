@@ -100,37 +100,16 @@ function AddAddressModal({ isOpen, onClose, type, editing }: AddModalProps) {
 
   const { data: states = [] } = useQuery({
     queryKey: ['/api/admin/addresses/states'],
-    queryFn: async () => {
-      // Mock data for now
-      return [
-        { id: '1', name: 'Telangana', code: 'TS' },
-        { id: '2', name: 'Andhra Pradesh', code: 'AP' },
-      ];
-    },
     enabled: type === 'district',
   });
 
   const { data: districts = [] } = useQuery({
     queryKey: ['/api/admin/addresses/districts'],
-    queryFn: async () => {
-      // Mock data for now
-      return [
-        { id: '1', name: 'Hyderabad', code: 'HYD', stateId: '1', stateName: 'Telangana' },
-        { id: '2', name: 'Warangal', code: 'WGL', stateId: '1', stateName: 'Telangana' },
-      ];
-    },
     enabled: type === 'mandal',
   });
 
   const { data: mandals = [] } = useQuery({
     queryKey: ['/api/admin/addresses/mandals'],
-    queryFn: async () => {
-      // Mock data for now
-      return [
-        { id: '1', name: 'Secunderabad', code: 'SEC', districtId: '1', districtName: 'Hyderabad' },
-        { id: '2', name: 'Kukatpally', code: 'KKP', districtId: '1', districtName: 'Hyderabad' },
-      ];
-    },
     enabled: type === 'village',
   });
 
@@ -313,49 +292,21 @@ export default function Addresses() {
   const [modalType, setModalType] = useState<'state' | 'district' | 'mandal' | 'village'>('state');
   const [editingItem, setEditingItem] = useState<any>(null);
 
-  // Mock data - replace with actual API calls
+  // Fetch real data from Supabase database
   const { data: states = [] } = useQuery({
     queryKey: ['/api/admin/addresses/states'],
-    queryFn: async () => {
-      return [
-        { id: '1', name: 'Telangana', code: 'TS', districtCount: 33 },
-        { id: '2', name: 'Andhra Pradesh', code: 'AP', districtCount: 26 },
-        { id: '3', name: 'Karnataka', code: 'KA', districtCount: 30 },
-      ];
-    },
   });
 
   const { data: districts = [] } = useQuery({
     queryKey: ['/api/admin/addresses/districts'],
-    queryFn: async () => {
-      return [
-        { id: '1', name: 'Hyderabad', code: 'HYD', stateId: '1', stateName: 'Telangana', mandalCount: 15 },
-        { id: '2', name: 'Warangal', code: 'WGL', stateId: '1', stateName: 'Telangana', mandalCount: 18 },
-        { id: '3', name: 'Nizamabad', code: 'NZB', stateId: '1', stateName: 'Telangana', mandalCount: 22 },
-      ];
-    },
   });
 
   const { data: mandals = [] } = useQuery({
     queryKey: ['/api/admin/addresses/mandals'],
-    queryFn: async () => {
-      return [
-        { id: '1', name: 'Secunderabad', code: 'SEC', districtId: '1', districtName: 'Hyderabad', villageCount: 25 },
-        { id: '2', name: 'Kukatpally', code: 'KKP', districtId: '1', districtName: 'Hyderabad', villageCount: 18 },
-        { id: '3', name: 'Uppal', code: 'UPL', districtId: '1', districtName: 'Hyderabad', villageCount: 12 },
-      ];
-    },
   });
 
   const { data: villages = [] } = useQuery({
     queryKey: ['/api/admin/addresses/villages'],
-    queryFn: async () => {
-      return [
-        { id: '1', name: 'Alwal', code: 'ALW', mandalId: '1', mandalName: 'Secunderabad' },
-        { id: '2', name: 'Bollarum', code: 'BLR', mandalId: '1', mandalName: 'Secunderabad' },
-        { id: '3', name: 'Kompally', code: 'KMP', mandalId: '2', mandalName: 'Kukatpally' },
-      ];
-    },
   });
 
   const handleAdd = (type: 'state' | 'district' | 'mandal' | 'village') => {
