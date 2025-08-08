@@ -33,7 +33,14 @@ const addSoCenterSchema = z.object({
   phone: z.string().min(10, 'Valid phone number required'),
   managerId: z.string().optional().transform(val => val === 'none' ? undefined : val),
   ownerName: z.string().min(1, 'Owner name is required'),
+  ownerLastName: z.string().min(1, 'Owner last name is required'),
+  ownerFatherName: z.string().min(1, 'Owner father name is required'),
+  ownerMotherName: z.string().min(1, 'Owner mother name is required'),
   ownerPhone: z.string().min(10, 'Owner phone number is required'),
+  landmarks: z.string().optional(),
+  roomSize: z.string().min(1, 'Room size is required'),
+  electricalServiceProvider: z.string().min(1, 'Electrical service provider is required'),
+  internetServiceProvider: z.string().min(1, 'Internet service provider is required'),
   rentAmount: z.string().min(1, 'Rent amount is required'),
   rentalAdvance: z.string().min(1, 'Rental advance is required'),
   dateOfHouseTaken: z.string().min(1, 'Date of house taken is required'),
@@ -61,6 +68,8 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [selectedMandal, setSelectedMandal] = useState('');
   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
   const [generatedCenterId, setGeneratedCenterId] = useState('');
+  const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
+  const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
 
   // Generate next Center ID when modal opens
   const { data: nextCenterId = '' } = useQuery({
@@ -149,7 +158,14 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       phone: '',
       managerId: 'none',
       ownerName: '',
+      ownerLastName: '',
+      ownerFatherName: '',
+      ownerMotherName: '',
       ownerPhone: '',
+      landmarks: '',
+      roomSize: '',
+      electricalServiceProvider: '',
+      internetServiceProvider: '',
       rentAmount: '',
       rentalAdvance: '',
       dateOfHouseTaken: '',
@@ -216,8 +232,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         monthlyElectricityDate: parseInt(data.monthlyElectricityDate),
         internetAmount: parseFloat(data.internetAmount),
         monthlyInternetDate: parseInt(data.monthlyInternetDate),
+        electricalServiceProvider: data.electricalServiceProvider,
+        internetServiceProvider: data.internetServiceProvider,
+        roomSize: data.roomSize,
         capacity: parseInt(data.capacity),
         facilities: selectedFacilities,
+        nearbySchools: nearbySchools,
+        nearbyTuitions: nearbyTuitions,
       };
       return apiRequest('POST', '/api/admin/so-centers', processedData);
     },
@@ -315,6 +336,21 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="roomSize"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Room Size</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 20x15 feet" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </div>
             </div>
 
@@ -417,6 +453,20 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="landmarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Landmarks</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nearby landmarks or reference points" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Property Owner Information */}
@@ -429,9 +479,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   name="ownerName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Property Owner Name</FormLabel>
+                      <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter property owner name" {...field} />
+                        <Input placeholder="Enter owner first name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -440,18 +490,62 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
                 <FormField
                   control={form.control}
-                  name="ownerPhone"
+                  name="ownerLastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Owner Phone</FormLabel>
+                      <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="+91 98765 43210" {...field} />
+                        <Input placeholder="Enter owner last name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="ownerFatherName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Father Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter owner father name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="ownerMotherName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mother Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter owner mother name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="ownerPhone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>House Owner Name & Conditions</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+91 98765 43210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -543,6 +637,21 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 />
               </div>
 
+              <FormField
+                control={form.control}
+                name="electricalServiceProvider"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Electrical Service Provider</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., TSSPDCL, APSPDCL" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -572,6 +681,20 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="internetServiceProvider"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Internet Service Provider</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Airtel, Jio, BSNL" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Center Management */}
@@ -631,6 +754,116 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   {form.formState.errors.facilities.message}
                 </p>
               )}
+            </div>
+
+            {/* Nearby Schools Information */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Nearby School Information</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNearbySchools([...nearbySchools, {schoolName: '', studentStrength: '', schoolType: ''}])}
+                >
+                  Add School
+                </Button>
+              </div>
+              
+              {nearbySchools.map((school, index) => (
+                <div key={index} className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
+                  <div>
+                    <Label>School Name</Label>
+                    <Input 
+                      placeholder="Enter school name"
+                      value={school.schoolName}
+                      onChange={(e) => {
+                        const updated = [...nearbySchools];
+                        updated[index].schoolName = e.target.value;
+                        setNearbySchools(updated);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Student Strength</Label>
+                    <Input 
+                      type="number"
+                      placeholder="e.g., 500"
+                      value={school.studentStrength}
+                      onChange={(e) => {
+                        const updated = [...nearbySchools];
+                        updated[index].studentStrength = e.target.value;
+                        setNearbySchools(updated);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>School Type</Label>
+                    <Select 
+                      value={school.schoolType} 
+                      onValueChange={(value) => {
+                        const updated = [...nearbySchools];
+                        updated[index].schoolType = value;
+                        setNearbySchools(updated);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select school type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="government">Government</SelectItem>
+                        <SelectItem value="private">Private</SelectItem>
+                        <SelectItem value="aided">Aided</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Nearby Tuitions Information */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Nearby Tuition Information</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNearbyTuitions([...nearbyTuitions, {tuitionName: '', studentStrength: ''}])}
+                >
+                  Add Tuition
+                </Button>
+              </div>
+              
+              {nearbyTuitions.map((tuition, index) => (
+                <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
+                  <div>
+                    <Label>Tuition Name</Label>
+                    <Input 
+                      placeholder="Enter tuition name"
+                      value={tuition.tuitionName}
+                      onChange={(e) => {
+                        const updated = [...nearbyTuitions];
+                        updated[index].tuitionName = e.target.value;
+                        setNearbyTuitions(updated);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Student Strength</Label>
+                    <Input 
+                      type="number"
+                      placeholder="e.g., 100"
+                      value={tuition.studentStrength}
+                      onChange={(e) => {
+                        const updated = [...nearbyTuitions];
+                        updated[index].studentStrength = e.target.value;
+                        setNearbyTuitions(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="bg-green-50 p-4 rounded-lg">

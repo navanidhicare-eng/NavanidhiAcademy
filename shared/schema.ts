@@ -83,15 +83,22 @@ export const soCenters = pgTable("so_centers", {
   password: text("password").notNull().default("12345678"),
   managerId: varchar("manager_id").references(() => users.id),
   ownerName: text("owner_name"),
+  ownerLastName: text("owner_last_name"),
+  ownerFatherName: text("owner_father_name"),
+  ownerMotherName: text("owner_mother_name"),
   ownerPhone: text("owner_phone"),
+  landmarks: text("landmarks"),
+  roomSize: text("room_size"),
   rentAmount: decimal("rent_amount", { precision: 10, scale: 2 }),
   rentalAdvance: decimal("rental_advance", { precision: 10, scale: 2 }),
   dateOfHouseTaken: text("date_of_house_taken"),
   monthlyRentDate: integer("monthly_rent_date"), // Day of month (1-31)
   electricityAmount: decimal("electricity_amount", { precision: 10, scale: 2 }),
   monthlyElectricityDate: integer("monthly_electricity_date"), // Day of month (1-31)
+  electricalServiceProvider: text("electrical_service_provider"),
   internetAmount: decimal("internet_amount", { precision: 10, scale: 2 }),
   monthlyInternetDate: integer("monthly_internet_date"), // Day of month (1-31)
+  internetServiceProvider: text("internet_service_provider"),
   capacity: integer("capacity"),
   facilities: text("facilities").array(),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).default("0"),
@@ -194,6 +201,25 @@ export const products = pgTable("products", {
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }).default("0"),
   isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Nearby Schools
+export const nearbySchools = pgTable("nearby_schools", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id),
+  schoolName: text("school_name").notNull(),
+  studentStrength: integer("student_strength"),
+  schoolType: text("school_type"), // government, private, etc.
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Nearby Tuitions
+export const nearbyTuitions = pgTable("nearby_tuitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id),
+  tuitionName: text("tuition_name").notNull(),
+  studentStrength: integer("student_strength"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
