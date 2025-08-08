@@ -8,9 +8,24 @@ async function throwIfResNotOk(res: Response) {
 }
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('auth_token');
   const headers: Record<string, string> = {};
   
+  // Try to get Supabase session from localStorage (synchronous)
+  try {
+    const supabaseSession = localStorage.getItem('sb-gbydqtftpmftdojpylls-auth-token');
+    if (supabaseSession) {
+      const sessionData = JSON.parse(supabaseSession);
+      if (sessionData?.access_token) {
+        headers['Authorization'] = `Bearer ${sessionData.access_token}`;
+        return headers;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to parse Supabase session from localStorage');
+  }
+  
+  // Fallback to localStorage token for backward compatibility
+  const token = localStorage.getItem('auth_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
