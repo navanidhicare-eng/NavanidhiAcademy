@@ -539,6 +539,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Address hierarchy creation endpoints
+  app.post("/api/admin/addresses/states", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const stateData = insertStateSchema.parse(req.body);
+      const newState = await storage.createState(stateData);
+      res.status(201).json(newState);
+    } catch (error) {
+      console.error('Error creating state:', error);
+      res.status(500).json({ message: 'Failed to create state' });
+    }
+  });
+
+  app.post("/api/admin/addresses/districts", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const districtData = insertDistrictSchema.parse(req.body);
+      const newDistrict = await storage.createDistrict(districtData);
+      res.status(201).json(newDistrict);
+    } catch (error) {
+      console.error('Error creating district:', error);
+      res.status(500).json({ message: 'Failed to create district' });
+    }
+  });
+
+  app.post("/api/admin/addresses/mandals", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const mandalData = insertMandalSchema.parse(req.body);
+      const newMandal = await storage.createMandal(mandalData);
+      res.status(201).json(newMandal);
+    } catch (error) {
+      console.error('Error creating mandal:', error);
+      res.status(500).json({ message: 'Failed to create mandal' });
+    }
+  });
+
+  app.post("/api/admin/addresses/villages", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const villageData = insertVillageSchema.parse(req.body);
+      const newVillage = await storage.createVillage(villageData);
+      res.status(201).json(newVillage);
+    } catch (error) {
+      console.error('Error creating village:', error);
+      res.status(500).json({ message: 'Failed to create village' });
+    }
+  });
+
   // Enhanced user creation endpoint
   app.post("/api/admin/users", authenticateToken, async (req, res) => {
     try {
