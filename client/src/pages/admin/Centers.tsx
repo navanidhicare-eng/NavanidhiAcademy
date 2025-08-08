@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { AddSoCenterModal } from '@/components/admin/AddSoCenterModal';
 import { 
   Search, 
   Building, 
@@ -19,6 +20,7 @@ import {
 
 export default function AdminCenters() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const { toast } = useToast();
 
   // Mock SO Centers data
@@ -72,10 +74,7 @@ export default function AdminCenters() {
   };
 
   const handleAddCenter = () => {
-    toast({ 
-      title: 'Add SO Center', 
-      description: 'Add SO Center functionality coming soon!' 
-    });
+    setIsAddModalOpen(true);
   };
 
   return (
@@ -207,6 +206,11 @@ export default function AdminCenters() {
           </Card>
         )}
       </div>
+      
+      <AddSoCenterModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+      />
     </DashboardLayout>
   );
 }

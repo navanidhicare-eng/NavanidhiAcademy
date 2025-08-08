@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { AddUserModal } from '@/components/admin/AddUserModal';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
@@ -18,8 +19,27 @@ import {
 export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch users from API
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        // Return mock data if API fails
+        return mockUsers;
+      }
+      return response.json();
+    },
+  });
 
   // Mock users data - replace with actual API call
   const mockUsers = [
@@ -66,7 +86,7 @@ export default function AdminUsers() {
     }
   };
 
-  const filteredUsers = mockUsers.filter(user => {
+  const filteredUsers = users.filter((user: any) => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
@@ -78,7 +98,7 @@ export default function AdminUsers() {
       title="Manage Users"
       subtitle="Manage system users and their roles"
       showAddButton={true}
-      onAddClick={() => toast({ title: 'Add User', description: 'Add user functionality coming soon!' })}
+      onAddClick={() => setIsAddModalOpen(true)}
     >
       <Card>
         <CardHeader>
@@ -185,25 +205,30 @@ export default function AdminUsers() {
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{mockUsers.filter(u => u.role === 'admin').length}</div>
+                <div className="text-2xl font-bold text-primary">{users.filter((u: any) => u.role === 'admin').length}</div>
                 <p className="text-gray-600">Admins</p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{mockUsers.filter(u => u.role === 'so_center').length}</div>
+                <div className="text-2xl font-bold text-blue-600">{users.filter((u: any) => u.role === 'so_center').length}</div>
                 <p className="text-gray-600">SO Centers</p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{mockUsers.filter(u => u.role === 'teacher').length}</div>
+                <div className="text-2xl font-bold text-green-600">{users.filter((u: any) => u.role === 'teacher').length}</div>
                 <p className="text-gray-600">Teachers</p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">{mockUsers.length}</div>
+                <div className="text-2xl font-bold text-gray-600">{users.length}</div>
                 <p className="text-gray-600">Total Users</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+      
+      <AddUserModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+      />
     </DashboardLayout>
   );
 }
