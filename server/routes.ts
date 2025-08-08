@@ -1105,6 +1105,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Database seeding endpoint for Supabase
+  app.post("/api/admin/seed-database", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      // Check if states already exist
+      const existingStates = await storage.getAllStates();
+      if (existingStates.length > 0) {
+        return res.json({ message: 'Database already seeded', existingStates: existingStates.length });
+      }
+
+      // Seed initial states for India
+      const initialStates = [
+        { name: 'Andhra Pradesh', code: 'AP' },
+        { name: 'Telangana', code: 'TS' },
+        { name: 'Karnataka', code: 'KA' },
+        { name: 'Tamil Nadu', code: 'TN' },
+        { name: 'Kerala', code: 'KL' }
+      ];
+
+      const createdStates = [];
+      for (const stateData of initialStates) {
+        const state = await storage.createState(stateData);
+        createdStates.push(state);
+      }
+
+      // Seed initial classes
+      const initialClasses = [
+        { name: '1st Class', description: 'First standard' },
+        { name: '2nd Class', description: 'Second standard' },
+        { name: '3rd Class', description: 'Third standard' },
+        { name: '4th Class', description: 'Fourth standard' },
+        { name: '5th Class', description: 'Fifth standard' },
+        { name: '6th Class', description: 'Sixth standard' },
+        { name: '7th Class', description: 'Seventh standard' },
+        { name: '8th Class', description: 'Eighth standard' },
+        { name: '9th Class', description: 'Ninth standard' },
+        { name: '10th Class', description: 'Tenth standard' }
+      ];
+
+      const createdClasses = [];
+      for (const classData of initialClasses) {
+        const classItem = await storage.createClass(classData);
+        createdClasses.push(classItem);
+      }
+
+      res.json({ 
+        message: 'Database seeded successfully',
+        seeded: {
+          states: createdStates.length,
+          classes: createdClasses.length
+        }
+      });
+    } catch (error) {
+      console.error('Error seeding database:', error);
+      res.status(500).json({ message: 'Failed to seed database' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
