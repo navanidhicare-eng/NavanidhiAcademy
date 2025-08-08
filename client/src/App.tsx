@@ -15,10 +15,18 @@ import NotFound from "@/pages/not-found";
 
 // Admin Pages
 import AdminUsers from "@/pages/admin/Users";
+import AdminRoles from "@/pages/admin/Roles";
 import AdminStructure from "@/pages/admin/Structure";
 import AdminCenters from "@/pages/admin/Centers";
 import AdminAllStudents from "@/pages/admin/AllStudents";
 import AdminAllPayments from "@/pages/admin/AllPayments";
+import AdminFees from "@/pages/admin/Fees";
+import AdminExpenses from "@/pages/admin/Expenses";
+import AdminAcademics from "@/pages/admin/Academics";
+import AdminTeachers from "@/pages/admin/Teachers";
+import AdminAttendance from "@/pages/admin/Attendance";
+import AdminAnnouncements from "@/pages/admin/Announcements";
+import AdminApprovals from "@/pages/admin/Approvals";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -104,6 +112,46 @@ function Router() {
       <Route path="/admin/payments">
         <ProtectedRoute>
           <AdminAllPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/roles">
+        <ProtectedRoute>
+          <AdminRoles />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/fees">
+        <ProtectedRoute>
+          <AdminFees />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/expenses">
+        <ProtectedRoute>
+          <AdminExpenses />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/academics">
+        <ProtectedRoute>
+          <AdminAcademics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/teachers">
+        <ProtectedRoute>
+          <AdminTeachers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/attendance">
+        <ProtectedRoute>
+          <AdminAttendance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/announcements">
+        <ProtectedRoute>
+          <AdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/approvals">
+        <ProtectedRoute>
+          <AdminApprovals />
         </ProtectedRoute>
       </Route>
       

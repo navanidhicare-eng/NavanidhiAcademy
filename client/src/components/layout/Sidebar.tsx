@@ -15,6 +15,13 @@ import {
   Presentation,
   CheckSquare,
   LogOut,
+  Shield,
+  IndianRupee,
+  DollarSign,
+  BookOpen,
+  ClipboardCheck,
+  Megaphone,
+  FileCheck,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -44,10 +51,18 @@ export function Sidebar({ className }: SidebarProps) {
         return [
           ...baseItems,
           { icon: UserCog, label: 'Manage Users', href: '/admin/users' },
+          { icon: Shield, label: 'Role Management', href: '/admin/roles' },
           { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
           { icon: Building, label: 'SO Centers', href: '/admin/centers' },
           { icon: Users, label: 'All Students', href: '/admin/students' },
           { icon: CreditCard, label: 'All Payments', href: '/admin/payments' },
+          { icon: IndianRupee, label: 'Fee Management', href: '/admin/fees' },
+          { icon: DollarSign, label: 'Expenses & Salary', href: '/admin/expenses' },
+          { icon: BookOpen, label: 'Academic Management', href: '/admin/academics' },
+          { icon: Presentation, label: 'Teacher Management', href: '/admin/teachers' },
+          { icon: ClipboardCheck, label: 'Attendance Monitoring', href: '/admin/attendance' },
+          { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },
+          { icon: FileCheck, label: 'Approvals', href: '/admin/approvals' },
         ];
       
       case 'so_center':
