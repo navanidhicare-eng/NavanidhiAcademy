@@ -31,7 +31,7 @@ const addSoCenterSchema = z.object({
   address: z.string().min(1, 'Complete address is required'),
   villageId: z.string().min(1, 'Village selection is required'),
   phone: z.string().min(10, 'Valid phone number required'),
-  managerId: z.string().optional(),
+  managerId: z.string().optional().transform(val => val === 'none' ? undefined : val),
   ownerName: z.string().min(1, 'Owner name is required'),
   ownerPhone: z.string().min(10, 'Owner phone number is required'),
   rentAmount: z.string().min(1, 'Rent amount is required'),
@@ -141,7 +141,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       address: '',
       villageId: '',
       phone: '',
-      managerId: '',
+      managerId: 'none',
       ownerName: '',
       ownerPhone: '',
       rentAmount: '',
@@ -482,7 +482,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                           <SelectValue placeholder="Select manager or assign later" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Assign Later</SelectItem>
+                          <SelectItem value="none">Assign Later</SelectItem>
                           {availableManagers.map((manager: any) => (
                             <SelectItem key={manager.id} value={manager.id}>
                               {manager.name} ({manager.email})
