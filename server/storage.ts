@@ -224,23 +224,55 @@ export class DrizzleStorage implements IStorage {
   }
 
   async createSoCenter(center: InsertSoCenter): Promise<SoCenter> {
+    console.log('🏢 Creating SO Center with data:', {
+      name: center.name,
+      email: center.email,
+      centerId: center.centerId
+    });
+    
     return await db.transaction(async (tx) => {
       // Create the SO Center record
+      console.log('📝 Inserting SO Center record...');
       const [newCenter] = await tx.insert(schema.soCenters).values(center).returning();
+      console.log('✅ SO Center created with ID:', newCenter.id);
       
-      // Create corresponding user authentication record
-      const userData: schema.InsertUser = {
-        email: center.email || `${center.centerId}@navanidhi.com`,
-        name: center.name,
-        role: 'so_center' as const,
-        password: center.password || '12345678',
-        phone: center.phone,
-        villageId: center.villageId,
-        isActive: true
-      };
+      // Check if user with this email already exists
+      const existingUser = await tx.select()
+        .from(schema.users)
+        .where(eq(schema.users.email, center.email!))
+        .limit(1);
       
-      await tx.insert(schema.users).values(userData);
+      if (existingUser.length > 0) {
+        console.log('⚠️  User with email already exists, updating user role to so_center');
+        // Update existing user to have so_center role and link to this center
+        await tx.update(schema.users)
+          .set({ 
+            role: 'so_center' as const,
+            name: center.name,
+            phone: center.phone,
+            villageId: center.villageId,
+            isActive: true
+          })
+          .where(eq(schema.users.email, center.email!));
+        console.log('✅ Existing user updated with SO Center role');
+      } else {
+        console.log('👤 Creating new user authentication record...');
+        // Create corresponding user authentication record
+        const userData: schema.InsertUser = {
+          email: center.email || `${center.centerId}@navanidhi.com`,
+          name: center.name,
+          role: 'so_center' as const,
+          password: center.password || '12345678',
+          phone: center.phone,
+          villageId: center.villageId,
+          isActive: true
+        };
+        
+        await tx.insert(schema.users).values(userData);
+        console.log('✅ New user authentication created');
+      }
       
+      console.log('🎉 SO Center creation completed successfully');
       return newCenter;
     });
   }

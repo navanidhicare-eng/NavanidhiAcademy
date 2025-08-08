@@ -707,9 +707,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Remove password from response
       const { password, ...centerResponse } = newCenter;
       res.status(201).json(centerResponse);
-    } catch (error) {
-      console.error('Error creating SO Center:', error);
-      res.status(500).json({ message: 'Failed to create SO Center' });
+    } catch (error: any) {
+      console.error('❌ Error creating SO Center:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        constraint: error.constraint_name,
+        table: error.table_name,
+        stack: error.stack
+      });
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to create SO Center';
+      if (error.code === '23505') {
+        if (error.constraint_name === 'users_email_unique') {
+          errorMessage = `Email ${error.detail?.match(/\(([^)]+)\)/)?.[1]} is already registered. Please use a different email.`;
+        } else if (error.constraint_name === 'so_centers_center_id_unique') {
+          errorMessage = `Center ID ${error.detail?.match(/\(([^)]+)\)/)?.[1]} already exists. Please try again.`;
+        } else {
+          errorMessage = `Duplicate entry: ${error.detail || 'Please check your data and try again.'}`;
+        }
+      }
+      
+      res.status(500).json({ 
+        message: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { debug: error.message })
+      });
     }
   });
 
