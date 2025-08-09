@@ -2341,33 +2341,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const { teacherId, classId, subjectId, chapterId, topicId, durationMinutes, topicsCovered, notes, recordDate } = req.body;
+      console.log('Teaching record request body:', req.body);
+      
+      const { teacherId, classId, subjectId, chapterId, teachingDuration, notes, recordDate } = req.body;
 
-      if (!teacherId || !classId || !subjectId || !durationMinutes) {
-        return res.status(400).json({ message: "Required fields missing" });
+      if (!teacherId || !classId || !subjectId || !teachingDuration) {
+        console.log('Missing required fields:', { teacherId, classId, subjectId, teachingDuration });
+        return res.status(400).json({ 
+          message: "Required fields missing",
+          missing: {
+            teacherId: !teacherId,
+            classId: !classId, 
+            subjectId: !subjectId,
+            teachingDuration: !teachingDuration
+          }
+        });
       }
 
       const recordData = {
-        userId: teacherId,
+        teacherId: teacherId,
+        recordDate: recordDate || new Date().toISOString().split('T')[0],
         classId: classId,
         subjectId: subjectId,
         chapterId: chapterId || null,
-        topicId: topicId || null,
-        durationMinutes: parseInt(durationMinutes),
-        topicsCovered: topicsCovered,
-        notes: notes,
-        recordDate: recordDate || new Date().toISOString().split('T')[0]
+        teachingDuration: parseInt(teachingDuration),
+        notes: notes || null
       };
 
-      const query = sqlQuery`
-        INSERT INTO teaching_records (user_id, class_id, subject_id, chapter_id, topic_id, duration_minutes, topics_covered, notes, record_date)
-        VALUES (${recordData.userId}, ${recordData.classId}, ${recordData.subjectId}, ${recordData.chapterId}, ${recordData.topicId}, ${recordData.durationMinutes}, ${recordData.topicsCovered}, ${recordData.notes}, ${recordData.recordDate})
-      `;
-      await db.execute(query);
-      res.status(201).json({ message: 'Teaching record added successfully' });
+      console.log('Creating teaching record with data:', recordData);
+      
+      const [newRecord] = await db.insert(schema.teacherDailyRecords)
+        .values(recordData)
+        .returning();
+      
+      console.log('Teaching record created successfully:', newRecord);
+      res.status(201).json({ message: 'Teaching record added successfully', record: newRecord });
     } catch (error) {
       console.error('Error adding teaching record:', error);
-      res.status(500).json({ message: 'Failed to add teaching record' });
+      res.status(500).json({ message: 'Failed to add teaching record', error: error.message });
     }
   });
 
