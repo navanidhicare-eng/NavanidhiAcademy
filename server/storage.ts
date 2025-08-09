@@ -1236,26 +1236,29 @@ export class DrizzleStorage implements IStorage {
       status: 'present' | 'absent' | 'holiday';
     }>;
   }): Promise<{ presentCount: number; absentCount: number; holidayCount: number }> {
-    // First, delete any existing attendance for this date and class
-    await db.delete(schema.attendance).where(
-      and(
-        eq(schema.attendance.date, attendanceData.date),
-        eq(schema.attendance.classId, attendanceData.classId),
-        eq(schema.attendance.soCenterId, attendanceData.soCenterId)
-      )
-    );
-
-    // Insert new attendance records
-    const attendanceRecords = attendanceData.records.map(record => ({
-      studentId: record.studentId,
-      classId: attendanceData.classId,
-      soCenterId: attendanceData.soCenterId,
-      date: attendanceData.date,
-      status: record.status,
-      markedBy: attendanceData.markedBy
-    }));
-
-    await db.insert(schema.attendance).values(attendanceRecords);
+    // Use UPSERT for each attendance record to prevent duplicates
+    const results = [];
+    for (const record of attendanceData.records) {
+      const [result] = await db.insert(schema.attendance)
+        .values({
+          studentId: record.studentId,
+          classId: attendanceData.classId,
+          soCenterId: attendanceData.soCenterId,
+          date: attendanceData.date,
+          status: record.status,
+          markedBy: attendanceData.markedBy
+        })
+        .onConflictDoUpdate({
+          target: [schema.attendance.studentId, schema.attendance.date],
+          set: {
+            status: record.status,
+            markedBy: attendanceData.markedBy,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      results.push(result);
+    }
 
     // Count the records
     const presentCount = attendanceData.records.filter(r => r.status === 'present').length;
@@ -1263,6 +1266,35 @@ export class DrizzleStorage implements IStorage {
     const holidayCount = attendanceData.records.filter(r => r.status === 'holiday').length;
 
     return { presentCount, absentCount, holidayCount };
+  }
+
+  // Get existing attendance status for students on a specific date
+  async getExistingAttendance(params: {
+    date: string;
+    studentIds: string[];
+  }): Promise<Map<string, { status: string; id: string }>> {
+    const results = await db.select({
+      studentId: schema.attendance.studentId,
+      status: schema.attendance.status,
+      id: schema.attendance.id
+    })
+    .from(schema.attendance)
+    .where(
+      and(
+        eq(schema.attendance.date, params.date),
+        inArray(schema.attendance.studentId, params.studentIds)
+      )
+    );
+
+    const attendanceMap = new Map();
+    results.forEach(record => {
+      attendanceMap.set(record.studentId, {
+        status: record.status,
+        id: record.id
+      });
+    });
+    
+    return attendanceMap;
   }
 
   async getAttendanceStats(params: {

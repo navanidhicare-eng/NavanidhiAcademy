@@ -325,6 +325,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get existing attendance for students on a specific date
+  app.get("/api/attendance/existing", authenticateToken, async (req, res) => {
+    try {
+      const { date, studentIds } = req.query;
+      
+      if (!date || !studentIds) {
+        return res.status(400).json({ message: "Date and studentIds are required" });
+      }
+      
+      const studentIdArray = (studentIds as string).split(',');
+      const attendanceMap = await storage.getExistingAttendance({
+        date: date as string,
+        studentIds: studentIdArray
+      });
+      
+      // Convert Map to object for JSON response
+      const result: Record<string, { status: string; id: string }> = {};
+      attendanceMap.forEach((value, key) => {
+        result[key] = value;
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching existing attendance:', error);
+      res.status(500).json({ message: 'Failed to fetch existing attendance' });
+    }
+  });
+
   app.get("/api/attendance/stats", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {

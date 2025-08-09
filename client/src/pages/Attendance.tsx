@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -25,7 +25,8 @@ export default function Attendance() {
   const { toast } = useToast();
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [attendanceDate, setAttendanceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [presentStudents, setPresentStudents] = useState<Set<string>>(new Set());
+  const [attendanceStatus, setAttendanceStatus] = useState<Record<string, 'present' | 'absent' | 'not_posted'>>({});
+  const [existingAttendance, setExistingAttendance] = useState<Record<string, { status: string; id: string }>>({});
   const [showConfirmHoliday, setShowConfirmHoliday] = useState(false);
 
   // Fetch students for the SO center
@@ -51,11 +52,45 @@ export default function Attendance() {
   // Filter students by selected class
   const classStudents = selectedClass ? allStudents.filter((student: Student) => student.className === selectedClass) : [];
 
+  // Fetch existing attendance when class or date changes
+  const { data: existingAttendanceData = {} } = useQuery({
+    queryKey: ['/api/attendance/existing', attendanceDate, selectedClass],
+    queryFn: async () => {
+      if (!selectedClass || classStudents.length === 0) return {};
+      
+      const studentIds = classStudents.map(s => s.id).join(',');
+      const response = await fetch(`/api/attendance/existing?date=${attendanceDate}&studentIds=${studentIds}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch existing attendance');
+      return response.json();
+    },
+    enabled: !!selectedClass && classStudents.length > 0,
+  });
+
+  // Update existingAttendance when data changes
+  React.useEffect(() => {
+    setExistingAttendance(existingAttendanceData);
+    
+    // Initialize attendance status for students without existing records
+    const newAttendanceStatus: Record<string, 'present' | 'absent' | 'not_posted'> = {};
+    classStudents.forEach(student => {
+      if (existingAttendanceData[student.id]) {
+        newAttendanceStatus[student.id] = existingAttendanceData[student.id].status as 'present' | 'absent';
+      } else {
+        newAttendanceStatus[student.id] = 'not_posted';
+      }
+    });
+    setAttendanceStatus(newAttendanceStatus);
+  }, [existingAttendanceData, classStudents]);
+
   // Submit attendance mutation
   const submitAttendanceMutation = useMutation({
     mutationFn: async (attendanceData: any) => {
-      const response = await apiRequest('POST', '/api/attendance/submit', attendanceData);
-      return await response.json();
+      return await apiRequest('POST', '/api/attendance/submit', attendanceData);
     },
     onSuccess: (data) => {
       toast({
@@ -99,14 +134,21 @@ export default function Attendance() {
     }
   });
 
-  const handleStudentToggle = (studentId: string) => {
-    const newPresentStudents = new Set(presentStudents);
-    if (newPresentStudents.has(studentId)) {
-      newPresentStudents.delete(studentId);
-    } else {
-      newPresentStudents.add(studentId);
+  const handleAttendanceChange = (studentId: string, status: 'present' | 'absent') => {
+    // Check if already marked
+    if (existingAttendance[studentId] && existingAttendance[studentId].status !== 'not_posted') {
+      toast({
+        title: "Already Marked",
+        description: `Attendance already marked as ${existingAttendance[studentId].status}`,
+        variant: "default"
+      });
+      return;
     }
-    setPresentStudents(newPresentStudents);
+
+    setAttendanceStatus(prev => ({
+      ...prev,
+      [studentId]: status
+    }));
   };
 
   const handleSubmitAttendance = () => {
@@ -119,17 +161,27 @@ export default function Attendance() {
       return;
     }
 
-    const attendanceRecords = classStudents.map((student: Student) => ({
-      studentId: student.id,
-      classId: student.classId,
-      date: attendanceDate,
-      status: presentStudents.has(student.id) ? 'present' : 'absent'
-    }));
+    // Only submit records for students that have been marked
+    const recordsToSubmit = classStudents
+      .filter(student => attendanceStatus[student.id] && attendanceStatus[student.id] !== 'not_posted')
+      .map((student: Student) => ({
+        studentId: student.id,
+        status: attendanceStatus[student.id]
+      }));
+
+    if (recordsToSubmit.length === 0) {
+      toast({
+        title: "No Attendance to Submit",
+        description: "Please mark attendance for at least one student",
+        variant: "destructive"
+      });
+      return;
+    }
 
     submitAttendanceMutation.mutate({
       date: attendanceDate,
       classId: classStudents[0]?.classId,
-      records: attendanceRecords
+      records: recordsToSubmit
     });
   };
 
@@ -173,12 +225,13 @@ export default function Attendance() {
           {/* Date and Class Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Date</Label>
+              <Label>Date (Display Only)</Label>
               <input
                 type="date"
                 value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-                className="w-full p-2 border rounded-md"
+                readOnly
+                className="w-full p-2 border rounded-md bg-gray-100 cursor-not-allowed"
+                title="Date cannot be changed - shows current date"
               />
             </div>
             <div>
@@ -207,36 +260,75 @@ export default function Attendance() {
                   Students in {selectedClass} ({classStudents.length})
                 </h3>
                 <div className="text-sm text-gray-600">
-                  Present: {presentStudents.size} | Absent: {classStudents.length - presentStudents.size}
+                  Present: {Object.values(attendanceStatus).filter(s => s === 'present').length} | 
+                  Absent: {Object.values(attendanceStatus).filter(s => s === 'absent').length} | 
+                  Not Posted: {Object.values(attendanceStatus).filter(s => s === 'not_posted').length}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                {classStudents.map((student: Student) => (
-                  <div
-                    key={student.id}
-                    className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      presentStudents.has(student.id)
-                        ? 'bg-green-50 border-green-200'
-                        : 'bg-gray-50 border-gray-200'
-                    }`}
-                    onClick={() => handleStudentToggle(student.id)}
-                  >
-                    <Checkbox
-                      checked={presentStudents.has(student.id)}
-                      onChange={() => handleStudentToggle(student.id)}
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium">{student.name}</p>
-                      <p className="text-sm text-gray-600">{student.studentId}</p>
+              <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                {classStudents.map((student: Student) => {
+                  const currentStatus = attendanceStatus[student.id] || 'not_posted';
+                  const isAlreadyMarked = existingAttendance[student.id] && existingAttendance[student.id].status !== 'not_posted';
+                  
+                  return (
+                    <div
+                      key={student.id}
+                      className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
+                        currentStatus === 'present'
+                          ? 'bg-green-50 border-green-200'
+                          : currentStatus === 'absent'
+                          ? 'bg-red-50 border-red-200'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{student.name}</p>
+                        <p className="text-sm text-gray-600">{student.studentId}</p>
+                        {isAlreadyMarked && (
+                          <p className="text-xs text-blue-600 font-semibold">
+                            Already Marked: {existingAttendance[student.id].status.toUpperCase()}
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant={currentStatus === 'present' ? "default" : "outline"}
+                          onClick={() => handleAttendanceChange(student.id, 'present')}
+                          disabled={isAlreadyMarked}
+                          className="min-w-[80px]"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Present
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={currentStatus === 'absent' ? "default" : "outline"}
+                          onClick={() => handleAttendanceChange(student.id, 'absent')}
+                          disabled={isAlreadyMarked}
+                          className="min-w-[80px]"
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Absent
+                        </Button>
+                      </div>
+                      
+                      <div className="w-20 text-center">
+                        {currentStatus === 'present' && (
+                          <span className="text-green-600 font-semibold text-sm">PRESENT</span>
+                        )}
+                        {currentStatus === 'absent' && (
+                          <span className="text-red-600 font-semibold text-sm">ABSENT</span>
+                        )}
+                        {currentStatus === 'not_posted' && !isAlreadyMarked && (
+                          <span className="text-gray-500 text-sm">Not Posted</span>
+                        )}
+                      </div>
                     </div>
-                    {presentStudents.has(student.id) ? (
-                      <CheckCircle className="h-5 w-5 text-green-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-600" />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Action Buttons */}

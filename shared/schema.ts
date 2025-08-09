@@ -427,7 +427,7 @@ export const insertWalletTransactionSchema = createInsertSchema(walletTransactio
   createdAt: true,
 });
 
-// Attendance table
+// Attendance table with unique constraint
 export const attendance = pgTable("attendance", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   studentId: varchar("student_id").notNull().references(() => students.id),
@@ -438,7 +438,9 @@ export const attendance = pgTable("attendance", {
   markedBy: varchar("marked_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  uniqueStudentDate: unique().on(table.studentId, table.date),
+}));
 
 export const insertAttendanceSchema = createInsertSchema(attendance).omit({
   id: true,
