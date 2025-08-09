@@ -25,6 +25,8 @@ export default function Attendance() {
   const { toast } = useToast();
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [attendanceDate, setAttendanceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<'present' | 'absent'>('present');
   const [attendanceStatus, setAttendanceStatus] = useState<Record<string, 'present' | 'absent' | 'not_posted'>>({});
   const [existingAttendance, setExistingAttendance] = useState<Record<string, { status: string; id: string }>>({});
   const [showConfirmHoliday, setShowConfirmHoliday] = useState(false);
@@ -85,6 +87,9 @@ export default function Attendance() {
       }
     });
     setAttendanceStatus(newAttendanceStatus);
+    
+    // Clear selections when class/date changes
+    setSelectedStudents(new Set());
   }, [existingAttendanceData, classStudents]);
 
   // Submit attendance mutation
@@ -134,7 +139,8 @@ export default function Attendance() {
     }
   });
 
-  const handleAttendanceChange = (studentId: string, status: 'present' | 'absent') => {
+  // Handle individual student selection for bulk operation
+  const handleStudentSelection = (studentId: string) => {
     // Check if already marked
     if (existingAttendance[studentId] && existingAttendance[studentId].status !== 'not_posted') {
       toast({
@@ -145,10 +151,56 @@ export default function Attendance() {
       return;
     }
 
-    setAttendanceStatus(prev => ({
-      ...prev,
-      [studentId]: status
-    }));
+    setSelectedStudents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(studentId)) {
+        newSet.delete(studentId);
+      } else {
+        newSet.add(studentId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle bulk attendance marking
+  const handleBulkAttendance = () => {
+    if (selectedStudents.size === 0) {
+      toast({
+        title: "No Students Selected",
+        description: "Please select at least one student",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Update attendance status for selected students
+    const newAttendanceStatus = { ...attendanceStatus };
+    selectedStudents.forEach(studentId => {
+      newAttendanceStatus[studentId] = bulkStatus;
+    });
+    setAttendanceStatus(newAttendanceStatus);
+    
+    // Clear selections after marking
+    setSelectedStudents(new Set());
+    
+    toast({
+      title: "Attendance Marked",
+      description: `Marked ${selectedStudents.size} students as ${bulkStatus}`,
+      variant: "default"
+    });
+  };
+
+  // Select all available students
+  const handleSelectAll = () => {
+    const availableStudents = classStudents.filter(student => 
+      !existingAttendance[student.id] || existingAttendance[student.id].status === 'not_posted'
+    );
+    setSelectedStudents(new Set(availableStudents.map(s => s.id)));
+  };
+
+  // Clear all selections
+  const handleClearAll = () => {
+    setSelectedStudents(new Set());
   };
 
   const handleSubmitAttendance = () => {
@@ -262,7 +314,38 @@ export default function Attendance() {
                 <div className="text-sm text-gray-600">
                   Present: {Object.values(attendanceStatus).filter(s => s === 'present').length} | 
                   Absent: {Object.values(attendanceStatus).filter(s => s === 'absent').length} | 
-                  Not Posted: {Object.values(attendanceStatus).filter(s => s === 'not_posted').length}
+                  Not Posted: {Object.values(attendanceStatus).filter(s => s === 'not_posted').length} |
+                  Selected: {selectedStudents.size}
+                </div>
+              </div>
+
+              {/* Bulk Selection Controls */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Label>Mark Selected As:</Label>
+                    <Select value={bulkStatus} onValueChange={(value: 'present' | 'absent') => setBulkStatus(value)}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="present">Present</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button onClick={handleBulkAttendance} disabled={selectedStudents.size === 0} size="sm">
+                    Mark {selectedStudents.size} Students as {bulkStatus}
+                  </Button>
+                  
+                  <Button onClick={handleSelectAll} variant="outline" size="sm">
+                    Select All Available
+                  </Button>
+                  
+                  <Button onClick={handleClearAll} variant="outline" size="sm">
+                    Clear Selection
+                  </Button>
                 </div>
               </div>
 
@@ -270,18 +353,28 @@ export default function Attendance() {
                 {classStudents.map((student: Student) => {
                   const currentStatus = attendanceStatus[student.id] || 'not_posted';
                   const isAlreadyMarked = existingAttendance[student.id] && existingAttendance[student.id].status !== 'not_posted';
+                  const isSelected = selectedStudents.has(student.id);
                   
                   return (
                     <div
                       key={student.id}
-                      className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors ${
-                        currentStatus === 'present'
+                      className={`flex items-center space-x-3 p-3 border rounded-lg transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-blue-100 border-blue-300 ring-2 ring-blue-200'
+                          : currentStatus === 'present'
                           ? 'bg-green-50 border-green-200'
                           : currentStatus === 'absent'
                           ? 'bg-red-50 border-red-200'
-                          : 'bg-gray-50 border-gray-200'
+                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                       }`}
+                      onClick={() => handleStudentSelection(student.id)}
                     >
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={isAlreadyMarked}
+                        className="pointer-events-none"
+                      />
+                      
                       <div className="flex-1">
                         <p className="font-medium">{student.name}</p>
                         <p className="text-sm text-gray-600">{student.studentId}</p>
@@ -292,38 +385,26 @@ export default function Attendance() {
                         )}
                       </div>
                       
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant={currentStatus === 'present' ? "default" : "outline"}
-                          onClick={() => handleAttendanceChange(student.id, 'present')}
-                          disabled={isAlreadyMarked}
-                          className="min-w-[80px]"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Present
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={currentStatus === 'absent' ? "default" : "outline"}
-                          onClick={() => handleAttendanceChange(student.id, 'absent')}
-                          disabled={isAlreadyMarked}
-                          className="min-w-[80px]"
-                        >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          Absent
-                        </Button>
-                      </div>
-                      
-                      <div className="w-20 text-center">
+                      <div className="w-24 text-center">
                         {currentStatus === 'present' && (
-                          <span className="text-green-600 font-semibold text-sm">PRESENT</span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            PRESENT
+                          </span>
                         )}
                         {currentStatus === 'absent' && (
-                          <span className="text-red-600 font-semibold text-sm">ABSENT</span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <XCircle className="h-3 w-3 mr-1" />
+                            ABSENT
+                          </span>
                         )}
                         {currentStatus === 'not_posted' && !isAlreadyMarked && (
                           <span className="text-gray-500 text-sm">Not Posted</span>
+                        )}
+                        {isSelected && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">
+                            SELECTED
+                          </span>
                         )}
                       </div>
                     </div>
