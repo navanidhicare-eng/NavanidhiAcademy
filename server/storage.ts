@@ -1902,6 +1902,22 @@ export class DrizzleStorage implements IStorage {
     
     console.log('✅ Monthly fee automation completed');
   }
+
+  async updateStudentFeesWithTotalDue(studentId: string, updates: {
+    totalFeeAmount?: string;
+    pendingAmount?: string;
+    paymentStatus?: 'paid' | 'pending' | 'overdue';
+  }): Promise<void> {
+    console.log('💰 Updating student fees with total due:', studentId, updates);
+    
+    await db.update(schema.students)
+      .set({
+        ...updates,
+      })
+      .where(eq(schema.students.id, studentId));
+    
+    console.log('✅ Student fees updated successfully');
+  }
 }
 
 export const storage = new DrizzleStorage();

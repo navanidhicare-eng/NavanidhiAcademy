@@ -1077,8 +1077,8 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
                 {classFeesData && !isLoadingFees && (
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="font-medium text-blue-900 mb-2">📊 Fee Structure</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <h4 className="font-medium text-blue-900 mb-3">📊 Fee Structure & Total Due Balance</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                       <div>
                         <span className="text-gray-600">Admission Fee:</span>
                         <span className="font-semibold text-green-600 ml-2">₹{classFeesData.admissionFee}</span>
@@ -1096,6 +1096,30 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Total Due Balance Calculation */}
+                    <div className="border-t border-blue-200 pt-3">
+                      <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                        <h5 className="font-semibold text-orange-800 mb-2">💰 Total Due Balance</h5>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-700">Admission Fee:</span>
+                            <span className="font-medium">₹{classFeesData.admissionFee}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-700">Previous Balance:</span>
+                            <span className="font-medium">₹{form.watch('previousBalance') || '0'}</span>
+                          </div>
+                          <div className="border-t border-orange-200 pt-2 flex justify-between text-lg font-bold">
+                            <span className="text-orange-800">TOTAL DUE:</span>
+                            <span className="text-red-600">
+                              ₹{(parseFloat(classFeesData.admissionFee || '0') + parseFloat(form.watch('previousBalance') || '0')).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
                     {classFeesData.description && (
                       <p className="text-xs text-gray-600 mt-2">{classFeesData.description}</p>
                     )}

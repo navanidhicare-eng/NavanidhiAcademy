@@ -22,6 +22,13 @@ interface Student {
   courseType: 'monthly' | 'yearly';
   parentPhone: string;
   paymentStatus: string;
+  totalFeeAmount: string;
+  paidAmount: string;
+  pendingAmount: string;
+  previousBalance: string;
+  admissionFeePaid: boolean;
+  enrollmentDate: string;
+  progress: number;
 }
 
 interface ClassFee {
@@ -95,24 +102,38 @@ export function FeePayments() {
     queryKey: ['/api/class-fees']
   });
 
-  // Calculate fee amount and pending amount
-  const calculateFeeAmount = () => {
-    if (!selectedStudent) return { feeAmount: 0, pendingAmount: 0 };
+  // Calculate total due balance and fee info - using REAL DATA from Supabase
+  const calculateStudentBalance = () => {
+    if (!selectedStudent) return { 
+      totalDue: 0, 
+      admissionFee: 0, 
+      previousBalance: 0, 
+      monthlyFee: 0, 
+      paidAmount: 0, 
+      pendingAmount: 0 
+    };
     
     const classFee = classFees.find((fee: ClassFee) => 
-      fee.classId === (selectedStudent as any).classId && fee.courseType === selectedFeeType
+      fee.classId === selectedStudent.classId && fee.courseType === selectedStudent.courseType
     );
     
-    if (!classFee) return { feeAmount: 0, pendingAmount: 0 };
+    const admissionFee = parseFloat(classFee?.admissionFee || '0');
+    const previousBalance = parseFloat(selectedStudent.previousBalance || '0');
+    const monthlyFee = parseFloat(classFee?.monthlyFee || '0');
+    const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
+    const pendingAmount = parseFloat(selectedStudent.pendingAmount || '0');
     
-    const feeAmount = selectedFeeType === 'monthly' 
-      ? parseFloat(classFee.monthlyFee || '0')
-      : parseFloat(classFee.yearlyFee || '0');
+    // Total Due = Admission Fee + Previous Balance (if admission fee not paid)
+    const totalDue = selectedStudent.admissionFeePaid ? previousBalance : (admissionFee + previousBalance);
     
-    const paidAmount = parseFloat(paymentAmount || '0');
-    const pendingAmount = Math.max(0, feeAmount - paidAmount);
-    
-    return { feeAmount, pendingAmount };
+    return { 
+      totalDue, 
+      admissionFee, 
+      previousBalance, 
+      monthlyFee, 
+      paidAmount, 
+      pendingAmount: Math.max(totalDue - paidAmount, 0)
+    };
   };
 
   // Process payment mutation
@@ -198,14 +219,14 @@ export function FeePayments() {
       return;
     }
 
-    const { feeAmount } = calculateFeeAmount();
+    const { totalDue } = calculateStudentBalance();
     
     processPaymentMutation.mutate({
       studentId: selectedStudent.id,
       amount: parseFloat(paymentAmount),
       feeType: selectedFeeType,
       receiptNumber,
-      expectedFeeAmount: feeAmount
+      expectedFeeAmount: totalDue
     });
   };
 
@@ -265,7 +286,7 @@ Thank you for your payment!
     }
   };
 
-  const { feeAmount, pendingAmount } = calculateFeeAmount();
+  const { totalDue, admissionFee, previousBalance, monthlyFee, paidAmount, pendingAmount } = calculateStudentBalance();
 
   return (
     <DashboardLayout>
@@ -375,24 +396,60 @@ Thank you for your payment!
               </div>
             </div>
 
-            {/* Fee Details */}
+            {/* REAL DATA Fee Details - Total Due Balance from Supabase */}
             {selectedStudent && (
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold mb-2">Fee Details</h3>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600">Expected Fee</p>
-                    <p className="font-bold text-lg">₹{feeAmount.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Amount Paying</p>
-                    <p className="font-bold text-lg">₹{parseFloat(paymentAmount || '0').toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Pending Amount</p>
-                    <p className={`font-bold text-lg ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      ₹{pendingAmount.toLocaleString()}
+              <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                <h3 className="font-semibold mb-3 text-orange-800">💰 Student Balance Details (Real Data)</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-gray-600">Admission Fee</p>
+                    <p className="font-bold text-lg text-green-600">₹{admissionFee.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">
+                      {selectedStudent.admissionFeePaid ? '✅ Paid' : '❌ Not Paid'}
                     </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-gray-600">Previous Balance</p>
+                    <p className="font-bold text-lg text-blue-600">₹{previousBalance.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">From registration</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-gray-600">Monthly Fee</p>
+                    <p className="font-bold text-lg text-purple-600">₹{monthlyFee.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">Regular monthly</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg">
+                    <p className="text-gray-600">Already Paid</p>
+                    <p className="font-bold text-lg text-green-600">₹{paidAmount.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">Total paid so far</p>
+                  </div>
+                </div>
+                
+                {/* Total Due Calculation */}
+                <div className="bg-red-100 p-4 rounded-lg border border-red-300">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-red-800 text-lg">TOTAL DUE BALANCE</h4>
+                      <p className="text-sm text-red-600">
+                        {selectedStudent.admissionFeePaid 
+                          ? 'Previous Balance Only (Admission Fee Already Paid)' 
+                          : 'Admission Fee + Previous Balance'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-2xl text-red-600">₹{totalDue.toLocaleString()}</p>
+                      <p className="text-xs text-red-500">Amount to be collected</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Payment Progress */}
+                <div className="mt-3 bg-white p-3 rounded-lg">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-gray-600">Payment Progress:</span>
+                    <span className={`font-medium ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {pendingAmount > 0 ? `₹${pendingAmount.toLocaleString()} pending` : 'Fully paid'}
+                    </span>
                   </div>
                 </div>
               </div>

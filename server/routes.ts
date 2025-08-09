@@ -626,6 +626,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Calculate and schedule monthly fees based on enrollment timing
           await storage.scheduleMonthlyFees(student.id, enrollmentDate, studentData.classId);
           
+          // Calculate total due balance (admission fee + previous balance)
+          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
+          let totalDueAmount = 0;
+          
+          if (classFee) {
+            const admissionFee = parseFloat(classFee.admissionFee || '0');
+            const previousBalance = parseFloat(studentData.previousBalance || '0');
+            totalDueAmount = admissionFee + previousBalance;
+            
+            console.log('💰 Total due calculation:', {
+              admissionFee,
+              previousBalance,
+              totalDue: totalDueAmount,
+              admissionFeePaid
+            });
+            
+            // If admission fee is NOT paid, add the total due to student account
+            if (!admissionFeePaid && totalDueAmount > 0) {
+              await storage.updateStudentFeesWithTotalDue(student.id, {
+                totalFeeAmount: totalDueAmount.toString(),
+                pendingAmount: totalDueAmount.toString(),
+                paymentStatus: 'pending'
+              });
+              console.log('💸 Total due balance added to student account:', totalDueAmount);
+            }
+          }
+          
           // Update student balance calculations
           await storage.updateStudentBalances(student.id);
           
