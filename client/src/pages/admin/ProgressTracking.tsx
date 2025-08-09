@@ -124,6 +124,17 @@ export default function ProgressTracking() {
 
   const { data: tuitionProgress = [] } = useQuery({
     queryKey: ['/api/tuition-progress', selectedClass, selectedTopic],
+    queryFn: async () => {
+      const response = await fetch(`/api/tuition-progress?classId=${selectedClass}&topicId=${selectedTopic}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch tuition progress');
+      const data = await response.json();
+      console.log('Tuition progress API response:', data);
+      return data;
+    },
     enabled: !!selectedClass && !!selectedTopic,
   });
 
@@ -137,11 +148,17 @@ export default function ProgressTracking() {
   
   // Helper function to check if topic is completed
   const isTopicCompleted = (studentId: string, topicId: string) => {
-    return (tuitionProgress as TuitionProgress[]).some((progress: TuitionProgress) => 
+    const found = (tuitionProgress as TuitionProgress[]).find((progress: TuitionProgress) => 
       progress.studentId === studentId && 
-      progress.topicId === topicId && 
-      progress.status === 'learned'
+      progress.topicId === topicId
     );
+    
+    // Debug logging
+    if (found) {
+      console.log(`Found progress for student ${studentId}, topic ${topicId}:`, found);
+    }
+    
+    return found?.status === 'learned';
   };
   
   // Filter students based on status filter
@@ -185,9 +202,12 @@ export default function ProgressTracking() {
       queryClient.invalidateQueries({ 
         queryKey: ['/api/tuition-progress', selectedClass, selectedTopic] 
       });
-      queryClient.refetchQueries({ 
-        queryKey: ['/api/tuition-progress', selectedClass, selectedTopic] 
-      });
+      // Force immediate refetch with manual refetch
+      setTimeout(() => {
+        queryClient.refetchQueries({ 
+          queryKey: ['/api/tuition-progress', selectedClass, selectedTopic] 
+        });
+      }, 100);
     },
     onError: (error) => {
       console.error('Tuition progress error:', error);

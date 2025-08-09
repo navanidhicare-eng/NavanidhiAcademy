@@ -1625,7 +1625,10 @@ export class DrizzleStorage implements IStorage {
       query = query.where(and(...conditions));
     }
 
-    return await query;
+    const result = await query;
+    console.log('getTuitionProgress query params:', params);
+    console.log('getTuitionProgress result:', result);
+    return result;
   }
 
   async updateTuitionProgress(id: string, updates: Partial<InsertTuitionProgress>): Promise<TuitionProgress> {
