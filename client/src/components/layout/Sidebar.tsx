@@ -26,6 +26,7 @@ import {
   Receipt,
   Calendar,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -106,19 +107,19 @@ export function Sidebar({ className }: SidebarProps) {
   const navItems = getRoleNavItems(user?.role || '');
 
   return (
-    <div className={cn("flex flex-col h-full bg-white shadow-xl", className)}>
+    <div className={cn("flex flex-col h-full bg-white dark:bg-gray-900 shadow-xl", className)}>
       {/* Header */}
-      <div className="flex items-center justify-center h-16 border-b border-gray-200">
+      <div className="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
             <GraduationCap className="text-white text-sm" size={16} />
           </div>
-          <h2 className="font-bold text-xl text-gray-900">Navanidhi</h2>
+          <h2 className="font-bold text-xl text-gray-900 dark:text-white">Navanidhi</h2>
         </div>
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
             <span className="text-white font-semibold text-sm">
@@ -126,8 +127,8 @@ export function Sidebar({ className }: SidebarProps) {
             </span>
           </div>
           <div>
-            <p className="font-medium text-gray-900">{user?.name || 'User'}</p>
-            <p className="text-sm text-gray-600 capitalize">
+            <p className="font-medium text-gray-900 dark:text-white">{user?.name || 'User'}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
               {user?.role?.replace('_', ' ') || 'Role'}
             </p>
           </div>
@@ -145,8 +146,8 @@ export function Sidebar({ className }: SidebarProps) {
               <div className={cn(
                 "flex items-center px-4 py-3 rounded-lg transition-colors text-sm",
                 isActive 
-                  ? "text-primary bg-blue-50" 
-                  : "text-gray-700 hover:bg-gray-100"
+                  ? "text-primary bg-blue-50 dark:bg-blue-900/50" 
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               )}>
                 <Icon className="mr-3" size={18} />
                 {item.label}
@@ -156,11 +157,23 @@ export function Sidebar({ className }: SidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-4">
+      {/* Settings and Logout */}
+      <div className="p-4 space-y-2">
+        <Link href="/settings">
+          <div className={cn(
+            "flex items-center px-4 py-3 rounded-lg transition-colors text-sm",
+            location === '/settings'
+              ? "text-primary bg-blue-50 dark:bg-blue-900/50" 
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          )}>
+            <Settings className="mr-3" size={18} />
+            Settings
+          </div>
+        </Link>
+        
         <Button
           variant="ghost"
-          className="w-full justify-start text-gray-700 hover:bg-gray-100 text-sm"
+          className="w-full justify-start text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
           onClick={() => logout()}
         >
           <LogOut className="mr-3" size={18} />
