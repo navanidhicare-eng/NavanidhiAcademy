@@ -87,10 +87,12 @@ export default function Attendance() {
       }
     });
     setAttendanceStatus(newAttendanceStatus);
-    
-    // Clear selections when class/date changes
-    setSelectedStudents(new Set());
   }, [existingAttendanceData, classStudents]);
+
+  // Clear selections only when class changes (not when data updates)
+  React.useEffect(() => {
+    setSelectedStudents(new Set());
+  }, [selectedClass]);
 
   // Submit attendance mutation
   const submitAttendanceMutation = useMutation({
@@ -100,11 +102,13 @@ export default function Attendance() {
     onSuccess: (data) => {
       toast({
         title: "Attendance Submitted Successfully!",
-        description: `Marked ${data.presentCount} present, ${data.absentCount} absent`,
+        description: `Attendance has been recorded for the selected students`,
         variant: "default"
       });
-      setPresentStudents(new Set());
+      setSelectedStudents(new Set());
+      setAttendanceStatus({});
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/existing'] });
     },
     onError: (error: any) => {
       toast({
@@ -118,17 +122,17 @@ export default function Attendance() {
   // Mark holiday mutation
   const markHolidayMutation = useMutation({
     mutationFn: async (holidayData: any) => {
-      const response = await apiRequest('POST', '/api/attendance/holiday', holidayData);
-      return await response.json();
+      return await apiRequest('POST', '/api/attendance/holiday', holidayData);
     },
     onSuccess: (data) => {
       toast({
         title: "Holiday Marked Successfully!",
-        description: `Marked holiday for ${data.studentCount} students`,
+        description: `Holiday marked for all students in the class`,
         variant: "default"
       });
       setShowConfirmHoliday(false);
       queryClient.invalidateQueries({ queryKey: ['/api/attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/attendance/existing'] });
     },
     onError: (error: any) => {
       toast({
