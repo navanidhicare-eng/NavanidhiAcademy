@@ -21,6 +21,8 @@ export const paymentStatusEnum = pgEnum("payment_status", ["paid", "pending", "o
 export const topicStatusEnum = pgEnum("topic_status", ["pending", "learned"]);
 export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "commission"]);
 export const maritalStatusEnum = pgEnum("marital_status", ["single", "married", "divorced", "widowed"]);
+export const homeworkStatusEnum = pgEnum("homework_status", ["completed", "not_completed", "not_given"]);
+export const completionTypeEnum = pgEnum("completion_type", ["self", "helped_by_so"]);
 
 // Address hierarchy tables
 export const states = pgTable("states", {
@@ -283,6 +285,32 @@ export const studentCounter = pgTable("student_counter", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Homework Activity
+export const homeworkActivity = pgTable("homework_activity", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id),
+  subjectId: varchar("subject_id").references(() => subjects.id),
+  date: date("date").notNull(),
+  status: homeworkStatusEnum("status").notNull(),
+  completionType: completionTypeEnum("completion_type"), // Only if status is 'completed'
+  reason: text("reason"), // Only if status is 'not_completed'
+  recordedBy: varchar("recorded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tuition Activity Progress
+export const tuitionProgress = pgTable("tuition_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id),
+  topicId: varchar("topic_id").references(() => topics.id),
+  status: topicStatusEnum("status").default("pending"),
+  completedDate: timestamp("completed_date"),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  teacherFeedback: text("teacher_feedback"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
   id: true,
@@ -370,9 +398,22 @@ export const insertTopicProgressSchema = createInsertSchema(topicProgress).omit(
   updatedAt: true,
 });
 
+export const insertHomeworkActivitySchema = createInsertSchema(homeworkActivity).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTuitionProgressSchema = createInsertSchema(tuitionProgress).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
+}).extend({
+  amount: z.union([z.string(), z.number()]).transform((val) => String(val)),
 });
 
 export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({
@@ -438,3 +479,7 @@ export type WalletTransaction = typeof walletTransactions.$inferSelect;
 export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
 export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
+export type HomeworkActivity = typeof homeworkActivity.$inferSelect;
+export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema>;
+export type TuitionProgress = typeof tuitionProgress.$inferSelect;
+export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;

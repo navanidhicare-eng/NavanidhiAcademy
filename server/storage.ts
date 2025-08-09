@@ -272,6 +272,25 @@ export interface IStorage {
   validateAadharNumber(aadharNumber: string): Promise<boolean>;
   getStudentSiblings(studentId: string): Promise<StudentSibling[]>;
   
+  // Homework Activity methods
+  createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]>;
+  getHomeworkActivities(params: {
+    classId?: string;
+    subjectId?: string;
+    date?: string;
+    soCenterId?: string;
+  }): Promise<HomeworkActivity[]>;
+
+  // Tuition Progress methods
+  createTuitionProgress(progress: InsertTuitionProgress): Promise<TuitionProgress>;
+  getTuitionProgress(params: {
+    classId?: string;
+    topicId?: string;
+    studentId?: string;
+    soCenterId?: string;
+  }): Promise<TuitionProgress[]>;
+  updateTuitionProgress(id: string, updates: Partial<InsertTuitionProgress>): Promise<TuitionProgress>;
+
   // Class Fees methods
   getClassFees(classId: string, courseType: string): Promise<ClassFee | undefined>;
   getAllClassFees(): Promise<ClassFee[]>;
@@ -1524,6 +1543,67 @@ export class DrizzleStorage implements IStorage {
     return {
       students: studentsWithAttendance
     };
+  }
+
+  // Homework Activity methods
+  async createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]> {
+    const results = await db.insert(schema.homeworkActivity).values(activities).returning();
+    return results;
+  }
+
+  async getHomeworkActivities(params: {
+    classId?: string;
+    subjectId?: string;
+    date?: string;
+    soCenterId?: string;
+  }): Promise<HomeworkActivity[]> {
+    let query = db.select().from(schema.homeworkActivity);
+
+    if (params.subjectId) {
+      query = query.where(eq(schema.homeworkActivity.subjectId, params.subjectId));
+    }
+    if (params.date) {
+      query = query.where(eq(schema.homeworkActivity.date, params.date));
+    }
+
+    return await query;
+  }
+
+  // Tuition Progress methods
+  async createTuitionProgress(progress: InsertTuitionProgress): Promise<TuitionProgress> {
+    const [result] = await db.insert(schema.tuitionProgress).values(progress).returning();
+    return result;
+  }
+
+  async getTuitionProgress(params: {
+    classId?: string;
+    topicId?: string;
+    studentId?: string;
+    soCenterId?: string;
+  }): Promise<TuitionProgress[]> {
+    let query = db.select().from(schema.tuitionProgress);
+
+    const conditions = [];
+    if (params.topicId) {
+      conditions.push(eq(schema.tuitionProgress.topicId, params.topicId));
+    }
+    if (params.studentId) {
+      conditions.push(eq(schema.tuitionProgress.studentId, params.studentId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return await query;
+  }
+
+  async updateTuitionProgress(id: string, updates: Partial<InsertTuitionProgress>): Promise<TuitionProgress> {
+    const [result] = await db.update(schema.tuitionProgress)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(schema.tuitionProgress.id, id))
+      .returning();
+    return result;
   }
 }
 

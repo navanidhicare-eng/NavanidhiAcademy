@@ -32,7 +32,9 @@ import {
   insertChapterSchema,
   insertTopicSchema,
   insertSoCenterSchema,
-  insertAttendanceSchema
+  insertAttendanceSchema,
+  insertHomeworkActivitySchema,
+  insertTuitionProgressSchema
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
@@ -1860,6 +1862,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Payment history error:", error);
       res.status(500).json({ message: "Failed to fetch payment history" });
+    }
+  });
+
+  // Progress Tracking Routes
+
+  // Homework Activity Routes
+  app.post("/api/homework-activity", authenticateToken, async (req, res) => {
+    try {
+      const { activities } = req.body;
+      
+      if (!activities || !Array.isArray(activities)) {
+        return res.status(400).json({ message: "Activities array is required" });
+      }
+
+      // Validate each activity
+      const validatedActivities = activities.map(activity => {
+        const validation = insertHomeworkActivitySchema.safeParse({
+          ...activity,
+          recordedBy: req.user?.userId
+        });
+        
+        if (!validation.success) {
+          throw new Error(`Invalid activity data: ${validation.error.message}`);
+        }
+        
+        return validation.data;
+      });
+
+      const result = await storage.createHomeworkActivity(validatedActivities);
+      res.json(result);
+    } catch (error) {
+      console.error("Error creating homework activity:", error);
+      res.status(500).json({ message: "Failed to record homework activity" });
+    }
+  });
+
+  app.get("/api/homework-activity", authenticateToken, async (req, res) => {
+    try {
+      const { classId, subjectId, date, soCenterId } = req.query;
+      
+      const activities = await storage.getHomeworkActivities({
+        classId: classId as string,
+        subjectId: subjectId as string,
+        date: date as string,
+        soCenterId: soCenterId as string
+      });
+      
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching homework activities:", error);
+      res.status(500).json({ message: "Failed to fetch homework activities" });
+    }
+  });
+
+  // Tuition Progress Routes
+  app.post("/api/tuition-progress", authenticateToken, async (req, res) => {
+    try {
+      const validation = insertTuitionProgressSchema.safeParse({
+        ...req.body,
+        updatedBy: req.user?.userId
+      });
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid progress data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const result = await storage.createTuitionProgress(validation.data);
+      res.json(result);
+    } catch (error) {
+      console.error("Error creating tuition progress:", error);
+      res.status(500).json({ message: "Failed to record tuition progress" });
+    }
+  });
+
+  app.get("/api/tuition-progress", authenticateToken, async (req, res) => {
+    try {
+      const { classId, topicId, studentId, soCenterId } = req.query;
+      
+      const progress = await storage.getTuitionProgress({
+        classId: classId as string,
+        topicId: topicId as string,
+        studentId: studentId as string,
+        soCenterId: soCenterId as string
+      });
+      
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching tuition progress:", error);
+      res.status(500).json({ message: "Failed to fetch tuition progress" });
+    }
+  });
+
+  app.put("/api/tuition-progress/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const validation = insertTuitionProgressSchema.partial().safeParse({
+        ...req.body,
+        updatedBy: req.user?.userId
+      });
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid progress data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const result = await storage.updateTuitionProgress(id, validation.data);
+      res.json(result);
+    } catch (error) {
+      console.error("Error updating tuition progress:", error);
+      res.status(500).json({ message: "Failed to update tuition progress" });
     }
   });
 

@@ -67,6 +67,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: BookOpen, label: 'Academic Management', href: '/admin/academics' },
           { icon: Presentation, label: 'Teacher Management', href: '/admin/teachers' },
           { icon: ClipboardCheck, label: 'Attendance Monitoring', href: '/admin/attendance' },
+          { icon: TrendingUp, label: 'Progress Tracking', href: '/admin/progress-tracking' },
           { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },
           { icon: FileCheck, label: 'Approvals', href: '/admin/approvals' },
         ];
