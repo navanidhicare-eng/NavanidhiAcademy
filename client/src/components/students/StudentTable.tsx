@@ -49,8 +49,8 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   // Mock additional data for students that might not come from API
   const displayStudents = filteredStudents.map((student: any) => ({
     ...student,
-    paymentStatus: Math.random() > 0.3 ? 'paid' : 'pending', // Mock payment status
-    progress: Math.floor(Math.random() * 100), // Mock progress
+    paymentStatus: student.paymentStatus || 'pending', // Use real payment status
+    progress: student.progress || 0, // Initial progress is 0
     qrCode: student.qrCode || `student_${student.id}` // Ensure QR code exists
   }));
 

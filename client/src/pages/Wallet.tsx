@@ -19,27 +19,15 @@ export default function Wallet() {
         },
       });
       if (!response.ok) {
-        // Return mock data if API fails
-        return {
-          balance: 12450,
-          transactions: [
-            { id: 1, type: 'credit', amount: 2500, description: 'Payment from Arjun Reddy', date: 'Dec 15, 2024' },
-            { id: 2, type: 'credit', amount: 3000, description: 'Payment from Sneha Patel', date: 'Dec 14, 2024' },
-            { id: 3, type: 'debit', amount: 5000, description: 'Collection by Agent', date: 'Dec 12, 2024' },
-          ]
-        };
+        throw new Error('Failed to fetch wallet data');
       }
       return response.json();
     },
     enabled: !!user && user.role === 'so_center',
   });
 
-  const walletBalance = walletData?.balance || 12450;
-  const recentTransactions = walletData?.transactions || [
-    { id: 1, type: 'credit', amount: 2500, description: 'Payment from Arjun Reddy', date: 'Dec 15, 2024' },
-    { id: 2, type: 'credit', amount: 3000, description: 'Payment from Sneha Patel', date: 'Dec 14, 2024' },
-    { id: 3, type: 'debit', amount: 5000, description: 'Collection by Agent', date: 'Dec 12, 2024' },
-  ];
+  const walletBalance = walletData?.balance || 0;
+  const recentTransactions = walletData?.transactions || [];
 
   return (
     <DashboardLayout

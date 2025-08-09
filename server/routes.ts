@@ -267,11 +267,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (req.user.role === 'so_center' && soCenterId) {
         const students = await storage.getStudentsBySoCenter(soCenterId as string);
-        res.json(students);
+        // Add payment status and progress for each student
+        const studentsWithStatus = await Promise.all(students.map(async (student: any) => {
+          const payments = await storage.getStudentPayments(student.id);
+          const hasRecentPayment = payments.length > 0 && payments[0]?.createdAt && new Date(payments[0].createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Within 30 days
+          return {
+            ...student,
+            paymentStatus: hasRecentPayment ? 'paid' : 'pending',
+            progress: 0 // Initial progress is 0
+          };
+        }));
+        res.json(studentsWithStatus);
       } else if (req.user.role === 'admin') {
         // Admin can see all students
         const students = await storage.getAllStudents();
-        res.json(students);
+        // Add payment status and progress for each student
+        const studentsWithStatus = await Promise.all(students.map(async (student: any) => {
+          const payments = await storage.getStudentPayments(student.id);
+          const hasRecentPayment = payments.length > 0 && payments[0]?.createdAt && new Date(payments[0].createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Within 30 days
+          return {
+            ...student,
+            paymentStatus: hasRecentPayment ? 'paid' : 'pending',
+            progress: 0 // Initial progress is 0
+          };
+        }));
+        res.json(studentsWithStatus);
       } else {
         res.status(403).json({ message: "Unauthorized" });
       }
@@ -455,7 +475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: feeProcessed ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
         admissionFeePaid: feeProcessed,
         transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
-        amount: null
+        amount: response.amount
       };
       
       // Add amount if fee was processed
@@ -467,6 +487,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (error) {
           console.error('Error getting class fee for response:', error);
+        }
+      }
+      
+      // Create wallet transaction record for fee payment
+      if (feeProcessed && admissionFeePaid && receiptNumber) {
+        try {
+          await storage.createWalletTransaction({
+            soCenterId: studentData.soCenterId,
+            amount: response.amount!.toString(),
+            type: 'credit',
+            description: `Admission fee from ${student.name} - Receipt: ${receiptNumber}`
+          });
+          console.log('💰 Wallet transaction recorded');
+        } catch (error) {
+          console.error('Error creating wallet transaction:', error);
         }
       }
       
@@ -589,6 +624,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Class fee deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete class fee" });
+    }
+  });
+
+  // Wallet API endpoint
+  app.get("/api/wallet/:soCenterId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      // Only SO center can access their own wallet, admins can access any
+      if (req.user.role !== 'admin' && req.user.userId !== req.params.soCenterId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+      
+      const soCenter = await storage.getSoCenter(req.params.soCenterId);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+      
+      const transactions = await storage.getWalletTransactions(req.params.soCenterId);
+      
+      res.json({
+        balance: parseFloat(soCenter.walletBalance || '0'),
+        transactions: transactions.map(t => ({
+          id: t.id,
+          type: t.type === 'credit' ? 'credit' : 'debit',
+          amount: parseFloat(t.amount),
+          description: t.description || '',
+          date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          }) : ''
+        }))
+      });
+    } catch (error) {
+      console.error('Wallet API error:', error);
+      res.status(500).json({ message: "Failed to fetch wallet data" });
     }
   });
 

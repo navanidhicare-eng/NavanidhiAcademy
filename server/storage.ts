@@ -348,8 +348,11 @@ export class DrizzleStorage implements IStorage {
   }
 
   async updateSoCenterWallet(id: string, amount: string): Promise<SoCenter> {
+    // Add the amount to existing wallet balance, don't replace it
     const result = await db.update(schema.soCenters)
-      .set({ walletBalance: amount })
+      .set({ 
+        walletBalance: sql`wallet_balance + ${amount}::numeric`
+      })
       .where(eq(schema.soCenters.id, id))
       .returning();
     return result[0];
