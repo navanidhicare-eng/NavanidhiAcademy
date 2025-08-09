@@ -1249,7 +1249,7 @@ export class DrizzleStorage implements IStorage {
           markedBy: attendanceData.markedBy
         })
         .onConflictDoUpdate({
-          target: [schema.attendance.studentId, schema.attendance.date],
+          target: [schema.attendance.studentId, schema.attendance.date, schema.attendance.classId],
           set: {
             status: record.status,
             markedBy: attendanceData.markedBy,
