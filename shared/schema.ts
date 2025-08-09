@@ -184,6 +184,12 @@ export const students = pgTable("students", {
   pendingAmount: decimal("pending_amount", { precision: 10, scale: 2 }).default("0"),
   paymentStatus: paymentStatusEnum("payment_status").default("pending"),
   isActive: boolean("is_active").default(true),
+  // New fields for enrollment tracking and fee management
+  enrollmentDate: date("enrollment_date").notNull(),
+  previousBalance: decimal("previous_balance", { precision: 10, scale: 2 }).default("0"),
+  previousBalanceDetails: text("previous_balance_details"), // JSON string for balance breakdown
+  admissionFeePaid: boolean("admission_fee_paid").default(false),
+  lastFeeCalculationDate: date("last_fee_calculation_date"), // Track when monthly fee was last calculated
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -286,6 +292,33 @@ export const studentCounter = pgTable("student_counter", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Fee Calculation History - Track automated fee calculations
+export const feeCalculationHistory = pgTable("fee_calculation_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull().references(() => students.id),
+  calculationDate: date("calculation_date").notNull(),
+  monthYear: text("month_year").notNull(), // Format: "2025-08"
+  calculationType: text("calculation_type").notNull(), // "first_month" or "regular_month"
+  feeAmount: decimal("fee_amount", { precision: 10, scale: 2 }).notNull(),
+  enrollmentDay: integer("enrollment_day"), // Day of month when student enrolled (for first month logic)
+  reason: text("reason"), // Description of calculation logic applied
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Monthly Fee Schedule - Track when to calculate fees for each student
+export const monthlyFeeSchedule = pgTable("monthly_fee_schedule", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull().references(() => students.id),
+  monthYear: text("month_year").notNull(), // Format: "2025-08"
+  scheduledDate: date("scheduled_date").notNull(), // When fee should be calculated
+  feeAmount: decimal("fee_amount", { precision: 10, scale: 2 }).notNull(),
+  isProcessed: boolean("is_processed").default(false),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueStudentMonth: unique().on(table.studentId, table.monthYear),
+}));
+
 // Homework Activity
 export const homeworkActivities = pgTable("homework_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -381,6 +414,21 @@ export const insertStudentSchema = createInsertSchema(students).omit({
   createdAt: true,
   qrCode: true,
   studentId: true,
+}).extend({
+  enrollmentDate: z.string().optional(), // Allow string date input
+  previousBalance: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
+  previousBalanceDetails: z.string().optional(),
+});
+
+export const insertFeeCalculationHistorySchema = createInsertSchema(feeCalculationHistory).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMonthlyFeeScheduleSchema = createInsertSchema(monthlyFeeSchedule).omit({
+  id: true,
+  createdAt: true,
+  processedAt: true,
 });
 
 export const insertStudentSiblingSchema = createInsertSchema(studentSiblings).omit({
@@ -491,3 +539,9 @@ export type HomeworkActivity = typeof homeworkActivities.$inferSelect;
 export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema>;
 export type TuitionProgress = typeof tuitionProgress.$inferSelect;
 export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
+
+export type FeeCalculationHistory = typeof feeCalculationHistory.$inferSelect;
+export type InsertFeeCalculationHistory = z.infer<typeof insertFeeCalculationHistorySchema>;
+
+export type MonthlyFeeSchedule = typeof monthlyFeeSchedule.$inferSelect;
+export type InsertMonthlyFeeSchedule = z.infer<typeof insertMonthlyFeeScheduleSchema>;

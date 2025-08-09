@@ -616,6 +616,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Creating student with siblings...');
       const student = await storage.createStudentWithSiblings(studentData, siblings);
       console.log('Student created successfully:', student.id);
+
+      // Initialize advanced fee management for the new student
+      if (student.id && studentData.enrollmentDate && studentData.classId) {
+        try {
+          console.log('🧮 Initializing fee management for student:', student.id);
+          const enrollmentDate = new Date(studentData.enrollmentDate);
+          
+          // Calculate and schedule monthly fees based on enrollment timing
+          await storage.scheduleMonthlyFees(student.id, enrollmentDate, studentData.classId);
+          
+          // Update student balance calculations
+          await storage.updateStudentBalances(student.id);
+          
+          console.log('✅ Fee management initialized successfully');
+        } catch (feeError) {
+          console.error('⚠️ Fee management initialization failed:', feeError);
+          // Don't fail student creation if fee management fails - can be fixed later
+        }
+      }
       
       // Handle admission fee if paid (separate from student creation)
       let feeProcessed = false;

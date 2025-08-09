@@ -77,6 +77,11 @@ const addStudentSchema = z.object({
   parentPhone: z.string().min(10, 'Parent phone is required'), // For compatibility
   parentName: z.string().optional(), // For compatibility
   
+  // Enrollment and Fee Information
+  enrollmentDate: z.string().min(1, 'Enrollment date is required'),
+  previousBalance: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
+  previousBalanceDetails: z.string().optional(),
+  
   // Siblings
   siblings: z.array(siblingSchema).optional(),
   
@@ -288,6 +293,9 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       soCenterId: user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : '',
       parentPhone: '',
       parentName: '',
+      enrollmentDate: new Date().toISOString().split('T')[0], // Default to today
+      previousBalance: '0',
+      previousBalanceDetails: '',
       siblings: [],
       admissionFeePaid: false,
       receiptNumber: '',
@@ -991,6 +999,72 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
+                
+                {/* Enrollment Date and Previous Balance */}
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="enrollmentDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Enrollment Date *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field}
+                            max={new Date().toISOString().split('T')[0]} // Can't enroll for future dates
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Fee calculation depends on enrollment date (1st-10th: full fee, 11th-20th: half fee, 21st+: no first month fee)
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="previousBalance"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Previous Balance (₹)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value ? String(e.target.value) : '')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Any outstanding balance from previous enrollments
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="previousBalanceDetails"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Previous Balance Details</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Outstanding fees from previous class/year"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Optional description of what the previous balance is for
+                      </p>
+                    </FormItem>
+                  )}
+                />
                 
                 {/* Fee Display */}
                 {isLoadingFees && selectedClass && selectedCourseType && (

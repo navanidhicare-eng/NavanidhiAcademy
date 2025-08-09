@@ -1670,6 +1670,238 @@ export class DrizzleStorage implements IStorage {
       .returning();
     return result;
   }
+
+  // Advanced Fee Management System
+  async calculateMonthlyFee(studentId: string, enrollmentDate: Date, classId: string): Promise<{ amount: number; reason: string }> {
+    console.log('🧮 Calculating monthly fee for student:', studentId, 'enrollment:', enrollmentDate);
+    
+    // Get the class fee structure
+    const classFee = await db.select()
+      .from(schema.classFees)
+      .where(eq(schema.classFees.classId, classId))
+      .limit(1);
+    
+    if (!classFee[0]) {
+      throw new Error('Class fee structure not found');
+    }
+    
+    const monthlyFee = parseFloat(classFee[0].monthlyFee || '0');
+    const enrollmentDay = enrollmentDate.getDate();
+    
+    let feeAmount = 0;
+    let reason = '';
+    
+    if (enrollmentDay >= 1 && enrollmentDay <= 10) {
+      feeAmount = monthlyFee;
+      reason = `Full monthly fee - enrolled on ${enrollmentDay}th (1st-10th: full fee)`;
+    } else if (enrollmentDay >= 11 && enrollmentDay <= 20) {
+      feeAmount = monthlyFee / 2;
+      reason = `Half monthly fee - enrolled on ${enrollmentDay}th (11th-20th: half fee)`;
+    } else {
+      feeAmount = 0;
+      reason = `No fee for first month - enrolled on ${enrollmentDay}th (21st+: no first month fee)`;
+    }
+    
+    console.log('💰 Calculated fee:', feeAmount, 'Reason:', reason);
+    return { amount: feeAmount, reason };
+  }
+
+  async createFeeCalculationHistory(studentId: string, calculationData: any): Promise<any> {
+    console.log('📊 Creating fee calculation history for student:', studentId);
+    
+    const historyRecord = {
+      studentId,
+      calculationDate: new Date(),
+      monthYear: calculationData.monthYear,
+      calculationType: calculationData.calculationType,
+      feeAmount: calculationData.feeAmount,
+      enrollmentDay: calculationData.enrollmentDay,
+      reason: calculationData.reason,
+    };
+    
+    const result = await db.insert(schema.feeCalculationHistory).values(historyRecord).returning();
+    console.log('✅ Fee calculation history created');
+    return result[0];
+  }
+
+  async scheduleMonthlyFees(studentId: string, enrollmentDate: Date, classId: string): Promise<void> {
+    console.log('📅 Scheduling monthly fees for student:', studentId);
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Schedule fees for the next 12 months starting from enrollment month
+    for (let i = 0; i < 12; i++) {
+      const scheduleDate = new Date(currentYear, currentMonth + i, 1);
+      const monthYear = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Calculate fee for this month
+      const isFirstMonth = i === 0;
+      let feeCalculation;
+      
+      if (isFirstMonth) {
+        // Use enrollment-based calculation for first month
+        feeCalculation = await this.calculateMonthlyFee(studentId, enrollmentDate, classId);
+      } else {
+        // Full fee for subsequent months
+        const classFee = await db.select()
+          .from(schema.classFees)
+          .where(eq(schema.classFees.classId, classId))
+          .limit(1);
+        
+        feeCalculation = {
+          amount: parseFloat(classFee[0]?.monthlyFee || '0'),
+          reason: 'Regular monthly fee'
+        };
+      }
+      
+      // Check if schedule already exists
+      const existingSchedule = await db.select()
+        .from(schema.monthlyFeeSchedule)
+        .where(and(
+          eq(schema.monthlyFeeSchedule.studentId, studentId),
+          eq(schema.monthlyFeeSchedule.monthYear, monthYear)
+        ))
+        .limit(1);
+      
+      if (!existingSchedule[0]) {
+        await db.insert(schema.monthlyFeeSchedule).values({
+          studentId,
+          monthYear,
+          scheduledDate: scheduleDate,
+          feeAmount: feeCalculation.amount,
+          isProcessed: false,
+        });
+        
+        // Create fee calculation history
+        await this.createFeeCalculationHistory(studentId, {
+          monthYear,
+          calculationType: isFirstMonth ? 'enrollment_based' : 'regular_monthly',
+          feeAmount: feeCalculation.amount,
+          enrollmentDay: isFirstMonth ? enrollmentDate.getDate() : null,
+          reason: feeCalculation.reason,
+        });
+      }
+    }
+    
+    console.log('✅ Monthly fees scheduled for next 12 months');
+  }
+
+  async updateStudentBalances(studentId: string): Promise<void> {
+    console.log('🔄 Updating student balances for:', studentId);
+    
+    // Get all scheduled fees for this student
+    const scheduledFees = await db.select()
+      .from(schema.monthlyFeeSchedule)
+      .where(eq(schema.monthlyFeeSchedule.studentId, studentId));
+    
+    // Get all payments for this student
+    const payments = await db.select()
+      .from(schema.payments)
+      .where(eq(schema.payments.studentId, studentId));
+    
+    // Calculate total fees due
+    const totalScheduledAmount = scheduledFees.reduce((sum, fee) => sum + parseFloat(String(fee.feeAmount)), 0);
+    
+    // Calculate total paid
+    const totalPaidAmount = payments.reduce((sum, payment) => sum + parseFloat(String(payment.amount)), 0);
+    
+    // Calculate pending amount
+    const pendingAmount = Math.max(0, totalScheduledAmount - totalPaidAmount);
+    
+    // Update student record
+    await db.update(schema.students)
+      .set({
+        totalFeeAmount: String(totalScheduledAmount),
+        paidAmount: String(totalPaidAmount),
+        pendingAmount: String(pendingAmount),
+        paymentStatus: pendingAmount > 0 ? 'pending' : 'paid'
+      })
+      .where(eq(schema.students.id, studentId));
+    
+    console.log('✅ Student balances updated - Total:', totalScheduledAmount, 'Paid:', totalPaidAmount, 'Pending:', pendingAmount);
+  }
+
+  async getStudentFeeSchedule(studentId: string): Promise<any[]> {
+    return await db.select()
+      .from(schema.monthlyFeeSchedule)
+      .where(eq(schema.monthlyFeeSchedule.studentId, studentId))
+      .orderBy(asc(schema.monthlyFeeSchedule.scheduledDate));
+  }
+
+  async getStudentFeeHistory(studentId: string): Promise<any[]> {
+    return await db.select()
+      .from(schema.feeCalculationHistory)
+      .where(eq(schema.feeCalculationHistory.studentId, studentId))
+      .orderBy(desc(schema.feeCalculationHistory.createdAt));
+  }
+
+  async processMonthlyFeeAutomation(): Promise<void> {
+    console.log('🤖 Running monthly fee automation...');
+    
+    const currentDate = new Date();
+    const isLastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() === currentDate.getDate();
+    
+    if (!isLastDayOfMonth) {
+      console.log('⏭️ Not the last day of month, skipping automation');
+      return;
+    }
+    
+    // Get all active students
+    const activeStudents = await db.select()
+      .from(schema.students)
+      .where(eq(schema.students.isActive, true));
+    
+    for (const student of activeStudents) {
+      try {
+        // Update balances and schedule next month's fees if needed
+        await this.updateStudentBalances(student.id);
+        
+        // Schedule next month's fee if not already scheduled
+        const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+        const nextMonthYear = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+        
+        const existingSchedule = await db.select()
+          .from(schema.monthlyFeeSchedule)
+          .where(and(
+            eq(schema.monthlyFeeSchedule.studentId, student.id),
+            eq(schema.monthlyFeeSchedule.monthYear, nextMonthYear)
+          ))
+          .limit(1);
+        
+        if (!existingSchedule[0]) {
+          // Get student class fee
+          const classFee = await db.select()
+            .from(schema.classFees)
+            .where(eq(schema.classFees.classId, student.classId))
+            .limit(1);
+          
+          if (classFee[0]) {
+            await db.insert(schema.monthlyFeeSchedule).values({
+              studentId: student.id,
+              monthYear: nextMonthYear,
+              scheduledDate: nextMonth,
+              feeAmount: parseFloat(classFee[0].monthlyFee || '0'),
+              isProcessed: false,
+            });
+            
+            await this.createFeeCalculationHistory(student.id, {
+              monthYear: nextMonthYear,
+              calculationType: 'automated_monthly',
+              feeAmount: parseFloat(classFee[0].monthlyFee || '0'),
+              enrollmentDay: null,
+              reason: 'Automated monthly fee calculation',
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error processing student fees:', student.id, error);
+      }
+    }
+    
+    console.log('✅ Monthly fee automation completed');
+  }
 }
 
 export const storage = new DrizzleStorage();
