@@ -162,7 +162,7 @@ export default function ProgressTracking() {
     onSuccess: () => {
       toast({
         title: 'Success',
-        description: 'Topic progress updated successfully',
+        description: 'Topic marked as completed successfully',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/tuition-progress'] });
     },
@@ -549,10 +549,13 @@ export default function ProgressTracking() {
                             </div>
                             <div className="flex items-center gap-2">
                               {isCompleted ? (
-                                <Badge variant="default" className="bg-green-600">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Completed
-                                </Badge>
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge variant="default" className="bg-green-600">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Completed
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground">Already marked complete</p>
+                                </div>
                               ) : (
                                 <Button
                                   size="sm"
@@ -561,7 +564,7 @@ export default function ProgressTracking() {
                                   className="bg-blue-600 hover:bg-blue-700"
                                 >
                                   <Clock className="h-3 w-3 mr-1" />
-                                  Mark Complete
+                                  {tuitionProgressMutation.isPending ? 'Marking...' : 'Mark Complete'}
                                 </Button>
                               )}
                             </div>

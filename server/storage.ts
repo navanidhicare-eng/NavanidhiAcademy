@@ -1547,7 +1547,22 @@ export class DrizzleStorage implements IStorage {
 
   // Homework Activity methods
   async createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]> {
-    const results = await db.insert(schema.homeworkActivities).values(activities).returning();
+    const results = [];
+    for (const activity of activities) {
+      const [result] = await db.insert(schema.homeworkActivities)
+        .values(activity)
+        .onConflictDoUpdate({
+          target: [schema.homeworkActivities.studentId, schema.homeworkActivities.homeworkDate],
+          set: {
+            status: activity.status,
+            completionType: activity.completionType,
+            reason: activity.reason,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      results.push(result);
+    }
     return results;
   }
 
@@ -1575,8 +1590,31 @@ export class DrizzleStorage implements IStorage {
 
   // Tuition Progress methods
   async createTuitionProgress(progress: InsertTuitionProgress): Promise<TuitionProgress> {
-    const [result] = await db.insert(schema.tuitionProgress).values(progress).returning();
-    return result;
+    // Check if this student-topic combination already exists
+    const existing = await db.select()
+      .from(schema.tuitionProgress)
+      .where(
+        and(
+          eq(schema.tuitionProgress.studentId, progress.studentId),
+          eq(schema.tuitionProgress.topicId, progress.topicId)
+        )
+      );
+    
+    if (existing.length > 0) {
+      // Update existing record
+      const [result] = await db.update(schema.tuitionProgress)
+        .set({ 
+          ...progress, 
+          updatedAt: new Date() 
+        })
+        .where(eq(schema.tuitionProgress.id, existing[0].id))
+        .returning();
+      return result;
+    } else {
+      // Insert new record
+      const [result] = await db.insert(schema.tuitionProgress).values(progress).returning();
+      return result;
+    }
   }
 
   async getTuitionProgress(params: {
