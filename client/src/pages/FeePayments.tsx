@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CreditCard, Send, Receipt, Eye } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -54,9 +55,31 @@ export function FeePayments() {
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [selectedStudentHistory, setSelectedStudentHistory] = useState<PaymentHistory[]>([]);
 
-  // Fetch students
-  const { data: students = [] } = useQuery({
-    queryKey: ['/api/students']
+  // Get user context
+  const { user } = useAuth();
+
+  // Fetch students for dropdown
+  const { data: students = [], isLoading: studentsLoading } = useQuery({
+    queryKey: ['/api/students', user?.id],
+    queryFn: async () => {
+      // For SO center users, get their actual SO center ID
+      const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+      console.log('Fetching students for fee payments SO Center:', soCenterId);
+      const response = await fetch('/api/students?soCenterId=' + soCenterId, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      console.log('Fee payments response status:', response.status);
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+      const data = await response.json();
+      console.log('Fee payments students data:', data);
+      return Array.isArray(data) ? data : [];
+    },
+    enabled: !!user,
+    refetchOnWindowFocus: false,
   });
 
   // Fetch class fees
@@ -230,22 +253,47 @@ Thank you for your payment!
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Select Student</Label>
-                <Select onValueChange={(studentId) => {
-                  const student = students.find((s: Student) => s.id === studentId);
-                  setSelectedStudent(student);
-                  setSelectedFeeType(student?.courseType || 'monthly');
-                }}>
+                <Select 
+                  disabled={studentsLoading || students.length === 0}
+                  onValueChange={(studentId) => {
+                    const student = students.find((s: Student) => s.id === studentId);
+                    setSelectedStudent(student);
+                    setSelectedFeeType(student?.courseType || 'monthly');
+                  }}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a student" />
+                    <SelectValue placeholder={
+                      studentsLoading 
+                        ? "Loading students..." 
+                        : students.length === 0 
+                        ? "No students found for this SO center" 
+                        : "Choose a student"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {students.map((student: Student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.name} ({student.studentId}) - {student.className}
+                        {student.name} ({student.studentId}) - {student.className || student.classId}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {studentsLoading && (
+                  <div className="text-sm text-blue-600 mt-2 flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    Loading students from Supabase...
+                  </div>
+                )}
+                {!studentsLoading && students.length > 0 && (
+                  <div className="text-sm text-green-600 mt-2">
+                    ✓ {students.length} students loaded from SO center database
+                  </div>
+                )}
+                {!studentsLoading && students.length === 0 && (
+                  <div className="text-sm text-orange-600 mt-2">
+                    No students found for this SO center. Please register students first.
+                  </div>
+                )}
               </div>
 
               <div>
