@@ -642,7 +642,7 @@ export class DrizzleStorage implements IStorage {
       // Update SO Center wallet - using SQL template for proper numeric addition
       await tx.update(schema.soCenters)
         .set({ 
-          walletBalance: sql`CAST(${schema.soCenters.walletBalance} AS NUMERIC) + ${amount}`
+          walletBalance: sql`CAST(wallet_balance AS NUMERIC) + ${amount}`
         })
         .where(eq(schema.soCenters.id, student.soCenterId));
 
