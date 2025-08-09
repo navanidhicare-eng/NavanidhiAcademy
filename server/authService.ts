@@ -114,8 +114,7 @@ export class AuthService {
         name: userData.name,
         phone: userData.phone,
         address: userData.address,
-        isActive: true,
-        isPasswordChanged: false
+        isActive: true
       };
 
       const dbUser = await storage.createUser(dbUserData);
@@ -195,8 +194,7 @@ export class AuthService {
       role: supabaseUser.user_metadata?.role || 'agent',
       name: supabaseUser.user_metadata?.name || 'User',
       phone: supabaseUser.user_metadata?.phone,
-      isActive: true,
-      isPasswordChanged: false
+      isActive: true
     };
 
     return await storage.createUser(dbUserData);
@@ -290,6 +288,12 @@ export class AuthService {
   }): Promise<{ supabaseUser: any; dbUser: User; soCenter: SoCenter }> {
     try {
       console.log('🔧 Creating SO Center with Supabase Auth:', soCenterData.email);
+      console.log('📊 SO Center Data:', { 
+        name: soCenterData.name, 
+        centerName: soCenterData.centerName,
+        email: soCenterData.email,
+        centerId: soCenterData.centerId 
+      });
       
       // Step 1: Create user in Supabase Auth with 'so_center' role
       const userResult = await this.createUser({
@@ -303,9 +307,10 @@ export class AuthService {
 
       // Step 2: Create SO Center record linked to the user
       const soCenterRecord: InsertSoCenter = {
-        userId: userResult.dbUser.id,
         centerId: soCenterData.centerId,
+        name: soCenterData.name || soCenterData.centerName, // Fix: Use name field first, then centerName
         centerName: soCenterData.centerName,
+        email: soCenterData.email, // Fix: Add email field
         location: soCenterData.location,
         managerName: soCenterData.managerName,
         managerEmail: soCenterData.email,
@@ -317,6 +322,8 @@ export class AuthService {
         walletBalance: '0', // Initialize wallet balance
         isActive: true
       };
+
+      console.log('📝 SO Center Record to be inserted:', soCenterRecord);
 
       const soCenter = await storage.createSoCenter(soCenterRecord);
       console.log('✅ SO Center created with Supabase Auth:', soCenter.id);
