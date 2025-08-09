@@ -80,6 +80,8 @@ export function FeePayments() {
     },
     enabled: !!user,
     refetchOnWindowFocus: false,
+    staleTime: 0, // Always fetch fresh data for payment tracking
+    cacheTime: 30000, // Cache for 30 seconds only
   });
 
   // Get unique classes from students
@@ -144,9 +146,15 @@ export function FeePayments() {
       setPaymentAmount("");
       setReceiptNumber("");
       
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      // Refresh data - force refetch to get updated pending amounts  
+      queryClient.invalidateQueries({ queryKey: ['/api/students', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['/api/wallet'] });
+      
+      // Force immediate refetch with a small delay to ensure DB has been updated
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ queryKey: ['/api/students', user?.id] });
+        console.log('Students data refreshed after payment');
+      }, 500);
       
       toast({
         title: "Payment Processed Successfully!",
