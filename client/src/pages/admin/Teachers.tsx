@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -165,8 +166,8 @@ export default function AdminTeachers() {
   // Load current assignments when modal opens
   React.useEffect(() => {
     if (isAssignModalOpen && teacherSubjects && teacherClasses) {
-      const currentSubjects = teacherSubjects.map((s: any) => s.id) || [];
-      const currentClasses = teacherClasses.map((c: any) => c.id) || [];
+      const currentSubjects = Array.isArray(teacherSubjects) ? teacherSubjects.map((s: any) => s.id) : [];
+      const currentClasses = Array.isArray(teacherClasses) ? teacherClasses.map((c: any) => c.id) : [];
       setSelectedSubjects(currentSubjects);
       setSelectedClasses(currentClasses);
     }
@@ -270,7 +271,7 @@ export default function AdminTeachers() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{teacher.phone || 'N/A'}</div>
+                      <div className="text-sm text-gray-900">{teacher.mobile || 'N/A'}</div>
                       <div className="text-sm text-gray-500">{teacher.address || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -465,6 +466,9 @@ export default function AdminTeachers() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Assign Classes & Subjects - {selectedTeacher?.name}</DialogTitle>
+            <DialogDescription>
+              Select subjects and classes to assign to this teacher. You can select multiple items from each section.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid md:grid-cols-2 gap-6 p-4">
             {/* Subjects Section */}
@@ -474,7 +478,7 @@ export default function AdminTeachers() {
                 Assign Subjects
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {allSubjects.map((subject: any) => (
+                {Array.isArray(allSubjects) ? allSubjects.map((subject: any) => (
                   <div key={subject.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`subject-${subject.id}`}
@@ -488,10 +492,10 @@ export default function AdminTeachers() {
                       }}
                     />
                     <label htmlFor={`subject-${subject.id}`} className="text-sm">
-                      {subject.name} ({subject.code})
+                      {subject.name}
                     </label>
                   </div>
-                ))}
+                )) : <div className="text-sm text-gray-500">No subjects available</div>}
               </div>
             </div>
 
@@ -502,7 +506,7 @@ export default function AdminTeachers() {
                 Assign Classes
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {allClasses.map((classItem: any) => (
+                {Array.isArray(allClasses) ? allClasses.map((classItem: any) => (
                   <div key={classItem.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`class-${classItem.id}`}
@@ -516,10 +520,10 @@ export default function AdminTeachers() {
                       }}
                     />
                     <label htmlFor={`class-${classItem.id}`} className="text-sm">
-                      {classItem.name} (Level {classItem.level})
+                      {classItem.name}
                     </label>
                   </div>
-                ))}
+                )) : <div className="text-sm text-gray-500">No classes available</div>}
               </div>
             </div>
           </div>

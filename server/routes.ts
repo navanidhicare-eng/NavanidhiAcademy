@@ -2217,7 +2217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get teacher subjects from teacher_subjects table
       const query = sqlQuery`
-        SELECT s.id, s.name, s.code 
+        SELECT s.id, s.name, s.description 
         FROM subjects s 
         JOIN teacher_subjects ts ON s.id = ts.subject_id 
         WHERE ts.user_id = ${req.params.id} AND s.is_active = true
@@ -2246,11 +2246,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get teacher classes from teacher_classes table
       const query = sqlQuery`
-        SELECT c.id, c.name, c.level 
+        SELECT c.id, c.name, c.description 
         FROM classes c 
         JOIN teacher_classes tc ON c.id = tc.class_id 
         WHERE tc.user_id = ${req.params.id} AND c.is_active = true
-        ORDER BY c.level, c.name
+        ORDER BY c.name
       `;
       const classes = await db.execute(query);
       res.json(classes);
