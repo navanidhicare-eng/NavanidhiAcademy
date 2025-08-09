@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { AddClassModal } from '@/components/admin/AddClassModal';
 import { AddSubjectModal } from '@/components/admin/AddSubjectModal';
@@ -17,7 +19,9 @@ import {
   List, 
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  Search,
+  Filter
 } from 'lucide-react';
 
 export default function AdminStructure() {
@@ -28,6 +32,11 @@ export default function AdminStructure() {
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
+  
+  // Filter and search states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClassFilter, setSelectedClassFilter] = useState('all');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('all');
 
   // Fetch real data from API
   const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -91,6 +100,57 @@ export default function AdminStructure() {
     },
   });
 
+  // Filter functions
+  const getFilteredSubjects = () => {
+    return subjects.filter((subject: any) => {
+      const matchesSearch = subject.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesClass = selectedClassFilter === 'all' || subject.classId === selectedClassFilter;
+      return matchesSearch && matchesClass;
+    });
+  };
+
+  const getFilteredChapters = () => {
+    return chapters.filter((chapter: any) => {
+      const matchesSearch = chapter.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesClass = selectedClassFilter === 'all' || 
+        subjects.find((s: any) => s.id === chapter.subjectId)?.classId === selectedClassFilter;
+      const matchesSubject = selectedSubjectFilter === 'all' || chapter.subjectId === selectedSubjectFilter;
+      return matchesSearch && matchesClass && matchesSubject;
+    });
+  };
+
+  const getFilteredTopics = () => {
+    return topics.filter((topic: any) => {
+      const matchesSearch = topic.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const chapter = chapters.find((c: any) => c.id === topic.chapterId);
+      const subject = chapter ? subjects.find((s: any) => s.id === chapter.subjectId) : null;
+      const matchesClass = selectedClassFilter === 'all' || subject?.classId === selectedClassFilter;
+      const matchesSubject = selectedSubjectFilter === 'all' || chapter?.subjectId === selectedSubjectFilter;
+      return matchesSearch && matchesClass && matchesSubject;
+    });
+  };
+
+  const getFilteredClasses = () => {
+    return classes.filter((cls: any) => 
+      cls.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  // Get class name by ID
+  const getClassName = (classId: string) => {
+    return classes.find((c: any) => c.id === classId)?.name || 'Unknown';
+  };
+
+  // Get subject name by ID
+  const getSubjectName = (subjectId: string) => {
+    return subjects.find((s: any) => s.id === subjectId)?.name || 'Unknown';
+  };
+
+  // Get chapter name by ID
+  const getChapterName = (chapterId: string) => {
+    return chapters.find((c: any) => c.id === chapterId)?.name || 'Unknown';
+  };
+
   // Helper functions
   const getSubjectCountForClass = (classId: string) => {
     return (subjects as any[]).filter((subject: any) => subject.classId === classId).length;
@@ -102,21 +162,6 @@ export default function AdminStructure() {
 
   const getTopicCountForChapter = (chapterId: string) => {
     return (topics as any[]).filter((topic: any) => topic.chapterId === chapterId).length;
-  };
-
-  const getClassName = (classId: string) => {
-    const cls = (classes as any[]).find((c: any) => c.id === classId);
-    return cls?.name || 'Unknown';
-  };
-
-  const getSubjectName = (subjectId: string) => {
-    const subject = (subjects as any[]).find((s: any) => s.id === subjectId);
-    return subject?.name || 'Unknown';
-  };
-
-  const getChapterName = (chapterId: string) => {
-    const chapter = (chapters as any[]).find((c: any) => c.id === chapterId);
-    return chapter?.name || 'Unknown';
   };
 
   const handleAdd = (type: string) => {
@@ -151,6 +196,57 @@ export default function AdminStructure() {
           <TabsTrigger value="topics">Topics</TabsTrigger>
         </TabsList>
 
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+          
+          {activeTab !== 'classes' && (
+            <div className="flex gap-2">
+              <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
+                <SelectTrigger className="w-48">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {classes.map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {(activeTab === 'chapters' || activeTab === 'topics') && (
+                <Select value={selectedSubjectFilter} onValueChange={setSelectedSubjectFilter}>
+                  <SelectTrigger className="w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subjects</SelectItem>
+                    {subjects
+                      .filter((s: any) => selectedClassFilter === 'all' || s.classId === selectedClassFilter)
+                      .map((subject: any) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+        </div>
+
         <TabsContent value="classes">
           <Card>
             <CardHeader>
@@ -169,13 +265,13 @@ export default function AdminStructure() {
               <div className="grid gap-4">
                 {classesLoading ? (
                   <div className="text-center py-4">Loading classes...</div>
-                ) : (classes as any[]).length === 0 ? (
+                ) : getFilteredClasses().length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No classes found. Add your first class to get started.</p>
                   </div>
                 ) : (
-                  (classes as any[]).map((cls: any) => (
+                  getFilteredClasses().map((cls: any) => (
                     <div key={cls.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div>
                         <h3 className="font-semibold text-gray-900">{cls.name}</h3>
@@ -221,13 +317,13 @@ export default function AdminStructure() {
               <div className="grid gap-4">
                 {subjectsLoading ? (
                   <div className="text-center py-4">Loading subjects...</div>
-                ) : (subjects as any[]).length === 0 ? (
+                ) : getFilteredSubjects().length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No subjects found. Add your first subject to get started.</p>
                   </div>
                 ) : (
-                  (subjects as any[]).map((subject: any) => (
+                  getFilteredSubjects().map((subject: any) => (
                     <div key={subject.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div>
                         <h3 className="font-semibold text-gray-900">{subject.name}</h3>
@@ -275,13 +371,13 @@ export default function AdminStructure() {
               <div className="grid gap-4">
                 {chaptersLoading ? (
                   <div className="text-center py-4">Loading chapters...</div>
-                ) : (chapters as any[]).length === 0 ? (
+                ) : getFilteredChapters().length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <List className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No chapters found. Add your first chapter to get started.</p>
                   </div>
                 ) : (
-                  (chapters as any[]).map((chapter: any) => (
+                  getFilteredChapters().map((chapter: any) => (
                     <div key={chapter.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div>
                         <h3 className="font-semibold text-gray-900">{chapter.name}</h3>
@@ -329,16 +425,28 @@ export default function AdminStructure() {
               <div className="grid gap-4">
                 {topicsLoading ? (
                   <div className="text-center py-4">Loading topics...</div>
-                ) : (topics as any[]).length === 0 ? (
+                ) : getFilteredTopics().length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <List className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>No topics found. Add your first topic to get started.</p>
                   </div>
                 ) : (
-                  (topics as any[]).map((topic: any) => (
+                  getFilteredTopics().map((topic: any) => (
                     <div key={topic.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{topic.name}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold text-gray-900">{topic.name}</h3>
+                          {topic.isModerate && (
+                            <Badge variant="secondary" className="text-xs">
+                              Moderate
+                            </Badge>
+                          )}
+                          {topic.isImportant && (
+                            <Badge variant="destructive" className="text-xs bg-red-500 text-white font-bold">
+                              IMP
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex items-center space-x-2 mt-1">
                           <Badge variant="outline">{getChapterName(topic.chapterId)}</Badge>
                           <span className="text-xs text-gray-500">Order: {topic.orderIndex || 0}</span>

@@ -146,6 +146,8 @@ export const topics = pgTable("topics", {
   chapterId: varchar("chapter_id").references(() => chapters.id),
   description: text("description"),
   orderIndex: integer("order_index").default(0),
+  isModerate: boolean("is_moderate").default(false),
+  isImportant: boolean("is_important").default(false),
   isActive: boolean("is_active").default(true),
 });
 

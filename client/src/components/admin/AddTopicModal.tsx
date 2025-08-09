@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const addTopicSchema = z.object({
   name: z.string().min(1, 'Topic name is required'),
@@ -28,6 +29,11 @@ const addTopicSchema = z.object({
   subjectId: z.string().min(1, 'Subject selection is required'),
   chapterId: z.string().min(1, 'Chapter selection is required'),
   orderIndex: z.string().min(1, 'Order is required'),
+  isModerate: z.boolean().default(false),
+  isImportant: z.boolean().default(false),
+}).refine(data => !(data.isModerate && data.isImportant), {
+  message: "You can only select either Moderate or Important, not both",
+  path: ["isImportant"],
 });
 
 type AddTopicFormData = z.infer<typeof addTopicSchema>;
@@ -62,6 +68,8 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
       subjectId: '',
       chapterId: '',
       orderIndex: '',
+      isModerate: false,
+      isImportant: false,
     },
   });
 
@@ -92,8 +100,11 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   const createTopicMutation = useMutation({
     mutationFn: async (data: AddTopicFormData) => {
       const submitData = {
-        ...data,
-        orderIndex: parseInt(data.orderIndex)
+        name: data.name,
+        chapterId: data.chapterId,
+        orderIndex: parseInt(data.orderIndex),
+        isModerate: data.isModerate,
+        isImportant: data.isImportant,
       };
       return apiRequest('POST', '/api/admin/topics', submitData);
     },
@@ -237,6 +248,69 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Priority Checkboxes */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium">Topic Priority (select one):</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="isModerate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox 
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (checked) {
+                              form.setValue('isImportant', false);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal">
+                          Moderate
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Shows "Moderate" tag
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="isImportant"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox 
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (checked) {
+                              form.setValue('isModerate', false);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="text-sm font-normal">
+                          Important
+                        </FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Shows attractive "IMP" tag
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormMessage />
             </div>
 
             <div className="bg-blue-50 p-4 rounded-lg">
