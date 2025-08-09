@@ -356,28 +356,15 @@ export class DrizzleStorage implements IStorage {
       throw new Error(`Invalid amount for wallet update: ${amount} (parsed: ${numericAmount})`);
     }
     
-    // Use raw SQL with direct parameter binding to avoid Promise/SQL issues
-    const result = await db.execute(sql`
-      UPDATE so_centers 
-      SET wallet_balance = COALESCE(wallet_balance, 0) + ${numericAmount}::numeric
-      WHERE id = ${id}
-      RETURNING id, name, wallet_balance, created_at, village_id, center_id, email, phone, is_active
-    `);
-    
-    const updatedCenter = result.rows[0] as any;
-    console.log('✅ Wallet updated successfully to:', updatedCenter?.wallet_balance);
-    
-    return {
-      id: updatedCenter.id,
-      name: updatedCenter.name,
-      walletBalance: updatedCenter.wallet_balance,
-      createdAt: updatedCenter.created_at,
-      villageId: updatedCenter.village_id,
-      centerId: updatedCenter.center_id,
-      email: updatedCenter.email,
-      phone: updatedCenter.phone,
-      isActive: updatedCenter.is_active
-    } as SoCenter;
+    // Use direct SQL update that works with current Drizzle setup
+    const [updatedCenter] = await db.update(schema.soCenters)
+      .set({ 
+        walletBalance: sql`${schema.soCenters.walletBalance} + ${numericAmount}`
+      })
+      .where(eq(schema.soCenters.id, id))
+      .returning();
+    console.log('✅ Wallet updated successfully to:', updatedCenter?.walletBalance);
+    return updatedCenter;
   }
 
   async getAllClasses(): Promise<Class[]> {
