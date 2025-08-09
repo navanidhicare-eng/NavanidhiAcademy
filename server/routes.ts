@@ -842,43 +842,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Wallet endpoint
+  // Wallet endpoint - REAL SUPABASE DATA WITH TRANSACTION HISTORY
   app.get("/api/wallet/:userId", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // Return mock wallet data for now
+      const soCenterId = req.params.userId;
+      
+      // Get real SO center data from Supabase
+      const soCenter = await storage.getSoCenter(soCenterId);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      // Get real transaction history from wallet_transactions table
+      const walletTransactions = await storage.getWalletTransactions(soCenterId);
+      
+      // Get recent payments as transaction history
+      const recentPayments = await storage.getPaymentsBySoCenter(soCenterId);
+      
+      // Combine wallet transactions and payments into transaction history
+      const allTransactions = [
+        ...walletTransactions.map(wt => ({
+          id: wt.id,
+          type: wt.type,
+          amount: parseFloat(wt.amount),
+          description: wt.description || `${wt.type} transaction`,
+          date: wt.createdAt ? new Date(wt.createdAt).toLocaleDateString() : 'N/A',
+          createdAt: wt.createdAt
+        })),
+        ...recentPayments.slice(0, 10).map(p => ({
+          id: p.id,
+          type: 'credit',
+          amount: parseFloat(p.amount),
+          description: `Student payment - ${p.paymentMethod}`,
+          date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'N/A',
+          createdAt: p.createdAt
+        }))
+      ].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }).slice(0, 15);
+
       const walletData = {
-        balance: 12450,
-        transactions: [
-          { 
-            id: 1, 
-            type: 'credit', 
-            amount: 2500, 
-            description: 'Payment from Arjun Reddy', 
-            date: new Date().toLocaleDateString() 
-          },
-          { 
-            id: 2, 
-            type: 'credit', 
-            amount: 3000, 
-            description: 'Payment from Sneha Patel', 
-            date: new Date(Date.now() - 86400000).toLocaleDateString() 
-          },
-          { 
-            id: 3, 
-            type: 'debit', 
-            amount: 5000, 
-            description: 'Collection by Agent', 
-            date: new Date(Date.now() - 172800000).toLocaleDateString() 
-          },
-        ]
+        balance: parseFloat(soCenter.walletBalance || '0'),
+        transactions: allTransactions
       };
 
       res.json(walletData);
     } catch (error) {
+      console.error('Wallet API error:', error);
       res.status(500).json({ message: "Failed to fetch wallet data" });
     }
   });

@@ -357,10 +357,10 @@ export class DrizzleStorage implements IStorage {
       throw new Error(`Invalid amount for wallet update: ${amount} (parsed: ${numericAmount})`);
     }
     
-    // Use direct SQL update that works with current Drizzle setup
+    // Use direct SQL update with proper numeric conversion
     const [updatedCenter] = await db.update(schema.soCenters)
       .set({ 
-        walletBalance: sql`${schema.soCenters.walletBalance} + ${numericAmount}`
+        walletBalance: sqlQuery`CAST(${schema.soCenters.walletBalance} AS NUMERIC) + CAST(${numericAmount} AS NUMERIC)`
       })
       .where(eq(schema.soCenters.id, id))
       .returning();
