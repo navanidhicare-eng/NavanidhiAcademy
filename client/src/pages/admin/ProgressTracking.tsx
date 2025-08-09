@@ -126,20 +126,17 @@ export default function ProgressTracking() {
   });
 
   // Get filtered data
-  const filteredSubjects = subjects.filter((s: Subject) => s.classId === selectedClass);
-  const filteredChapters = chapters.filter((c: Chapter) => c.subjectId === selectedSubject);
-  const filteredTopics = topics.filter((t: Topic) => 
+  const filteredSubjects = (subjects as Subject[]).filter((s: Subject) => s.classId === selectedClass);
+  const filteredChapters = (chapters as Chapter[]).filter((c: Chapter) => c.subjectId === selectedSubject);
+  const filteredTopics = (topics as Topic[]).filter((t: Topic) => 
     filteredChapters.some((c: Chapter) => c.id === t.chapterId)
   );
-  const classStudents = students.filter((s: Student) => s.classId === selectedClass);
+  const classStudents = (students as Student[]).filter((s: Student) => s.classId === selectedClass);
 
   // Mutations
   const homeworkMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/homework-activity', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/homework-activity', data);
     },
     onSuccess: () => {
       toast({
@@ -159,10 +156,7 @@ export default function ProgressTracking() {
 
   const tuitionProgressMutation = useMutation({
     mutationFn: async (data: any) => {
-      return apiRequest('/api/tuition-progress', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      return apiRequest('POST', '/api/tuition-progress', data);
     },
     onSuccess: () => {
       toast({
@@ -255,7 +249,7 @@ export default function ProgressTracking() {
   };
 
   const isTopicCompleted = (studentId: string, topicId: string) => {
-    return tuitionProgress.some((progress: TuitionProgress) => 
+    return (tuitionProgress as TuitionProgress[]).some((progress: TuitionProgress) => 
       progress.studentId === studentId && 
       progress.topicId === topicId && 
       progress.status === 'learned'
@@ -299,8 +293,11 @@ export default function ProgressTracking() {
                   <Input
                     type="date"
                     value={homeworkDate}
-                    onChange={(e) => setHomeworkDate(e.target.value)}
+                    readOnly
+                    className="bg-muted cursor-not-allowed"
+                    title="Date is locked to today only"
                   />
+                  <p className="text-xs text-muted-foreground">Date is set to today only</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Class</Label>
@@ -333,7 +330,7 @@ export default function ProgressTracking() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5" />
-                    Students in {classes.find((c: Class) => c.id === selectedClass)?.name}
+                    Students in {(classes as Class[]).find((c: Class) => c.id === selectedClass)?.name}
                   </h3>
                   
                   <div className="space-y-4">
@@ -449,7 +446,7 @@ export default function ProgressTracking() {
                       <SelectValue placeholder="Select Class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {classes.map((cls: Class) => (
+                      {(classes as Class[]).map((cls: Class) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
                         </SelectItem>
@@ -502,7 +499,7 @@ export default function ProgressTracking() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
-                      Topic: {topics.find((t: Topic) => t.id === selectedTopic)?.name}
+                      Topic: {(topics as Topic[]).find((t: Topic) => t.id === selectedTopic)?.name}
                     </h3>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <CheckCircle className="h-4 w-4 text-green-600" />
