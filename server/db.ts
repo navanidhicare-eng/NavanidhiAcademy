@@ -5,15 +5,17 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-// Use Supabase database connection
-const databaseUrl = process.env.SUPABASE_DATABASE_URL || process.env.DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error(
-    "SUPABASE_DATABASE_URL must be set to connect to Supabase database",
-  );
+// FORCE EXCLUSIVE SUPABASE DATABASE CONNECTION
+// Override any DATABASE_URL with SUPABASE_DATABASE_URL to prevent local DB usage
+const supabaseUrl = process.env.SUPABASE_DATABASE_URL;
+if (!supabaseUrl) {
+  throw new Error("SUPABASE_DATABASE_URL is required - local database disabled");
 }
 
-console.log('🔗 Connecting to Supabase database...');
-export const pool = new Pool({ connectionString: databaseUrl });
+// Force override DATABASE_URL to prevent any local database connections
+process.env.DATABASE_URL = supabaseUrl;
+
+console.log('🔗 FORCING connection to Supabase database ONLY');
+console.log('⚠️  All DATABASE_URL references redirected to Supabase');
+export const pool = new Pool({ connectionString: supabaseUrl });
 export const db = drizzle({ client: pool, schema });
