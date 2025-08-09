@@ -116,7 +116,8 @@ export function FeePayments() {
   // Process payment mutation
   const processPaymentMutation = useMutation({
     mutationFn: async (paymentData: any) => {
-      return apiRequest('POST', '/api/payments/process', paymentData);
+      const response = await apiRequest('POST', '/api/payments/process', paymentData);
+      return await response.json();
     },
     onSuccess: (data) => {
       // Show confetti effect
@@ -227,7 +228,15 @@ Thank you for your payment!
     
     // Get phone number from invoice data or student data - use father's mobile
     const student = students.find(s => s.studentId === invoiceData.studentId);
-    const phoneNumber = student?.fatherMobile || student?.parentPhone;
+    const phoneNumber = invoiceData.fatherMobile || student?.fatherMobile || student?.parentPhone;
+    
+    console.log('WhatsApp Debug:', {
+      studentId: invoiceData.studentId,
+      invoiceFatherMobile: invoiceData.fatherMobile,
+      studentFatherMobile: student?.fatherMobile,
+      studentParentPhone: student?.parentPhone,
+      finalPhoneNumber: phoneNumber
+    });
     
     if (phoneNumber) {
       const cleanPhone = phoneNumber.replace(/\D/g, '');

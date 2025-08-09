@@ -621,6 +621,17 @@ export class DrizzleStorage implements IStorage {
     payment: Payment;
     transactionId: string;
     walletUpdated: boolean;
+    studentName: string;
+    studentId: string;
+    className: string;
+    amount: number;
+    receiptNumber: string;
+    feeType: string;
+    parentPhone: string;
+    fatherMobile: string;
+    newPaidAmount: number;
+    newPendingAmount: number;
+    totalFeeAmount: number;
   }> {
     const { studentId, amount, feeType, receiptNumber, expectedFeeAmount } = paymentData;
     const transactionId = `TXN-${Date.now()}-${studentId.slice(0, 8)}`;

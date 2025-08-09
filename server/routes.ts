@@ -1686,19 +1686,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expectedFeeAmount: parseFloat(expectedFeeAmount || '0')
       });
 
-      // Prepare invoice response
-      const invoiceData = {
-        studentName: student.name,
-        studentId: student.studentId,
-        className: student.className,
-        amount: parseFloat(amount),
-        feeType: feeType,
-        receiptNumber: receiptNumber,
+      // Use the complete data from storage result which includes all invoice details
+      res.json({
+        studentName: result.studentName,
+        studentId: result.studentId,
+        className: result.className,
+        amount: result.amount,
+        feeType: result.feeType,
+        receiptNumber: result.receiptNumber,
         transactionId: result.transactionId,
-        paymentId: result.payment.id
-      };
-
-      res.json(invoiceData);
+        paymentId: result.payment.id,
+        fatherMobile: result.fatherMobile,
+        parentPhone: result.parentPhone,
+        newPaidAmount: result.newPaidAmount,
+        newPendingAmount: result.newPendingAmount,
+        totalFeeAmount: result.totalFeeAmount
+      });
     } catch (error) {
       console.error("Payment processing error:", error);
       res.status(500).json({ 
