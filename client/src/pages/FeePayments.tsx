@@ -116,7 +116,7 @@ export function FeePayments() {
   // Process payment mutation
   const processPaymentMutation = useMutation({
     mutationFn: async (paymentData: any) => {
-      return apiRequest('/api/payments/process', 'POST', paymentData);
+      return apiRequest('POST', '/api/payments/process', paymentData);
     },
     onSuccess: (data) => {
       // Show confetti effect
