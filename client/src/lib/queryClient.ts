@@ -25,7 +25,7 @@ function getAuthHeaders(): Record<string, string> {
   }
   
   // Fallback to localStorage token for backward compatibility
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }

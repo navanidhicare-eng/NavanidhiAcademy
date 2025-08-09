@@ -27,7 +27,7 @@ export function useAuth() {
         }
         
         const response = await apiRequest('GET', '/api/auth/me');
-        return response;
+        return response.json();
       } catch (error) {
         // If authentication fails, clear the token
         localStorage.removeItem('token');
