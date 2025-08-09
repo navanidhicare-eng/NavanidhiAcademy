@@ -155,7 +155,7 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="outline" className="text-blue-800 border-blue-200">
-                        {student.classId}
+                        {student.className || student.classId}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

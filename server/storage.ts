@@ -409,10 +409,40 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getStudentsBySoCenter(soCenterId: string): Promise<Student[]> {
-    return await db.select().from(schema.students)
-      .where(and(eq(schema.students.soCenterId, soCenterId), eq(schema.students.isActive, true)))
-      .orderBy(desc(schema.students.createdAt));
+  async getStudentsBySoCenter(soCenterId: string): Promise<any[]> {
+    const results = await db.select({
+      id: schema.students.id,
+      name: schema.students.name,
+      parentPhone: schema.students.parentPhone,
+      classId: schema.students.classId,
+      className: schema.classes.name,
+      soCenterId: schema.students.soCenterId,
+      createdAt: schema.students.createdAt,
+      qrCode: schema.students.qrCode,
+      studentId: schema.students.studentId,
+      email: schema.students.email,
+      aadharNumber: schema.students.aadharNumber,
+      fatherName: schema.students.fatherName,
+      motherName: schema.students.motherName,
+      courseType: schema.students.courseType,
+      villageId: schema.students.villageId,
+      dateOfBirth: schema.students.dateOfBirth,
+      gender: schema.students.gender,
+      religion: schema.students.religion,
+      caste: schema.students.caste,
+      subCaste: schema.students.subCaste,
+      previousEducation: schema.students.previousEducation,
+      previousSchool: schema.students.previousSchool,
+      previousMarks: schema.students.previousMarks,
+      isActive: schema.students.isActive,
+      updatedAt: schema.students.updatedAt
+    })
+    .from(schema.students)
+    .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+    .where(and(eq(schema.students.soCenterId, soCenterId), eq(schema.students.isActive, true)))
+    .orderBy(desc(schema.students.createdAt));
+    
+    return results;
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
@@ -423,10 +453,40 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getAllStudents(): Promise<Student[]> {
-    return await db.select().from(schema.students)
-      .where(eq(schema.students.isActive, true))
-      .orderBy(desc(schema.students.createdAt));
+  async getAllStudents(): Promise<any[]> {
+    const results = await db.select({
+      id: schema.students.id,
+      name: schema.students.name,
+      parentPhone: schema.students.parentPhone,
+      classId: schema.students.classId,
+      className: schema.classes.name,
+      soCenterId: schema.students.soCenterId,
+      createdAt: schema.students.createdAt,
+      qrCode: schema.students.qrCode,
+      studentId: schema.students.studentId,
+      email: schema.students.email,
+      aadharNumber: schema.students.aadharNumber,
+      fatherName: schema.students.fatherName,
+      motherName: schema.students.motherName,
+      courseType: schema.students.courseType,
+      villageId: schema.students.villageId,
+      dateOfBirth: schema.students.dateOfBirth,
+      gender: schema.students.gender,
+      religion: schema.students.religion,
+      caste: schema.students.caste,
+      subCaste: schema.students.subCaste,
+      previousEducation: schema.students.previousEducation,
+      previousSchool: schema.students.previousSchool,
+      previousMarks: schema.students.previousMarks,
+      isActive: schema.students.isActive,
+      updatedAt: schema.students.updatedAt
+    })
+    .from(schema.students)
+    .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+    .where(eq(schema.students.isActive, true))
+    .orderBy(desc(schema.students.createdAt));
+    
+    return results;
   }
 
   async updateStudent(id: string, updates: Partial<InsertStudent>): Promise<Student> {
