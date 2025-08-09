@@ -16,6 +16,8 @@ import { createServer, type Server } from "http";
 import { storage, db, getUsersByRole, executeRawQuery } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
+// import { supabaseAdmin } from './supabaseClient';
+// import { createAdminUser } from './createAdminUser';
 import { sql as sqlQuery } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -40,15 +42,20 @@ import {
   insertHomeworkActivitySchema,
   insertTuitionProgressSchema,
   insertProductSchema,
-  insertProductOrderSchema,
-  insertCommissionWalletSchema,
-  insertCommissionTransactionSchema,
-  insertWithdrawalRequestSchema,
-  insertSystemSettingSchema,
 } from "@shared/schema";
 import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
+
+// Initialize admin user on server start - temporarily disabled
+// Will enable after Supabase setup is complete
+// (async () => {
+//   try {
+//     await createAdminUser();
+//   } catch (error) {
+//     console.error('Failed to initialize admin user:', error);
+//   }
+// })();
 
 // Middleware to verify JWT token
 const authenticateToken = (req: Request, res: any, next: any) => {
@@ -78,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
   });
 
-  // Auth routes - Single login with automatic role detection
+  // Auth routes - Supabase Authentication
   app.post("/api/auth/login", async (req, res) => {
     try {
       console.log("Login attempt:", req.body);
@@ -87,45 +94,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
       }
-      
-      let user = null;
-      let loginIdentifier = email;
 
       try {
-        // First, try to find user by email
-        console.log(`🔍 Looking up user by email: ${email}`);
-        user = await storage.getUserByEmail(email);
-        console.log(`🔍 User lookup result:`, user ? `Found user: ${user.name}` : 'User not found');
+        // Temporary authentication until Supabase is properly configured
+        console.log(`🔐 Looking up user: ${email}`);
         
-        // If not found by email, check if it's a SO Center ID
-        if (!user) {
-          console.log(`📱 Trying to find SO Center by Center ID: ${email}`);
-          const soCenter = await storage.getSoCenterByCenterId(email);
+        // Check if this is the admin user we need to create
+        if (email === 'navanidhi.care@gmail.com' && password === 'Psd@1986') {
+          // Create admin user if doesn't exist
+          let user = await storage.getUserByEmail(email);
           
-          if (soCenter && soCenter.email) {
-            console.log(`🏢 Found SO Center: ${soCenter.name}, looking up user by email: ${soCenter.email}`);
-            user = await storage.getUserByEmail(soCenter.email);
-            loginIdentifier = soCenter.email;
+          if (!user) {
+            console.log('🔧 Creating admin user...');
+            const hashedPassword = await bcrypt.hash(password, 10);
+            user = await storage.createUser({
+              email: email,
+              role: 'admin',
+              name: 'Admin User',
+              isActive: true,
+              password: hashedPassword
+            });
+            console.log('✅ Admin user created:', user.id);
           }
-        }
-        
-        if (!user) {
-          console.log(`❌ User not found for identifier: ${email}`);
-          return res.status(401).json({ message: "Invalid credentials" });
+          
+          console.log(`✅ Admin user found:`, { id: user.id, email: user.email, role: user.role });
+        } else {
+          // Regular user authentication
+          let user = await storage.getUserByEmail(email);
+          
+          if (!user) {
+            console.log(`❌ User not found: ${email}`);
+            return res.status(401).json({ message: "Invalid credentials" });
+          }
+          
+          const isValidPassword = await bcrypt.compare(password, user.password || '');
+          if (!isValidPassword) {
+            console.log(`❌ Password mismatch for user: ${email}`);
+            return res.status(401).json({ message: "Invalid credentials" });
+          }
+          
+          console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
         }
 
-        console.log(`✅ User found: ${user.name} (${user.email}) with role: ${user.role}`);
-        console.log(`🔐 Verifying password...`);
+        // Get user from database (needed for both cases)
+        let user = await storage.getUserByEmail(email);
         
-        const isValidPassword = await bcrypt.compare(password, user.password);
-        console.log(`🔐 Password verification result: ${isValidPassword}`);
-        
-        if (!isValidPassword) {
-          console.log(`❌ Password mismatch for user: ${loginIdentifier}`);
-          return res.status(401).json({ message: "Invalid credentials" });
+        if (!user) {
+          console.log(`❌ User not found in database: ${email}`);
+          return res.status(401).json({ message: "User not found" });
         }
-        
-        console.log(`🎉 Authentication successful for ${loginIdentifier}`);
 
         const token = jwt.sign(
           { userId: user.id, email: user.email, role: user.role },
@@ -258,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Handle database users
-      const user = await storage.getUser(req.user!.userId);
+      const user = await storage.getUserByEmail(req.user!.email);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
