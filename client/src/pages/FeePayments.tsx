@@ -407,35 +407,33 @@ Thank you for your payment!
                     <p className="text-gray-600">Student: {selectedStudent.name}</p>
                   </div>
                   
-                  {/* Progress Stats */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="text-center p-6 bg-green-50 rounded-lg border border-green-200">
-                      <h5 className="text-lg font-semibold text-green-800 mb-2">Total Paid</h5>
-                      <p className="text-4xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+                  {/* Simplified Payment Stats - Only Paid and Pending */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div className="text-center p-8 bg-green-50 rounded-lg border border-green-200">
+                      <h5 className="text-xl font-semibold text-green-800 mb-3">Amount Paid</h5>
+                      <p className="text-5xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+                      <p className="text-sm text-green-500 mt-2">Total payments received</p>
                     </div>
                     
-                    <div className="text-center p-6 bg-blue-50 rounded-lg border border-blue-200">
-                      <h5 className="text-lg font-semibold text-blue-800 mb-2">Total Due Amount</h5>
-                      <p className="text-4xl font-bold text-blue-600">₹{(parseFloat(selectedStudent.totalFeeAmount || '0')).toLocaleString()}</p>
-                      <p className="text-sm text-blue-500 mt-2">Based on enrollment date</p>
-                    </div>
-                    
-                    <div className={`text-center p-6 rounded-lg border ${pendingAmount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-                      <h5 className={`text-lg font-semibold mb-2 ${pendingAmount > 0 ? 'text-red-800' : 'text-green-800'}`}>
-                        {pendingAmount > 0 ? 'Pending Amount' : 'Balance'}
+                    <div className={`text-center p-8 rounded-lg border ${pendingAmount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                      <h5 className={`text-xl font-semibold mb-3 ${pendingAmount > 0 ? 'text-red-800' : 'text-green-800'}`}>
+                        Pending Amount
                       </h5>
-                      <p className={`text-4xl font-bold ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {pendingAmount > 0 ? `₹${pendingAmount.toLocaleString()}` : '✅ Paid'}
+                      <p className={`text-5xl font-bold ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {pendingAmount > 0 ? `₹${pendingAmount.toLocaleString()}` : '₹0'}
+                      </p>
+                      <p className={`text-sm mt-2 ${pendingAmount > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                        {pendingAmount > 0 ? 'Outstanding balance' : 'All fees paid'}
                       </p>
                     </div>
                   </div>
                   
-                  {/* Progress Bar */}
+                  {/* Simple Progress Bar - Paid vs Pending */}
                   <div className="mb-6">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-700">Payment Progress</span>
+                      <span className="text-sm font-medium text-gray-700">Payment Status</span>
                       <span className="text-sm font-medium text-gray-700">
-                        {Math.round((paidAmount / Math.max(parseFloat(selectedStudent.totalFeeAmount || '0'), 1)) * 100)}% Complete
+                        {pendingAmount === 0 ? '100% Paid' : `₹${pendingAmount.toLocaleString()} Pending`}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-4">
@@ -443,14 +441,14 @@ Thank you for your payment!
                         className={`h-4 rounded-full transition-all duration-500 ${
                           pendingAmount === 0 ? 'bg-green-500' : 'bg-blue-500'
                         }`}
-                        style={{ width: `${Math.min((paidAmount / Math.max(parseFloat(selectedStudent.totalFeeAmount || '0'), 1)) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((paidAmount / Math.max(paidAmount + pendingAmount, 1)) * 100, 100)}%` }}
                       ></div>
                     </div>
                   </div>
                   
-                  {/* Student Information */}
+                  {/* Fee Summary */}
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h6 className="font-semibold text-gray-800 mb-3">Student Information</h6>
+                    <h6 className="font-semibold text-gray-800 mb-3">Fee Summary</h6>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
                         <span>Student ID:</span>
@@ -461,15 +459,20 @@ Thank you for your payment!
                         <span className="font-medium">{selectedStudent.courseType.toUpperCase()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Enrollment Date:</span>
-                        <span className="font-medium">{selectedStudent.enrollmentDate ? new Date(selectedStudent.enrollmentDate).toLocaleDateString() : 'Not set'}</span>
+                        <span>Total Paid:</span>
+                        <span className="font-medium text-green-600">₹{paidAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Payment Status:</span>
-                        <span className={`font-medium ${selectedStudent.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                          {selectedStudent.paymentStatus?.toUpperCase()}
+                        <span>Total Pending:</span>
+                        <span className={`font-medium ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ₹{pendingAmount.toLocaleString()}
                         </span>
                       </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <p className="text-xs text-gray-500">
+                        📅 New monthly fees are automatically added to pending amount every month at midnight
+                      </p>
                     </div>
                   </div>
                 </div>

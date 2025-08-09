@@ -15,6 +15,7 @@ declare global {
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
+import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { 
@@ -296,6 +297,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('Error recalculating student fees:', error);
       res.status(500).json({ message: error.message || 'Failed to recalculate fees' });
+    }
+  });
+
+  // Preview monthly fee update (admin only)
+  app.get("/api/admin/monthly-fees/preview", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      console.log('👀 Admin previewing monthly fee update');
+      const preview = await MonthlyFeeScheduler.previewMonthlyFeeUpdate();
+      
+      res.json({
+        message: 'Monthly fee preview generated',
+        preview
+      });
+    } catch (error: any) {
+      console.error('Error previewing monthly fees:', error);
+      res.status(500).json({ message: error.message || 'Failed to preview monthly fees' });
+    }
+  });
+
+  // Run monthly fee update manually (admin only)
+  app.post("/api/admin/monthly-fees/run", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      console.log('🚀 Admin manually running monthly fee update');
+      await MonthlyFeeScheduler.addMonthlyFeesToAllStudents();
+      
+      res.json({
+        message: 'Monthly fees added successfully to all active students'
+      });
+    } catch (error: any) {
+      console.error('Error running monthly fee update:', error);
+      res.status(500).json({ message: error.message || 'Failed to run monthly fee update' });
     }
   });
 
