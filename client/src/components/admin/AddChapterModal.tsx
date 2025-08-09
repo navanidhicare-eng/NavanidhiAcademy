@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -39,23 +39,14 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock classes data - replace with actual API call
-  const mockClasses = [
-    { id: '1', name: 'Class 10' },
-    { id: '2', name: 'Class 12' },
-    { id: '3', name: 'Navodaya' },
-    { id: '4', name: 'POLYCET' }
-  ];
+  // Fetch real classes and subjects data from API
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
 
-  // Mock subjects data - replace with actual API call
-  const mockSubjects = [
-    { id: '1', name: 'Mathematics', classId: '1' },
-    { id: '2', name: 'Physics', classId: '1' },
-    { id: '3', name: 'Chemistry', classId: '1' },
-    { id: '4', name: 'Mathematics', classId: '3' },
-    { id: '5', name: 'English', classId: '3' },
-    { id: '6', name: 'Science', classId: '3' }
-  ];
+  const { data: allSubjects = [] } = useQuery({
+    queryKey: ['/api/admin/subjects'],
+  });
 
   const form = useForm<AddChapterFormData>({
     resolver: zodResolver(addChapterSchema),
@@ -69,14 +60,13 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
   const selectedClassId = form.watch('classId');
   
   // Filter subjects based on selected class
-  const filteredSubjects = mockSubjects.filter(subject => 
+  const filteredSubjects = (allSubjects as any[]).filter((subject: any) => 
     selectedClassId ? subject.classId === selectedClassId : false
   );
 
-  // Reset subject when class changes
-  const handleClassChange = (classId: string) => {
-    form.setValue('classId', classId);
-    form.setValue('subjectId', ''); // Reset subject selection
+  const handleClassChange = (value: string) => {
+    form.setValue('classId', value);
+    form.setValue('subjectId', ''); // Reset subject when class changes
   };
 
   const createChapterMutation = useMutation({
@@ -141,7 +131,7 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockClasses.map((cls) => (
+                        {classes.map((cls: any) => (
                           <SelectItem key={cls.id} value={cls.id}>
                             {cls.name}
                           </SelectItem>

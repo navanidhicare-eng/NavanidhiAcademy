@@ -38,13 +38,10 @@ export function AddSubjectModal({ isOpen, onClose }: AddSubjectModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock classes data - replace with actual API call
-  const mockClasses = [
-    { id: '1', name: 'Class 10' },
-    { id: '2', name: 'Class 12' },
-    { id: '3', name: 'Navodaya' },
-    { id: '4', name: 'POLYCET' }
-  ];
+  // Fetch real classes data from API
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
 
   const form = useForm<AddSubjectFormData>({
     resolver: zodResolver(addSubjectSchema),
@@ -116,7 +113,7 @@ export function AddSubjectModal({ isOpen, onClose }: AddSubjectModalProps) {
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockClasses.map((cls) => (
+                        {classes.map((cls: any) => (
                           <SelectItem key={cls.id} value={cls.id}>
                             {cls.name}
                           </SelectItem>

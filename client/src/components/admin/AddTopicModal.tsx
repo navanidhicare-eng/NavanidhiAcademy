@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -41,31 +41,18 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data - replace with actual API calls
-  const mockClasses = [
-    { id: '1', name: 'Class 10' },
-    { id: '2', name: 'Class 12' },
-    { id: '3', name: 'Navodaya' },
-    { id: '4', name: 'POLYCET' }
-  ];
+  // Fetch real data from API
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
 
-  const mockSubjects = [
-    { id: '1', name: 'Mathematics', classId: '1' },
-    { id: '2', name: 'Physics', classId: '1' },
-    { id: '3', name: 'Chemistry', classId: '1' },
-    { id: '4', name: 'Mathematics', classId: '3' },
-    { id: '5', name: 'English', classId: '3' },
-    { id: '6', name: 'Science', classId: '3' }
-  ];
+  const { data: allSubjects = [] } = useQuery({
+    queryKey: ['/api/admin/subjects'],
+  });
 
-  const mockChapters = [
-    { id: '1', name: 'Quadratic Equations', subjectId: '1' },
-    { id: '2', name: 'Arithmetic Progressions', subjectId: '1' },
-    { id: '3', name: 'Light - Reflection and Refraction', subjectId: '2' },
-    { id: '4', name: 'Acids, Bases and Salts', subjectId: '3' },
-    { id: '5', name: 'Grammar Basics', subjectId: '5' },
-    { id: '6', name: 'Plant Kingdom', subjectId: '6' }
-  ];
+  const { data: allChapters = [] } = useQuery({
+    queryKey: ['/api/admin/chapters'],
+  });
 
   const form = useForm<AddTopicFormData>({
     resolver: zodResolver(addTopicSchema),
@@ -82,24 +69,23 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   const selectedSubjectId = form.watch('subjectId');
   
   // Filter subjects based on selected class
-  const filteredSubjects = mockSubjects.filter(subject => 
+  const filteredSubjects = (allSubjects as any[]).filter((subject: any) => 
     selectedClassId ? subject.classId === selectedClassId : false
   );
 
   // Filter chapters based on selected subject
-  const filteredChapters = mockChapters.filter(chapter => 
+  const filteredChapters = (allChapters as any[]).filter((chapter: any) => 
     selectedSubjectId ? chapter.subjectId === selectedSubjectId : false
   );
 
-  // Reset dependent fields when parent changes
-  const handleClassChange = (classId: string) => {
-    form.setValue('classId', classId);
+  const handleClassChange = (value: string) => {
+    form.setValue('classId', value);
     form.setValue('subjectId', '');
     form.setValue('chapterId', '');
   };
 
-  const handleSubjectChange = (subjectId: string) => {
-    form.setValue('subjectId', subjectId);
+  const handleSubjectChange = (value: string) => {
+    form.setValue('subjectId', value);
     form.setValue('chapterId', '');
   };
 
@@ -169,7 +155,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockClasses.map((cls) => (
+                        {classes.map((cls: any) => (
                           <SelectItem key={cls.id} value={cls.id}>
                             {cls.name}
                           </SelectItem>
@@ -194,7 +180,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                         <SelectValue placeholder={selectedClassId ? "Select subject" : "Select class first"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {filteredSubjects.map((subject) => (
+                        {filteredSubjects.map((subject: any) => (
                           <SelectItem key={subject.id} value={subject.id}>
                             {subject.name}
                           </SelectItem>
@@ -220,7 +206,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                           <SelectValue placeholder={selectedSubjectId ? "Select chapter" : "Select subject first"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {filteredChapters.map((chapter) => (
+                          {filteredChapters.map((chapter: any) => (
                             <SelectItem key={chapter.id} value={chapter.id}>
                               {chapter.name}
                             </SelectItem>
