@@ -16,8 +16,8 @@ import { createServer, type Server } from "http";
 import { storage, db, getUsersByRole, executeRawQuery } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
-// import { supabaseAdmin } from './supabaseClient';
-// import { createAdminUser } from './createAdminUser';
+import { supabaseAdmin } from './supabaseClient';
+import { createAdminUser } from './createAdminUser';
 import { sql as sqlQuery } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -47,15 +47,15 @@ import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
-// Initialize admin user on server start - temporarily disabled
-// Will enable after Supabase setup is complete
-// (async () => {
-//   try {
-//     await createAdminUser();
-//   } catch (error) {
-//     console.error('Failed to initialize admin user:', error);
-//   }
-// })();
+// Initialize admin user on server start
+(async () => {
+  try {
+    console.log('🚀 Initializing Supabase authentication...');
+    await createAdminUser();
+  } catch (error) {
+    console.error('❌ Failed to initialize admin user:', error);
+  }
+})();
 
 // Middleware to verify JWT token
 const authenticateToken = (req: Request, res: any, next: any) => {
@@ -96,53 +96,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        // Temporary authentication until Supabase is properly configured
-        console.log(`🔐 Looking up user: ${email}`);
+        // 1. Authenticate with Supabase Auth
+        console.log(`🔐 Authenticating with Supabase Auth: ${email}`);
+        const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+          email,
+          password
+        });
         
-        // Check if this is the admin user we need to create
-        if (email === 'navanidhi.care@gmail.com' && password === 'Psd@1986') {
-          // Create admin user if doesn't exist
-          let user = await storage.getUserByEmail(email);
-          
-          if (!user) {
-            console.log('🔧 Creating admin user...');
-            const hashedPassword = await bcrypt.hash(password, 10);
-            user = await storage.createUser({
-              email: email,
-              role: 'admin',
-              name: 'Admin User',
-              isActive: true,
-              password: hashedPassword
-            });
-            console.log('✅ Admin user created:', user.id);
-          }
-          
-          console.log(`✅ Admin user found:`, { id: user.id, email: user.email, role: user.role });
-        } else {
-          // Regular user authentication
-          let user = await storage.getUserByEmail(email);
-          
-          if (!user) {
-            console.log(`❌ User not found: ${email}`);
-            return res.status(401).json({ message: "Invalid credentials" });
-          }
-          
-          const isValidPassword = await bcrypt.compare(password, user.password || '');
-          if (!isValidPassword) {
-            console.log(`❌ Password mismatch for user: ${email}`);
-            return res.status(401).json({ message: "Invalid credentials" });
-          }
-          
-          console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
+        if (authError || !authData.user) {
+          console.log(`❌ Supabase Auth failed:`, authError?.message);
+          return res.status(401).json({ message: "Invalid credentials" });
         }
-
-        // Get user from database (needed for both cases)
+        
+        console.log(`✅ Supabase Auth successful:`, authData.user.id);
+        
+        // 2. Get or sync user from our database
         let user = await storage.getUserByEmail(email);
         
         if (!user) {
-          console.log(`❌ User not found in database: ${email}`);
-          return res.status(401).json({ message: "User not found" });
+          // User exists in Supabase but not in our database - sync them
+          console.log(`🔄 Syncing user from Supabase to database: ${email}`);
+          const userMetadata = authData.user.user_metadata;
+          user = await storage.createUser({
+            email: email,
+            role: userMetadata.role || 'admin',
+            name: userMetadata.name || authData.user.email?.split('@')[0] || 'User',
+            isActive: true,
+            password: '' // We use Supabase Auth, no local password needed
+          });
+          console.log(`✅ User synced to database:`, user.id);
         }
+        
+        console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
 
         const token = jwt.sign(
           { userId: user.id, email: user.email, role: user.role },
