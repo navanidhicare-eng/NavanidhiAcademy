@@ -72,7 +72,7 @@ export function Sidebar({ className }: SidebarProps) {
         return [
           ...baseItems,
           { icon: Users, label: 'Students', href: '/students' },
-          { icon: CreditCard, label: 'Payments', href: '/payments' },
+
           { icon: Receipt, label: 'Fee Payments', href: '/fee-payments' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
