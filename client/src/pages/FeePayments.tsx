@@ -225,12 +225,13 @@ Thank you for your payment!
 
     const encodedText = encodeURIComponent(invoiceText);
     
-    // Get phone number from student data
+    // Get phone number from invoice data or student data
     const student = students.find(s => s.studentId === invoiceData.studentId);
     const phoneNumber = student?.parentPhone;
     
     if (phoneNumber) {
-      const whatsappUrl = `https://wa.me/91${phoneNumber.replace(/\D/g, '')}?text=${encodedText}`;
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      const whatsappUrl = `https://wa.me/91${cleanPhone}?text=${encodedText}`;
       window.open(whatsappUrl, '_blank');
       
       toast({
@@ -245,15 +246,6 @@ Thank you for your payment!
         variant: "destructive"
       });
     }
-    const whatsappUrl = `https://wa.me/${selectedStudent.parentPhone}?text=${encodedText}`;
-    
-    window.open(whatsappUrl, '_blank');
-    
-    toast({
-      title: "WhatsApp Opened",
-      description: "Invoice details ready to send",
-      variant: "default"
-    });
   };
 
   const { feeAmount, pendingAmount } = calculateFeeAmount();

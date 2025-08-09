@@ -652,15 +652,15 @@ export class DrizzleStorage implements IStorage {
       // Update student payment tracking
       const numericAmount = Number(amount);
       const currentPaidAmount = Number(student.paidAmount || 0);
-      const currentPendingAmount = Number(student.pendingAmount || 0);
-      const newPaidAmount = currentPaidAmount + numericAmount;
-      const newPendingAmount = Math.max(0, currentPendingAmount - numericAmount);
+      let totalFeeAmount = Number(student.totalFeeAmount || 0);
       
       // Set total fee amount if not set
-      let totalFeeAmount = Number(student.totalFeeAmount || 0);
       if (totalFeeAmount === 0) {
         totalFeeAmount = expectedFeeAmount;
       }
+      
+      const newPaidAmount = currentPaidAmount + numericAmount;
+      const newPendingAmount = Math.max(0, totalFeeAmount - newPaidAmount);
 
       await tx.update(schema.students)
         .set({
@@ -709,7 +709,11 @@ export class DrizzleStorage implements IStorage {
         className: updatedStudent.classes?.name || 'Unknown Class',
         amount: amount,
         receiptNumber,
-        feeType
+        feeType,
+        parentPhone: updatedStudent.students.parentPhone,
+        newPaidAmount,
+        newPendingAmount,
+        totalFeeAmount
       };
     });
   }
