@@ -37,6 +37,7 @@ export default function AdminStructure() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('all');
+  const [selectedChapterFilter, setSelectedChapterFilter] = useState('all');
 
   // Fetch real data from API
   const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -126,7 +127,8 @@ export default function AdminStructure() {
       const subject = chapter ? subjects.find((s: any) => s.id === chapter.subjectId) : null;
       const matchesClass = selectedClassFilter === 'all' || subject?.classId === selectedClassFilter;
       const matchesSubject = selectedSubjectFilter === 'all' || chapter?.subjectId === selectedSubjectFilter;
-      return matchesSearch && matchesClass && matchesSubject;
+      const matchesChapter = selectedChapterFilter === 'all' || topic.chapterId === selectedChapterFilter;
+      return matchesSearch && matchesClass && matchesSubject && matchesChapter;
     });
   };
 
@@ -183,12 +185,21 @@ export default function AdminStructure() {
     }
   };
 
+  // Reset filters when switching tabs for better UX
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setSearchTerm('');
+    setSelectedClassFilter('all');
+    setSelectedSubjectFilter('all');
+    setSelectedChapterFilter('all');
+  };
+
   return (
     <DashboardLayout
       title="Academic Structure"
       subtitle="Manage classes, subjects, chapters, and topics"
     >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="classes">Classes</TabsTrigger>
           <TabsTrigger value="subjects">Subjects</TabsTrigger>
@@ -238,6 +249,30 @@ export default function AdminStructure() {
                       .map((subject: any) => (
                         <SelectItem key={subject.id} value={subject.id}>
                           {subject.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {activeTab === 'topics' && (
+                <Select value={selectedChapterFilter} onValueChange={setSelectedChapterFilter}>
+                  <SelectTrigger className="w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Filter by Chapter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Chapters</SelectItem>
+                    {chapters
+                      .filter((c: any) => {
+                        const subject = subjects.find((s: any) => s.id === c.subjectId);
+                        const matchesClass = selectedClassFilter === 'all' || subject?.classId === selectedClassFilter;
+                        const matchesSubject = selectedSubjectFilter === 'all' || c.subjectId === selectedSubjectFilter;
+                        return matchesClass && matchesSubject;
+                      })
+                      .map((chapter: any) => (
+                        <SelectItem key={chapter.id} value={chapter.id}>
+                          {chapter.name}
                         </SelectItem>
                       ))}
                   </SelectContent>
