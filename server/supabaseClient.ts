@@ -10,8 +10,8 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 // Create Supabase client with service role key for server-side operations
 export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This is actually the URL (swapped)
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
       autoRefreshToken: false,
@@ -22,6 +22,6 @@ export const supabaseAdmin = createClient(
 
 // Create public client for regular operations
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This is actually the URL (swapped)
+  process.env.NEXT_PUBLIC_SUPABASE_URL! // This is actually the anon key (swapped)
 );

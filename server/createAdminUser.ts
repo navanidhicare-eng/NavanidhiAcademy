@@ -54,10 +54,21 @@ export async function createAdminUser() {
         role: 'admin',
         name: 'Admin User',
         isActive: true,
-        passwordHash: '' // Will use Supabase Auth
+        password: 'supabase_auth' // Placeholder since we use Supabase Auth
       });
       
       console.log('✅ Admin user created in database:', adminUser.id);
+      
+      // Update the Supabase user with our database user ID in metadata
+      await supabaseAdmin.auth.admin.updateUserById(supabaseUser.id, {
+        user_metadata: {
+          database_user_id: adminUser.id,
+          role: 'admin',
+          name: 'Admin User'
+        }
+      });
+      
+      console.log('✅ Supabase user metadata updated with database ID');
     } else {
       console.log('✅ Admin user already exists in database:', existingDbUser.id);
     }
