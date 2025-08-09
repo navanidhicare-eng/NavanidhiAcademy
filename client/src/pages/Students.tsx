@@ -12,7 +12,9 @@ export default function Students() {
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['/api/students'],
     queryFn: async () => {
-      const response = await fetch('/api/students?soCenterId=' + user?.id, {
+      // For SO center users, get their actual SO center ID
+      const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+      const response = await fetch('/api/students?soCenterId=' + soCenterId, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
@@ -21,6 +23,7 @@ export default function Students() {
         throw new Error('Failed to fetch students');
       }
       const data = await response.json();
+      console.log('Fetched students:', data);
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user,

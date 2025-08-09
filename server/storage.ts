@@ -355,7 +355,7 @@ export class DrizzleStorage implements IStorage {
     }
     const result = await db.update(schema.soCenters)
       .set({ 
-        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}::numeric`
+        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}`
       })
       .where(eq(schema.soCenters.id, id))
       .returning();

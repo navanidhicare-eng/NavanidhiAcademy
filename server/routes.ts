@@ -446,6 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (classFee) {
             // Create payment record
             const feeAmount = parseFloat(classFee.admissionFee);
+            console.log('Creating payment with amount:', feeAmount);
             await storage.createPayment({
               studentId: student.id,
               amount: feeAmount.toString(),
@@ -455,6 +456,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             // Add amount to SO Center wallet
+            console.log('Updating wallet with amount:', feeAmount);
             await storage.updateSoCenterWallet(studentData.soCenterId, feeAmount);
             
             console.log('💰 Admission fee processed:', classFee.admissionFee);
