@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { BookOpen, School, Target, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Student {
   id: string;
@@ -58,6 +59,7 @@ interface TuitionProgress {
 export default function ProgressTracking() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   // States for filters
   const [activeTab, setActiveTab] = useState('homework');
@@ -91,8 +93,31 @@ export default function ProgressTracking() {
   });
 
   const { data: students = [] } = useQuery({
-    queryKey: ['/api/students'],
-    enabled: !!selectedClass,
+    queryKey: ['/api/students', user?.id],
+    queryFn: async () => {
+      if (user?.role === 'admin') {
+        // Admin uses admin endpoint to see all students
+        const response = await fetch('/api/admin/students', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        });
+        if (!response.ok) throw new Error('Failed to fetch students');
+        return response.json();
+      } else {
+        // SO center users get students from their specific center
+        const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+        const response = await fetch('/api/students?soCenterId=' + soCenterId, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          },
+        });
+        if (!response.ok) throw new Error('Failed to fetch students');
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+      }
+    },
+    enabled: !!user && !!selectedClass,
   });
 
   const { data: tuitionProgress = [] } = useQuery({
