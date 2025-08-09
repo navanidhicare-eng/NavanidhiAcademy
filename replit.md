@@ -4,6 +4,14 @@
 
 This is a comprehensive educational management system designed for Navanidhi Academy and its satellite office (SO) centers. The application provides role-based access control for different user types including admins, SO center managers, teachers, and agents. The system focuses on student tracking through QR codes, academic progress monitoring, payment management, and wallet transactions. Students do not have login access - all tracking is managed by SO centers and accessible to parents via QR codes.
 
+## Recent Changes (August 2025)
+
+✓ **Student List Display** - Fixed critical issue where students weren't showing in the SO Center dashboard
+✓ **Wallet Balance Updates** - Corrected wallet balance calculations to properly reflect admission fee payments
+✓ **PhonePe Audio Integration** - Implemented authentic PhonePe success sound from provided MP3 file for registration celebrations
+✓ **Payment Processing** - Resolved SQL parsing errors preventing admission fee payments from being recorded
+✓ **Confetti Celebrations** - Multi-burst confetti effects for successful student registrations
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

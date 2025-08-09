@@ -116,11 +116,27 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [registrationResult, setRegistrationResult] = useState<any>(null);
 
-  // PhonePe-style success sound function - smooth melody
+  // PhonePe success sound using the provided audio file
   const playSuccessSound = () => {
+    try {
+      // Use the provided PhonePe audio file
+      const audio = new Audio('/phone_pe_success.mp3');
+      audio.volume = 0.8; // Set volume to 80%
+      audio.play().catch(error => {
+        console.log('Audio playback failed:', error);
+        // Fallback to generated sound if file fails
+        playFallbackSound();
+      });
+    } catch (error) {
+      console.log('Audio file not available, using fallback sound');
+      playFallbackSound();
+    }
+  };
+
+  // Fallback sound in case audio file is not available
+  const playFallbackSound = () => {
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     
-    // Create a smooth tone with harmonic richness
     const createTone = (frequency: number, startTime: number, duration: number, volume: number) => {
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
@@ -128,11 +144,9 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Use sine wave for smooth, pleasant tone
       oscillator.type = 'sine';
       oscillator.frequency.setValueAtTime(frequency, startTime);
       
-      // Smooth envelope for natural sound
       gainNode.gain.setValueAtTime(0, startTime);
       gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
       gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
@@ -142,16 +156,9 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     };
     
     const now = audioContext.currentTime;
-    
-    // PhonePe-style smooth ascending melody with musical intervals
-    // C5 -> E5 -> G5 (major chord progression: 523Hz -> 659Hz -> 784Hz)
-    createTone(523, now, 0.25, 0.12);        // C5 - soft start
-    createTone(659, now + 0.18, 0.25, 0.15); // E5 - slightly louder
-    createTone(784, now + 0.36, 0.35, 0.12); // G5 - gentle finish
-    
-    // Add subtle harmonics for richness (very quiet)
-    createTone(523 * 2, now, 0.2, 0.03);     // Octave harmonic
-    createTone(659 * 1.5, now + 0.18, 0.2, 0.025); // Perfect fifth
+    createTone(523, now, 0.25, 0.12);
+    createTone(659, now + 0.18, 0.25, 0.15);
+    createTone(784, now + 0.36, 0.35, 0.12);
   };
   
   // Confetti celebration function
