@@ -158,16 +158,18 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
         {/* Class Selection */}
         <div>
           <Label htmlFor="classId">Class *</Label>
-          <Select onValueChange={handleClassChange}>
+          <Select onValueChange={handleClassChange} disabled={!selectedTeacher}>
             <SelectTrigger>
-              <SelectValue placeholder="Choose class" />
+              <SelectValue placeholder={selectedTeacher ? "Choose class" : "Select teacher first"} />
             </SelectTrigger>
             <SelectContent>
-              {classes.map((classItem: any) => (
+              {classes.length > 0 ? classes.map((classItem: any) => (
                 <SelectItem key={classItem.id} value={classItem.id}>
                   {classItem.name}
                 </SelectItem>
-              ))}
+              )) : selectedTeacher ? (
+                <SelectItem value="" disabled>No classes assigned to this teacher</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
           {errors.classId && <p className="text-sm text-red-600">{errors.classId.message}</p>}
@@ -176,16 +178,18 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
         {/* Subject Selection */}
         <div>
           <Label htmlFor="subjectId">Subject *</Label>
-          <Select onValueChange={handleSubjectChange}>
+          <Select onValueChange={handleSubjectChange} disabled={!selectedTeacher}>
             <SelectTrigger>
-              <SelectValue placeholder="Choose subject" />
+              <SelectValue placeholder={selectedTeacher ? "Choose subject" : "Select teacher first"} />
             </SelectTrigger>
             <SelectContent>
-              {subjects.map((subject: any) => (
+              {subjects.length > 0 ? subjects.map((subject: any) => (
                 <SelectItem key={subject.id} value={subject.id}>
                   {subject.name}
                 </SelectItem>
-              ))}
+              )) : selectedTeacher ? (
+                <SelectItem value="" disabled>No subjects assigned to this teacher</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
           {errors.subjectId && <p className="text-sm text-red-600">{errors.subjectId.message}</p>}
