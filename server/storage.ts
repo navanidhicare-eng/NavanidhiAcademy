@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, and, desc, asc, sql as sqlQuery, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql as sqlQuery, inArray, gte, lte, like } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -136,6 +136,7 @@ export interface IStorage {
   getStudentPayments(studentId: string): Promise<Payment[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsBySoCenter(soCenterId: string): Promise<Payment[]>;
+  getPaymentsByDateRange(soCenterId: string, startDate: Date, endDate: Date): Promise<Payment[]>;
 
   // Wallet methods
   createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction>;
@@ -545,6 +546,22 @@ export class DrizzleStorage implements IStorage {
     .from(schema.payments)
     .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
     .where(eq(schema.students.soCenterId, soCenterId))
+    .orderBy(desc(schema.payments.createdAt));
+    
+    return results.map(result => result.payments);
+  }
+
+  async getPaymentsByDateRange(soCenterId: string, startDate: Date, endDate: Date): Promise<Payment[]> {
+    const results = await db.select()
+    .from(schema.payments)
+    .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
+    .where(
+      and(
+        eq(schema.students.soCenterId, soCenterId),
+        gte(schema.payments.createdAt, startDate),
+        lte(schema.payments.createdAt, endDate)
+      )
+    )
     .orderBy(desc(schema.payments.createdAt));
     
     return results.map(result => result.payments);

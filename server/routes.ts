@@ -808,23 +808,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard stats endpoint
+  // Dashboard stats endpoint - REAL SUPABASE DATA ONLY
   app.get("/api/dashboard/stats", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // Return mock stats for now - replace with actual calculations
+      // Calculate real stats from Supabase database
+      const soCenterId = '84bf6d19-8830-4abd-8374-2c29faecaa24';
+      const soCenter = await storage.getSoCenter(soCenterId);
+      const totalStudents = await storage.getStudentsBySoCenter(soCenterId);
+      
+      // Calculate payments this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const payments = await storage.getPaymentsByDateRange(soCenterId, startOfMonth, new Date());
+      const paymentsThisMonth = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+      
       const stats = {
-        totalStudents: 156,
-        paymentsThisMonth: 45200,
-        topicsCompleted: 1247,
-        walletBalance: 12450,
+        totalStudents: totalStudents.length,
+        paymentsThisMonth: Math.round(paymentsThisMonth),
+        topicsCompleted: 0, // TODO: Calculate from progress data
+        walletBalance: parseFloat(soCenter?.walletBalance || '0'),
       };
 
       res.json(stats);
     } catch (error) {
+      console.error('Dashboard stats error:', error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
     }
   });

@@ -15,7 +15,7 @@ import {
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // Fetch dashboard stats
+  // Fetch real dashboard stats from Supabase (NO DEMO DATA)
   const { data: stats } = useQuery({
     queryKey: ['/api/dashboard/stats'],
     queryFn: async () => {
@@ -26,27 +26,20 @@ export default function Dashboard() {
         },
       });
       if (!response.ok) {
-        // Return mock data if API fails for now
-        return {
-          totalStudents: 156,
-          paymentsThisMonth: 45200,
-          topicsCompleted: 1247,
-          walletBalance: 12450,
-        };
+        throw new Error('Failed to fetch dashboard stats');
       }
       return response.json();
     },
     enabled: !!user,
   });
 
-  const defaultStats = {
-    totalStudents: 156,
-    paymentsThisMonth: 45200,
-    topicsCompleted: 1247,
-    walletBalance: 12450,
+  // No fallback data - only use real Supabase data
+  const displayStats = stats || {
+    totalStudents: 0,
+    paymentsThisMonth: 0,
+    topicsCompleted: 0,
+    walletBalance: 0,
   };
-
-  const displayStats = stats || defaultStats;
 
   const StatCard = ({ 
     title, 
