@@ -414,9 +414,10 @@ Thank you for your payment!
                       <p className="text-4xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
                     </div>
                     
-                    <div className="text-center p-6 bg-orange-50 rounded-lg border border-orange-200">
-                      <h5 className="text-lg font-semibold text-orange-800 mb-2">Expected Fee</h5>
-                      <p className="text-4xl font-bold text-orange-600">₹{(admissionFee + monthlyFee).toLocaleString()}</p>
+                    <div className="text-center p-6 bg-blue-50 rounded-lg border border-blue-200">
+                      <h5 className="text-lg font-semibold text-blue-800 mb-2">Total Due Amount</h5>
+                      <p className="text-4xl font-bold text-blue-600">₹{(parseFloat(selectedStudent.totalFeeAmount || '0')).toLocaleString()}</p>
+                      <p className="text-sm text-blue-500 mt-2">Based on enrollment date</p>
                     </div>
                     
                     <div className={`text-center p-6 rounded-lg border ${pendingAmount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
@@ -434,7 +435,7 @@ Thank you for your payment!
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-700">Payment Progress</span>
                       <span className="text-sm font-medium text-gray-700">
-                        {Math.round((paidAmount / Math.max(admissionFee + monthlyFee, 1)) * 100)}% Complete
+                        {Math.round((paidAmount / Math.max(parseFloat(selectedStudent.totalFeeAmount || '0'), 1)) * 100)}% Complete
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-4">
@@ -442,22 +443,32 @@ Thank you for your payment!
                         className={`h-4 rounded-full transition-all duration-500 ${
                           pendingAmount === 0 ? 'bg-green-500' : 'bg-blue-500'
                         }`}
-                        style={{ width: `${Math.min((paidAmount / Math.max(admissionFee + monthlyFee, 1)) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((paidAmount / Math.max(parseFloat(selectedStudent.totalFeeAmount || '0'), 1)) * 100, 100)}%` }}
                       ></div>
                     </div>
                   </div>
                   
-                  {/* Fee Breakdown */}
+                  {/* Student Information */}
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <h6 className="font-semibold text-gray-800 mb-3">Fee Breakdown</h6>
+                    <h6 className="font-semibold text-gray-800 mb-3">Student Information</h6>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="flex justify-between">
-                        <span>Admission Fee:</span>
-                        <span className="font-medium">₹{admissionFee.toLocaleString()}</span>
+                        <span>Student ID:</span>
+                        <span className="font-medium">{selectedStudent.studentId}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Monthly Fee:</span>
-                        <span className="font-medium">₹{monthlyFee.toLocaleString()}</span>
+                        <span>Course Type:</span>
+                        <span className="font-medium">{selectedStudent.courseType.toUpperCase()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Enrollment Date:</span>
+                        <span className="font-medium">{selectedStudent.enrollmentDate ? new Date(selectedStudent.enrollmentDate).toLocaleDateString() : 'Not set'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Payment Status:</span>
+                        <span className={`font-medium ${selectedStudent.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
+                          {selectedStudent.paymentStatus?.toUpperCase()}
+                        </span>
                       </div>
                     </div>
                   </div>

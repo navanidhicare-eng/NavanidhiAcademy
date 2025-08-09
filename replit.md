@@ -21,12 +21,14 @@ This is a comprehensive educational management system designed for Navanidhi Aca
   - Fee calculation history tracking for complete audit trail
   - Automated monthly fee processing system for production deployment
   - Real-time balance updates and payment status tracking
-✓ **RESTORED CLASS-BASED REGISTRATION** - Removed previous balance functionality and restored original system:
-  - Pure class-based registration form that fetches fees according to class selection
-  - Simplified fee structure display without previous balance complications
-  - Clean registration process focused on admission fee and class-based monthly/yearly fees
-  - Enhanced payment progress section with larger, more prominent displays
-  - Removed total due balance section and emphasized payment progress visualization
+✓ **RETROACTIVE FEE CALCULATION SYSTEM** - Implemented comprehensive enrollment-based fee calculation:
+  - Removed "Expected fee" functionality completely from fee payments page
+  - Built FeeCalculationService for accurate retroactive fee calculations based on enrollment date
+  - Enhanced logic: 1st-10th enrollment = full month fee, 11th-20th = half month fee, 21st+ = no first month fee
+  - Automatic calculation from enrollment month to current month with proper monthly breakdown
+  - Real-time fee updates in database with enrollment date-based logic
+  - Clean payment progress display showing actual calculated amounts instead of expected fees
+  - Production-ready code with comprehensive error handling and logging
 
 ## User Preferences
 

@@ -14,6 +14,7 @@ declare global {
 }
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { FeeCalculationService } from './feeCalculationService';
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { 
@@ -273,6 +274,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching student payment history:', error);
       res.status(500).json({ message: 'Failed to fetch payment history' });
+    }
+  });
+
+  // Recalculate fees for a student based on enrollment date
+  app.post("/api/students/:id/recalculate-fees", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const studentId = req.params.id;
+      console.log('🔄 Recalculating fees for student:', studentId);
+
+      const feeCalculation = await FeeCalculationService.recalculateStudentFees(studentId);
+      
+      res.json({
+        message: 'Fees recalculated successfully',
+        feeCalculation
+      });
+    } catch (error: any) {
+      console.error('Error recalculating student fees:', error);
+      res.status(500).json({ message: error.message || 'Failed to recalculate fees' });
     }
   });
 
@@ -617,49 +640,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const student = await storage.createStudentWithSiblings(studentData, siblings);
       console.log('Student created successfully:', student.id);
 
-      // Initialize advanced fee management for the new student
+      // Calculate retroactive fees based on enrollment date
       if (student.id && studentData.enrollmentDate && studentData.classId) {
         try {
-          console.log('🧮 Initializing fee management for student:', student.id);
+          console.log('🧮 Calculating retroactive fees for student:', student.id);
           const enrollmentDate = new Date(studentData.enrollmentDate);
           
-          // Calculate and schedule monthly fees based on enrollment timing
-          await storage.scheduleMonthlyFees(student.id, enrollmentDate, studentData.classId);
+          // Use new fee calculation service for retroactive fee calculation
+          const feeCalculation = await FeeCalculationService.calculateRetroactiveFees(
+            enrollmentDate,
+            studentData.classId,
+            studentData.courseType,
+            admissionFeePaid
+          );
           
-          // Calculate total due balance (admission fee + previous balance)
-          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
-          let totalDueAmount = 0;
+          console.log('💰 Retroactive fee calculation result:', {
+            totalDueAmount: feeCalculation.totalDueAmount,
+            admissionFee: feeCalculation.admissionFee,
+            totalMonthlyFees: feeCalculation.totalMonthlyFees,
+            monthCount: feeCalculation.monthlyBreakdown.length
+          });
           
-          if (classFee) {
-            const admissionFee = parseFloat(classFee.admissionFee || '0');
-            const previousBalance = parseFloat(studentData.previousBalance || '0');
-            totalDueAmount = admissionFee + previousBalance;
-            
-            console.log('💰 Total due calculation:', {
-              admissionFee,
-              previousBalance,
-              totalDue: totalDueAmount,
-              admissionFeePaid
-            });
-            
-            // If admission fee is NOT paid, add the total due to student account
-            if (!admissionFeePaid && totalDueAmount > 0) {
-              await storage.updateStudentFeesWithTotalDue(student.id, {
-                totalFeeAmount: totalDueAmount.toString(),
-                pendingAmount: totalDueAmount.toString(),
-                paymentStatus: 'pending'
-              });
-              console.log('💸 Total due balance added to student account:', totalDueAmount);
-            }
-          }
+          // Update student with calculated fees
+          await FeeCalculationService.updateStudentFeeAmounts(student.id, feeCalculation);
           
-          // Update student balance calculations
-          await storage.updateStudentBalances(student.id);
-          
-          console.log('✅ Fee management initialized successfully');
+          console.log('✅ Retroactive fee calculation completed successfully');
         } catch (feeError) {
-          console.error('⚠️ Fee management initialization failed:', feeError);
-          // Don't fail student creation if fee management fails - can be fixed later
+          console.error('⚠️ Retroactive fee calculation failed:', feeError);
+          // Don't fail student creation if fee calculation fails - can be fixed later
         }
       }
       
