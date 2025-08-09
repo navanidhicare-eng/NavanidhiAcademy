@@ -168,7 +168,7 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
                   {classItem.name}
                 </SelectItem>
               )) : selectedTeacher ? (
-                <SelectItem value="" disabled>No classes assigned to this teacher</SelectItem>
+                <div className="px-2 py-1 text-sm text-gray-500">No classes assigned to this teacher</div>
               ) : null}
             </SelectContent>
           </Select>
@@ -188,7 +188,7 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
                   {subject.name}
                 </SelectItem>
               )) : selectedTeacher ? (
-                <SelectItem value="" disabled>No subjects assigned to this teacher</SelectItem>
+                <div className="px-2 py-1 text-sm text-gray-500">No subjects assigned to this teacher</div>
               ) : null}
             </SelectContent>
           </Select>
