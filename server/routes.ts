@@ -2316,15 +2316,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Teacher not found' });
       }
       
-      // Get teacher records from teaching_records table
+      // Get teacher records from teacher_daily_records table
       const query = sqlQuery`
-        SELECT tr.*, c.name as class_name, s.name as subject_name, ch.title as chapter_title, t.title as topic_title
-        FROM teaching_records tr
+        SELECT tr.*, c.name as class_name, s.name as subject_name, ch.name as chapter_title, t.name as topic_title
+        FROM teacher_daily_records tr
         LEFT JOIN classes c ON tr.class_id = c.id
         LEFT JOIN subjects s ON tr.subject_id = s.id
         LEFT JOIN chapters ch ON tr.chapter_id = ch.id
         LEFT JOIN topics t ON tr.topic_id = t.id
-        WHERE tr.user_id = ${req.params.id}
+        WHERE tr.teacher_id = ${req.params.id}
         ORDER BY tr.record_date DESC, tr.created_at DESC
       `;
       const records = await db.execute(query);
