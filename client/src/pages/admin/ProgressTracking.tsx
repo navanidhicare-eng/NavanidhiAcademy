@@ -66,6 +66,7 @@ export default function ProgressTracking() {
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'completed', 'pending'
   const [selectedTopic, setSelectedTopic] = useState('');
   const [homeworkDate, setHomeworkDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -124,6 +125,7 @@ export default function ProgressTracking() {
   const { data: tuitionProgress = [] } = useQuery({
     queryKey: ['/api/tuition-progress', selectedClass, selectedTopic],
     enabled: !!selectedClass && !!selectedTopic,
+    refetchInterval: 1000, // Refresh every second to ensure real-time updates
   });
 
   // Get filtered data
@@ -133,6 +135,13 @@ export default function ProgressTracking() {
     selectedChapter ? t.chapterId === selectedChapter : filteredChapters.some((c: Chapter) => c.id === t.chapterId)
   );
   const classStudents = (students as Student[]).filter((s: Student) => s.classId === selectedClass);
+  
+  // Filter students based on status filter
+  const filteredStudents = classStudents.filter((student: Student) => {
+    if (statusFilter === 'all') return true;
+    const isCompleted = isTopicCompleted(student.id, selectedTopic);
+    return statusFilter === 'completed' ? isCompleted : !isCompleted;
+  });
 
   // Mutations
   const homeworkMutation = useMutation({
@@ -439,7 +448,7 @@ export default function ProgressTracking() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="space-y-2">
                   <Label>Class</Label>
                   <Select value={selectedClass} onValueChange={(value) => {
@@ -520,6 +529,19 @@ export default function ProgressTracking() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Status Filter</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Students</SelectItem>
+                      <SelectItem value="completed">Completed Only</SelectItem>
+                      <SelectItem value="pending">Pending Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Topic Progress Matrix */}
@@ -529,16 +551,20 @@ export default function ProgressTracking() {
                     <h3 className="text-lg font-semibold">
                       Topic: {(topics as Topic[]).find((t: Topic) => t.id === selectedTopic)?.name}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      Completed
-                      <XCircle className="h-4 w-4 text-red-600 ml-2" />
-                      Pending
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        Completed: {filteredStudents.filter(s => isTopicCompleted(s.id, selectedTopic)).length}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <XCircle className="h-4 w-4 text-red-600" />
+                        Pending: {filteredStudents.filter(s => !isTopicCompleted(s.id, selectedTopic)).length}
+                      </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {classStudents.map((student: Student) => {
+                    {filteredStudents.map((student: Student) => {
                       const isCompleted = isTopicCompleted(student.id, selectedTopic);
                       return (
                         <Card key={student.id} className={`p-4 ${isCompleted ? 'bg-green-50 dark:bg-green-950' : ''}`}>
