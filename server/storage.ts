@@ -817,32 +817,44 @@ export class DrizzleStorage implements IStorage {
 
   // Create student with siblings in a transaction
   async createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student> {
-    return await db.transaction(async (tx) => {
-      // Generate unique student ID
+    try {
+      // Generate unique student ID first (outside transaction)
       const studentId = await this.generateStudentId();
       
-      // Create the student record
-      const [newStudent] = await tx.insert(schema.students)
-        .values({
-          ...studentData,
-          studentId,
-          qrCode: `QR_${studentId}_${Date.now()}`
-        })
-        .returning();
-      
-      // Create sibling records if provided
-      if (siblings && siblings.length > 0) {
-        const siblingsWithStudentId = siblings.map(sibling => ({
-          ...sibling,
-          studentId: newStudent.id
-        }));
+      return await db.transaction(async (tx) => {
+        console.log('Starting database transaction for student creation...');
         
-        await tx.insert(schema.studentSiblings)
-          .values(siblingsWithStudentId);
-      }
-      
-      return newStudent;
-    });
+        // Create the student record
+        const [newStudent] = await tx.insert(schema.students)
+          .values({
+            ...studentData,
+            studentId,
+            qrCode: `QR_${studentId}_${Date.now()}`
+          })
+          .returning();
+        
+        console.log('Student record created, ID:', newStudent.id);
+        
+        // Create sibling records if provided
+        if (siblings && siblings.length > 0) {
+          const siblingsWithStudentId = siblings.map(sibling => ({
+            ...sibling,
+            studentId: newStudent.id
+          }));
+          
+          await tx.insert(schema.studentSiblings)
+            .values(siblingsWithStudentId);
+          
+          console.log('Sibling records created:', siblings.length);
+        }
+        
+        console.log('Transaction completed successfully');
+        return newStudent;
+      });
+    } catch (error: any) {
+      console.error('Error in createStudentWithSiblings:', error);
+      throw error;
+    }
   }
 
   // Get student siblings

@@ -410,12 +410,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Create student with siblings
+      // Create student with siblings (with proper transaction handling)
+      console.log('Creating student with siblings...');
       const student = await storage.createStudentWithSiblings(studentData, siblings);
+      console.log('Student created successfully:', student.id);
       
-      // Handle admission fee if paid
+      // Handle admission fee if paid (separate from student creation)
+      let feeProcessed = false;
       if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
         try {
+          console.log('Processing admission fee...');
           // Get class fee information
           const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
           
@@ -433,10 +437,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateSoCenterWallet(studentData.soCenterId, classFee.admissionFee.toString());
             
             console.log('💰 Admission fee processed:', classFee.admissionFee);
+            feeProcessed = true;
           }
         } catch (error) {
           console.error('❌ Error processing admission fee:', error);
-          // Continue with student creation even if fee processing fails
+          // Don't fail the entire registration if fee processing fails
+          feeProcessed = false;
         }
       }
       
@@ -446,8 +452,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           studentId: student.studentId || student.id,
           id: student.id
         },
-        message: admissionFeePaid ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
-        admissionFeePaid: admissionFeePaid || false,
+        message: feeProcessed ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
+        admissionFeePaid: feeProcessed,
         transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
         amount: null
       };
@@ -471,7 +477,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message,
         stack: error.stack,
         userId: req.user?.userId,
-        userRole: req.user?.role
+        userRole: req.user?.role,
+        sqlState: error.code,
+        detail: error.detail
       });
       
       let userFriendlyMessage = "Failed to register student. Please try again.";
