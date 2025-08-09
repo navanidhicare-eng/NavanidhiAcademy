@@ -799,11 +799,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Enhanced Student methods
-  async getAllStudents(): Promise<Student[]> {
-    return await db.select().from(schema.students)
-      .where(eq(schema.students.isActive, true))
-      .orderBy(desc(schema.students.createdAt));
-  }
+
 
   async deleteStudent(id: string): Promise<void> {
     await db.update(schema.students)

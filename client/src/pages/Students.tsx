@@ -17,7 +17,11 @@ export default function Students() {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
-      return response.json();
+      if (!response.ok) {
+        throw new Error('Failed to fetch students');
+      }
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     enabled: !!user,
   });

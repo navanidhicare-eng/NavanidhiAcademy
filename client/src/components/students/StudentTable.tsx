@@ -39,7 +39,7 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   };
 
   // Filter students based on search and class filter
-  const filteredStudents = students.filter((student: any) => {
+  const filteredStudents = (students || []).filter((student: any) => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.parentPhone.includes(searchTerm);
     const matchesClass = classFilter === 'all' || student.classId.toLowerCase().includes(classFilter.replace('-', ' '));
