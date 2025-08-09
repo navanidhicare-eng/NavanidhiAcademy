@@ -228,6 +228,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // SUPABASE AUTH ENFORCED - SO Center Login
+  app.post("/api/so-center/login", async (req, res) => {
+    try {
+      console.log('🔧 SO Center login through Supabase Auth (MANDATORY)');
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // ALL SO CENTER LOGIN MUST GO THROUGH SUPABASE AUTH
+      const result = await AuthService.login(email, password);
+      
+      // Verify this is a SO Center user
+      if (result.user.role !== 'so_center') {
+        return res.status(403).json({ message: "Access denied. SO Center credentials required." });
+      }
+
+      console.log('✅ SO Center logged in through Supabase Auth:', result.user.id);
+
+      res.json({
+        message: "SO Center login successful via Supabase Auth",
+        token: result.token,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role
+        }
+      });
+    } catch (error: any) {
+      console.error('❌ SO Center login failed:', error);
+      res.status(401).json({ message: error.message || "Invalid credentials" });
+    }
+  });
+
   // Legacy user creation endpoint - REDIRECTS TO SUPABASE AUTH
   app.post("/api/admin/users-legacy", authenticateToken, async (req, res) => {
     res.status(410).json({ 
@@ -1425,11 +1461,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SUPABASE AUTH ENFORCED - SO Center creation
   app.post("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user!.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
+
+      console.log('🔧 Admin creating SO Center through Supabase Auth (MANDATORY)');
 
       // Convert numeric fields to strings before validation
       const centerDataWithStringFields = {
@@ -1440,17 +1479,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         internetAmount: req.body.internetAmount ? String(req.body.internetAmount) : undefined,
       };
 
-      const hashedPassword = await bcrypt.hash(centerDataWithStringFields.password || '12345678', 12);
-      
-      const newCenter = await storage.createSoCenter({
-        ...centerDataWithStringFields,
-        password: hashedPassword
-        // isPasswordChanged defaults to false in schema
+      // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH
+      const result = await AuthService.createSoCenter({
+        email: centerDataWithStringFields.email,
+        password: centerDataWithStringFields.password || '12345678',
+        name: centerDataWithStringFields.name || centerDataWithStringFields.managerName || 'SO Manager',
+        phone: centerDataWithStringFields.phone || centerDataWithStringFields.managerPhone,
+        address: centerDataWithStringFields.address,
+        centerId: centerDataWithStringFields.centerId,
+        centerName: centerDataWithStringFields.centerName,
+        location: centerDataWithStringFields.location,
+        managerName: centerDataWithStringFields.managerName,
+        rentAmount: centerDataWithStringFields.rentAmount,
+        rentalAdvance: centerDataWithStringFields.rentalAdvance,
+        electricityAmount: centerDataWithStringFields.electricityAmount,
+        internetAmount: centerDataWithStringFields.internetAmount
       });
 
-      // Remove password from response
-      const { password, ...centerResponse } = newCenter;
-      res.status(201).json(centerResponse);
+      console.log('✅ Admin created SO Center through Supabase Auth:', result.soCenter.id);
+
+      res.status(201).json({
+        message: "SO Center created successfully via Supabase Auth",
+        ...result.soCenter,
+        user: {
+          ...result.dbUser,
+          password: undefined // Never return password
+        }
+      });
     } catch (error: any) {
       console.error('❌ Error creating SO Center:', {
         message: error.message,

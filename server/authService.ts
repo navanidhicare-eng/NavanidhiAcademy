@@ -1,6 +1,6 @@
 import { supabaseAdmin } from './supabaseClient';
 import { storage } from './storage';
-import type { User, InsertUser } from '@shared/schema';
+import type { User, InsertUser, SoCenter, InsertSoCenter } from '@shared/schema';
 
 /**
  * Comprehensive authentication service that enforces Supabase Auth for ALL authentication operations
@@ -8,6 +8,66 @@ import type { User, InsertUser } from '@shared/schema';
  */
 export class AuthService {
   
+  /**
+   * Login user through Supabase Auth ONLY
+   * This is the ONLY way to authenticate users in the system
+   */
+  static async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    try {
+      console.log('🔐 Authenticating with Supabase Auth:', email);
+      
+      // Step 1: Authenticate with Supabase Auth (MANDATORY)
+      const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (authError || !authData.user) {
+        console.error('❌ Supabase Auth failed:', authError?.message);
+        throw new Error('Invalid credentials');
+      }
+      
+      console.log('✅ Supabase Auth successful:', authData.user.id);
+      
+      // Step 2: Get or sync user from our database
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // User exists in Supabase but not in our database - sync them
+        console.log('🔄 Syncing user from Supabase to database:', email);
+        const userMetadata = authData.user.user_metadata;
+        user = await storage.createUser({
+          email: email,
+          role: (userMetadata?.role || 'agent') as any,
+          name: userMetadata?.name || authData.user.email?.split('@')[0] || 'User',
+          phone: userMetadata?.phone,
+          isActive: true,
+          password: '' // We use Supabase Auth, no local password needed
+        });
+        console.log('✅ User synced to database:', user.id);
+      }
+      
+      console.log('✅ User authenticated:', { id: user.id, email: user.email, role: user.role });
+
+      // Step 3: Create JWT token for API access
+      const jwt = require('jsonwebtoken');
+      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return {
+        user,
+        token
+      };
+    } catch (error) {
+      console.error('❌ Login failed:', error);
+      throw error;
+    }
+  }
+
   /**
    * Create a new user through Supabase Auth ONLY
    * This is the ONLY way to create new users in the system
@@ -205,6 +265,134 @@ export class AuthService {
       console.log('✅ User deleted from all systems:', userId);
     } catch (error) {
       console.error('❌ User deletion failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create SO Center with Supabase Auth integration
+   * SO Centers are also users in the system with 'so_center' role
+   */
+  static async createSoCenter(soCenterData: {
+    email: string;
+    password: string;
+    name: string;
+    phone?: string;
+    address?: string;
+    centerId: string;
+    centerName: string;
+    location?: string;
+    managerName?: string;
+    rentAmount?: string;
+    rentalAdvance?: string;
+    electricityAmount?: string;
+    internetAmount?: string;
+  }): Promise<{ supabaseUser: any; dbUser: User; soCenter: SoCenter }> {
+    try {
+      console.log('🔧 Creating SO Center with Supabase Auth:', soCenterData.email);
+      
+      // Step 1: Create user in Supabase Auth with 'so_center' role
+      const userResult = await this.createUser({
+        email: soCenterData.email,
+        password: soCenterData.password,
+        role: 'so_center',
+        name: soCenterData.name,
+        phone: soCenterData.phone,
+        address: soCenterData.address
+      });
+
+      // Step 2: Create SO Center record linked to the user
+      const soCenterRecord: InsertSoCenter = {
+        userId: userResult.dbUser.id,
+        centerId: soCenterData.centerId,
+        centerName: soCenterData.centerName,
+        location: soCenterData.location,
+        managerName: soCenterData.managerName,
+        managerEmail: soCenterData.email,
+        managerPhone: soCenterData.phone,
+        rentAmount: soCenterData.rentAmount,
+        rentalAdvance: soCenterData.rentalAdvance,
+        electricityAmount: soCenterData.electricityAmount,
+        internetAmount: soCenterData.internetAmount,
+        walletBalance: '0', // Initialize wallet balance
+        isActive: true
+      };
+
+      const soCenter = await storage.createSoCenter(soCenterRecord);
+      console.log('✅ SO Center created with Supabase Auth:', soCenter.id);
+
+      return {
+        supabaseUser: userResult.supabaseUser,
+        dbUser: userResult.dbUser,
+        soCenter
+      };
+    } catch (error) {
+      console.error('❌ SO Center creation failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update SO Center through Supabase Auth
+   */
+  static async updateSoCenter(userId: string, updates: {
+    email?: string;
+    password?: string;
+    name?: string;
+    phone?: string;
+    centerName?: string;
+    location?: string;
+    managerName?: string;
+  }): Promise<{ user: User; soCenter?: SoCenter }> {
+    try {
+      // Step 1: Update user through Supabase Auth
+      const userUpdates: any = {};
+      if (updates.email) userUpdates.email = updates.email;
+      if (updates.password) userUpdates.password = updates.password;
+      if (updates.name) userUpdates.name = updates.name;
+      if (updates.phone) userUpdates.phone = updates.phone;
+
+      const updatedUser = await this.updateUser(userId, userUpdates);
+
+      // Step 2: Update SO Center record if needed
+      let soCenter;
+      const soCenterUpdates: any = {};
+      if (updates.centerName) soCenterUpdates.centerName = updates.centerName;
+      if (updates.location) soCenterUpdates.location = updates.location;
+      if (updates.managerName) soCenterUpdates.managerName = updates.managerName;
+      if (updates.email) soCenterUpdates.managerEmail = updates.email;
+      if (updates.phone) soCenterUpdates.managerPhone = updates.phone;
+
+      if (Object.keys(soCenterUpdates).length > 0) {
+        soCenter = await storage.updateSoCenterByUserId(userId, soCenterUpdates);
+      }
+
+      console.log('✅ SO Center updated through Supabase Auth:', userId);
+      
+      return {
+        user: updatedUser,
+        soCenter
+      };
+    } catch (error) {
+      console.error('❌ SO Center update failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete SO Center from both Supabase Auth and database
+   */
+  static async deleteSoCenter(userId: string): Promise<void> {
+    try {
+      // Step 1: Delete SO Center record
+      await storage.deleteSoCenterByUserId(userId);
+
+      // Step 2: Delete user from Supabase Auth and database
+      await this.deleteUser(userId);
+
+      console.log('✅ SO Center deleted from all systems:', userId);
+    } catch (error) {
+      console.error('❌ SO Center deletion failed:', error);
       throw error;
     }
   }

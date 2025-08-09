@@ -974,10 +974,24 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
+  async updateSoCenterByUserId(userId: string, updates: Partial<InsertSoCenter>): Promise<SoCenter> {
+    const result = await db.update(schema.soCenters)
+      .set(updates)
+      .where(eq(schema.soCenters.userId, userId))
+      .returning();
+    return result[0];
+  }
+
   async deleteSoCenter(id: string): Promise<void> {
     await db.update(schema.soCenters)
       .set({ isActive: false })
       .where(eq(schema.soCenters.id, id));
+  }
+
+  async deleteSoCenterByUserId(userId: string): Promise<void> {
+    await db.update(schema.soCenters)
+      .set({ isActive: false })
+      .where(eq(schema.soCenters.userId, userId));
   }
 
   // Enhanced User methods
