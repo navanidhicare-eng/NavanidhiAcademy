@@ -140,12 +140,13 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
 
 
   
-  // Confetti celebration function
+  // Silent confetti celebration function (no audio)
   const triggerConfetti = () => {
-    // Multiple confetti bursts for celebration effect
+    // Multiple confetti bursts for visual celebration effect only
     const count = 200;
     const defaults = {
-      origin: { y: 0.7 }
+      origin: { y: 0.7 },
+      disableForReducedMotion: false // Ensure confetti shows but with no sound
     };
     
     // Left side burst
@@ -180,7 +181,8 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       confetti({
         particleCount: 100,
         spread: 120,
-        origin: { y: 0.6 }
+        origin: { y: 0.6 },
+        disableForReducedMotion: false
       });
     }, 500);
   };
@@ -357,11 +359,13 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
           amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
         });
         
-        // Play PhonePe-style success sound
-        playSuccessSound();
-        
-        // Trigger confetti celebration
+        // Trigger confetti celebration (silent)
         triggerConfetti();
+        
+        // Play ONLY PhonePe sound after a brief delay to avoid conflicts
+        setTimeout(() => {
+          playSuccessSound();
+        }, 200);
         
         setShowSuccessScreen(true);
         queryClient.invalidateQueries({ queryKey: ['/api/students'] });
