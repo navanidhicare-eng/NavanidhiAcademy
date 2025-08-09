@@ -71,26 +71,30 @@ export default function Attendance() {
     enabled: !!selectedClass && classStudents.length > 0,
   });
 
-  // Update existingAttendance when data changes
+  // Track previous class to detect when it changes
+  const [prevClass, setPrevClass] = React.useState<string>('');
+
   React.useEffect(() => {
     setExistingAttendance(existingAttendanceData);
-    
-    // Initialize attendance status for students without existing records
-    const newAttendanceStatus: Record<string, 'present' | 'absent' | 'not_posted'> = {};
-    classStudents.forEach(student => {
-      if (existingAttendanceData[student.id]) {
-        newAttendanceStatus[student.id] = existingAttendanceData[student.id].status as 'present' | 'absent';
-      } else {
-        newAttendanceStatus[student.id] = 'not_posted';
-      }
-    });
-    setAttendanceStatus(newAttendanceStatus);
-  }, [existingAttendanceData, classStudents]);
+  }, [existingAttendanceData]);
 
-  // Clear attendance status when class changes
+  // Only reset attendance status when class actually changes, not on every render
   React.useEffect(() => {
-    setAttendanceStatus({});
-  }, [selectedClass]);
+    if (selectedClass !== prevClass) {
+      setPrevClass(selectedClass);
+      
+      // Load existing attendance for the new class
+      const newAttendanceStatus: Record<string, 'present' | 'absent' | 'not_posted'> = {};
+      if (existingAttendanceData && Object.keys(existingAttendanceData).length > 0) {
+        classStudents.forEach(student => {
+          if (existingAttendanceData[student.id]) {
+            newAttendanceStatus[student.id] = existingAttendanceData[student.id].status as 'present' | 'absent';
+          }
+        });
+      }
+      setAttendanceStatus(newAttendanceStatus);
+    }
+  }, [selectedClass, existingAttendanceData, classStudents, prevClass]);
 
   // Submit attendance mutation
   const submitAttendanceMutation = useMutation({
