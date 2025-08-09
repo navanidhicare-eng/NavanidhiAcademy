@@ -202,7 +202,7 @@ export function FeePayments() {
 
   // Send WhatsApp invoice
   const sendWhatsAppInvoice = () => {
-    if (!invoiceData || !selectedStudent) return;
+    if (!invoiceData) return;
 
     const invoiceText = `
 *NAVANIDHI ACADEMY - PAYMENT RECEIPT*
@@ -224,6 +224,27 @@ Thank you for your payment!
     `.trim();
 
     const encodedText = encodeURIComponent(invoiceText);
+    
+    // Get phone number from student data
+    const student = students.find(s => s.studentId === invoiceData.studentId);
+    const phoneNumber = student?.parentPhone;
+    
+    if (phoneNumber) {
+      const whatsappUrl = `https://wa.me/91${phoneNumber.replace(/\D/g, '')}?text=${encodedText}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast({
+        title: "WhatsApp Opened",
+        description: "Invoice sent to WhatsApp successfully!",
+        variant: "default"
+      });
+    } else {
+      toast({
+        title: "Phone Number Missing", 
+        description: "Cannot send WhatsApp message - phone number not available",
+        variant: "destructive"
+      });
+    }
     const whatsappUrl = `https://wa.me/${selectedStudent.parentPhone}?text=${encodedText}`;
     
     window.open(whatsappUrl, '_blank');

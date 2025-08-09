@@ -636,11 +636,34 @@ export class DrizzleStorage implements IStorage {
         description: `${feeType} fee payment - Receipt: ${receiptNumber}`,
         month: feeType === 'monthly' ? currentMonth : null,
         year: feeType === 'monthly' ? currentYear : currentYear,
+        receiptNumber,
+        transactionId,
         recordedBy: student.soCenterId // Using SO center as recorder for now
       }).returning();
 
-      // Update SO Center wallet - using proper numeric addition
+      // Update student payment tracking
       const numericAmount = Number(amount);
+      const currentPaidAmount = Number(student.paidAmount || 0);
+      const currentPendingAmount = Number(student.pendingAmount || 0);
+      const newPaidAmount = currentPaidAmount + numericAmount;
+      const newPendingAmount = Math.max(0, currentPendingAmount - numericAmount);
+      
+      // Set total fee amount if not set
+      let totalFeeAmount = Number(student.totalFeeAmount || 0);
+      if (totalFeeAmount === 0) {
+        totalFeeAmount = expectedFeeAmount;
+      }
+
+      await tx.update(schema.students)
+        .set({
+          paidAmount: newPaidAmount.toString(),
+          pendingAmount: newPendingAmount.toString(),
+          totalFeeAmount: totalFeeAmount.toString(),
+          paymentStatus: newPendingAmount === 0 ? 'paid' : 'pending'
+        })
+        .where(eq(schema.students.id, studentId));
+
+      // Update SO Center wallet - using proper numeric addition
       
       // Get current wallet balance first
       const [currentBalance] = await tx.select({ balance: schema.soCenters.walletBalance })
@@ -663,10 +686,22 @@ export class DrizzleStorage implements IStorage {
         description: `${feeType} fee payment from ${student.name} - Receipt: ${receiptNumber}`
       });
 
+      // Get updated student details for invoice
+      const [updatedStudent] = await tx.select()
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .where(eq(schema.students.id, studentId));
+
       return {
         payment,
         transactionId,
-        walletUpdated: true
+        walletUpdated: true,
+        studentName: updatedStudent.students.name,
+        studentId: updatedStudent.students.studentId,
+        className: updatedStudent.classes?.name || 'Unknown Class',
+        amount: amount,
+        receiptNumber,
+        feeType
       };
     });
   }

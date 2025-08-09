@@ -174,6 +174,10 @@ export const students = pgTable("students", {
   soCenterId: varchar("so_center_id").references(() => soCenters.id),
   courseType: courseTypeEnum("course_type").notNull(),
   qrCode: text("qr_code").unique(),
+  totalFeeAmount: decimal("total_fee_amount", { precision: 10, scale: 2 }).default("0"),
+  paidAmount: decimal("paid_amount", { precision: 10, scale: 2 }).default("0"),
+  pendingAmount: decimal("pending_amount", { precision: 10, scale: 2 }).default("0"),
+  paymentStatus: paymentStatusEnum("payment_status").default("pending"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -198,6 +202,8 @@ export const payments = pgTable("payments", {
   description: text("description"),
   month: text("month"), // For monthly payments
   year: integer("year"), // For monthly payments
+  receiptNumber: text("receipt_number"),
+  transactionId: text("transaction_id"),
   recordedBy: varchar("recorded_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
 });
