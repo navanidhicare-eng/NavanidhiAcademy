@@ -283,16 +283,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (req.user.role === 'so_center' && soCenterId) {
         const students = await storage.getStudentsBySoCenter(soCenterId as string);
-        // Add payment status and progress for each student
+        
+        // Debug: Check database values before processing
+        const testStudent = students.find(s => s.studentId === 'NNAS250000015');
+        if (testStudent) {
+          console.log('RAW Database Values for NNAS250000015:', {
+            totalFeeAmount: testStudent.totalFeeAmount,
+            paidAmount: testStudent.paidAmount,  
+            pendingAmount: testStudent.pendingAmount
+          });
+        }
+        
+        // Preserve database values and only add progress info
         const studentsWithStatus = await Promise.all(students.map(async (student: any) => {
-          const payments = await storage.getStudentPayments(student.id);
-          const hasRecentPayment = payments.length > 0 && payments[0]?.createdAt && new Date(payments[0].createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Within 30 days
           return {
             ...student,
-            paymentStatus: hasRecentPayment ? 'paid' : 'pending',
+            // Preserve existing payment status or determine from pendingAmount
+            paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
             progress: 0 // Initial progress is 0
           };
         }));
+        
+        // Debug: Check final values being sent to UI
+        const finalTestStudent = studentsWithStatus.find(s => s.studentId === 'NNAS250000015');
+        if (finalTestStudent) {
+          console.log('FINAL API Values for NNAS250000015:', {
+            totalFeeAmount: finalTestStudent.totalFeeAmount,
+            paidAmount: finalTestStudent.paidAmount,  
+            pendingAmount: finalTestStudent.pendingAmount
+          });
+        }
+        
         res.json(studentsWithStatus);
       } else if (req.user.role === 'admin') {
         // Admin can see all students
