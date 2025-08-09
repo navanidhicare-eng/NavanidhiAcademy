@@ -365,6 +365,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed monthly attendance for all students in a class
+  app.get("/api/attendance/monthly-report", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { soCenterId, month, classId } = req.query;
+      const actualSoCenterId = soCenterId || (req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId);
+
+      const monthlyReport = await storage.getMonthlyAttendanceReport({
+        soCenterId: actualSoCenterId as string,
+        month: month as string,
+        classId: classId as string
+      });
+
+      res.json(monthlyReport);
+    } catch (error) {
+      console.error('Error fetching monthly attendance report:', error);
+      res.status(500).json({ message: 'Failed to fetch monthly attendance report' });
+    }
+  });
+
   // Student routes
   app.get("/api/students", authenticateToken, async (req, res) => {
     try {

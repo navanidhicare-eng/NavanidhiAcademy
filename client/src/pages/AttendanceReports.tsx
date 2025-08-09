@@ -121,6 +121,116 @@ export default function AttendanceReports() {
     }
   };
 
+  const getAttendanceSymbol = (status: string) => {
+    switch (status) {
+      case 'present': return 'Present';
+      case 'absent': return 'Absent';
+      case 'holiday': return 'H';
+      default: return '';
+    }
+  };
+
+  const getAttendanceCellColor = (status: string) => {
+    switch (status) {
+      case 'present': return 'bg-green-50 text-green-700';
+      case 'absent': return 'bg-red-50 text-red-700';
+      case 'holiday': return 'bg-blue-50 text-blue-700';
+      default: return 'bg-gray-50';
+    }
+  };
+
+  // Get all days in the selected month
+  const getDaysInMonth = () => {
+    if (!selectedMonth) return [];
+    const year = parseInt(selectedMonth.split('-')[0]);
+    const month = parseInt(selectedMonth.split('-')[1]);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  };
+
+  // Fetch monthly attendance report data
+  const { data: monthlyReportData } = useQuery({
+    queryKey: ['/api/attendance/monthly-report', selectedMonth, selectedClass],
+    enabled: !!selectedMonth && !!selectedClass,
+    staleTime: 30000,
+  });
+
+  // Get student attendance for the entire month
+  const getStudentMonthlyAttendance = (studentId: string) => {
+    if (!monthlyReportData?.students) {
+      return [];
+    }
+    
+    const student = monthlyReportData.students.find(s => s.id === studentId);
+    if (!student) return [];
+    
+    const year = parseInt(selectedMonth.split('-')[0]);
+    const month = parseInt(selectedMonth.split('-')[1]);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    // Create a map of all possible dates in the month with actual attendance data
+    const monthAttendance = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+      const attendanceRecord = student.attendanceRecords.find(record => record.date === dateStr);
+      
+      monthAttendance.push({
+        date: dateStr,
+        status: attendanceRecord?.status || ''
+      });
+    }
+    
+    return monthAttendance;
+  };
+
+  // Download monthly report as CSV
+  const downloadMonthlyReport = () => {
+    if (!selectedClass || !monthlyReportData?.students.length) return;
+    
+    const className = availableClasses.find(c => c.id === selectedClass)?.name || 'Unknown Class';
+    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    // Create CSV content
+    let csvContent = `Attendance - Class: ${className} Section: All Sections,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,Month: ${monthName}\n`;
+    csvContent += `Students ↓,${getDaysInMonth().join(',')},Total Attendance,Total Present,Total Absent,Total Holiday,Total %\n`;
+    
+    monthlyReportData.students.forEach(student => {
+      const studentAttendance = getStudentMonthlyAttendance(student.id);
+      const totalPresent = studentAttendance.filter(a => a.status === 'present').length;
+      const totalAbsent = studentAttendance.filter(a => a.status === 'absent').length;
+      const totalHoliday = studentAttendance.filter(a => a.status === 'holiday').length;
+      const totalWorkingDays = totalPresent + totalAbsent;
+      const percentage = totalWorkingDays > 0 ? (totalPresent / totalWorkingDays * 100).toFixed(1) : '0.0';
+      
+      const row = [
+        `${student.name} Roll No. ${student.studentId}`,
+        ...getDaysInMonth().map(day => {
+          const dayRecord = studentAttendance.find(a => new Date(a.date).getDate() === day);
+          return getAttendanceSymbol(dayRecord?.status || '');
+        }),
+        totalPresent + totalAbsent + totalHoliday,
+        totalPresent,
+        totalAbsent,
+        totalHoliday,
+        percentage + '%'
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${className}_Attendance_${monthName.replace(' ', '_')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
     <DashboardLayout title="Attendance Reports" subtitle="View detailed attendance statistics and reports">
       <div className="space-y-6">
@@ -219,6 +329,72 @@ export default function AttendanceReports() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Detailed Monthly Report */}
+      {selectedClass && attendanceStats && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Monthly Attendance Report - {availableClasses.find(c => c.id === selectedClass)?.name}</CardTitle>
+            <Button onClick={downloadMonthlyReport} variant="outline">
+              Download Report
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                  <tr className="bg-blue-50">
+                    <th className="border border-gray-300 p-2 text-left font-semibold">Students ↓</th>
+                    {getDaysInMonth().map(day => (
+                      <th key={day} className="border border-gray-300 p-1 text-center font-semibold min-w-[30px]">
+                        {day}
+                      </th>
+                    ))}
+                    <th className="border border-gray-300 p-2 text-center font-semibold">Total Attendance</th>
+                    <th className="border border-gray-300 p-2 text-center font-semibold">Total Present</th>
+                    <th className="border border-gray-300 p-2 text-center font-semibold">Total Absent</th>
+                    <th className="border border-gray-300 p-2 text-center font-semibold">Total Holiday</th>
+                    <th className="border border-gray-300 p-2 text-center font-semibold">Total %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyReportData?.students.map((student) => {
+                    const studentAttendance = getStudentMonthlyAttendance(student.id);
+                    const totalPresent = studentAttendance.filter(a => a.status === 'present').length;
+                    const totalAbsent = studentAttendance.filter(a => a.status === 'absent').length;
+                    const totalHoliday = studentAttendance.filter(a => a.status === 'holiday').length;
+                    const totalWorkingDays = totalPresent + totalAbsent;
+                    const percentage = totalWorkingDays > 0 ? (totalPresent / totalWorkingDays * 100).toFixed(1) : '0.0';
+                    
+                    return (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="border border-gray-300 p-2 font-medium">
+                          <div>{student.name}</div>
+                          <div className="text-xs text-gray-500">Roll No. {student.studentId}</div>
+                        </td>
+                        {getDaysInMonth().map(day => {
+                          const dayRecord = studentAttendance.find(a => new Date(a.date).getDate() === day);
+                          const status = dayRecord?.status || '';
+                          return (
+                            <td key={day} className={`border border-gray-300 p-1 text-center font-medium ${getAttendanceCellColor(status)}`}>
+                              {getAttendanceSymbol(status)}
+                            </td>
+                          );
+                        })}
+                        <td className="border border-gray-300 p-2 text-center font-medium">{totalPresent + totalAbsent + totalHoliday}</td>
+                        <td className="border border-gray-300 p-2 text-center font-medium text-green-600">{totalPresent}</td>
+                        <td className="border border-gray-300 p-2 text-center font-medium text-red-600">{totalAbsent}</td>
+                        <td className="border border-gray-300 p-2 text-center font-medium text-blue-600">{totalHoliday}</td>
+                        <td className="border border-gray-300 p-2 text-center font-medium text-purple-600">{percentage}%</td>
+                      </tr>
+                    );
+                  }) || []}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Class-wise Statistics */}

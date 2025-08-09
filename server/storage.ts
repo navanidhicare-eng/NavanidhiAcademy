@@ -165,6 +165,22 @@ export interface IStorage {
       status: 'present' | 'absent' | 'holiday';
     }>;
   }): Promise<{ presentCount: number; absentCount: number; holidayCount: number }>;
+
+  getMonthlyAttendanceReport(params: {
+    soCenterId: string;
+    month: string;
+    classId: string;
+  }): Promise<{
+    students: Array<{
+      id: string;
+      name: string;
+      studentId: string;
+      attendanceRecords: Array<{
+        date: string;
+        status: 'present' | 'absent' | 'holiday';
+      }>;
+    }>;
+  }>;
   
   getAttendanceStats(params: {
     soCenterId: string;
@@ -1422,6 +1438,81 @@ export class DrizzleStorage implements IStorage {
       totalPresent,
       totalAbsent,
       totalDays
+    };
+  }
+
+  async getMonthlyAttendanceReport(params: {
+    soCenterId: string;
+    month: string;
+    classId: string;
+  }): Promise<{
+    students: Array<{
+      id: string;
+      name: string;
+      studentId: string;
+      attendanceRecords: Array<{
+        date: string;
+        status: 'present' | 'absent' | 'holiday';
+      }>;
+    }>;
+  }> {
+    const startDate = `${params.month}-01`;
+    // Calculate the last day of the month to avoid invalid dates like 2025-09-31
+    const year = parseInt(params.month.split('-')[0]);
+    const month = parseInt(params.month.split('-')[1]);
+    const lastDay = new Date(year, month, 0).getDate();
+    const endDate = `${params.month}-${lastDay.toString().padStart(2, '0')}`;
+
+    // Get all students in the class
+    const students = await db.select({
+      id: schema.students.id,
+      name: schema.students.name,
+      studentId: schema.students.studentId
+    })
+    .from(schema.students)
+    .where(
+      and(
+        eq(schema.students.soCenterId, params.soCenterId),
+        eq(schema.students.classId, params.classId)
+      )
+    );
+
+    // Get all attendance records for the month and class
+    const attendanceRecords = await db.select({
+      studentId: schema.attendance.studentId,
+      date: schema.attendance.date,
+      status: schema.attendance.status
+    })
+    .from(schema.attendance)
+    .where(
+      and(
+        eq(schema.attendance.soCenterId, params.soCenterId),
+        eq(schema.attendance.classId, params.classId),
+        gte(schema.attendance.date, startDate),
+        lte(schema.attendance.date, endDate)
+      )
+    )
+    .orderBy(asc(schema.attendance.date));
+
+    // Organize attendance records by student
+    const studentsWithAttendance = students.map(student => {
+      const studentAttendanceRecords = attendanceRecords
+        .filter(record => record.studentId === student.id)
+        .map(record => ({
+          date: record.date,
+          status: record.status as 'present' | 'absent' | 'holiday'
+        }));
+
+      return {
+        id: student.id,
+        name: student.name,
+        studentId: student.studentId,
+        attendanceRecords: studentAttendanceRecords
+      };
+    });
+
+    return {
+      students: studentsWithAttendance
     };
   }
 }
