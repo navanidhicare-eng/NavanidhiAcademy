@@ -77,10 +77,8 @@ const addStudentSchema = z.object({
   parentPhone: z.string().min(10, 'Parent phone is required'), // For compatibility
   parentName: z.string().optional(), // For compatibility
   
-  // Enrollment and Fee Information
+  // Enrollment Information
   enrollmentDate: z.string().min(1, 'Enrollment date is required'),
-  previousBalance: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
-  previousBalanceDetails: z.string().optional(),
   
   // Siblings
   siblings: z.array(siblingSchema).optional(),
@@ -294,8 +292,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       parentPhone: '',
       parentName: '',
       enrollmentDate: new Date().toISOString().split('T')[0], // Default to today
-      previousBalance: '0',
-      previousBalanceDetails: '',
       siblings: [],
       admissionFeePaid: false,
       receiptNumber: '',
@@ -1000,88 +996,23 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                   />
                 </div>
                 
-                {/* Enrollment Date and Previous Balance */}
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="enrollmentDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Enrollment Date *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="date" 
-                            {...field}
-                            max={new Date().toISOString().split('T')[0]} // Can't enroll for future dates
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Fee calculation depends on enrollment date (1st-10th: full fee, 11th-20th: half fee, 21st+: no first month fee)
-                        </p>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="previousBalance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Previous Balance (₹)</FormLabel>
-                        <FormControl>
-                          <div>
-                            <Input 
-                              type="number" 
-                              placeholder="0.00"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? String(e.target.value) : '')}
-                            />
-                            {/* INSTANT Total Due Calculation - Shows as soon as you type */}
-                            {classFeesData && field.value && parseFloat(field.value) > 0 && (
-                              <div className="mt-2 p-3 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg animate-in fade-in duration-300">
-                                <div className="text-sm font-medium text-green-800">
-                                  🧮 <strong>INSTANT CALCULATION:</strong>
-                                </div>
-                                <div className="text-lg font-bold text-red-600 mt-1">
-                                  Total Due: ₹{(parseFloat(classFeesData.admissionFee || '0') + parseFloat(field.value || '0')).toFixed(2)}
-                                </div>
-                                <div className="text-xs text-blue-600 mt-1">
-                                  Admission ₹{classFeesData.admissionFee} + Previous Balance ₹{field.value}
-                                </div>
-                                {selectedCourseType === 'monthly' && classFeesData.monthlyFee && (
-                                  <div className="text-xs text-purple-600 mt-1">
-                                    Monthly Fee: ₹{classFeesData.monthlyFee} (from next month)
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Any outstanding balance from previous enrollments
-                        </p>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
+                {/* Enrollment Date */}
                 <FormField
                   control={form.control}
-                  name="previousBalanceDetails"
+                  name="enrollmentDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Previous Balance Details</FormLabel>
+                      <FormLabel>Enrollment Date *</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="e.g., Outstanding fees from previous class/year"
+                          type="date" 
                           {...field}
+                          max={new Date().toISOString().split('T')[0]} // Can't enroll for future dates
                         />
                       </FormControl>
                       <FormMessage />
                       <p className="text-xs text-gray-500 mt-1">
-                        Optional description of what the previous balance is for
+                        Select the enrollment date for the student
                       </p>
                     </FormItem>
                   )}
@@ -1098,8 +1029,8 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
                 {classFeesData && !isLoadingFees && (
                   <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="font-medium text-blue-900 mb-3">📊 Fee Structure & Total Due Balance</h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <h4 className="font-medium text-blue-900 mb-3">📊 Fee Structure for Selected Class</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-gray-600">Admission Fee:</span>
                         <span className="font-semibold text-green-600 ml-2">₹{classFeesData.admissionFee}</span>
@@ -1116,68 +1047,6 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                           <span className="font-semibold text-purple-600 ml-2">₹{classFeesData.yearlyFee}</span>
                         </div>
                       )}
-                    </div>
-                    
-                    {/* Total Due Balance & Monthly Payment Calculation */}
-                    <div className="border-t border-blue-200 pt-3">
-                      <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                        <h5 className="font-semibold text-orange-800 mb-3">💰 Registration Fee Calculation</h5>
-                        <div className="space-y-3 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Admission Fee:</span>
-                            <span className="font-medium">₹{classFeesData.admissionFee}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Previous Balance:</span>
-                            <span className="font-medium">₹{form.watch('previousBalance') || '0'}</span>
-                          </div>
-                          <div className="border-t border-orange-200 pt-2 flex justify-between text-lg font-bold">
-                            <span className="text-orange-800">TOTAL DUE AMOUNT:</span>
-                            <span className="text-red-600">
-                              ₹{(parseFloat(classFeesData.admissionFee || '0') + parseFloat(form.watch('previousBalance') || '0')).toFixed(2)}
-                            </span>
-                          </div>
-                          
-                          {/* Monthly Payment Amount */}
-                          {selectedCourseType === 'monthly' && classFeesData.monthlyFee && (
-                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 mt-3">
-                              <div className="flex justify-between items-center">
-                                <span className="text-blue-800 font-medium">Monthly Payment Amount:</span>
-                                <span className="text-blue-600 font-bold text-xl">₹{classFeesData.monthlyFee}</span>
-                              </div>
-                              <p className="text-xs text-blue-600 mt-1">
-                                Regular monthly fee after registration
-                              </p>
-                            </div>
-                          )}
-                          
-                          {selectedCourseType === 'yearly' && classFeesData.yearlyFee && (
-                            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 mt-3">
-                              <div className="flex justify-between items-center">
-                                <span className="text-purple-800 font-medium">Annual Payment Amount:</span>
-                                <span className="text-purple-600 font-bold text-xl">₹{classFeesData.yearlyFee}</span>
-                              </div>
-                              <p className="text-xs text-purple-600 mt-1">
-                                Annual fee payment option
-                              </p>
-                            </div>
-                          )}
-                          
-                          {/* Payment Summary */}
-                          <div className="bg-green-50 p-3 rounded-lg border border-green-200 mt-3">
-                            <h6 className="font-medium text-green-800 mb-2">Payment Summary</h6>
-                            <div className="text-xs text-green-700 space-y-1">
-                              <div>• Registration Total Due: ₹{(parseFloat(classFeesData.admissionFee || '0') + parseFloat(form.watch('previousBalance') || '0')).toFixed(2)}</div>
-                              {selectedCourseType === 'monthly' && classFeesData.monthlyFee && (
-                                <div>• Monthly Fee: ₹{classFeesData.monthlyFee} (from next month)</div>
-                              )}
-                              {selectedCourseType === 'yearly' && classFeesData.yearlyFee && (
-                                <div>• Annual Fee: ₹{classFeesData.yearlyFee} (yearly payment)</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     </div>
                     
                     {classFeesData.description && (

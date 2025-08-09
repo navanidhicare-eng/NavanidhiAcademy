@@ -186,8 +186,6 @@ export const students = pgTable("students", {
   isActive: boolean("is_active").default(true),
   // New fields for enrollment tracking and fee management
   enrollmentDate: date("enrollment_date").notNull(),
-  previousBalance: decimal("previous_balance", { precision: 10, scale: 2 }).default("0"),
-  previousBalanceDetails: text("previous_balance_details"), // JSON string for balance breakdown
   admissionFeePaid: boolean("admission_fee_paid").default(false),
   lastFeeCalculationDate: date("last_fee_calculation_date"), // Track when monthly fee was last calculated
   createdAt: timestamp("created_at").defaultNow(),

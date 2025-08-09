@@ -88,7 +88,6 @@ export function FeePayments() {
     enabled: !!user,
     refetchOnWindowFocus: false,
     staleTime: 0, // Always fetch fresh data for payment tracking
-    cacheTime: 30000, // Cache for 30 seconds only
   });
 
   // Get unique classes from students
@@ -113,18 +112,18 @@ export function FeePayments() {
       pendingAmount: 0 
     };
     
-    const classFee = classFees.find((fee: ClassFee) => 
+    const classFee = (classFees as ClassFee[]).find((fee: ClassFee) => 
       fee.classId === selectedStudent.classId && fee.courseType === selectedStudent.courseType
     );
     
     const admissionFee = parseFloat(classFee?.admissionFee || '0');
-    const previousBalance = parseFloat(selectedStudent.previousBalance || '0');
+    const previousBalance = 0; // Removed previous balance feature
     const monthlyFee = parseFloat(classFee?.monthlyFee || '0');
     const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
     const pendingAmount = parseFloat(selectedStudent.pendingAmount || '0');
     
-    // Total Due = Admission Fee + Previous Balance (if admission fee not paid)
-    const totalDue = selectedStudent.admissionFeePaid ? previousBalance : (admissionFee + previousBalance);
+    // Total Due = Admission Fee (if not paid)
+    const totalDue = selectedStudent.admissionFeePaid ? 0 : admissionFee;
     
     return { 
       totalDue, 
@@ -289,7 +288,7 @@ Thank you for your payment!
   const { totalDue, admissionFee, previousBalance, monthlyFee, paidAmount, pendingAmount } = calculateStudentBalance();
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Fee Payments">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Fee Payments</h1>
@@ -396,60 +395,71 @@ Thank you for your payment!
               </div>
             </div>
 
-            {/* REAL DATA Fee Details - Total Due Balance from Supabase */}
+            {/* Enhanced Payment Progress Section */}
             {selectedStudent && (
-              <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
-                <h3 className="font-semibold mb-3 text-orange-800">💰 Student Balance Details (Real Data)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-gray-600">Admission Fee</p>
-                    <p className="font-bold text-lg text-green-600">₹{admissionFee.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">
-                      {selectedStudent.admissionFeePaid ? '✅ Paid' : '❌ Not Paid'}
-                    </p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-gray-600">Previous Balance</p>
-                    <p className="font-bold text-lg text-blue-600">₹{previousBalance.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">From registration</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-gray-600">Monthly Fee</p>
-                    <p className="font-bold text-lg text-purple-600">₹{monthlyFee.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">Regular monthly</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-gray-600">Already Paid</p>
-                    <p className="font-bold text-lg text-green-600">₹{paidAmount.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">Total paid so far</p>
-                  </div>
-                </div>
+              <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                <h3 className="font-bold text-2xl mb-6 text-blue-900">📊 Payment Progress Overview</h3>
                 
-                {/* Total Due Calculation */}
-                <div className="bg-red-100 p-4 rounded-lg border border-red-300">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-red-800 text-lg">TOTAL DUE BALANCE</h4>
-                      <p className="text-sm text-red-600">
-                        {selectedStudent.admissionFeePaid 
-                          ? 'Previous Balance Only (Admission Fee Already Paid)' 
-                          : 'Admission Fee + Previous Balance'}
+                {/* Large Payment Progress Display */}
+                <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                  <div className="text-center mb-6">
+                    <h4 className="text-3xl font-bold text-gray-800 mb-2">Current Payment Status</h4>
+                    <p className="text-gray-600">Student: {selectedStudent.name}</p>
+                  </div>
+                  
+                  {/* Progress Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="text-center p-6 bg-green-50 rounded-lg border border-green-200">
+                      <h5 className="text-lg font-semibold text-green-800 mb-2">Total Paid</h5>
+                      <p className="text-4xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+                    </div>
+                    
+                    <div className="text-center p-6 bg-orange-50 rounded-lg border border-orange-200">
+                      <h5 className="text-lg font-semibold text-orange-800 mb-2">Expected Fee</h5>
+                      <p className="text-4xl font-bold text-orange-600">₹{(admissionFee + monthlyFee).toLocaleString()}</p>
+                    </div>
+                    
+                    <div className={`text-center p-6 rounded-lg border ${pendingAmount > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                      <h5 className={`text-lg font-semibold mb-2 ${pendingAmount > 0 ? 'text-red-800' : 'text-green-800'}`}>
+                        {pendingAmount > 0 ? 'Pending Amount' : 'Balance'}
+                      </h5>
+                      <p className={`text-4xl font-bold ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {pendingAmount > 0 ? `₹${pendingAmount.toLocaleString()}` : '✅ Paid'}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-2xl text-red-600">₹{totalDue.toLocaleString()}</p>
-                      <p className="text-xs text-red-500">Amount to be collected</p>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="mb-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-700">Payment Progress</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {Math.round((paidAmount / Math.max(admissionFee + monthlyFee, 1)) * 100)}% Complete
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div 
+                        className={`h-4 rounded-full transition-all duration-500 ${
+                          pendingAmount === 0 ? 'bg-green-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.min((paidAmount / Math.max(admissionFee + monthlyFee, 1)) * 100, 100)}%` }}
+                      ></div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Payment Progress */}
-                <div className="mt-3 bg-white p-3 rounded-lg">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">Payment Progress:</span>
-                    <span className={`font-medium ${pendingAmount > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {pendingAmount > 0 ? `₹${pendingAmount.toLocaleString()} pending` : 'Fully paid'}
-                    </span>
+                  
+                  {/* Fee Breakdown */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h6 className="font-semibold text-gray-800 mb-3">Fee Breakdown</h6>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="flex justify-between">
+                        <span>Admission Fee:</span>
+                        <span className="font-medium">₹{admissionFee.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Monthly Fee:</span>
+                        <span className="font-medium">₹{monthlyFee.toLocaleString()}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
