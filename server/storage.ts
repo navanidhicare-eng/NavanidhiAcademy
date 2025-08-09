@@ -641,7 +641,6 @@ export class DrizzleStorage implements IStorage {
 
       // Update SO Center wallet - using proper numeric addition
       const numericAmount = Number(amount);
-      console.log('Debug - amount:', amount, 'numericAmount:', numericAmount, 'type:', typeof numericAmount);
       
       // Get current wallet balance first
       const [currentBalance] = await tx.select({ balance: schema.soCenters.walletBalance })
@@ -649,7 +648,6 @@ export class DrizzleStorage implements IStorage {
         .where(eq(schema.soCenters.id, student.soCenterId));
       
       const newBalance = Number(currentBalance.balance) + numericAmount;
-      console.log('Debug - current balance:', currentBalance.balance, 'new balance:', newBalance);
       
       await tx.update(schema.soCenters)
         .set({ 
