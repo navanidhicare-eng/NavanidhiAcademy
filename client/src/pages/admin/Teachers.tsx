@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { AddTeachingRecordForm } from '@/components/admin/AddTeachingRecordForm';
+import { TeacherRecordsModal } from '@/components/admin/TeacherRecordsModal';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export default function AdminTeachers() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isViewRecordsModalOpen, setIsViewRecordsModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<{id: string, name: string} | null>(null);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -117,6 +119,7 @@ export default function AdminTeachers() {
 
   const handleViewTeacher = (teacher: Teacher) => {
     setSelectedTeacher(teacher);
+    setIsViewRecordsModalOpen(true);
   };
 
   const handleAssignTeacher = (teacher: Teacher) => {
@@ -290,6 +293,7 @@ export default function AdminTeachers() {
                           variant="ghost" 
                           size="sm"
                           onClick={() => handleViewTeacher(teacher)}
+                          title="View Teaching Records"
                         >
                           <Eye className="text-blue-600" size={16} />
                         </Button>
@@ -505,6 +509,19 @@ export default function AdminTeachers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Teacher Records Modal */}
+      {selectedTeacher && (
+        <TeacherRecordsModal
+          isOpen={isViewRecordsModalOpen}
+          onClose={() => {
+            setIsViewRecordsModalOpen(false);
+            setSelectedTeacher(null);
+          }}
+          teacherId={selectedTeacher.id}
+          teacherName={selectedTeacher.name}
+        />
+      )}
     </DashboardLayout>
   );
 }

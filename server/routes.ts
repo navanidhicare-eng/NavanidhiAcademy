@@ -2382,6 +2382,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get teacher records with date filtering
+  app.get("/api/admin/teachers/:teacherId/records", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { teacherId } = req.params;
+      const { fromDate, toDate } = req.query;
+      
+      // Build base query
+      let baseQuery = sqlQuery`
+        SELECT 
+          tr.*,
+          c.name as className,
+          s.name as subjectName,
+          ch.title as chapterTitle
+        FROM teacher_daily_records tr
+        LEFT JOIN classes c ON tr.class_id = c.id
+        LEFT JOIN subjects s ON tr.subject_id = s.id
+        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
+        WHERE tr.teacher_id = ${teacherId}
+      `;
+      
+      // Add date filters if provided
+      if (fromDate && toDate) {
+        baseQuery = sqlQuery`${baseQuery} AND tr.record_date BETWEEN ${fromDate} AND ${toDate}`;
+      } else if (fromDate) {
+        baseQuery = sqlQuery`${baseQuery} AND tr.record_date >= ${fromDate}`;
+      } else if (toDate) {
+        baseQuery = sqlQuery`${baseQuery} AND tr.record_date <= ${toDate}`;
+      }
+      
+      // Add ordering
+      baseQuery = sqlQuery`${baseQuery} ORDER BY tr.record_date DESC, tr.created_at DESC`;
+      
+      const records = await db.execute(baseQuery);
+      res.json(records);
+    } catch (error: any) {
+      console.error('Error fetching teacher records:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher records', error: error.message });
+    }
+  });
+
   // Update teacher subject assignments
   app.put("/api/admin/teachers/:id/subjects", authenticateToken, async (req, res) => {
     try {
