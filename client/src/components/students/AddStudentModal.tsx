@@ -116,50 +116,29 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [registrationResult, setRegistrationResult] = useState<any>(null);
 
-  // PhonePe success sound using the provided audio file
-  const playSuccessSound = () => {
+  // PhonePe success sound using the provided audio file only
+  const playSuccessSound = async () => {
     try {
-      // Use the provided PhonePe audio file
+      // Use the provided PhonePe audio file - no fallback sound
       const audio = new Audio('/phone_pe_success.mp3');
-      audio.volume = 0.8; // Set volume to 80%
-      audio.play().catch(error => {
-        console.log('Audio playback failed:', error);
-        // Fallback to generated sound if file fails
-        playFallbackSound();
+      audio.volume = 0.9; // Set volume to 90%
+      
+      // Wait for audio to load before playing
+      await new Promise((resolve, reject) => {
+        audio.addEventListener('canplaythrough', resolve, { once: true });
+        audio.addEventListener('error', reject, { once: true });
+        audio.load(); // Force load
       });
+      
+      await audio.play();
+      console.log('PhonePe audio played successfully');
     } catch (error) {
-      console.log('Audio file not available, using fallback sound');
-      playFallbackSound();
+      console.log('PhonePe audio failed to play:', error);
+      // Don't play any fallback sound - user wants only the MP3
     }
   };
 
-  // Fallback sound in case audio file is not available
-  const playFallbackSound = () => {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    const createTone = (frequency: number, startTime: number, duration: number, volume: number) => {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, startTime);
-      
-      gainNode.gain.setValueAtTime(0, startTime);
-      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
-    
-    const now = audioContext.currentTime;
-    createTone(523, now, 0.25, 0.12);
-    createTone(659, now + 0.18, 0.25, 0.15);
-    createTone(784, now + 0.36, 0.35, 0.12);
-  };
+
   
   // Confetti celebration function
   const triggerConfetti = () => {

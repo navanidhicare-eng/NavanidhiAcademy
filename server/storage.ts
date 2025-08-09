@@ -350,15 +350,20 @@ export class DrizzleStorage implements IStorage {
   async updateSoCenterWallet(id: string, amount: number): Promise<SoCenter> {
     // Add the amount to existing wallet balance, don't replace it
     const numericAmount = Number(amount);
-    if (isNaN(numericAmount)) {
-      throw new Error(`Invalid amount for wallet update: ${amount}`);
+    console.log('💰 Wallet update - ID:', id, 'Amount:', amount, 'Parsed:', numericAmount);
+    
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      throw new Error(`Invalid amount for wallet update: ${amount} (parsed: ${numericAmount})`);
     }
+    
     const result = await db.update(schema.soCenters)
       .set({ 
-        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}`
+        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}::numeric`
       })
       .where(eq(schema.soCenters.id, id))
       .returning();
+    
+    console.log('✅ Wallet updated successfully:', result[0]?.walletBalance);
     return result[0];
   }
 

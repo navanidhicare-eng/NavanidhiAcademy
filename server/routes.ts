@@ -455,9 +455,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               recordedBy: req.user.userId
             });
 
-            // Add amount to SO Center wallet
-            console.log('Updating wallet with amount:', feeAmount);
-            await storage.updateSoCenterWallet(studentData.soCenterId, feeAmount);
+            // Add amount to SO Center wallet - ensure it's a number
+            const walletAmount = Number(feeAmount);
+            console.log('Updating wallet with amount:', walletAmount, 'Type:', typeof walletAmount);
+            await storage.updateSoCenterWallet(studentData.soCenterId, walletAmount);
             
             console.log('💰 Admission fee processed:', classFee.admissionFee);
             feeProcessed = true;
