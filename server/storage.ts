@@ -118,8 +118,8 @@ async function initializeDatabase() {
   }
 }
 
-// Initialize database on startup
-initializeDatabase();
+// Initialize database on startup - DISABLED temporarily to fix login timeout
+// initializeDatabase();
 
 export interface IStorage {
   // User methods
@@ -334,8 +334,15 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(schema.users).where(eq(schema.users.email, email));
-    return result[0];
+    console.log(`🔍 Storage: Starting getUserByEmail lookup for: ${email}`);
+    try {
+      const result = await db.select().from(schema.users).where(eq(schema.users.email, email));
+      console.log(`🔍 Storage: Database query completed, found ${result.length} user(s)`);
+      return result[0];
+    } catch (error) {
+      console.error(`❌ Storage: Error in getUserByEmail:`, error);
+      throw error;
+    }
   }
 
   async createUser(user: InsertUser): Promise<User> {
@@ -1965,7 +1972,7 @@ export class DrizzleStorage implements IStorage {
 
 export const storage = new DrizzleStorage();
 
-// Initialize the database
-initializeDatabase();
+// Initialize the database - DISABLED temporarily to fix login timeout
+// initializeDatabase();
 
 export { getUsersByRole, executeRawQuery };

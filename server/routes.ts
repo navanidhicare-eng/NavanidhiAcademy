@@ -89,6 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // First, try to find user by email
         console.log(`🔍 Looking up user by email: ${email}`);
         user = await storage.getUserByEmail(email);
+        console.log(`🔍 User lookup result:`, user ? `Found user: ${user.name}` : 'User not found');
         
         // If not found by email, check if it's a SO Center ID
         if (!user) {
@@ -2420,12 +2421,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (fromDate) {
         queryString += ` AND tr.record_date >= $${params.length + 1}`;
-        params.push(fromDate);
+        params.push(fromDate as string);
       }
       
       if (toDate) {
         queryString += ` AND tr.record_date <= $${params.length + 1}`;
-        params.push(toDate);
+        params.push(toDate as string);
       }
       
       queryString += ` ORDER BY tr.record_date DESC, tr.created_at DESC`;
