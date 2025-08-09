@@ -40,12 +40,16 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
     queryKey: ['/api/admin/teachers'],
   });
 
+  // Fetch teacher's assigned classes
   const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ['/api/classes'],
+    queryKey: ['/api/admin/teachers', selectedTeacher, 'classes'],
+    enabled: !!selectedTeacher,
   });
 
+  // Fetch teacher's assigned subjects
   const { data: subjects = [] } = useQuery<any[]>({
-    queryKey: ['/api/subjects'],
+    queryKey: ['/api/admin/teachers', selectedTeacher, 'subjects'],
+    enabled: !!selectedTeacher,
   });
 
   // Fetch chapters based on selected subject
@@ -88,6 +92,14 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
   const handleTeacherChange = (teacherId: string) => {
     setSelectedTeacher(teacherId);
     setValue('teacherId', teacherId);
+    // Reset dependent selections when teacher changes
+    setSelectedClass('');
+    setSelectedSubject('');
+    setSelectedChapter('');
+    setValue('classId', '');
+    setValue('subjectId', '');
+    setValue('chapterId', undefined);
+    setValue('topicId', undefined);
   };
 
   const handleClassChange = (classId: string) => {

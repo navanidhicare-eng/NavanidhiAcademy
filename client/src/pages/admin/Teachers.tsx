@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -164,7 +164,7 @@ export default function AdminTeachers() {
   };
 
   // Load current assignments when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAssignModalOpen && teacherSubjects && teacherClasses) {
       const currentSubjects = Array.isArray(teacherSubjects) ? teacherSubjects.map((s: any) => s.id) : [];
       const currentClasses = Array.isArray(teacherClasses) ? teacherClasses.map((c: any) => c.id) : [];
@@ -478,7 +478,6 @@ export default function AdminTeachers() {
                 Assign Subjects
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {console.log('allSubjects:', allSubjects)}
                 {Array.isArray(allSubjects) && allSubjects.length > 0 ? allSubjects.map((subject: any) => (
                   <div key={subject.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -507,7 +506,6 @@ export default function AdminTeachers() {
                 Assign Classes
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {console.log('allClasses:', allClasses)}
                 {Array.isArray(allClasses) && allClasses.length > 0 ? allClasses.map((classItem: any) => (
                   <div key={classItem.id} className="flex items-center space-x-2">
                     <Checkbox
