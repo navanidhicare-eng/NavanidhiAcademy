@@ -13,9 +13,11 @@ declare global {
   }
 }
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, db } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
+import { sql as sqlQuery } from "drizzle-orm";
+import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { 
@@ -37,10 +39,7 @@ import {
   insertAttendanceSchema,
   insertHomeworkActivitySchema,
   insertTuitionProgressSchema,
-  insertTeacherSchema,
-  insertTeacherDailyRecordSchema
 } from "@shared/schema";
-import { TeacherStorage } from './storage/teacherStorage';
 import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
@@ -66,7 +65,7 @@ const authenticateToken = (req: Request, res: any, next: any) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize teacher storage
-  const teacherStorage = new TeacherStorage();
+  // Teacher management now integrated with User system
   
   // Test endpoint
   app.get("/api/test", (req, res) => {
@@ -2115,7 +2114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const teachers = await teacherStorage.getAllTeachers();
+      const teachers = await storage.getUsersByRole('teacher');
       res.json(teachers);
     } catch (error) {
       console.error('Error fetching teachers:', error);
@@ -2130,8 +2129,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const teacher = await teacherStorage.getTeacherById(req.params.id);
-      if (!teacher) {
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
       
@@ -2260,17 +2259,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const validation = insertTeacherDailyRecordSchema.safeParse(req.body);
+      const { teacherId, classId, subjectId, chapterId, topicId, durationMinutes, topicsCovered, notes, recordDate } = req.body;
 
-      if (!validation.success) {
-        return res.status(400).json({ 
-          message: "Invalid teaching record data", 
-          errors: validation.error.errors 
-        });
+      if (!teacherId || !classId || !subjectId || !durationMinutes) {
+        return res.status(400).json({ message: "Required fields missing" });
       }
 
-      const record = await teacherStorage.addTeachingRecord(validation.data);
-      res.status(201).json(record);
+      const recordData = {
+        userId: teacherId,
+        classId: classId,
+        subjectId: subjectId,
+        chapterId: chapterId || null,
+        topicId: topicId || null,
+        durationMinutes: parseInt(durationMinutes),
+        topicsCovered: topicsCovered,
+        notes: notes,
+        recordDate: recordDate || new Date().toISOString().split('T')[0]
+      };
+
+      const query = sqlQuery`
+        INSERT INTO teaching_records (user_id, class_id, subject_id, chapter_id, topic_id, duration_minutes, topics_covered, notes, record_date)
+        VALUES (${recordData.userId}, ${recordData.classId}, ${recordData.subjectId}, ${recordData.chapterId}, ${recordData.topicId}, ${recordData.durationMinutes}, ${recordData.topicsCovered}, ${recordData.notes}, ${recordData.recordDate})
+      `;
+      await db.execute(query);
+      res.status(201).json({ message: 'Teaching record added successfully' });
     } catch (error) {
       console.error('Error adding teaching record:', error);
       res.status(500).json({ message: 'Failed to add teaching record' });

@@ -40,6 +40,17 @@ if (!process.env.DATABASE_URL) {
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 export const db = drizzle(sql, { schema });
 
+// Add method to get users by role
+async function getUsersByRole(role: string) {
+  try {
+    const users = await db.select().from(schema.users).where(eq(schema.users.role, role as any));
+    return users;
+  } catch (error) {
+    console.error('Error fetching users by role:', error);
+    throw error;
+  }
+}
+
 // Initialize database with default data
 async function initializeDatabase() {
   try {
@@ -938,6 +949,15 @@ export class DrizzleStorage implements IStorage {
     await db.update(schema.users)
       .set({ isActive: false })
       .where(eq(schema.users.id, id));
+  }
+
+  async getUsersByRole(role: string): Promise<User[]> {
+    return await db.select().from(schema.users)
+      .where(and(
+        eq(schema.users.role, role as any),
+        eq(schema.users.isActive, true)
+      ))
+      .orderBy(asc(schema.users.name));
   }
 
   // Enhanced Academic structure methods

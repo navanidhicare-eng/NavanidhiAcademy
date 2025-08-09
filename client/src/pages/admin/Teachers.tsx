@@ -89,10 +89,10 @@ export default function AdminTeachers() {
     setSelectedTeacher(teacher);
   };
 
-  const filteredTeachers = (teachers as Teacher[]).filter((teacher: Teacher) => {
+  const filteredTeachers = (teachers as any[]).filter((teacher: any) => {
     const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.mobile.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.fatherName.toLowerCase().includes(searchTerm.toLowerCase());
+                         (teacher.phone && teacher.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (teacher.fatherName && teacher.fatherName.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesSearch && teacher.isActive;
   });
 
@@ -181,19 +181,19 @@ export default function AdminTeachers() {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{teacher.name}</div>
-                          <div className="text-sm text-gray-500">Father: {teacher.fatherName}</div>
-                          <div className="text-sm text-gray-500">DOB: {new Date(teacher.dateOfBirth).toLocaleDateString()}</div>
+                          <div className="text-sm text-gray-500">Father: {teacher.fatherName || 'N/A'}</div>
+                          <div className="text-sm text-gray-500">DOB: {teacher.dateOfBirth ? new Date(teacher.dateOfBirth).toLocaleDateString() : 'N/A'}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{teacher.mobile}</div>
-                      <div className="text-sm text-gray-500">{teacher.address}</div>
+                      <div className="text-sm text-gray-900">{teacher.phone || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{teacher.address || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">₹{parseFloat(teacher.salary).toLocaleString()}</div>
+                      <div className="text-sm font-medium text-gray-900">₹{teacher.salary ? parseFloat(teacher.salary).toLocaleString() : '0'}</div>
                       <Badge variant="outline" className="mt-1">
-                        {teacher.salaryType.toUpperCase()}
+                        {teacher.salaryType ? teacher.salaryType.toUpperCase() : 'FIXED'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
