@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { AddTeachingRecordForm } from '@/components/admin/AddTeachingRecordForm';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -360,58 +361,17 @@ export default function AdminTeachers() {
 
       {/* Add Teaching Record Modal */}
       <Dialog open={isRecordModalOpen} onOpenChange={setIsRecordModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add Daily Teaching Record</DialogTitle>
+            <DialogDescription>
+              Create a new teaching record with details about the session, including class, subject, and topics covered.
+            </DialogDescription>
           </DialogHeader>
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Teacher</label>
-              <select className="w-full p-2 border rounded">
-                <option>Select a teacher</option>
-                {teachers.map((teacher: Teacher) => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Class</label>
-              <select className="w-full p-2 border rounded">
-                <option>Select a class</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Subject</label>
-              <select className="w-full p-2 border rounded">
-                <option>Select a subject</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Duration (minutes)</label>
-              <input type="number" className="w-full p-2 border rounded" placeholder="60" />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-1">Topics Covered</label>
-              <textarea className="w-full p-2 border rounded" rows={3} placeholder="Topics covered in this session..."></textarea>
-            </div>
-            
-            <div className="flex justify-end">
-              <Button 
-                onClick={() => {
-                  toast({ title: 'Success', description: 'Teaching record added successfully!' });
-                  setIsRecordModalOpen(false);
-                }}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Add Teaching Record
-              </Button>
-            </div>
+          <div className="p-6">
+            <AddTeachingRecordForm
+              onSuccess={() => setIsRecordModalOpen(false)}
+            />
           </div>
         </DialogContent>
       </Dialog>
