@@ -639,10 +639,11 @@ export class DrizzleStorage implements IStorage {
         recordedBy: student.soCenterId // Using SO center as recorder for now
       }).returning();
 
-      // Update SO Center wallet - using SQL template for proper numeric addition
+      // Update SO Center wallet - using proper numeric addition
+      const numericAmount = Number(amount);
       await tx.update(schema.soCenters)
         .set({ 
-          walletBalance: sql`CAST(wallet_balance AS NUMERIC) + ${amount}`
+          walletBalance: sql`CAST(wallet_balance AS NUMERIC) + ${numericAmount}`
         })
         .where(eq(schema.soCenters.id, student.soCenterId));
 
