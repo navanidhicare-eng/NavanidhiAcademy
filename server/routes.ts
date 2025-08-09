@@ -343,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check permissions - admins can edit any student, SO centers can only edit their own
-      if (req.user.role !== 'admin' && student.soCenterId !== req.user.soCenterId) {
+      if (req.user.role !== 'admin' && student.soCenterId !== req.user.userId) {
         return res.status(403).json({ message: "Unauthorized to update this student" });
       }
 
@@ -466,6 +466,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Get fee amount for response
+      let feeAmount: number | null = null;
+      if (feeProcessed && admissionFeePaid && receiptNumber) {
+        try {
+          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
+          if (classFee && classFee.admissionFee) {
+            feeAmount = parseFloat(classFee.admissionFee);
+          }
+        } catch (error) {
+          console.error('Error getting class fee for response:', error);
+        }
+      }
+
       const response = {
         student: {
           ...student,
@@ -475,27 +488,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: feeProcessed ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
         admissionFeePaid: feeProcessed,
         transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
-        amount: response.amount
+        amount: feeAmount
       };
       
-      // Add amount if fee was processed
-      if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
-        try {
-          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
-          if (classFee) {
-            response.amount = parseFloat(classFee.admissionFee);
-          }
-        } catch (error) {
-          console.error('Error getting class fee for response:', error);
-        }
-      }
-      
       // Create wallet transaction record for fee payment
-      if (feeProcessed && admissionFeePaid && receiptNumber) {
+      if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount) {
         try {
           await storage.createWalletTransaction({
             soCenterId: studentData.soCenterId,
-            amount: response.amount!.toString(),
+            amount: feeAmount.toString(),
             type: 'credit',
             description: `Admission fee from ${student.name} - Receipt: ${receiptNumber}`
           });

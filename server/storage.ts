@@ -349,9 +349,10 @@ export class DrizzleStorage implements IStorage {
 
   async updateSoCenterWallet(id: string, amount: string): Promise<SoCenter> {
     // Add the amount to existing wallet balance, don't replace it
+    const numericAmount = parseFloat(amount);
     const result = await db.update(schema.soCenters)
       .set({ 
-        walletBalance: sql`wallet_balance + ${amount}::numeric`
+        walletBalance: sql`${schema.soCenters.walletBalance} + ${numericAmount}`
       })
       .where(eq(schema.soCenters.id, id))
       .returning();
@@ -420,7 +421,6 @@ export class DrizzleStorage implements IStorage {
       createdAt: schema.students.createdAt,
       qrCode: schema.students.qrCode,
       studentId: schema.students.studentId,
-      email: schema.students.email,
       aadharNumber: schema.students.aadharNumber,
       fatherName: schema.students.fatherName,
       motherName: schema.students.motherName,
@@ -428,14 +428,7 @@ export class DrizzleStorage implements IStorage {
       villageId: schema.students.villageId,
       dateOfBirth: schema.students.dateOfBirth,
       gender: schema.students.gender,
-      religion: schema.students.religion,
-      caste: schema.students.caste,
-      subCaste: schema.students.subCaste,
-      previousEducation: schema.students.previousEducation,
-      previousSchool: schema.students.previousSchool,
-      previousMarks: schema.students.previousMarks,
-      isActive: schema.students.isActive,
-      updatedAt: schema.students.updatedAt
+      isActive: schema.students.isActive
     })
     .from(schema.students)
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
@@ -464,7 +457,6 @@ export class DrizzleStorage implements IStorage {
       createdAt: schema.students.createdAt,
       qrCode: schema.students.qrCode,
       studentId: schema.students.studentId,
-      email: schema.students.email,
       aadharNumber: schema.students.aadharNumber,
       fatherName: schema.students.fatherName,
       motherName: schema.students.motherName,
@@ -472,14 +464,7 @@ export class DrizzleStorage implements IStorage {
       villageId: schema.students.villageId,
       dateOfBirth: schema.students.dateOfBirth,
       gender: schema.students.gender,
-      religion: schema.students.religion,
-      caste: schema.students.caste,
-      subCaste: schema.students.subCaste,
-      previousEducation: schema.students.previousEducation,
-      previousSchool: schema.students.previousSchool,
-      previousMarks: schema.students.previousMarks,
-      isActive: schema.students.isActive,
-      updatedAt: schema.students.updatedAt
+      isActive: schema.students.isActive
     })
     .from(schema.students)
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
@@ -491,7 +476,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateStudent(id: string, updates: Partial<InsertStudent>): Promise<Student> {
     const result = await db.update(schema.students)
-      .set({ ...updates, updatedAt: new Date() })
+      .set(updates)
       .where(eq(schema.students.id, id))
       .returning();
     return result[0];
@@ -499,7 +484,7 @@ export class DrizzleStorage implements IStorage {
 
   async deleteStudent(id: string): Promise<void> {
     await db.update(schema.students)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ isActive: false })
       .where(eq(schema.students.id, id));
   }
 
@@ -799,13 +784,6 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Enhanced Student methods
-
-
-  async deleteStudent(id: string): Promise<void> {
-    await db.update(schema.students)
-      .set({ isActive: false })
-      .where(eq(schema.students.id, id));
-  }
 
   // Enhanced Payment methods
   async getAllPayments(): Promise<Payment[]> {
