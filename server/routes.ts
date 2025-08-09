@@ -2141,65 +2141,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create teacher
+  // Create teacher - Note: Teachers are now created through User Management
   app.post("/api/admin/teachers", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const validation = insertTeacherSchema.extend({
-        subjectIds: z.array(z.string()).min(1, 'At least one subject must be selected'),
-        classIds: z.array(z.string()).min(1, 'At least one class must be assigned'),
-      }).safeParse(req.body);
-
-      if (!validation.success) {
-        return res.status(400).json({ 
-          message: "Invalid teacher data", 
-          errors: validation.error.errors 
-        });
-      }
-
-      const teacher = await teacherStorage.createTeacher(validation.data);
-      res.status(201).json(teacher);
+      // Teachers should be created through the User Management system with role "teacher"
+      res.status(400).json({ 
+        message: "Teachers should be created through User Management with role 'teacher'" 
+      });
     } catch (error) {
-      console.error('Error creating teacher:', error);
-      res.status(500).json({ message: 'Failed to create teacher' });
+      console.error('Error in teacher creation endpoint:', error);
+      res.status(500).json({ message: 'Failed to process request' });
     }
   });
 
-  // Update teacher
+  // Update teacher - Note: Teacher details are now updated through User Management
   app.put("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const validation = insertTeacherSchema.partial().safeParse(req.body);
-
-      if (!validation.success) {
-        return res.status(400).json({ 
-          message: "Invalid teacher data", 
-          errors: validation.error.errors 
-        });
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
       }
-
-      const teacher = await teacherStorage.updateTeacher(req.params.id, validation.data);
-      res.json(teacher);
+      
+      // Teachers should be updated through the User Management system
+      res.status(400).json({ 
+        message: "Teacher details should be updated through User Management" 
+      });
     } catch (error) {
       console.error('Error updating teacher:', error);
       res.status(500).json({ message: 'Failed to update teacher' });
     }
   });
 
-  // Delete teacher
+  // Delete teacher (deactivate user)
   app.delete("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      await teacherStorage.deleteTeacher(req.params.id);
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
+      await storage.deleteUser(req.params.id);
       res.json({ message: 'Teacher deleted successfully' });
     } catch (error) {
       console.error('Error deleting teacher:', error);
@@ -2214,7 +2209,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const subjects = await teacherStorage.getTeacherSubjects(req.params.id);
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
+      // Get teacher subjects from teacher_subjects table
+      const query = sqlQuery`
+        SELECT s.id, s.name, s.code 
+        FROM subjects s 
+        JOIN teacher_subjects ts ON s.id = ts.subject_id 
+        WHERE ts.user_id = ${req.params.id} AND s.is_active = true
+        ORDER BY s.name
+      `;
+      const subjects = await db.execute(query);
       res.json(subjects);
     } catch (error) {
       console.error('Error fetching teacher subjects:', error);
@@ -2229,7 +2238,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const classes = await teacherStorage.getTeacherClasses(req.params.id);
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
+      // Get teacher classes from teacher_classes table
+      const query = sqlQuery`
+        SELECT c.id, c.name, c.level 
+        FROM classes c 
+        JOIN teacher_classes tc ON c.id = tc.class_id 
+        WHERE tc.user_id = ${req.params.id} AND c.is_active = true
+        ORDER BY c.level, c.name
+      `;
+      const classes = await db.execute(query);
       res.json(classes);
     } catch (error) {
       console.error('Error fetching teacher classes:', error);
@@ -2244,7 +2267,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const records = await teacherStorage.getTeacherRecords(req.params.id);
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
+      // Get teacher records from teaching_records table
+      const query = sqlQuery`
+        SELECT tr.*, c.name as class_name, s.name as subject_name, ch.title as chapter_title, t.title as topic_title
+        FROM teaching_records tr
+        LEFT JOIN classes c ON tr.class_id = c.id
+        LEFT JOIN subjects s ON tr.subject_id = s.id
+        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
+        LEFT JOIN topics t ON tr.topic_id = t.id
+        WHERE tr.user_id = ${req.params.id}
+        ORDER BY tr.record_date DESC, tr.created_at DESC
+      `;
+      const records = await db.execute(query);
       res.json(records);
     } catch (error) {
       console.error('Error fetching teacher records:', error);
@@ -2296,13 +2336,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUserById(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
       const { subjectIds } = req.body;
       
       if (!Array.isArray(subjectIds)) {
         return res.status(400).json({ message: 'subjectIds must be an array' });
       }
 
-      await teacherStorage.updateTeacherSubjects(req.params.id, subjectIds);
+      // Delete existing assignments
+      await db.execute(sqlQuery`DELETE FROM teacher_subjects WHERE user_id = ${req.params.id}`);
+      
+      // Insert new assignments
+      if (subjectIds.length > 0) {
+        for (const subjectId of subjectIds) {
+          await db.execute(sqlQuery`
+            INSERT INTO teacher_subjects (user_id, subject_id) 
+            VALUES (${req.params.id}, ${subjectId})
+          `);
+        }
+      }
+      
       res.json({ message: 'Teacher subjects updated successfully' });
     } catch (error) {
       console.error('Error updating teacher subjects:', error);
