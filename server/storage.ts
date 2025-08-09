@@ -1547,23 +1547,27 @@ export class DrizzleStorage implements IStorage {
 
   // Homework Activity methods
   async createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]> {
-    const results = await db.insert(schema.homeworkActivity).values(activities).returning();
+    const results = await db.insert(schema.homeworkActivities).values(activities).returning();
     return results;
   }
 
   async getHomeworkActivities(params: {
     classId?: string;
-    subjectId?: string;
     date?: string;
     soCenterId?: string;
   }): Promise<HomeworkActivity[]> {
-    let query = db.select().from(schema.homeworkActivity);
+    let query = db.select().from(schema.homeworkActivities);
 
-    if (params.subjectId) {
-      query = query.where(eq(schema.homeworkActivity.subjectId, params.subjectId));
+    const conditions = [];
+    if (params.classId) {
+      conditions.push(eq(schema.homeworkActivities.classId, params.classId));
     }
     if (params.date) {
-      query = query.where(eq(schema.homeworkActivity.date, params.date));
+      conditions.push(eq(schema.homeworkActivities.homeworkDate, params.date));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
     }
 
     return await query;

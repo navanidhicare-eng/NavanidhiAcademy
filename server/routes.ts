@@ -1878,10 +1878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate each activity
       const validatedActivities = activities.map(activity => {
-        const validation = insertHomeworkActivitySchema.safeParse({
-          ...activity,
-          recordedBy: req.user?.userId
-        });
+        const validation = insertHomeworkActivitySchema.safeParse(activity);
         
         if (!validation.success) {
           throw new Error(`Invalid activity data: ${validation.error.message}`);
@@ -1900,11 +1897,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/homework-activity", authenticateToken, async (req, res) => {
     try {
-      const { classId, subjectId, date, soCenterId } = req.query;
+      const { classId, date, soCenterId } = req.query;
       
       const activities = await storage.getHomeworkActivities({
         classId: classId as string,
-        subjectId: subjectId as string,
         date: date as string,
         soCenterId: soCenterId as string
       });

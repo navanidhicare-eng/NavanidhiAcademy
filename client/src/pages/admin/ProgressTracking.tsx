@@ -117,7 +117,7 @@ export default function ProgressTracking() {
         return Array.isArray(data) ? data : [];
       }
     },
-    enabled: !!user && !!selectedClass,
+    enabled: !!user,
   });
 
   const { data: tuitionProgress = [] } = useQuery({
@@ -213,10 +213,10 @@ export default function ProgressTracking() {
   };
 
   const submitHomeworkActivity = () => {
-    if (!selectedClass || !selectedSubject || !homeworkDate) {
+    if (!selectedClass || !homeworkDate) {
       toast({
         title: 'Missing Information',
-        description: 'Please select class, subject, and date',
+        description: 'Please select class and date',
         variant: 'destructive',
       });
       return;
@@ -226,8 +226,8 @@ export default function ProgressTracking() {
       .filter(([_, activity]) => activity.status)
       .map(([studentId, activity]) => ({
         studentId,
-        subjectId: selectedSubject,
-        date: homeworkDate,
+        classId: selectedClass,
+        homeworkDate: homeworkDate,
         status: activity.status,
         completionType: activity.completionType,
         reason: activity.reason,
@@ -285,12 +285,15 @@ export default function ProgressTracking() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <School className="h-5 w-5" />
-                School Homework Activity
+                School Homework Activity (Class-based)
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Track overall homework completion status for each student by class (not subject-specific)
+              </p>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Date</Label>
                   <Input
@@ -314,25 +317,10 @@ export default function ProgressTracking() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Subject</Label>
-                  <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredSubjects.map((subject: Subject) => (
-                        <SelectItem key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="flex items-end">
                   <Button 
                     onClick={submitHomeworkActivity}
-                    disabled={homeworkMutation.isPending}
+                    disabled={homeworkMutation.isPending || !selectedClass}
                     className="w-full"
                   >
                     {homeworkMutation.isPending ? 'Saving...' : 'Save Activity'}
@@ -341,7 +329,7 @@ export default function ProgressTracking() {
               </div>
 
               {/* Student List */}
-              {selectedClass && selectedSubject && (
+              {selectedClass && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5" />

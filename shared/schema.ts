@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, integer, timestamp, decimal, pgEnum, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, integer, timestamp, decimal, pgEnum, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -22,6 +22,7 @@ export const topicStatusEnum = pgEnum("topic_status", ["pending", "learned"]);
 export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "commission"]);
 export const maritalStatusEnum = pgEnum("marital_status", ["single", "married", "divorced", "widowed"]);
 export const homeworkStatusEnum = pgEnum("homework_status", ["completed", "not_completed", "not_given"]);
+export const homeworkActivityStatusEnum = pgEnum("homework_activity_status", ["completed", "not_completed", "not_given"]);
 export const completionTypeEnum = pgEnum("completion_type", ["self", "helped_by_so"]);
 
 // Address hierarchy tables
@@ -286,17 +287,19 @@ export const studentCounter = pgTable("student_counter", {
 });
 
 // Homework Activity
-export const homeworkActivity = pgTable("homework_activity", {
+export const homeworkActivities = pgTable("homework_activities", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentId: varchar("student_id").references(() => students.id),
-  subjectId: varchar("subject_id").references(() => subjects.id),
-  date: date("date").notNull(),
-  status: homeworkStatusEnum("status").notNull(),
-  completionType: completionTypeEnum("completion_type"), // Only if status is 'completed'
-  reason: text("reason"), // Only if status is 'not_completed'
-  recordedBy: varchar("recorded_by").references(() => users.id),
+  studentId: varchar("student_id").notNull().references(() => students.id, { onDelete: "cascade" }),
+  classId: varchar("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  homeworkDate: date("homework_date").notNull(),
+  status: homeworkActivityStatusEnum("status").notNull(),
+  completionType: varchar("completion_type", { length: 20 }), // 'self' or 'helped_by_so'
+  reason: text("reason"), // reason when status is 'not_completed'
   createdAt: timestamp("created_at").defaultNow(),
-});
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  uniqueStudentDate: unique().on(table.studentId, table.homeworkDate),
+}));
 
 // Tuition Activity Progress
 export const tuitionProgress = pgTable("tuition_progress", {
@@ -398,9 +401,10 @@ export const insertTopicProgressSchema = createInsertSchema(topicProgress).omit(
   updatedAt: true,
 });
 
-export const insertHomeworkActivitySchema = createInsertSchema(homeworkActivity).omit({
+export const insertHomeworkActivitySchema = createInsertSchema(homeworkActivities).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertTuitionProgressSchema = createInsertSchema(tuitionProgress).omit({
@@ -479,7 +483,7 @@ export type WalletTransaction = typeof walletTransactions.$inferSelect;
 export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
 export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
-export type HomeworkActivity = typeof homeworkActivity.$inferSelect;
+export type HomeworkActivity = typeof homeworkActivities.$inferSelect;
 export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema>;
 export type TuitionProgress = typeof tuitionProgress.$inferSelect;
 export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
