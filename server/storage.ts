@@ -451,7 +451,11 @@ export class DrizzleStorage implements IStorage {
       villageId: schema.students.villageId,
       dateOfBirth: schema.students.dateOfBirth,
       gender: schema.students.gender,
-      isActive: schema.students.isActive
+      isActive: schema.students.isActive,
+      paymentStatus: schema.students.paymentStatus,
+      totalFeeAmount: schema.students.totalFeeAmount,
+      paidAmount: schema.students.paidAmount,
+      pendingAmount: schema.students.pendingAmount
     })
     .from(schema.students)
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
@@ -487,7 +491,11 @@ export class DrizzleStorage implements IStorage {
       villageId: schema.students.villageId,
       dateOfBirth: schema.students.dateOfBirth,
       gender: schema.students.gender,
-      isActive: schema.students.isActive
+      isActive: schema.students.isActive,
+      paymentStatus: schema.students.paymentStatus,
+      totalFeeAmount: schema.students.totalFeeAmount,
+      paidAmount: schema.students.paidAmount,
+      pendingAmount: schema.students.pendingAmount
     })
     .from(schema.students)
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
