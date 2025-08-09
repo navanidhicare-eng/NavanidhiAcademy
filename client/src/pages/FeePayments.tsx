@@ -46,6 +46,7 @@ interface PaymentHistory {
 export function FeePayments() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [receiptNumber, setReceiptNumber] = useState("");
@@ -58,11 +59,10 @@ export function FeePayments() {
   // Get user context
   const { user } = useAuth();
 
-  // Fetch students for dropdown
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
+  // Fetch all students for this SO center
+  const { data: allStudents = [], isLoading: studentsLoading } = useQuery({
     queryKey: ['/api/students', user?.id],
     queryFn: async () => {
-      // For SO center users, get their actual SO center ID
       const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
       console.log('Fetching students for fee payments SO Center:', soCenterId);
       const response = await fetch('/api/students?soCenterId=' + soCenterId, {
@@ -81,6 +81,12 @@ export function FeePayments() {
     enabled: !!user,
     refetchOnWindowFocus: false,
   });
+
+  // Get unique classes from students
+  const availableClasses = Array.from(new Set(allStudents.map((student: Student) => student.className))).filter(Boolean);
+
+  // Filter students by selected class
+  const students = selectedClass ? allStudents.filter((student: Student) => student.className === selectedClass) : [];
 
   // Fetch class fees
   const { data: classFees = [] } = useQuery({
@@ -246,49 +252,75 @@ Thank you for your payment!
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Student Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Class and Student Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>Select Class</Label>
+                <Select 
+                  value={selectedClass}
+                  onValueChange={(value) => {
+                    setSelectedClass(value);
+                    setSelectedStudent(null); // Reset student selection
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a class first" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableClasses.map((className) => (
+                      <SelectItem key={className} value={className}>
+                        {className}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!studentsLoading && availableClasses.length > 0 && (
+                  <div className="text-sm text-blue-600 mt-2">
+                    {availableClasses.length} classes available
+                  </div>
+                )}
+              </div>
+
               <div>
                 <Label>Select Student</Label>
                 <Select 
-                  disabled={studentsLoading || students.length === 0}
+                  disabled={!selectedClass || studentsLoading || students.length === 0}
                   onValueChange={(studentId) => {
                     const student = students.find((s: Student) => s.id === studentId);
-                    setSelectedStudent(student);
-                    setSelectedFeeType(student?.courseType || 'monthly');
+                    setSelectedStudent(student || null);
+                    // Automatically set fee type based on student's registration
+                    if (student) {
+                      setSelectedFeeType(student.courseType);
+                    }
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
-                      studentsLoading 
+                      !selectedClass 
+                        ? "Select class first" 
+                        : studentsLoading 
                         ? "Loading students..." 
                         : students.length === 0 
-                        ? "No students found for this SO center" 
+                        ? "No students in this class" 
                         : "Choose a student"
                     } />
                   </SelectTrigger>
                   <SelectContent>
                     {students.map((student: Student) => (
                       <SelectItem key={student.id} value={student.id}>
-                        {student.name} ({student.studentId}) - {student.className || student.classId}
+                        {student.name} ({student.studentId}) - {student.courseType.toUpperCase()}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {studentsLoading && (
-                  <div className="text-sm text-blue-600 mt-2 flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    Loading students from Supabase...
-                  </div>
-                )}
-                {!studentsLoading && students.length > 0 && (
+                {selectedClass && !studentsLoading && students.length > 0 && (
                   <div className="text-sm text-green-600 mt-2">
-                    ✓ {students.length} students loaded from SO center database
+                    ✓ {students.length} students in {selectedClass}
                   </div>
                 )}
-                {!studentsLoading && students.length === 0 && (
+                {selectedClass && !studentsLoading && students.length === 0 && (
                   <div className="text-sm text-orange-600 mt-2">
-                    No students found for this SO center. Please register students first.
+                    No students found in {selectedClass}
                   </div>
                 )}
               </div>
@@ -296,18 +328,23 @@ Thank you for your payment!
               <div>
                 <Label>Fee Type</Label>
                 <Select 
-                  value={selectedFeeType} 
-                  onValueChange={(value: 'monthly' | 'yearly') => setSelectedFeeType(value)}
+                  value={selectedFeeType}
                   disabled={!selectedStudent}
+                  onValueChange={(value: 'monthly' | 'yearly') => setSelectedFeeType(value)}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Auto-filled from student registration" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly Fee</SelectItem>
                     <SelectItem value="yearly">Yearly Fee</SelectItem>
                   </SelectContent>
                 </Select>
+                {selectedStudent && (
+                  <div className="text-sm text-green-600 mt-2">
+                    ✓ Student registered for: {selectedStudent.courseType.toUpperCase()} fee
+                  </div>
+                )}
               </div>
             </div>
 
