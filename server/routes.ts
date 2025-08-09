@@ -440,10 +440,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.status(201).json({
-        student,
-        message: admissionFeePaid ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!'
-      });
+      const response = {
+        student: {
+          ...student,
+          studentId: student.studentId || student.id,
+          id: student.id
+        },
+        message: admissionFeePaid ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
+        admissionFeePaid: admissionFeePaid || false,
+        transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
+        amount: null
+      };
+      
+      // Add amount if fee was processed
+      if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
+        try {
+          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
+          if (classFee) {
+            response.amount = parseFloat(classFee.admissionFee);
+          }
+        } catch (error) {
+          console.error('Error getting class fee for response:', error);
+        }
+      }
+      
+      console.log('✅ Registration complete, sending response:', response);
+      res.status(201).json(response);
     } catch (error: any) {
       console.error('❌ Comprehensive student registration error:', {
         error: error.message,

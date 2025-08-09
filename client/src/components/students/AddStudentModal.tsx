@@ -253,28 +253,51 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   });
 
   const createStudentMutation = useMutation({
-    mutationFn: (data: AddStudentFormData) => {
+    mutationFn: async (data: AddStudentFormData) => {
       const { siblings, admissionFeePaid, receiptNumber, ...studentData } = data;
-      return apiRequest('POST', '/api/students/comprehensive', {
-        studentData,
-        siblings,
-        admissionFeePaid,
-        receiptNumber
-      });
+      console.log('Sending registration request...');
+      try {
+        const response = await apiRequest('POST', '/api/students/comprehensive', {
+          studentData,
+          siblings,
+          admissionFeePaid,
+          receiptNumber
+        });
+        console.log('Registration response:', response.status, response.statusText);
+        if (!response.ok) {
+          throw new Error(`Registration failed: ${response.status} ${response.statusText}`);
+        }
+        return response;
+      } catch (error) {
+        console.error('Registration error:', error);
+        throw error;
+      }
     },
     onSuccess: async (response: Response) => {
-      const result = await response.json();
-      setRegistrationResult({
-        studentId: result.student?.studentId || result.student?.id,
-        name: result.student?.name || form.getValues('name'),
-        transactionId: result.transactionId,
-        admissionFeePaid: result.admissionFeePaid || form.getValues('admissionFeePaid'),
-        amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
-      });
-      setShowSuccessScreen(true);
-      queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      console.log('Processing successful response...');
+      try {
+        const result = await response.json();
+        console.log('Registration result:', result);
+        setRegistrationResult({
+          studentId: result.student?.studentId || result.student?.id,
+          name: result.student?.name || form.getValues('name'),
+          transactionId: result.transactionId,
+          admissionFeePaid: result.admissionFeePaid || form.getValues('admissionFeePaid'),
+          amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
+        });
+        setShowSuccessScreen(true);
+        queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+      } catch (error) {
+        console.error('Error processing success response:', error);
+        toast({
+          title: 'Registration Error',
+          description: 'Registration may have succeeded but there was an error displaying the result.',
+          variant: 'destructive',
+        });
+      }
     },
     onError: (error: any) => {
+      console.error('Registration failed:', error);
       toast({
         title: 'Registration Failed',
         description: error.message || 'Failed to register student. Please try again.',
