@@ -225,9 +225,9 @@ Thank you for your payment!
 
     const encodedText = encodeURIComponent(invoiceText);
     
-    // Get phone number from invoice data or student data
+    // Get phone number from invoice data or student data - use father's mobile
     const student = students.find(s => s.studentId === invoiceData.studentId);
-    const phoneNumber = student?.parentPhone;
+    const phoneNumber = student?.fatherMobile || student?.parentPhone;
     
     if (phoneNumber) {
       const cleanPhone = phoneNumber.replace(/\D/g, '');

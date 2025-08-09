@@ -438,6 +438,7 @@ export class DrizzleStorage implements IStorage {
       id: schema.students.id,
       name: schema.students.name,
       parentPhone: schema.students.parentPhone,
+      fatherMobile: schema.students.fatherMobile,
       classId: schema.students.classId,
       className: schema.classes.name,
       soCenterId: schema.students.soCenterId,
@@ -478,6 +479,7 @@ export class DrizzleStorage implements IStorage {
       id: schema.students.id,
       name: schema.students.name,
       parentPhone: schema.students.parentPhone,
+      fatherMobile: schema.students.fatherMobile,
       classId: schema.students.classId,
       className: schema.classes.name,
       soCenterId: schema.students.soCenterId,
@@ -711,6 +713,7 @@ export class DrizzleStorage implements IStorage {
         receiptNumber,
         feeType,
         parentPhone: updatedStudent.students.parentPhone,
+        fatherMobile: updatedStudent.students.fatherMobile,
         newPaidAmount,
         newPendingAmount,
         totalFeeAmount
