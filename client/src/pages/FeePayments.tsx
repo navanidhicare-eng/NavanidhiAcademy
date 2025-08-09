@@ -327,24 +327,20 @@ Thank you for your payment!
 
               <div>
                 <Label>Fee Type</Label>
-                <Select 
-                  value={selectedFeeType}
-                  disabled={!selectedStudent}
-                  onValueChange={(value: 'monthly' | 'yearly') => setSelectedFeeType(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Auto-filled from student registration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly Fee</SelectItem>
-                    <SelectItem value="yearly">Yearly Fee</SelectItem>
-                  </SelectContent>
-                </Select>
-                {selectedStudent && (
-                  <div className="text-sm text-green-600 mt-2">
-                    ✓ Student registered for: {selectedStudent.courseType.toUpperCase()} fee
-                  </div>
-                )}
+                <div className="p-3 border rounded-md bg-gray-50">
+                  {selectedStudent ? (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {selectedStudent.courseType.charAt(0).toUpperCase() + selectedStudent.courseType.slice(1)} Fee
+                      </span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                        Registered Type
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Select student to see fee type</span>
+                  )}
+                </div>
               </div>
             </div>
 
