@@ -136,6 +136,15 @@ export default function ProgressTracking() {
   );
   const classStudents = (students as Student[]).filter((s: Student) => s.classId === selectedClass);
   
+  // Helper function to check if topic is completed
+  const isTopicCompleted = (studentId: string, topicId: string) => {
+    return (tuitionProgress as TuitionProgress[]).some((progress: TuitionProgress) => 
+      progress.studentId === studentId && 
+      progress.topicId === topicId && 
+      progress.status === 'learned'
+    );
+  };
+  
   // Filter students based on status filter
   const filteredStudents = classStudents.filter((student: Student) => {
     if (statusFilter === 'all') return true;
@@ -256,14 +265,6 @@ export default function ProgressTracking() {
       status: 'learned',
       updatedBy: user?.id || '',
     });
-  };
-
-  const isTopicCompleted = (studentId: string, topicId: string) => {
-    return (tuitionProgress as TuitionProgress[]).some((progress: TuitionProgress) => 
-      progress.studentId === studentId && 
-      progress.topicId === topicId && 
-      progress.status === 'learned'
-    );
   };
 
   return (
