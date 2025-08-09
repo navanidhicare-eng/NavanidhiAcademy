@@ -43,7 +43,16 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
   const [toDate, setToDate] = useState('');
 
   const { data: records = [], isLoading, refetch } = useQuery<TeacherRecord[]>({
-    queryKey: ['/api/admin/teachers', teacherId, 'records', { fromDate, toDate }],
+    queryKey: ['/api/admin/teachers', teacherId, 'records', fromDate, toDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (fromDate) params.append('fromDate', fromDate);
+      if (toDate) params.append('toDate', toDate);
+      
+      const url = `/api/admin/teachers/${teacherId}/records${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await apiRequest('GET', url);
+      return response;
+    },
     enabled: isOpen && !!teacherId,
   });
 

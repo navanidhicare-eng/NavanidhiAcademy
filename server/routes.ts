@@ -13,7 +13,7 @@ declare global {
   }
 }
 import { createServer, type Server } from "http";
-import { storage, db } from "./storage";
+import { storage, db, getUsersByRole, executeRawQuery } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import { sql as sqlQuery } from "drizzle-orm";
@@ -2392,55 +2392,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { teacherId } = req.params;
       const { fromDate, toDate } = req.query;
       
-      // Build base query
-      let baseQuery = sqlQuery`
-        SELECT 
-          tr.*,
-          c.name as className,
-          s.name as subjectName,
-          ch.title as chapterTitle
-        FROM teacher_daily_records tr
-        LEFT JOIN classes c ON tr.class_id = c.id
-        LEFT JOIN subjects s ON tr.subject_id = s.id
-        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
-        WHERE tr.teacher_id = ${teacherId}
-      `;
+      console.log('Fetching records for teacher:', teacherId, 'with dates:', { fromDate, toDate });
       
-      // Build query with conditions
-      let queryConditions = [sqlQuery`tr.teacher_id = ${teacherId}`];
-      
-      if (fromDate) {
-        queryConditions.push(sqlQuery`tr.record_date >= ${fromDate}`);
-      }
-      if (toDate) {
-        queryConditions.push(sqlQuery`tr.record_date <= ${toDate}`);
-      }
-      
-      const finalQuery = sqlQuery`
+      // Build the query with proper parameter substitution
+      let queryString = `
         SELECT 
           tr.id,
-          tr.teacher_id as "teacherId",
-          tr.record_date as "recordDate",
-          tr.class_id as "classId",
-          tr.subject_id as "subjectId",
-          tr.chapter_id as "chapterId",
-          tr.teaching_duration as "teachingDuration",
+          tr.teacher_id,
+          tr.record_date,
+          tr.class_id,
+          tr.subject_id,
+          tr.chapter_id,
+          tr.teaching_duration,
           tr.notes,
-          tr.created_at as "createdAt",
-          c.name as "className",
-          s.name as "subjectName",
-          ch.title as "chapterTitle"
+          tr.created_at,
+          c.name as className,
+          s.name as subjectName,
+          ch.name as chapterTitle
         FROM teacher_daily_records tr
         LEFT JOIN classes c ON tr.class_id = c.id
         LEFT JOIN subjects s ON tr.subject_id = s.id
         LEFT JOIN chapters ch ON tr.chapter_id = ch.id
-        WHERE ${queryConditions.length > 0 ? queryConditions.reduce((acc, condition, index) => 
-          index === 0 ? condition : sqlQuery`${acc} AND ${condition}`
-        ) : sqlQuery`1=1`}
-        ORDER BY tr.record_date DESC, tr.created_at DESC
+        WHERE tr.teacher_id = $1
       `;
       
-      const records = await db.execute(finalQuery);
+      const params = [teacherId];
+      
+      if (fromDate) {
+        queryString += ` AND tr.record_date >= $${params.length + 1}`;
+        params.push(fromDate);
+      }
+      
+      if (toDate) {
+        queryString += ` AND tr.record_date <= $${params.length + 1}`;
+        params.push(toDate);
+      }
+      
+      queryString += ` ORDER BY tr.record_date DESC, tr.created_at DESC`;
+      
+      console.log('Executing query:', queryString);
+      console.log('With params:', params);
+      
+      const result = await executeRawQuery(queryString, params);
+      console.log('Query result:', result);
+      
+      // Transform result to match expected format
+      const records = result.map((row: any) => ({
+        id: row.id,
+        teacherId: row.teacher_id,
+        recordDate: row.record_date,
+        classId: row.class_id,
+        subjectId: row.subject_id,
+        chapterId: row.chapter_id,
+        teachingDuration: row.teaching_duration,
+        notes: row.notes,
+        createdAt: row.created_at,
+        className: row.classname,
+        subjectName: row.subjectname,
+        chapterTitle: row.chaptertitle
+      }));
+      
       res.json(records);
     } catch (error: any) {
       console.error('Error fetching teacher records:', error);

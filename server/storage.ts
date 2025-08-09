@@ -51,6 +51,17 @@ async function getUsersByRole(role: string) {
   }
 }
 
+// Add method to execute raw queries
+async function executeRawQuery(query: string, params: any[] = []) {
+  try {
+    const result = await sql(query, params);
+    return result;
+  } catch (error) {
+    console.error('Error executing raw query:', error);
+    throw error;
+  }
+}
+
 // Initialize database with default data
 async function initializeDatabase() {
   try {
@@ -1953,3 +1964,8 @@ export class DrizzleStorage implements IStorage {
 }
 
 export const storage = new DrizzleStorage();
+
+// Initialize the database
+initializeDatabase();
+
+export { getUsersByRole, executeRawQuery };
