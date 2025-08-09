@@ -288,7 +288,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       landmark: '',
       classId: '',
       courseType: 'monthly' as const,
-      soCenterId: user?.role === 'so_center' ? user.id || '' : '',
+      soCenterId: user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : '',
       parentPhone: '',
       parentName: '',
       siblings: [],

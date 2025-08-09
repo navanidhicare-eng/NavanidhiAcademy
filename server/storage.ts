@@ -108,7 +108,7 @@ export interface IStorage {
   getSoCenter(id: string): Promise<SoCenter | undefined>;
   getAllSoCenters(): Promise<SoCenter[]>;
   createSoCenter(center: InsertSoCenter): Promise<SoCenter>;
-  updateSoCenterWallet(id: string, amount: string): Promise<SoCenter>;
+  updateSoCenterWallet(id: string, amount: number): Promise<SoCenter>;
 
   // Academic structure methods
   getAllClasses(): Promise<Class[]>;
@@ -347,12 +347,15 @@ export class DrizzleStorage implements IStorage {
     });
   }
 
-  async updateSoCenterWallet(id: string, amount: string): Promise<SoCenter> {
+  async updateSoCenterWallet(id: string, amount: number): Promise<SoCenter> {
     // Add the amount to existing wallet balance, don't replace it
-    const numericAmount = parseFloat(amount);
+    const numericAmount = Number(amount);
+    if (isNaN(numericAmount)) {
+      throw new Error(`Invalid amount for wallet update: ${amount}`);
+    }
     const result = await db.update(schema.soCenters)
       .set({ 
-        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}`
+        walletBalance: sql`COALESCE(wallet_balance, 0) + ${numericAmount}::numeric`
       })
       .where(eq(schema.soCenters.id, id))
       .returning();

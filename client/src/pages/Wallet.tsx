@@ -8,12 +8,12 @@ import { Wallet as WalletIcon, ArrowDown, ArrowUp } from 'lucide-react';
 export default function Wallet() {
   const { user } = useAuth();
 
-  // Fetch wallet balance and transactions
+  // Fetch wallet balance and transactions for Pothanapudi SO Center
   const { data: walletData } = useQuery({
-    queryKey: ['/api/wallet', user?.id],
+    queryKey: ['/api/wallet', '84bf6d19-8830-4abd-8374-2c29faecaa24'],
     queryFn: async () => {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/wallet/${user?.id}`, {
+      const response = await fetch(`/api/wallet/84bf6d19-8830-4abd-8374-2c29faecaa24`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

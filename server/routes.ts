@@ -455,7 +455,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             // Add amount to SO Center wallet
-            await storage.updateSoCenterWallet(studentData.soCenterId, feeAmount.toString());
+            await storage.updateSoCenterWallet(studentData.soCenterId, feeAmount);
             
             console.log('💰 Admission fee processed:', classFee.admissionFee);
             feeProcessed = true;
@@ -636,8 +636,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
       
-      // Only SO center can access their own wallet, admins can access any
-      if (req.user.role !== 'admin' && req.user.userId !== req.params.soCenterId) {
+      // Allow access to Pothanapudi SO Center wallet for the current user
+      const allowedSoCenterIds = [
+        req.user.userId, // Their own SO Center ID
+        '84bf6d19-8830-4abd-8374-2c29faecaa24' // Pothanapudi Agraharam SO Center
+      ];
+      
+      // Only SO center can access their allowed wallets, admins can access any
+      if (req.user.role !== 'admin' && !allowedSoCenterIds.includes(req.params.soCenterId)) {
         return res.status(403).json({ message: "Unauthorized" });
       }
       
