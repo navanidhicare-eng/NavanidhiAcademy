@@ -51,6 +51,7 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
       
       const url = `/api/admin/teachers/${teacherId}/records${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiRequest('GET', url);
+      console.log('Teacher records API response:', response);
       return response;
     },
     enabled: isOpen && !!teacherId,
@@ -61,7 +62,7 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
   };
 
   // Calculate total hours taught
-  const totalHours = records.reduce((sum, record) => sum + (record.teachingDuration || 0), 0);
+  const totalHours = Array.isArray(records) ? records.reduce((sum, record) => sum + (record.teachingDuration || 0), 0) : 0;
 
   const clearDateFilter = () => {
     setFromDate('');
@@ -157,7 +158,7 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
                 </Button>
               </div>
               <div className="text-right">
-                <div className="text-lg font-bold text-gray-700 dark:text-gray-300">{records.length}</div>
+                <div className="text-lg font-bold text-gray-700 dark:text-gray-300">{Array.isArray(records) ? records.length : 0}</div>
                 <div className="text-xs text-gray-500 uppercase tracking-wide">Records Found</div>
               </div>
             </div>
@@ -173,7 +174,7 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
                 </div>
                 <p className="text-gray-500 mt-4 font-medium">Loading teaching records...</p>
               </div>
-            ) : records.length === 0 ? (
+            ) : !Array.isArray(records) || records.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
                 <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
                   <BookOpen className="h-8 w-8 text-gray-400" />
@@ -188,7 +189,7 @@ export function TeacherRecordsModal({ isOpen, onClose, teacherId, teacherName }:
               </div>
             ) : (
               <div className="space-y-3">
-                {records.map((record, index) => (
+                {Array.isArray(records) && records.map((record, index) => (
                   <div key={record.id} className="group">
                     <Card className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500 hover:border-l-blue-600 bg-gradient-to-r from-white to-blue-50/30">
                       <CardContent className="p-4">
