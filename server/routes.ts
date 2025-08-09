@@ -2376,7 +2376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Teaching record created successfully:', newRecord);
       res.status(201).json({ message: 'Teaching record added successfully', record: newRecord });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding teaching record:', error);
       res.status(500).json({ message: 'Failed to add teaching record', error: error.message });
     }

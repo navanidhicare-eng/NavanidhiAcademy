@@ -603,8 +603,6 @@ export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type HomeworkActivity = typeof homeworkActivities.$inferSelect;
 export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema>;
-export type TeacherDailyRecord = typeof teacherDailyRecords.$inferSelect;
-export type InsertTeacherDailyRecord = z.infer<typeof insertTeacherDailyRecordSchema>;
 export type TuitionProgress = typeof tuitionProgress.$inferSelect;
 export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
 
