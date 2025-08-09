@@ -36,26 +36,26 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
   });
 
   // Fetch required data
-  const { data: teachers = [] } = useQuery({
+  const { data: teachers = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/teachers'],
   });
 
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [] } = useQuery<any[]>({
     queryKey: ['/api/classes'],
   });
 
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<any[]>({
     queryKey: ['/api/subjects'],
   });
 
   // Fetch chapters based on selected subject
-  const { data: chapters = [] } = useQuery({
+  const { data: chapters = [] } = useQuery<any[]>({
     queryKey: ['/api/chapters', selectedSubject],
     enabled: !!selectedSubject,
   });
 
   // Fetch topics based on selected chapter
-  const { data: topics = [] } = useQuery({
+  const { data: topics = [] } = useQuery<any[]>({
     queryKey: ['/api/topics', selectedChapter],
     enabled: !!selectedChapter,
   });

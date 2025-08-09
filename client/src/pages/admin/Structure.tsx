@@ -44,7 +44,7 @@ export default function AdminStructure() {
     queryKey: ['/api/classes'],
   });
 
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/subjects'],
   });
 
