@@ -65,6 +65,7 @@ export default function ProgressTracking() {
   const [activeTab, setActiveTab] = useState('homework');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedChapter, setSelectedChapter] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
   const [homeworkDate, setHomeworkDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -129,7 +130,7 @@ export default function ProgressTracking() {
   const filteredSubjects = (subjects as Subject[]).filter((s: Subject) => s.classId === selectedClass);
   const filteredChapters = (chapters as Chapter[]).filter((c: Chapter) => c.subjectId === selectedSubject);
   const filteredTopics = (topics as Topic[]).filter((t: Topic) => 
-    filteredChapters.some((c: Chapter) => c.id === t.chapterId)
+    selectedChapter ? t.chapterId === selectedChapter : filteredChapters.some((c: Chapter) => c.id === t.chapterId)
   );
   const classStudents = (students as Student[]).filter((s: Student) => s.classId === selectedClass);
 
@@ -244,7 +245,7 @@ export default function ProgressTracking() {
       studentId,
       topicId,
       status: 'learned',
-      completedDate: new Date().toISOString(),
+      updatedBy: user?.id || '',
     });
   };
 
@@ -438,10 +439,15 @@ export default function ProgressTracking() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Class</Label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <Select value={selectedClass} onValueChange={(value) => {
+                    setSelectedClass(value);
+                    setSelectedSubject('');
+                    setSelectedChapter('');
+                    setSelectedTopic('');
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Class" />
                     </SelectTrigger>
@@ -456,7 +462,11 @@ export default function ProgressTracking() {
                 </div>
                 <div className="space-y-2">
                   <Label>Subject</Label>
-                  <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <Select value={selectedSubject} onValueChange={(value) => {
+                    setSelectedSubject(value);
+                    setSelectedChapter('');
+                    setSelectedTopic('');
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Subject" />
                     </SelectTrigger>
@@ -464,6 +474,24 @@ export default function ProgressTracking() {
                       {filteredSubjects.map((subject: Subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
                           {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Chapter</Label>
+                  <Select value={selectedChapter} onValueChange={(value) => {
+                    setSelectedChapter(value);
+                    setSelectedTopic('');
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Chapter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredChapters.map((chapter: Chapter) => (
+                        <SelectItem key={chapter.id} value={chapter.id}>
+                          {chapter.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -495,7 +523,7 @@ export default function ProgressTracking() {
               </div>
 
               {/* Topic Progress Matrix */}
-              {selectedClass && selectedSubject && selectedTopic && (
+              {selectedClass && selectedSubject && selectedChapter && selectedTopic && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">
