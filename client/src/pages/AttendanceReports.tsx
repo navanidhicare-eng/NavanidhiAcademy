@@ -151,7 +151,22 @@ export default function AttendanceReports() {
   // Fetch monthly attendance report data
   const { data: monthlyReportData } = useQuery({
     queryKey: ['/api/attendance/monthly-report', selectedMonth, selectedClass],
-    enabled: !!selectedMonth && !!selectedClass,
+    queryFn: async () => {
+      const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+      const params = new URLSearchParams();
+      if (soCenterId) params.append('soCenterId', soCenterId);
+      if (selectedMonth) params.append('month', selectedMonth);
+      if (selectedClass) params.append('classId', selectedClass);
+      
+      const response = await fetch(`/api/attendance/monthly-report?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch monthly report');
+      return await response.json();
+    },
+    enabled: !!selectedMonth && !!selectedClass && !!user,
     staleTime: 30000,
   });
 
