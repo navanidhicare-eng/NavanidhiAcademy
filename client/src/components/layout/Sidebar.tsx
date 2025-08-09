@@ -24,6 +24,8 @@ import {
   FileCheck,
   MapPin,
   Receipt,
+  Calendar,
+  BarChart3,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -72,9 +74,10 @@ export function Sidebar({ className }: SidebarProps) {
         return [
           ...baseItems,
           { icon: Users, label: 'Students', href: '/students' },
-
           { icon: Receipt, label: 'Fee Payments', href: '/fee-payments' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
+          { icon: Calendar, label: 'Attendance', href: '/attendance' },
+          { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
         ];
       
@@ -83,6 +86,8 @@ export function Sidebar({ className }: SidebarProps) {
           ...baseItems,
           { icon: Users, label: 'Students', href: '/students' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
+          { icon: Calendar, label: 'Attendance', href: '/attendance' },
+          { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
         ];
       
       case 'academic_admin':
