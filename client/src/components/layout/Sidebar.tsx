@@ -77,7 +77,7 @@ export function Sidebar({ className }: SidebarProps) {
           ...baseItems,
           { icon: Users, label: 'Students', href: '/students' },
           { icon: Receipt, label: 'Fee Payments', href: '/fee-payments' },
-          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
+          { icon: TrendingUp, label: 'Progress Tracking', href: '/admin/progress-tracking' },
           { icon: Calendar, label: 'Attendance', href: '/attendance' },
           { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
