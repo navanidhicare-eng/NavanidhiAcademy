@@ -40,11 +40,16 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
 
   // Filter students based on search and class filter
   const filteredStudents = (students || []).filter((student: any) => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.parentPhone.includes(searchTerm);
-    const matchesClass = classFilter === 'all' || student.classId.toLowerCase().includes(classFilter.replace('-', ' '));
+    const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         student.parentPhone?.includes(searchTerm);
+    const matchesClass = classFilter === 'all' || 
+                        student.classId?.toLowerCase().includes(classFilter.replace('-', ' ')) ||
+                        student.className?.toLowerCase().includes(classFilter.replace('-', ' '));
     return matchesSearch && matchesClass;
   });
+
+  console.log('Students received:', students);
+  console.log('Filtered students:', filteredStudents);
 
   // Mock additional data for students that might not come from API
   const displayStudents = filteredStudents.map((student: any) => ({

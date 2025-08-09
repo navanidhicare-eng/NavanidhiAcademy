@@ -10,23 +10,26 @@ export default function Students() {
   const { user } = useAuth();
 
   const { data: students = [], isLoading } = useQuery({
-    queryKey: ['/api/students'],
+    queryKey: ['/api/students', user?.id],
     queryFn: async () => {
       // For SO center users, get their actual SO center ID
       const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+      console.log('Fetching students for SO Center:', soCenterId);
       const response = await fetch('/api/students?soCenterId=' + soCenterId, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
+      console.log('Response status:', response.status);
       if (!response.ok) {
         throw new Error('Failed to fetch students');
       }
       const data = await response.json();
-      console.log('Fetched students:', data);
+      console.log('Raw API response:', data);
       return Array.isArray(data) ? data : [];
     },
     enabled: !!user,
+    refetchOnWindowFocus: false,
   });
 
   return (
