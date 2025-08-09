@@ -478,7 +478,8 @@ export default function AdminTeachers() {
                 Assign Subjects
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {Array.isArray(allSubjects) ? allSubjects.map((subject: any) => (
+                {console.log('allSubjects:', allSubjects)}
+                {Array.isArray(allSubjects) && allSubjects.length > 0 ? allSubjects.map((subject: any) => (
                   <div key={subject.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`subject-${subject.id}`}
@@ -506,7 +507,8 @@ export default function AdminTeachers() {
                 Assign Classes
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
-                {Array.isArray(allClasses) ? allClasses.map((classItem: any) => (
+                {console.log('allClasses:', allClasses)}
+                {Array.isArray(allClasses) && allClasses.length > 0 ? allClasses.map((classItem: any) => (
                   <div key={classItem.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`class-${classItem.id}`}

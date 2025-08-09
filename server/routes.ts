@@ -1494,6 +1494,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Classes CRUD
+  app.get("/api/admin/classes", authenticateToken, async (req, res) => {
+    try {
+      const classes = await storage.getAllClasses();
+      res.json(classes);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      res.status(500).json({ message: 'Failed to fetch classes' });
+    }
+  });
+
   app.post("/api/admin/classes", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
@@ -1532,6 +1542,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting class:', error);
       res.status(500).json({ message: 'Failed to delete class' });
+    }
+  });
+
+  // Academic data routes for assignments
+  app.get("/api/admin/academic/subjects", authenticateToken, async (req, res) => {
+    try {
+      const subjects = await storage.getAllSubjects();
+      res.json(subjects);
+    } catch (error) {
+      console.error('Error fetching subjects:', error);
+      res.status(500).json({ message: 'Failed to fetch subjects' });
+    }
+  });
+
+  app.get("/api/admin/academic/classes", authenticateToken, async (req, res) => {
+    try {
+      const classes = await storage.getAllClasses();
+      res.json(classes);
+    } catch (error) {
+      console.error('Error fetching classes:', error);
+      res.status(500).json({ message: 'Failed to fetch classes' });
     }
   });
 
