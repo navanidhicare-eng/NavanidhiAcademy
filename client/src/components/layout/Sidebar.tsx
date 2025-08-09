@@ -27,6 +27,7 @@ import {
   Calendar,
   BarChart3,
   Settings,
+  Package,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -66,6 +67,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: DollarSign, label: 'Expenses & Salary', href: '/admin/expenses' },
           { icon: BookOpen, label: 'Academic Management', href: '/admin/academics' },
           { icon: Presentation, label: 'Teacher Management', href: '/admin/teachers' },
+          { icon: Package, label: 'Products', href: '/admin/products' },
           { icon: ClipboardCheck, label: 'Attendance Monitoring', href: '/admin/attendance' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/admin/progress-tracking' },
           { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },

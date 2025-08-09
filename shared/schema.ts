@@ -233,10 +233,68 @@ export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
+  requirements: text("requirements"), // New requirements field
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   commissionPercentage: decimal("commission_percentage", { precision: 5, scale: 2 }).default("0"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Product Orders (SO purchases)
+export const productOrders = pgTable("product_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  receiptNumber: text("receipt_number").notNull(),
+  commissionAmount: decimal("commission_amount", { precision: 10, scale: 2 }).notNull(),
+  orderStatus: text("order_status").default("completed"), // completed, pending, cancelled
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// SO Commission Wallet
+export const commissionWallets = pgTable("commission_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull().unique(),
+  totalEarned: decimal("total_earned", { precision: 10, scale: 2 }).default("0"),
+  availableBalance: decimal("available_balance", { precision: 10, scale: 2 }).default("0"),
+  totalWithdrawn: decimal("total_withdrawn", { precision: 10, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Commission Transactions
+export const commissionTransactions = pgTable("commission_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  commissionWalletId: varchar("commission_wallet_id").references(() => commissionWallets.id).notNull(),
+  productOrderId: varchar("product_order_id").references(() => productOrders.id),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  type: text("type").notNull(), // "earned", "withdrawn"
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Withdrawal Requests
+export const withdrawalRequests = pgTable("withdrawal_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  commissionWalletId: varchar("commission_wallet_id").references(() => commissionWallets.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").default("pending"), // pending, approved, rejected
+  requestedAt: timestamp("requested_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+  processedBy: varchar("processed_by").references(() => users.id),
+  notes: text("notes"),
+});
+
+// System Settings for withdrawal minimums
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 // Nearby Schools

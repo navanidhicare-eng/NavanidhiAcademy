@@ -39,6 +39,12 @@ import {
   insertAttendanceSchema,
   insertHomeworkActivitySchema,
   insertTuitionProgressSchema,
+  insertProductSchema,
+  insertProductOrderSchema,
+  insertCommissionWalletSchema,
+  insertCommissionTransactionSchema,
+  insertWithdrawalRequestSchema,
+  insertSystemSettingSchema,
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -2556,6 +2562,263 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating teacher classes:', error);
       res.status(500).json({ message: 'Failed to update teacher classes' });
+    }
+  });
+
+  // =================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+      
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+      
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+      
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      if (req.user.role === 'admin') {
+        // Admin sees all withdrawal requests
+        const requests = await storage.getAllWithdrawalRequests();
+        res.json(requests);
+      } else {
+        // SO Center sees only their requests
+        const requests = await storage.getWithdrawalRequestsBySoCenter(req.user.userId);
+        res.json(requests);
+      }
+    } catch (error) {
+      console.error('Error fetching withdrawal requests:', error);
+      res.status(500).json({ message: 'Failed to fetch withdrawal requests' });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { status, notes } = req.body;
+      
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        req.params.id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+      
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // System Settings Management (Admin only)
+  app.get("/api/admin/system-settings/:key", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const setting = await storage.getSystemSetting(req.params.key);
+      res.json(setting);
+    } catch (error) {
+      console.error('Error fetching system setting:', error);
+      res.status(500).json({ message: 'Failed to fetch system setting' });
+    }
+  });
+
+  app.put("/api/admin/system-settings/:key", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { value, description } = req.body;
+      const setting = await storage.setSystemSetting(
+        req.params.key, 
+        value, 
+        description, 
+        req.user.userId
+      );
+      
+      res.json(setting);
+    } catch (error) {
+      console.error('Error updating system setting:', error);
+      res.status(500).json({ message: 'Failed to update system setting' });
     }
   });
 
