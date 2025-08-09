@@ -18,6 +18,7 @@ import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import { supabaseAdmin } from './supabaseClient';
 import { createAdminUser } from './createAdminUser';
+import { AuthService } from './authService';
 import { sql as sqlQuery } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -190,33 +191,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/register", async (req, res) => {
     try {
+      console.log('🔧 Creating new user through Supabase Auth (MANDATORY)');
       const userData = insertUserSchema.parse(req.body);
       
-      // Check if user exists
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      
-      const user = await storage.createUser({
-        ...userData,
-        password: hashedPassword,
+      // ALL USER CREATION MUST GO THROUGH SUPABASE AUTH
+      const result = await AuthService.createUser({
+        email: userData.email,
+        password: userData.password,
+        role: userData.role || 'agent',
+        name: userData.name,
+        phone: userData.phone,
+        address: userData.address
       });
 
+      console.log('✅ User created through Supabase Auth:', result.dbUser.id);
+      
       res.status(201).json({
+        message: "User created successfully",
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
+          id: result.dbUser.id,
+          email: result.dbUser.email,
+          name: result.dbUser.name,
+          role: result.dbUser.role
         }
       });
-    } catch (error) {
-      res.status(400).json({ message: "Registration failed" });
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      res.status(400).json({ message: error.message || "Registration failed" });
     }
+  });
+
+  // DEPRECATED - All user creation now goes through Supabase Auth
+  app.post("/api/auth/register-old", async (req, res) => {
+    res.status(410).json({ 
+      message: "This endpoint is deprecated. All authentication now uses Supabase Auth exclusively." 
+    });
+  });
+
+  // Legacy user creation endpoint - REDIRECTS TO SUPABASE AUTH
+  app.post("/api/admin/users-legacy", authenticateToken, async (req, res) => {
+    res.status(410).json({ 
+      message: "Legacy user creation deprecated. All user creation now uses Supabase Auth exclusively via /api/auth/register" 
+    });
   });
 
   app.get("/api/auth/me", authenticateToken, async (req, res) => {
@@ -1332,13 +1348,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced user creation endpoint
+  // SUPABASE AUTH ENFORCED - Admin user creation endpoint
   app.post("/api/admin/users", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user!.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
+      console.log('🔧 Admin creating user through Supabase Auth (MANDATORY)');
+      
       // Convert numeric fields to strings before validation
       const bodyWithStringFields = {
         ...req.body,
@@ -1346,20 +1364,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const userData = insertUserSchema.parse(bodyWithStringFields);
-      const hashedPassword = await bcrypt.hash(userData.password, 12);
       
-      const newUser = await storage.createUser({
-        ...userData,
-        password: hashedPassword
-        // isPasswordChanged defaults to false in schema
+      // ALL USER CREATION MUST GO THROUGH SUPABASE AUTH
+      const result = await AuthService.createUser({
+        email: userData.email,
+        password: userData.password || '12345678', // Default password if not provided
+        role: userData.role || 'agent',
+        name: userData.name,
+        phone: userData.phone,
+        address: userData.address
       });
 
-      // Remove password from response
-      const { password, ...userResponse } = newUser;
-      res.status(201).json(userResponse);
-    } catch (error) {
-      console.error('Error creating user:', error);
-      res.status(500).json({ message: 'Failed to create user' });
+      console.log('✅ Admin created user through Supabase Auth:', result.dbUser.id);
+      
+      res.status(201).json({
+        message: "User created successfully via Supabase Auth",
+        ...result.dbUser,
+        password: undefined // Never return password
+      });
+    } catch (error: any) {
+      console.error('❌ Admin user creation failed:', error);
+      res.status(500).json({ message: error.message || 'Failed to create user via Supabase Auth' });
     }
   });
 
@@ -1480,36 +1505,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user
+  // SUPABASE AUTH ENFORCED - Update user
   app.put("/api/admin/users/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
+      
+      console.log('🔧 Admin updating user through Supabase Auth (MANDATORY)');
+      
       const updates = req.body;
-      if (updates.password) {
-        updates.password = await bcrypt.hash(updates.password, 12);
-      }
-      const user = await storage.updateUser(req.params.id, updates);
-      const { password, ...userResponse } = user;
-      res.json(userResponse);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      res.status(500).json({ message: 'Failed to update user' });
+      
+      // ALL USER UPDATES MUST GO THROUGH SUPABASE AUTH
+      const updatedUser = await AuthService.updateUser(req.params.id, updates);
+      
+      console.log('✅ Admin updated user through Supabase Auth:', updatedUser.id);
+      
+      res.json({
+        ...updatedUser,
+        password: undefined // Never return password
+      });
+    } catch (error: any) {
+      console.error('❌ Admin user update failed:', error);
+      res.status(500).json({ message: error.message || 'Failed to update user via Supabase Auth' });
     }
   });
 
-  // Delete user
+  // SUPABASE AUTH ENFORCED - Delete user
   app.delete("/api/admin/users/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      await storage.deleteUser(req.params.id);
-      res.json({ message: 'User deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({ message: 'Failed to delete user' });
+      
+      console.log('🔧 Admin deleting user through Supabase Auth (MANDATORY)');
+      
+      // ALL USER DELETION MUST GO THROUGH SUPABASE AUTH
+      await AuthService.deleteUser(req.params.id);
+      
+      console.log('✅ Admin deleted user through Supabase Auth:', req.params.id);
+      
+      res.json({ message: 'User deleted successfully via Supabase Auth' });
+    } catch (error: any) {
+      console.error('❌ Admin user deletion failed:', error);
+      res.status(500).json({ message: error.message || 'Failed to delete user via Supabase Auth' });
     }
   });
 

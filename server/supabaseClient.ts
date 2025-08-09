@@ -9,8 +9,9 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // Create Supabase client with service role key for server-side operations
+// NOTE: Environment variables are swapped - NEXT_PUBLIC_SUPABASE_ANON_KEY contains URL
 export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This is actually the URL (swapped)
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This actually contains the URL
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {
@@ -21,7 +22,8 @@ export const supabaseAdmin = createClient(
 );
 
 // Create public client for regular operations
+// NOTE: Environment variables are swapped - NEXT_PUBLIC_SUPABASE_URL contains anon key
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This is actually the URL (swapped)
-  process.env.NEXT_PUBLIC_SUPABASE_URL! // This is actually the anon key (swapped)
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, // This actually contains the URL
+  process.env.NEXT_PUBLIC_SUPABASE_URL! // This actually contains the anon key
 );

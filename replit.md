@@ -64,6 +64,11 @@ This is a comprehensive educational management system designed for Navanidhi Aca
   - All API endpoints verified working with admin authentication
   - Dashboard Stats, Students List, SO Centers, Users, and Academic Management fully operational
   - User emphasized "Production Ready code" - no dummy/sample data used, only real system data
+✓ **SUPABASE AUTH MANDATE ENFORCED** - All authentication exclusively through Supabase Auth:
+  - User requirement: "From Now, any Type of Authentication is Created from Supabase Auth. This is must"
+  - All new user creation, login, and authentication processes use Supabase Auth service
+  - System configured to sync Supabase Auth users with PostgreSQL database for role management
+  - Admin user creation and management exclusively through Supabase Auth system
 
 ## User Preferences
 
