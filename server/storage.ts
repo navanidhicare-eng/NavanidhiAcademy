@@ -1590,31 +1590,19 @@ export class DrizzleStorage implements IStorage {
 
   // Tuition Progress methods
   async createTuitionProgress(progress: InsertTuitionProgress): Promise<TuitionProgress> {
-    // Check if this student-topic combination already exists
-    const existing = await db.select()
-      .from(schema.tuitionProgress)
-      .where(
-        and(
-          eq(schema.tuitionProgress.studentId, progress.studentId),
-          eq(schema.tuitionProgress.topicId, progress.topicId)
-        )
-      );
-    
-    if (existing.length > 0) {
-      // Update existing record
-      const [result] = await db.update(schema.tuitionProgress)
-        .set({ 
-          ...progress, 
-          updatedAt: new Date() 
-        })
-        .where(eq(schema.tuitionProgress.id, existing[0].id))
-        .returning();
-      return result;
-    } else {
-      // Insert new record
-      const [result] = await db.insert(schema.tuitionProgress).values(progress).returning();
-      return result;
-    }
+    // Use proper UPSERT with onConflictDoUpdate for atomic operation
+    const [result] = await db.insert(schema.tuitionProgress)
+      .values(progress)
+      .onConflictDoUpdate({
+        target: [schema.tuitionProgress.studentId, schema.tuitionProgress.topicId],
+        set: {
+          status: progress.status,
+          updatedBy: progress.updatedBy,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
   }
 
   async getTuitionProgress(params: {

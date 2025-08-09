@@ -125,7 +125,6 @@ export default function ProgressTracking() {
   const { data: tuitionProgress = [] } = useQuery({
     queryKey: ['/api/tuition-progress', selectedClass, selectedTopic],
     enabled: !!selectedClass && !!selectedTopic,
-    refetchInterval: 1000, // Refresh every second to ensure real-time updates
   });
 
   // Get filtered data
@@ -177,14 +176,21 @@ export default function ProgressTracking() {
     mutationFn: async (data: any) => {
       return apiRequest('POST', '/api/tuition-progress', data);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({
         title: 'Success',
         description: 'Topic marked as completed successfully',
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/tuition-progress'] });
+      // Immediately invalidate and refetch the specific query to get updated data
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/tuition-progress', selectedClass, selectedTopic] 
+      });
+      queryClient.refetchQueries({ 
+        queryKey: ['/api/tuition-progress', selectedClass, selectedTopic] 
+      });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error('Tuition progress error:', error);
       toast({
         title: 'Error',
         description: 'Failed to update topic progress',
@@ -581,17 +587,26 @@ export default function ProgressTracking() {
                                     <CheckCircle className="h-3 w-3 mr-1" />
                                     Completed
                                   </Badge>
-                                  <p className="text-xs text-muted-foreground">Already marked complete</p>
+                                  <p className="text-xs text-muted-foreground">Topic already completed</p>
                                 </div>
                               ) : (
                                 <Button
                                   size="sm"
                                   onClick={() => markTopicCompleted(student.id, selectedTopic)}
                                   disabled={tuitionProgressMutation.isPending}
-                                  className="bg-blue-600 hover:bg-blue-700"
+                                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                                 >
-                                  <Clock className="h-3 w-3 mr-1" />
-                                  {tuitionProgressMutation.isPending ? 'Marking...' : 'Mark Complete'}
+                                  {tuitionProgressMutation.isPending ? (
+                                    <>
+                                      <div className="animate-spin h-3 w-3 mr-1 rounded-full border-b-2 border-white"></div>
+                                      Marking...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Mark Complete
+                                    </>
+                                  )}
                                 </Button>
                               )}
                             </div>

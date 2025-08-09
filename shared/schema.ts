@@ -312,7 +312,9 @@ export const tuitionProgress = pgTable("tuition_progress", {
   teacherFeedback: text("teacher_feedback"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  uniqueStudentTopic: unique().on(table.studentId, table.topicId),
+}));
 
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
