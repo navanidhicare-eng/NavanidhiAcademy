@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -121,11 +122,12 @@ export default function AttendanceReports() {
   };
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Attendance Reports</h1>
-      </div>
+    <DashboardLayout title="Attendance Reports" subtitle="View detailed attendance statistics and reports">
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Attendance Reports</h1>
+        </div>
 
       {/* Month Selection */}
       <Card>
@@ -339,6 +341,7 @@ export default function AttendanceReports() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
