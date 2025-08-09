@@ -422,6 +422,9 @@ export default function AdminTeachers() {
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{selectedTeacher.name} - Teaching Profile</DialogTitle>
+              <DialogDescription>
+                View complete teacher information including contact details, salary, and personal data.
+              </DialogDescription>
             </DialogHeader>
             <div className="p-4">
               <h3 className="font-medium">Teacher Details</h3>
