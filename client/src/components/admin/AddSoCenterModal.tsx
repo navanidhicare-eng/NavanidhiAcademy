@@ -70,16 +70,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
   const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
 
-  // Generate next Center ID when modal opens
+  // Generate next Center ID when modal opens - PRODUCTION READY
   const { data: nextCenterId = '' } = useQuery({
     queryKey: ['/api/admin/so-centers/next-id'],
-    queryFn: async () => {
-      // Mock implementation - in real app, this would fetch from database
-      // For now, generate NNASOC00001 format
-      const existingCenters = 0; // This would come from database count
-      const nextNumber = (existingCenters + 1).toString().padStart(5, '0');
-      return `NNASOC${nextNumber}`;
-    },
     enabled: isOpen,
   });
 
