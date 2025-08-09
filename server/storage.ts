@@ -29,6 +29,8 @@ import type {
   InsertPayment,
   WalletTransaction,
   InsertWalletTransaction,
+  Attendance,
+  InsertAttendance,
 } from "@shared/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -150,6 +152,48 @@ export interface IStorage {
     payment: Payment;
     transactionId: string;
     walletUpdated: boolean;
+  }>;
+
+  // Attendance methods
+  submitAttendance(attendanceData: {
+    date: string;
+    classId: string;
+    soCenterId: string;
+    markedBy: string;
+    records: Array<{
+      studentId: string;
+      status: 'present' | 'absent' | 'holiday';
+    }>;
+  }): Promise<{ presentCount: number; absentCount: number; holidayCount: number }>;
+  
+  getAttendanceStats(params: {
+    soCenterId: string;
+    month: string;
+    classId?: string;
+  }): Promise<{
+    totalPresent: number;
+    totalAbsent: number;
+    totalHolidays: number;
+    classWiseStats: Array<{
+      className: string;
+      present: number;
+      absent: number;
+      total: number;
+      percentage: number;
+    }>;
+  }>;
+  
+  getStudentAttendanceReport(studentId: string, month: string): Promise<{
+    studentId: string;
+    studentName: string;
+    attendanceRecords: Array<{
+      date: string;
+      status: 'present' | 'absent' | 'holiday';
+    }>;
+    attendancePercentage: number;
+    totalPresent: number;
+    totalAbsent: number;
+    totalDays: number;
   }>;
 
   // Wallet methods
@@ -1144,6 +1188,233 @@ export class DrizzleStorage implements IStorage {
       console.error('Error getting student payment history:', error);
       return [];
     }
+  }
+
+  // Attendance methods
+  async submitAttendance(attendanceData: {
+    date: string;
+    classId: string;
+    soCenterId: string;
+    markedBy: string;
+    records: Array<{
+      studentId: string;
+      status: 'present' | 'absent' | 'holiday';
+    }>;
+  }): Promise<{ presentCount: number; absentCount: number; holidayCount: number }> {
+    // First, delete any existing attendance for this date and class
+    await db.delete(schema.attendance).where(
+      and(
+        eq(schema.attendance.date, attendanceData.date),
+        eq(schema.attendance.classId, attendanceData.classId),
+        eq(schema.attendance.soCenterId, attendanceData.soCenterId)
+      )
+    );
+
+    // Insert new attendance records
+    const attendanceRecords = attendanceData.records.map(record => ({
+      studentId: record.studentId,
+      classId: attendanceData.classId,
+      soCenterId: attendanceData.soCenterId,
+      date: attendanceData.date,
+      status: record.status,
+      markedBy: attendanceData.markedBy
+    }));
+
+    await db.insert(schema.attendance).values(attendanceRecords);
+
+    // Count the records
+    const presentCount = attendanceData.records.filter(r => r.status === 'present').length;
+    const absentCount = attendanceData.records.filter(r => r.status === 'absent').length;
+    const holidayCount = attendanceData.records.filter(r => r.status === 'holiday').length;
+
+    return { presentCount, absentCount, holidayCount };
+  }
+
+  async getAttendanceStats(params: {
+    soCenterId: string;
+    month: string;
+    classId?: string;
+  }): Promise<{
+    totalPresent: number;
+    totalAbsent: number;
+    totalHolidays: number;
+    classWiseStats: Array<{
+      className: string;
+      present: number;
+      absent: number;
+      total: number;
+      percentage: number;
+    }>;
+  }> {
+    const startDate = `${params.month}-01`;
+    const endDate = `${params.month}-31`;
+
+    // Base query conditions
+    let whereConditions = [
+      eq(schema.attendance.soCenterId, params.soCenterId),
+      gte(schema.attendance.date, startDate),
+      lte(schema.attendance.date, endDate)
+    ];
+
+    if (params.classId) {
+      whereConditions.push(eq(schema.attendance.classId, params.classId));
+    }
+
+    // Get overall stats
+    const stats = await db.select({
+      status: schema.attendance.status,
+      count: sqlQuery<number>`count(*)`.as('count')
+    })
+    .from(schema.attendance)
+    .where(and(...whereConditions))
+    .groupBy(schema.attendance.status);
+
+    let totalPresent = 0;
+    let totalAbsent = 0;
+    let totalHolidays = 0;
+
+    stats.forEach(stat => {
+      const count = Number(stat.count);
+      switch (stat.status) {
+        case 'present':
+          totalPresent = count;
+          break;
+        case 'absent':
+          totalAbsent = count;
+          break;
+        case 'holiday':
+          totalHolidays = count;
+          break;
+      }
+    });
+
+    // Get class-wise stats
+    const classStats = await db.select({
+      className: schema.classes.name,
+      status: schema.attendance.status,
+      count: sqlQuery<number>`count(*)`.as('count')
+    })
+    .from(schema.attendance)
+    .innerJoin(schema.classes, eq(schema.attendance.classId, schema.classes.id))
+    .where(and(...whereConditions))
+    .groupBy(schema.classes.name, schema.attendance.status);
+
+    // Process class-wise data
+    const classWiseMap: Record<string, { present: number; absent: number; holiday: number }> = {};
+    
+    classStats.forEach(stat => {
+      if (!classWiseMap[stat.className]) {
+        classWiseMap[stat.className] = { present: 0, absent: 0, holiday: 0 };
+      }
+      const count = Number(stat.count);
+      switch (stat.status) {
+        case 'present':
+          classWiseMap[stat.className].present = count;
+          break;
+        case 'absent':
+          classWiseMap[stat.className].absent = count;
+          break;
+        case 'holiday':
+          classWiseMap[stat.className].holiday = count;
+          break;
+      }
+    });
+
+    const classWiseStats = Object.entries(classWiseMap).map(([className, data]) => {
+      const total = data.present + data.absent; // Exclude holidays from percentage calculation
+      const percentage = total > 0 ? (data.present / total) * 100 : 0;
+      
+      return {
+        className,
+        present: data.present,
+        absent: data.absent,
+        total,
+        percentage
+      };
+    });
+
+    return {
+      totalPresent,
+      totalAbsent,
+      totalHolidays,
+      classWiseStats
+    };
+  }
+
+  async getStudentAttendanceReport(studentId: string, month: string): Promise<{
+    studentId: string;
+    studentName: string;
+    attendanceRecords: Array<{
+      date: string;
+      status: 'present' | 'absent' | 'holiday';
+    }>;
+    attendancePercentage: number;
+    totalPresent: number;
+    totalAbsent: number;
+    totalDays: number;
+  }> {
+    const startDate = `${month}-01`;
+    const endDate = `${month}-31`;
+
+    // Get student details
+    const student = await db.select()
+      .from(schema.students)
+      .where(eq(schema.students.id, studentId))
+      .limit(1);
+
+    if (!student[0]) {
+      throw new Error('Student not found');
+    }
+
+    // Get attendance records
+    const attendanceRecords = await db.select({
+      date: schema.attendance.date,
+      status: schema.attendance.status
+    })
+    .from(schema.attendance)
+    .where(
+      and(
+        eq(schema.attendance.studentId, studentId),
+        gte(schema.attendance.date, startDate),
+        lte(schema.attendance.date, endDate)
+      )
+    )
+    .orderBy(asc(schema.attendance.date));
+
+    // Calculate statistics
+    let totalPresent = 0;
+    let totalAbsent = 0;
+    let totalHolidays = 0;
+
+    attendanceRecords.forEach(record => {
+      switch (record.status) {
+        case 'present':
+          totalPresent++;
+          break;
+        case 'absent':
+          totalAbsent++;
+          break;
+        case 'holiday':
+          totalHolidays++;
+          break;
+      }
+    });
+
+    const totalDays = totalPresent + totalAbsent; // Exclude holidays from calculation
+    const attendancePercentage = totalDays > 0 ? (totalPresent / totalDays) * 100 : 0;
+
+    return {
+      studentId: student[0].id,
+      studentName: student[0].name,
+      attendanceRecords: attendanceRecords.map(record => ({
+        date: record.date,
+        status: record.status as 'present' | 'absent' | 'holiday'
+      })),
+      attendancePercentage,
+      totalPresent,
+      totalAbsent,
+      totalDays
+    };
   }
 }
 

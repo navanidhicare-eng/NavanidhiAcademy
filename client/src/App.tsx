@@ -10,6 +10,8 @@ import Students from "@/pages/Students";
 import Progress from "@/pages/Progress";
 
 import { FeePayments } from "@/pages/FeePayments";
+import Attendance from "@/pages/Attendance";
+import AttendanceReports from "@/pages/AttendanceReports";
 import Wallet from "@/pages/Wallet";
 import PublicProgress from "@/pages/PublicProgress";
 import NotFound from "@/pages/not-found";
@@ -94,6 +96,16 @@ function Router() {
       <Route path="/wallet">
         <ProtectedRoute>
           <Wallet />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/attendance">
+        <ProtectedRoute>
+          <Attendance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/attendance-reports">
+        <ProtectedRoute>
+          <AttendanceReports />
         </ProtectedRoute>
       </Route>
       

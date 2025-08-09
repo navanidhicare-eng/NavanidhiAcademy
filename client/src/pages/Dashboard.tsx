@@ -9,7 +9,9 @@ import {
   CheckCircle, 
   Wallet,
   TrendingUp,
-  Building
+  Building,
+  Calendar,
+  BarChart3
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -190,6 +192,30 @@ export default function Dashboard() {
                       <div>
                         <p className="font-medium">Update Progress</p>
                         <p className="text-sm text-gray-600">Mark topic completion</p>
+                      </div>
+                    </div>
+                  </button>
+                </Link>
+                
+                <Link href="/attendance">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <Calendar size={20} className="text-blue-600" />
+                      <div>
+                        <p className="font-medium">Mark Attendance</p>
+                        <p className="text-sm text-gray-600">Daily attendance tracking</p>
+                      </div>
+                    </div>
+                  </button>
+                </Link>
+                
+                <Link href="/attendance-reports">
+                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                    <div className="flex items-center space-x-3">
+                      <BarChart3 size={20} className="text-purple-600" />
+                      <div>
+                        <p className="font-medium">Attendance Reports</p>
+                        <p className="text-sm text-gray-600">View statistics & reports</p>
                       </div>
                     </div>
                   </button>

@@ -31,7 +31,8 @@ import {
   insertSubjectSchema,
   insertChapterSchema,
   insertTopicSchema,
-  insertSoCenterSchema
+  insertSoCenterSchema,
+  insertAttendanceSchema
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
@@ -270,6 +271,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching student payment history:', error);
       res.status(500).json({ message: 'Failed to fetch payment history' });
+    }
+  });
+
+  // Attendance routes
+  app.post("/api/attendance/submit", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { date, classId, records } = req.body;
+      const soCenterId = req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId;
+
+      const result = await storage.submitAttendance({
+        date,
+        classId,
+        soCenterId,
+        markedBy: req.user.userId,
+        records
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error submitting attendance:', error);
+      res.status(500).json({ message: 'Failed to submit attendance' });
+    }
+  });
+
+  app.post("/api/attendance/holiday", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { date, classId, records } = req.body;
+      const soCenterId = req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId;
+
+      const result = await storage.submitAttendance({
+        date,
+        classId,
+        soCenterId,
+        markedBy: req.user.userId,
+        records
+      });
+
+      res.json({ studentCount: result.holidayCount });
+    } catch (error) {
+      console.error('Error marking holiday:', error);
+      res.status(500).json({ message: 'Failed to mark holiday' });
+    }
+  });
+
+  app.get("/api/attendance/stats", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { soCenterId, month, classId } = req.query;
+      const actualSoCenterId = soCenterId || (req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId);
+
+      const stats = await storage.getAttendanceStats({
+        soCenterId: actualSoCenterId as string,
+        month: month as string,
+        classId: classId as string
+      });
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching attendance stats:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance stats' });
+    }
+  });
+
+  app.get("/api/attendance/student-report", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { studentId, month } = req.query;
+
+      const report = await storage.getStudentAttendanceReport(
+        studentId as string,
+        month as string
+      );
+
+      res.json(report);
+    } catch (error) {
+      console.error('Error fetching student attendance report:', error);
+      res.status(500).json({ message: 'Failed to fetch student attendance report' });
     }
   });
 
