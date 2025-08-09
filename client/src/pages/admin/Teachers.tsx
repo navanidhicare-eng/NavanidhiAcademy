@@ -294,6 +294,7 @@ export default function AdminTeachers() {
                           size="sm"
                           onClick={() => handleViewTeacher(teacher)}
                           title="View Teaching Records"
+                          className="hover:bg-blue-50"
                         >
                           <Eye className="text-blue-600" size={16} />
                         </Button>

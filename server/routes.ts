@@ -2406,19 +2406,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE tr.teacher_id = ${teacherId}
       `;
       
-      // Add date filters if provided
-      if (fromDate && toDate) {
-        baseQuery = sqlQuery`${baseQuery} AND tr.record_date BETWEEN ${fromDate} AND ${toDate}`;
-      } else if (fromDate) {
-        baseQuery = sqlQuery`${baseQuery} AND tr.record_date >= ${fromDate}`;
-      } else if (toDate) {
-        baseQuery = sqlQuery`${baseQuery} AND tr.record_date <= ${toDate}`;
+      // Build query with conditions
+      let queryConditions = [sqlQuery`tr.teacher_id = ${teacherId}`];
+      
+      if (fromDate) {
+        queryConditions.push(sqlQuery`tr.record_date >= ${fromDate}`);
+      }
+      if (toDate) {
+        queryConditions.push(sqlQuery`tr.record_date <= ${toDate}`);
       }
       
-      // Add ordering
-      baseQuery = sqlQuery`${baseQuery} ORDER BY tr.record_date DESC, tr.created_at DESC`;
+      const finalQuery = sqlQuery`
+        SELECT 
+          tr.id,
+          tr.teacher_id as "teacherId",
+          tr.record_date as "recordDate",
+          tr.class_id as "classId",
+          tr.subject_id as "subjectId",
+          tr.chapter_id as "chapterId",
+          tr.teaching_duration as "teachingDuration",
+          tr.notes,
+          tr.created_at as "createdAt",
+          c.name as "className",
+          s.name as "subjectName",
+          ch.title as "chapterTitle"
+        FROM teacher_daily_records tr
+        LEFT JOIN classes c ON tr.class_id = c.id
+        LEFT JOIN subjects s ON tr.subject_id = s.id
+        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
+        WHERE ${queryConditions.length > 0 ? queryConditions.reduce((acc, condition, index) => 
+          index === 0 ? condition : sqlQuery`${acc} AND ${condition}`
+        ) : sqlQuery`1=1`}
+        ORDER BY tr.record_date DESC, tr.created_at DESC
+      `;
       
-      const records = await db.execute(baseQuery);
+      const records = await db.execute(finalQuery);
       res.json(records);
     } catch (error: any) {
       console.error('Error fetching teacher records:', error);
