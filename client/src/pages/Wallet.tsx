@@ -8,14 +8,16 @@ import { Wallet as WalletIcon, ArrowDown, ArrowUp } from 'lucide-react';
 export default function Wallet() {
   const { user } = useAuth();
 
-  // Fetch wallet balance and transactions for Pothanapudi SO Center
+  // Fetch wallet balance and transactions for Pothanapudi SO Center (force fresh data)
   const { data: walletData } = useQuery({
-    queryKey: ['/api/wallet', '84bf6d19-8830-4abd-8374-2c29faecaa24'],
+    queryKey: ['/api/wallet', '84bf6d19-8830-4abd-8374-2c29faecaa24', Date.now()],
     queryFn: async () => {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/wallet/84bf6d19-8830-4abd-8374-2c29faecaa24`, {
+      const response = await fetch(`/api/wallet/84bf6d19-8830-4abd-8374-2c29faecaa24?t=${Date.now()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
       });
       if (!response.ok) {
@@ -24,6 +26,8 @@ export default function Wallet() {
       return response.json();
     },
     enabled: !!user && user.role === 'so_center',
+    staleTime: 0, // Always consider data stale
+    cacheTime: 0, // Don't cache at all
   });
 
   const walletBalance = walletData?.balance || 0;

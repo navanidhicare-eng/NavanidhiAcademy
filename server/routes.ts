@@ -657,6 +657,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const transactions = await storage.getWalletTransactions(req.params.soCenterId);
       
+      // Force fresh data by adding cache-busting headers
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       res.json({
         balance: parseFloat(soCenter.walletBalance || '0'),
         transactions: transactions.map(t => ({
