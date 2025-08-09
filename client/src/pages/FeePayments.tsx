@@ -165,8 +165,9 @@ export function FeePayments() {
   // Fetch payment history
   const fetchPaymentHistory = async (studentId: string) => {
     try {
-      const response = await apiRequest(`/api/students/${studentId}/payments`);
-      setSelectedStudentHistory(response);
+      const response = await apiRequest('GET', `/api/students/${studentId}/payments`);
+      const data = await response.json();
+      setSelectedStudentHistory(data);
       setShowPaymentHistory(true);
     } catch (error) {
       toast({
