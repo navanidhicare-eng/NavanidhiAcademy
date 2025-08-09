@@ -52,16 +52,16 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
     enabled: !!selectedTeacher,
   });
 
-  // Fetch chapters based on selected subject
+  // Fetch chapters based on selected subject and class
   const { data: chapters = [] } = useQuery<any[]>({
-    queryKey: ['/api/chapters', selectedSubject],
-    enabled: !!selectedSubject,
-  });
-
-  // Fetch topics based on selected chapter
-  const { data: topics = [] } = useQuery<any[]>({
-    queryKey: ['/api/topics', selectedChapter],
-    enabled: !!selectedChapter,
+    queryKey: ['/api/chapters', selectedSubject, selectedClass],
+    queryFn: async () => {
+      if (!selectedSubject || !selectedClass) return [];
+      const response = await fetch(`/api/chapters/${selectedSubject}/${selectedClass}`);
+      if (!response.ok) throw new Error('Failed to fetch chapters');
+      return response.json();
+    },
+    enabled: !!selectedSubject && !!selectedClass,
   });
 
   // Create teaching record mutation
@@ -99,28 +99,29 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
     setValue('classId', '');
     setValue('subjectId', '');
     setValue('chapterId', undefined);
-    setValue('topicId', undefined);
   };
 
   const handleClassChange = (classId: string) => {
     setSelectedClass(classId);
     setValue('classId', classId);
+    // Reset subject and chapter when class changes
+    setSelectedSubject('');
+    setSelectedChapter('');
+    setValue('subjectId', '');
+    setValue('chapterId', undefined);
   };
 
   const handleSubjectChange = (subjectId: string) => {
     setSelectedSubject(subjectId);
     setValue('subjectId', subjectId);
-    // Reset chapter and topic when subject changes
+    // Reset chapter when subject changes
     setSelectedChapter('');
     setValue('chapterId', undefined);
-    setValue('topicId', undefined);
   };
 
   const handleChapterChange = (chapterId: string) => {
     setSelectedChapter(chapterId);
     setValue('chapterId', chapterId);
-    // Reset topic when chapter changes
-    setValue('topicId', undefined);
   };
 
   return (
@@ -212,25 +213,7 @@ export function AddTeachingRecordForm({ onSuccess }: AddTeachingRecordFormProps)
           </Select>
         </div>
 
-        {/* Topic Selection */}
-        <div>
-          <Label htmlFor="topicId">Topic (Optional)</Label>
-          <Select 
-            onValueChange={(value) => setValue('topicId', value)} 
-            disabled={!selectedChapter}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={selectedChapter ? "Choose topic" : "Select chapter first"} />
-            </SelectTrigger>
-            <SelectContent>
-              {topics.map((topic: any) => (
-                <SelectItem key={topic.id} value={topic.id}>
-                  {topic.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+
 
         {/* Teaching Duration */}
         <div>

@@ -1064,6 +1064,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New route for chapters filtered by both subject and class
+  app.get("/api/chapters/:subjectId/:classId", authenticateToken, async (req, res) => {
+    try {
+      const { subjectId, classId } = req.params;
+      const chapters = await storage.getChaptersBySubjectAndClass(subjectId, classId);
+      res.json(chapters);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch chapters" });
+    }
+  });
+
   app.get("/api/topics/:chapterId", authenticateToken, async (req, res) => {
     try {
       const topics = await storage.getTopicsByChapter(req.params.chapterId);

@@ -129,6 +129,7 @@ export interface IStorage {
   getSubjectsByClass(classId: string): Promise<Subject[]>;
   createSubject(subject: InsertSubject): Promise<Subject>;
   getChaptersBySubject(subjectId: string): Promise<Chapter[]>;
+  getChaptersBySubjectAndClass(subjectId: string, classId: string): Promise<Chapter[]>;
   createChapter(chapter: InsertChapter): Promise<Chapter>;
   getTopicsByChapter(chapterId: string): Promise<Topic[]>;
   createTopic(topic: InsertTopic): Promise<Topic>;
@@ -484,6 +485,17 @@ export class DrizzleStorage implements IStorage {
   async getSubjectsByClass(classId: string): Promise<Subject[]> {
     return await db.select().from(schema.subjects)
       .where(and(eq(schema.subjects.classId, classId), eq(schema.subjects.isActive, true)));
+  }
+
+  async getChaptersBySubjectAndClass(subjectId: string, classId: string): Promise<Chapter[]> {
+    return await db.select().from(schema.chapters)
+      .innerJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
+      .where(and(
+        eq(schema.chapters.subjectId, subjectId),
+        eq(schema.subjects.classId, classId),
+        eq(schema.chapters.isActive, true)
+      ))
+      .then(results => results.map(result => result.chapters));
   }
 
   async createSubject(subject: InsertSubject): Promise<Subject> {
