@@ -6,6 +6,8 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect, useRef } from 'react';
+import confetti from 'canvas-confetti';
+import Confetti from 'react-confetti';
 import {
   Dialog,
   DialogContent,
@@ -113,6 +115,80 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const aadharTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const [registrationResult, setRegistrationResult] = useState<any>(null);
+
+  // PhonePe-style success sound function
+  const playSuccessSound = () => {
+    // Create audio context for better browser support
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Create a series of beeps similar to PhonePe success sound
+    const playBeep = (frequency: number, duration: number, delay: number) => {
+      setTimeout(() => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + duration);
+      }, delay);
+    };
+    
+    // Play success melody (similar to PhonePe)
+    playBeep(800, 0.2, 0);     // First note
+    playBeep(1000, 0.2, 150);   // Second note (higher)
+    playBeep(1200, 0.3, 300);   // Final note (highest)
+  };
+  
+  // Confetti celebration function
+  const triggerConfetti = () => {
+    // Multiple confetti bursts for celebration effect
+    const count = 200;
+    const defaults = {
+      origin: { y: 0.7 }
+    };
+    
+    // Left side burst
+    confetti({
+      ...defaults,
+      particleCount: Math.floor(count * 0.25),
+      angle: 60,
+      spread: 55,
+      origin: { x: 0 }
+    });
+    
+    // Right side burst  
+    confetti({
+      ...defaults,
+      particleCount: Math.floor(count * 0.25),
+      angle: 120,
+      spread: 55,
+      origin: { x: 1 }
+    });
+    
+    // Center burst
+    confetti({
+      ...defaults,
+      particleCount: Math.floor(count * 0.35),
+      angle: 90,
+      spread: 100,
+      origin: { x: 0.5 }
+    });
+    
+    // Delayed second wave for extended celebration
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 120,
+        origin: { y: 0.6 }
+      });
+    }, 500);
+  };
 
   const handleSuccessClose = () => {
     setShowSuccessScreen(false);
@@ -285,6 +361,13 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
           admissionFeePaid: result.admissionFeePaid || form.getValues('admissionFeePaid'),
           amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
         });
+        
+        // Play PhonePe-style success sound
+        playSuccessSound();
+        
+        // Trigger confetti celebration
+        triggerConfetti();
+        
         setShowSuccessScreen(true);
         queryClient.invalidateQueries({ queryKey: ['/api/students'] });
       } catch (error) {
