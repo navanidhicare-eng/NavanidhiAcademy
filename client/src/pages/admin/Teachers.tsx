@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -14,7 +14,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +35,9 @@ import {
   Users,
   BookOpen,
   Clock,
-  CalendarDays
+  CalendarDays,
+  UserCheck,
+  Settings
 } from 'lucide-react';
 // Import components inline to avoid missing module errors
 import type { Teacher } from '@shared/schema';
@@ -42,14 +46,38 @@ export default function AdminTeachers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [teacherToDelete, setTeacherToDelete] = useState<{id: string, name: string} | null>(null);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch teachers from API
   const { data: teachers = [], isLoading } = useQuery<Teacher[]>({
     queryKey: ['/api/admin/teachers'],
+  });
+
+  // Fetch all subjects for assignment
+  const { data: allSubjects = [] } = useQuery({
+    queryKey: ['/api/admin/academic/subjects'],
+  });
+
+  // Fetch all classes for assignment
+  const { data: allClasses = [] } = useQuery({
+    queryKey: ['/api/admin/academic/classes'],
+  });
+
+  // Fetch teacher's current assignments
+  const { data: teacherSubjects = [] } = useQuery({
+    queryKey: ['/api/admin/teachers', selectedTeacher?.id, 'subjects'],
+    enabled: !!selectedTeacher?.id && isAssignModalOpen,
+  });
+
+  const { data: teacherClasses = [] } = useQuery({
+    queryKey: ['/api/admin/teachers', selectedTeacher?.id, 'classes'],
+    enabled: !!selectedTeacher?.id && isAssignModalOpen,
   });
 
   // Delete teacher mutation
@@ -88,6 +116,61 @@ export default function AdminTeachers() {
   const handleViewTeacher = (teacher: Teacher) => {
     setSelectedTeacher(teacher);
   };
+
+  const handleAssignTeacher = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setIsAssignModalOpen(true);
+  };
+
+  // Update assignments mutation
+  const updateAssignmentsMutation = useMutation({
+    mutationFn: async ({ teacherId, subjectIds, classIds }: { teacherId: string, subjectIds: string[], classIds: string[] }) => {
+      // Update subjects
+      await apiRequest('PUT', `/api/admin/teachers/${teacherId}/subjects`, { subjectIds });
+      // Update classes  
+      await apiRequest('PUT', `/api/admin/teachers/${teacherId}/classes`, { classIds });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Assignments Updated',
+        description: 'Teacher assignments have been successfully updated.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
+      setIsAssignModalOpen(false);
+      setSelectedTeacher(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update assignments.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveAssignments = () => {
+    if (!selectedTeacher) return;
+    updateAssignmentsMutation.mutate({
+      teacherId: selectedTeacher.id,
+      subjectIds: selectedSubjects,
+      classIds: selectedClasses
+    });
+  };
+
+  const openAssignModal = async (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+    setIsAssignModalOpen(true);
+  };
+
+  // Load current assignments when modal opens
+  React.useEffect(() => {
+    if (isAssignModalOpen && teacherSubjects && teacherClasses) {
+      const currentSubjects = teacherSubjects.map((s: any) => s.id) || [];
+      const currentClasses = teacherClasses.map((c: any) => c.id) || [];
+      setSelectedSubjects(currentSubjects);
+      setSelectedClasses(currentClasses);
+    }
+  }, [isAssignModalOpen, teacherSubjects, teacherClasses]);
 
   const filteredTeachers = (teachers as any[]).filter((teacher: any) => {
     const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -207,6 +290,14 @@ export default function AdminTeachers() {
                           onClick={() => handleViewTeacher(teacher)}
                         >
                           <Eye className="text-blue-600" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => openAssignModal(teacher)}
+                          title="Assign Classes & Subjects"
+                        >
+                          <Settings className="text-green-600" size={16} />
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -368,6 +459,85 @@ export default function AdminTeachers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assignment Modal */}
+      <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assign Classes & Subjects - {selectedTeacher?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-6 p-4">
+            {/* Subjects Section */}
+            <div>
+              <h3 className="font-medium mb-3 flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Assign Subjects
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
+                {allSubjects.map((subject: any) => (
+                  <div key={subject.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`subject-${subject.id}`}
+                      checked={selectedSubjects.includes(subject.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedSubjects([...selectedSubjects, subject.id]);
+                        } else {
+                          setSelectedSubjects(selectedSubjects.filter(id => id !== subject.id));
+                        }
+                      }}
+                    />
+                    <label htmlFor={`subject-${subject.id}`} className="text-sm">
+                      {subject.name} ({subject.code})
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Classes Section */}
+            <div>
+              <h3 className="font-medium mb-3 flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Assign Classes
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto border rounded p-3">
+                {allClasses.map((classItem: any) => (
+                  <div key={classItem.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`class-${classItem.id}`}
+                      checked={selectedClasses.includes(classItem.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedClasses([...selectedClasses, classItem.id]);
+                        } else {
+                          setSelectedClasses(selectedClasses.filter(id => id !== classItem.id));
+                        }
+                      }}
+                    />
+                    <label htmlFor={`class-${classItem.id}`} className="text-sm">
+                      {classItem.name} (Level {classItem.level})
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="px-4 py-3">
+            <Button variant="outline" onClick={() => setIsAssignModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveAssignments}
+              disabled={updateAssignmentsMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {updateAssignmentsMutation.isPending ? 'Saving...' : 'Save Assignments'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

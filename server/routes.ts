@@ -2129,7 +2129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2166,7 +2166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2189,7 +2189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2210,7 +2210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2239,7 +2239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2268,7 +2268,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2337,7 +2337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user exists and has teacher role
-      const teacher = await storage.getUserById(req.params.id);
+      const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
@@ -2375,13 +2375,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
+      // Check if user exists and has teacher role
+      const teacher = await storage.getUser(req.params.id);
+      if (!teacher || teacher.role !== 'teacher') {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
       const { classIds } = req.body;
       
       if (!Array.isArray(classIds)) {
         return res.status(400).json({ message: 'classIds must be an array' });
       }
 
-      await teacherStorage.updateTeacherClasses(req.params.id, classIds);
+      // Delete existing assignments
+      await db.execute(sqlQuery`DELETE FROM teacher_classes WHERE user_id = ${req.params.id}`);
+      
+      // Insert new assignments
+      if (classIds.length > 0) {
+        for (const classId of classIds) {
+          await db.execute(sqlQuery`
+            INSERT INTO teacher_classes (user_id, class_id) 
+            VALUES (${req.params.id}, ${classId})
+          `);
+        }
+      }
+      
+      res.json({ message: 'Teacher classes updated successfully' });
+    } catch (error) {
+      console.error('Error updating teacher classes:', error);
+      res.status(500).json({ message: 'Failed to update teacher classes' });
+    }
+  });
+
+  // Update teacher class assignments
+  app.put("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { classIds } = req.body;
+      
+      if (!Array.isArray(classIds)) {
+        return res.status(400).json({ message: 'classIds must be an array' });
+      }
+
+      // This functionality is now handled by the new class assignments endpoint above
       res.json({ message: 'Teacher classes updated successfully' });
     } catch (error) {
       console.error('Error updating teacher classes:', error);
