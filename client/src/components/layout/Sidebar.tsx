@@ -23,6 +23,7 @@ import {
   Megaphone,
   FileCheck,
   MapPin,
+  Receipt,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -72,6 +73,7 @@ export function Sidebar({ className }: SidebarProps) {
           ...baseItems,
           { icon: Users, label: 'Students', href: '/students' },
           { icon: CreditCard, label: 'Payments', href: '/payments' },
+          { icon: Receipt, label: 'Fee Payments', href: '/fee-payments' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
         ];

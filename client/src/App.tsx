@@ -9,6 +9,7 @@ import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
 import Progress from "@/pages/Progress";
 import Payments from "@/pages/Payments";
+import { FeePayments } from "@/pages/FeePayments";
 import Wallet from "@/pages/Wallet";
 import PublicProgress from "@/pages/PublicProgress";
 import NotFound from "@/pages/not-found";
@@ -87,6 +88,11 @@ function Router() {
       <Route path="/payments">
         <ProtectedRoute>
           <Payments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/fee-payments">
+        <ProtectedRoute>
+          <FeePayments />
         </ProtectedRoute>
       </Route>
       <Route path="/wallet">

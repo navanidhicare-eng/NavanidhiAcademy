@@ -137,6 +137,20 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsBySoCenter(soCenterId: string): Promise<Payment[]>;
   getPaymentsByDateRange(soCenterId: string, startDate: Date, endDate: Date): Promise<Payment[]>;
+  
+  // Payment processing and history
+  getPaymentsByStudent(studentId: string): Promise<Payment[]>;
+  processStudentPayment(paymentData: {
+    studentId: string;
+    amount: number;
+    feeType: 'monthly' | 'yearly';
+    receiptNumber: string;
+    expectedFeeAmount: number;
+  }): Promise<{
+    payment: Payment;
+    transactionId: string;
+    walletUpdated: boolean;
+  }>;
 
   // Wallet methods
   createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction>;
@@ -577,6 +591,76 @@ export class DrizzleStorage implements IStorage {
       .where(eq(schema.walletTransactions.soCenterId, soCenterId))
       .orderBy(desc(schema.walletTransactions.createdAt));
   }
+
+  // Get payments by student for payment history
+  async getPaymentsByStudent(studentId: string): Promise<Payment[]> {
+    return await db.select()
+      .from(schema.payments)
+      .where(eq(schema.payments.studentId, studentId))
+      .orderBy(desc(schema.payments.createdAt));
+  }
+
+  // Process student payment with wallet update and transaction recording
+  async processStudentPayment(paymentData: {
+    studentId: string;
+    amount: number;
+    feeType: 'monthly' | 'yearly';
+    receiptNumber: string;
+    expectedFeeAmount: number;
+  }): Promise<{
+    payment: Payment;
+    transactionId: string;
+    walletUpdated: boolean;
+  }> {
+    const { studentId, amount, feeType, receiptNumber, expectedFeeAmount } = paymentData;
+    const transactionId = `TXN-${Date.now()}-${studentId.slice(0, 8)}`;
+
+    return await db.transaction(async (tx) => {
+      // Get student to find SO Center
+      const [student] = await tx.select()
+        .from(schema.students)
+        .where(eq(schema.students.id, studentId));
+
+      if (!student) {
+        throw new Error('Student not found');
+      }
+
+      // Create payment record
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long' });
+      const currentYear = new Date().getFullYear();
+
+      const [payment] = await tx.insert(schema.payments).values({
+        studentId,
+        amount: amount.toString(),
+        paymentMethod: 'cash',
+        description: `${feeType} fee payment - Receipt: ${receiptNumber}`,
+        month: feeType === 'monthly' ? currentMonth : null,
+        year: feeType === 'monthly' ? currentYear : currentYear,
+        recordedBy: student.soCenterId // Using SO center as recorder for now
+      }).returning();
+
+      // Update SO Center wallet - using SQL template for proper numeric addition
+      await tx.update(schema.soCenters)
+        .set({ 
+          walletBalance: sql`CAST(${schema.soCenters.walletBalance} AS NUMERIC) + ${amount}`
+        })
+        .where(eq(schema.soCenters.id, student.soCenterId));
+
+      // Create wallet transaction record
+      await tx.insert(schema.walletTransactions).values({
+        soCenterId: student.soCenterId,
+        amount: amount.toString(),
+        type: 'credit',
+        description: `${feeType} fee payment from ${student.name} - Receipt: ${receiptNumber}`
+      });
+
+      return {
+        payment,
+        transactionId,
+        walletUpdated: true
+      };
+    });
+  }
   // Address hierarchy methods
   async getAllStates(): Promise<any[]> {
     return await db.select().from(schema.states).where(eq(schema.states.isActive, true)).orderBy(asc(schema.states.name));
@@ -967,6 +1051,29 @@ export class DrizzleStorage implements IStorage {
     await db.update(schema.classFees)
       .set({ isActive: false })
       .where(eq(schema.classFees.id, id));
+  }
+
+  async getStudentPaymentHistory(studentId: string): Promise<any[]> {
+    try {
+      const payments = await db
+        .select({
+          id: schema.payments.id,
+          amount: schema.payments.amount,
+          paymentMethod: schema.payments.paymentMethod,
+          description: schema.payments.description,
+          month: schema.payments.month,
+          year: schema.payments.year,
+          createdAt: schema.payments.createdAt
+        })
+        .from(schema.payments)
+        .where(eq(schema.payments.studentId, studentId))
+        .orderBy(desc(schema.payments.createdAt));
+      
+      return payments;
+    } catch (error) {
+      console.error('Error getting student payment history:', error);
+      return [];
+    }
   }
 }
 

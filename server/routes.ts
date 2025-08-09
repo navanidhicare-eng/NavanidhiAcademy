@@ -257,6 +257,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student payment history route
+  app.get("/api/students/:id/payments", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const { id } = req.params;
+      const payments = await storage.getStudentPaymentHistory(id);
+      res.json(payments);
+    } catch (error) {
+      console.error('Error fetching student payment history:', error);
+      res.status(500).json({ message: 'Failed to fetch payment history' });
+    }
+  });
+
   // Student routes
   app.get("/api/students", authenticateToken, async (req, res) => {
     try {
@@ -1636,6 +1652,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error seeding database:', error);
       res.status(500).json({ message: 'Failed to seed database' });
+    }
+  });
+
+  // Process student payment endpoint
+  app.post("/api/payments/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { studentId, amount, feeType, receiptNumber, expectedFeeAmount } = req.body;
+
+      // Validate required fields
+      if (!studentId || !amount || !feeType || !receiptNumber) {
+        return res.status(400).json({ 
+          message: "Missing required fields: studentId, amount, feeType, receiptNumber" 
+        });
+      }
+
+      // Get student details for response
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Process the payment
+      const result = await storage.processStudentPayment({
+        studentId,
+        amount: parseFloat(amount),
+        feeType,
+        receiptNumber,
+        expectedFeeAmount: parseFloat(expectedFeeAmount || '0')
+      });
+
+      // Prepare invoice response
+      const invoiceData = {
+        studentName: student.name,
+        studentId: student.studentId,
+        className: student.className,
+        amount: parseFloat(amount),
+        feeType: feeType,
+        receiptNumber: receiptNumber,
+        transactionId: result.transactionId,
+        paymentId: result.payment.id
+      };
+
+      res.json(invoiceData);
+    } catch (error) {
+      console.error("Payment processing error:", error);
+      res.status(500).json({ 
+        message: error instanceof Error ? error.message : "Failed to process payment" 
+      });
+    }
+  });
+
+  // Get payment history for a student
+  app.get("/api/students/:studentId/payments", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const { studentId } = req.params;
+      const payments = await storage.getPaymentsByStudent(studentId);
+      
+      res.json(payments);
+    } catch (error) {
+      console.error("Payment history error:", error);
+      res.status(500).json({ message: "Failed to fetch payment history" });
     }
   });
 

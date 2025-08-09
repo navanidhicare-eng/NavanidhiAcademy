@@ -12,8 +12,12 @@ import {
   TrendingUp, 
   IndianRupee,
   ChevronLeft,
-  ChevronRight 
+  ChevronRight,
+  Eye
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Student {
   id: string;
@@ -33,6 +37,10 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   const [classFilter, setClassFilter] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const { toast } = useToast();
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -62,6 +70,35 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   const handleShowQR = (student: any) => {
     setSelectedStudent(student);
     setIsQRModalOpen(true);
+  };
+
+  const handleShowPaymentHistory = async (student: any) => {
+    setLoadingHistory(true);
+    try {
+      const response = await fetch(`/api/students/${student.id}/payments`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch payment history');
+      }
+      
+      const history = await response.json();
+      setPaymentHistory(Array.isArray(history) ? history : []);
+      setSelectedStudent(student);
+      setIsPaymentHistoryOpen(true);
+    } catch (error) {
+      console.error('Payment history error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch payment history",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   if (isLoading) {
@@ -198,8 +235,14 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
-                          <Edit className="text-primary" size={16} />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleShowPaymentHistory(student)}
+                          disabled={loadingHistory}
+                          title="View Payment History"
+                        >
+                          <Eye className="text-blue-500" size={16} />
                         </Button>
                         <Button variant="ghost" size="sm">
                           <TrendingUp className="text-accent" size={16} />
@@ -248,6 +291,39 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
         onClose={() => setIsQRModalOpen(false)}
         student={selectedStudent}
       />
+
+      {/* Payment History Modal */}
+      <Dialog open={isPaymentHistoryOpen} onOpenChange={setIsPaymentHistoryOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Payment History - {selectedStudent?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {paymentHistory.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">No payment history found</p>
+            ) : (
+              paymentHistory.map((payment: any, index: number) => (
+                <div key={payment.id || index} className="flex justify-between items-center p-4 border rounded-lg">
+                  <div>
+                    <p className="font-semibold text-lg">₹{parseFloat(payment.amount || '0').toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">{payment.description || 'Payment'}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(payment.createdAt).toLocaleDateString()} - {new Date(payment.createdAt).toLocaleTimeString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm capitalize font-medium">{payment.paymentMethod || 'Cash'}</p>
+                    {payment.month && <p className="text-xs text-gray-500">{payment.month} {payment.year}</p>}
+                    <Badge variant="outline" className="mt-1">
+                      {payment.paymentMethod === 'wallet' ? 'Wallet' : 'Cash'}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
