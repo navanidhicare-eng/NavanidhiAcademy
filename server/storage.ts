@@ -1456,12 +1456,16 @@ export class DrizzleStorage implements IStorage {
       }>;
     }>;
   }> {
+    console.log('📊 Monthly Report Request:', params);
+    
     const startDate = `${params.month}-01`;
     // Calculate the last day of the month to avoid invalid dates like 2025-09-31
     const year = parseInt(params.month.split('-')[0]);
     const month = parseInt(params.month.split('-')[1]);
     const lastDay = new Date(year, month, 0).getDate();
     const endDate = `${params.month}-${lastDay.toString().padStart(2, '0')}`;
+
+    console.log('📅 Date Range:', { startDate, endDate });
 
     // Get all students in the class
     const students = await db.select({
@@ -1476,6 +1480,8 @@ export class DrizzleStorage implements IStorage {
         eq(schema.students.classId, params.classId)
       )
     );
+
+    console.log('👨‍🎓 Found Students:', students.length, students.map(s => ({ name: s.name, id: s.id })));
 
     // Get all attendance records for the month and class
     const attendanceRecords = await db.select({
@@ -1494,6 +1500,8 @@ export class DrizzleStorage implements IStorage {
     )
     .orderBy(asc(schema.attendance.date));
 
+    console.log('📋 Found Attendance Records:', attendanceRecords.length);
+
     // Organize attendance records by student
     const studentsWithAttendance = students.map(student => {
       const studentAttendanceRecords = attendanceRecords
@@ -1511,6 +1519,8 @@ export class DrizzleStorage implements IStorage {
       };
     });
 
+    console.log('✅ Returning Monthly Report:', { studentCount: studentsWithAttendance.length });
+    
     return {
       students: studentsWithAttendance
     };
