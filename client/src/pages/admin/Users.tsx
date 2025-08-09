@@ -9,6 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { AddUserModal } from '@/components/admin/AddUserModal';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   Search, 
   UserPlus, 
@@ -21,6 +31,7 @@ export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{id: string, name: string} | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -40,6 +51,7 @@ export default function AdminUsers() {
         description: 'User has been successfully deleted.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setUserToDelete(null);
     },
     onError: (error: any) => {
       toast({
@@ -47,8 +59,19 @@ export default function AdminUsers() {
         description: error.message || 'Failed to delete user.',
         variant: 'destructive',
       });
+      setUserToDelete(null);
     },
   });
+
+  const handleDeleteClick = (user: any) => {
+    setUserToDelete({ id: user.id, name: user.name });
+  };
+
+  const confirmDelete = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id);
+    }
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -171,7 +194,7 @@ export default function AdminUsers() {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => deleteUserMutation.mutate(user.id)}
+                          onClick={() => handleDeleteClick(user)}
                           disabled={deleteUserMutation.isPending}
                         >
                           <Trash2 className="text-destructive" size={16} />
@@ -212,6 +235,29 @@ export default function AdminUsers() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user 
+              <strong> {userToDelete?.name}</strong> and remove all their data from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteUserMutation.isPending}
+            >
+              {deleteUserMutation.isPending ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

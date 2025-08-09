@@ -19,7 +19,7 @@ export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
 export const schoolTypeEnum = pgEnum("school_type", ["government", "private"]);
 export const paymentStatusEnum = pgEnum("payment_status", ["paid", "pending", "overdue"]);
 export const topicStatusEnum = pgEnum("topic_status", ["pending", "learned"]);
-export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "commission"]);
+export const salaryTypeEnum = pgEnum("salary_type", ["fixed", "hourly", "commission"]);
 export const maritalStatusEnum = pgEnum("marital_status", ["single", "married", "divorced", "widowed"]);
 export const homeworkStatusEnum = pgEnum("homework_status", ["completed", "not_completed", "not_given"]);
 export const homeworkActivityStatusEnum = pgEnum("homework_activity_status", ["completed", "not_completed", "not_given"]);
@@ -290,6 +290,57 @@ export const studentCounter = pgTable("student_counter", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Teachers - Extended teacher management
+export const teachers = pgTable("teachers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  fatherName: text("father_name").notNull(),
+  mobile: text("mobile").notNull(),
+  address: text("address").notNull(),
+  salary: decimal("salary", { precision: 10, scale: 2 }).notNull(),
+  salaryType: salaryTypeEnum("salary_type").notNull().default("fixed"),
+  dateOfBirth: date("date_of_birth").notNull(),
+  villageId: varchar("village_id").references(() => villages.id),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Teacher Subject Assignments
+export const teacherSubjects = pgTable("teacher_subjects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").notNull().references(() => teachers.id, { onDelete: "cascade" }),
+  subjectId: varchar("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueTeacherSubject: unique().on(table.teacherId, table.subjectId),
+}));
+
+// Teacher Class Assignments
+export const teacherClasses = pgTable("teacher_classes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").notNull().references(() => teachers.id, { onDelete: "cascade" }),
+  classId: varchar("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueTeacherClass: unique().on(table.teacherId, table.classId),
+}));
+
+// Teacher Daily Records - Track daily teaching activities
+export const teacherDailyRecords = pgTable("teacher_daily_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").notNull().references(() => teachers.id, { onDelete: "cascade" }),
+  recordDate: date("record_date").notNull(),
+  classId: varchar("class_id").notNull().references(() => classes.id),
+  subjectId: varchar("subject_id").notNull().references(() => subjects.id),
+  chapterId: varchar("chapter_id").references(() => chapters.id),
+  topicId: varchar("topic_id").references(() => topics.id),
+  teachingDuration: integer("teaching_duration").notNull(), // in minutes
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Fee Calculation History - Track automated fee calculations
 export const feeCalculationHistory = pgTable("fee_calculation_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -473,6 +524,23 @@ export const insertWalletTransactionSchema = createInsertSchema(walletTransactio
   createdAt: true,
 });
 
+export const insertTeacherSchema = createInsertSchema(teachers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  salary: z.union([z.string(), z.number()]).transform((val) => String(val)),
+  dateOfBirth: z.string(), // Allow string date input
+});
+
+export const insertTeacherDailyRecordSchema = createInsertSchema(teacherDailyRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  recordDate: z.string(), // Allow string date input
+});
+
 // Attendance table with unique constraint
 export const attendance = pgTable("attendance", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -543,3 +611,10 @@ export type InsertFeeCalculationHistory = z.infer<typeof insertFeeCalculationHis
 
 export type MonthlyFeeSchedule = typeof monthlyFeeSchedule.$inferSelect;
 export type InsertMonthlyFeeSchedule = z.infer<typeof insertMonthlyFeeScheduleSchema>;
+
+export type Teacher = typeof teachers.$inferSelect;
+export type InsertTeacher = z.infer<typeof insertTeacherSchema>;
+export type TeacherSubject = typeof teacherSubjects.$inferSelect;
+export type TeacherClass = typeof teacherClasses.$inferSelect;
+export type TeacherDailyRecord = typeof teacherDailyRecords.$inferSelect;
+export type InsertTeacherDailyRecord = z.infer<typeof insertTeacherDailyRecordSchema>;

@@ -36,8 +36,12 @@ import {
   insertSoCenterSchema,
   insertAttendanceSchema,
   insertHomeworkActivitySchema,
-  insertTuitionProgressSchema
+  insertTuitionProgressSchema,
+  insertTeacherSchema,
+  insertTeacherDailyRecordSchema
 } from "@shared/schema";
+import { TeacherStorage } from './storage/teacherStorage';
+import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
@@ -60,6 +64,9 @@ const authenticateToken = (req: Request, res: any, next: any) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Initialize teacher storage
+  const teacherStorage = new TeacherStorage();
   
   // Test endpoint
   app.get("/api/test", (req, res) => {
@@ -2096,6 +2103,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating tuition progress:", error);
       res.status(500).json({ message: "Failed to update tuition progress" });
+    }
+  });
+
+  // Teacher Management Routes
+  
+  // Get all teachers
+  app.get("/api/admin/teachers", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const teachers = await teacherStorage.getAllTeachers();
+      res.json(teachers);
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+      res.status(500).json({ message: 'Failed to fetch teachers' });
+    }
+  });
+
+  // Get teacher by ID
+  app.get("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const teacher = await teacherStorage.getTeacherById(req.params.id);
+      if (!teacher) {
+        return res.status(404).json({ message: 'Teacher not found' });
+      }
+      
+      res.json(teacher);
+    } catch (error) {
+      console.error('Error fetching teacher:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher' });
+    }
+  });
+
+  // Create teacher
+  app.post("/api/admin/teachers", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const validation = insertTeacherSchema.extend({
+        subjectIds: z.array(z.string()).min(1, 'At least one subject must be selected'),
+        classIds: z.array(z.string()).min(1, 'At least one class must be assigned'),
+      }).safeParse(req.body);
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid teacher data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const teacher = await teacherStorage.createTeacher(validation.data);
+      res.status(201).json(teacher);
+    } catch (error) {
+      console.error('Error creating teacher:', error);
+      res.status(500).json({ message: 'Failed to create teacher' });
+    }
+  });
+
+  // Update teacher
+  app.put("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const validation = insertTeacherSchema.partial().safeParse(req.body);
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid teacher data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const teacher = await teacherStorage.updateTeacher(req.params.id, validation.data);
+      res.json(teacher);
+    } catch (error) {
+      console.error('Error updating teacher:', error);
+      res.status(500).json({ message: 'Failed to update teacher' });
+    }
+  });
+
+  // Delete teacher
+  app.delete("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      await teacherStorage.deleteTeacher(req.params.id);
+      res.json({ message: 'Teacher deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting teacher:', error);
+      res.status(500).json({ message: 'Failed to delete teacher' });
+    }
+  });
+
+  // Get teacher's subjects
+  app.get("/api/admin/teachers/:id/subjects", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const subjects = await teacherStorage.getTeacherSubjects(req.params.id);
+      res.json(subjects);
+    } catch (error) {
+      console.error('Error fetching teacher subjects:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher subjects' });
+    }
+  });
+
+  // Get teacher's classes
+  app.get("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const classes = await teacherStorage.getTeacherClasses(req.params.id);
+      res.json(classes);
+    } catch (error) {
+      console.error('Error fetching teacher classes:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher classes' });
+    }
+  });
+
+  // Get teacher's daily records
+  app.get("/api/admin/teachers/:id/records", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const records = await teacherStorage.getTeacherRecords(req.params.id);
+      res.json(records);
+    } catch (error) {
+      console.error('Error fetching teacher records:', error);
+      res.status(500).json({ message: 'Failed to fetch teacher records' });
+    }
+  });
+
+  // Add daily teaching record
+  app.post("/api/admin/teacher-records", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const validation = insertTeacherDailyRecordSchema.safeParse(req.body);
+
+      if (!validation.success) {
+        return res.status(400).json({ 
+          message: "Invalid teaching record data", 
+          errors: validation.error.errors 
+        });
+      }
+
+      const record = await teacherStorage.addTeachingRecord(validation.data);
+      res.status(201).json(record);
+    } catch (error) {
+      console.error('Error adding teaching record:', error);
+      res.status(500).json({ message: 'Failed to add teaching record' });
+    }
+  });
+
+  // Update teacher subject assignments
+  app.put("/api/admin/teachers/:id/subjects", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { subjectIds } = req.body;
+      
+      if (!Array.isArray(subjectIds)) {
+        return res.status(400).json({ message: 'subjectIds must be an array' });
+      }
+
+      await teacherStorage.updateTeacherSubjects(req.params.id, subjectIds);
+      res.json({ message: 'Teacher subjects updated successfully' });
+    } catch (error) {
+      console.error('Error updating teacher subjects:', error);
+      res.status(500).json({ message: 'Failed to update teacher subjects' });
+    }
+  });
+
+  // Update teacher class assignments
+  app.put("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const { classIds } = req.body;
+      
+      if (!Array.isArray(classIds)) {
+        return res.status(400).json({ message: 'classIds must be an array' });
+      }
+
+      await teacherStorage.updateTeacherClasses(req.params.id, classIds);
+      res.json({ message: 'Teacher classes updated successfully' });
+    } catch (error) {
+      console.error('Error updating teacher classes:', error);
+      res.status(500).json({ message: 'Failed to update teacher classes' });
     }
   });
 

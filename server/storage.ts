@@ -38,7 +38,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
-const db = drizzle(sql, { schema });
+export const db = drizzle(sql, { schema });
 
 // Initialize database with default data
 async function initializeDatabase() {

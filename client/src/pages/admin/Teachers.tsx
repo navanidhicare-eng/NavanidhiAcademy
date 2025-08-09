@@ -1,473 +1,327 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
-  Users, 
-  BookOpen, 
-  CheckCircle, 
-  Clock, 
-  TrendingUp, 
+  Search, 
+  UserPlus, 
   Eye, 
-  Calendar,
-  Award,
-  Target
+  Trash2, 
+  Users,
+  BookOpen,
+  Clock,
+  CalendarDays
 } from 'lucide-react';
+import { CreateTeacherForm } from '@/components/admin/CreateTeacherForm';
+import { TeacherDetailView } from '@/components/admin/TeacherDetailView';
+import { AddTeachingRecordForm } from '@/components/admin/AddTeachingRecordForm';
+import type { Teacher } from '@shared/schema';
 
-export default function Teachers() {
-  const [selectedCenter, setSelectedCenter] = useState<string>('all');
-  const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState<string>('');
+export default function AdminTeachers() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<{id: string, name: string} | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Mock data - replace with actual API calls
-  const { data: teachers = [], isLoading: teachersLoading } = useQuery({
-    queryKey: ['/api/admin/teachers', selectedCenter, selectedClass],
-    queryFn: async () => {
-      return [
-        {
-          id: '1',
-          name: 'Dr. Rajesh Kumar',
-          email: 'rajesh.kumar@navanidhi.com',
-          phone: '+91 98765 43210',
-          centerId: '1',
-          centerName: 'Main Center',
-          subjects: ['Mathematics', 'Physics'],
-          classes: ['Class 10', 'Class 12'],
-          totalStudents: 45,
-          lessonsCompleted: 28,
-          totalLessons: 35,
-          progressPercentage: 80,
-          averageRating: 4.8,
-          joiningDate: '2023-06-15',
-          status: 'active',
-          currentMonth: {
-            lessonsPlanned: 12,
-            lessonsCompleted: 10,
-            pendingLessons: 2,
-          }
-        },
-        {
-          id: '2',
-          name: 'Ms. Priya Sharma',
-          email: 'priya.sharma@navanidhi.com',
-          phone: '+91 98765 43211',
-          centerId: '2',
-          centerName: 'Branch Center',
-          subjects: ['Chemistry', 'Biology'],
-          classes: ['Class 10', 'Navodaya'],
-          totalStudents: 32,
-          lessonsCompleted: 22,
-          totalLessons: 30,
-          progressPercentage: 73,
-          averageRating: 4.6,
-          joiningDate: '2023-08-20',
-          status: 'active',
-          currentMonth: {
-            lessonsPlanned: 10,
-            lessonsCompleted: 8,
-            pendingLessons: 2,
-          }
-        },
-        {
-          id: '3',
-          name: 'Mr. Amit Patel',
-          email: 'amit.patel@navanidhi.com',
-          phone: '+91 98765 43212',
-          centerId: '1',
-          centerName: 'Main Center',
-          subjects: ['English', 'Social Studies'],
-          classes: ['Navodaya', 'POLYCET'],
-          totalStudents: 28,
-          lessonsCompleted: 15,
-          totalLessons: 25,
-          progressPercentage: 60,
-          averageRating: 4.4,
-          joiningDate: '2024-01-10',
-          status: 'active',
-          currentMonth: {
-            lessonsPlanned: 8,
-            lessonsCompleted: 5,
-            pendingLessons: 3,
-          }
-        }
-      ];
+  // Fetch teachers from API
+  const { data: teachers = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/teachers'],
+  });
+
+  // Delete teacher mutation
+  const deleteTeacherMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/teachers/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Teacher Deleted',
+        description: 'Teacher has been successfully deleted.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
+      setTeacherToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete teacher.',
+        variant: 'destructive',
+      });
+      setTeacherToDelete(null);
     },
   });
 
-  const { data: lessons = [], isLoading: lessonsLoading } = useQuery({
-    queryKey: ['/api/admin/teacher-lessons'],
-    queryFn: async () => {
-      return [
-        {
-          id: '1',
-          teacherId: '1',
-          teacherName: 'Dr. Rajesh Kumar',
-          subject: 'Mathematics',
-          class: 'Class 10',
-          topic: 'Quadratic Equations - Introduction',
-          plannedDate: '2025-01-10',
-          completedDate: '2025-01-10',
-          status: 'completed',
-          studentsPresent: 22,
-          totalStudents: 25,
-          lessonRating: 4.5,
-        },
-        {
-          id: '2',
-          teacherId: '1',
-          teacherName: 'Dr. Rajesh Kumar',
-          subject: 'Mathematics',
-          class: 'Class 10',
-          topic: 'Quadratic Equations - Solving Methods',
-          plannedDate: '2025-01-12',
-          completedDate: null,
-          status: 'scheduled',
-          studentsPresent: 0,
-          totalStudents: 25,
-          lessonRating: null,
-        },
-        {
-          id: '3',
-          teacherId: '2',
-          teacherName: 'Ms. Priya Sharma',
-          subject: 'Chemistry',
-          class: 'Class 10',
-          topic: 'Acids, Bases and Salts',
-          plannedDate: '2025-01-09',
-          completedDate: '2025-01-09',
-          status: 'completed',
-          studentsPresent: 18,
-          totalStudents: 20,
-          lessonRating: 4.8,
-        }
-      ];
-    },
-  });
+  const handleDeleteClick = (teacher: Teacher) => {
+    setTeacherToDelete({ id: teacher.id, name: teacher.name });
+  };
 
-  // Filter teachers based on search and filters
-  const filteredTeachers = teachers.filter(teacher => {
+  const confirmDelete = () => {
+    if (teacherToDelete) {
+      deleteTeacherMutation.mutate(teacherToDelete.id);
+    }
+  };
+
+  const handleViewTeacher = (teacher: Teacher) => {
+    setSelectedTeacher(teacher);
+  };
+
+  const filteredTeachers = (teachers as Teacher[]).filter((teacher: Teacher) => {
     const matchesSearch = teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         teacher.subjects.some(subject => subject.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCenter = selectedCenter === 'all' || teacher.centerId === selectedCenter;
-    const matchesClass = selectedClass === 'all' || teacher.classes.includes(selectedClass);
-    
-    return matchesSearch && matchesCenter && matchesClass;
+                         teacher.mobile.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         teacher.fatherName.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch && teacher.isActive;
   });
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
-
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  if (teachersLoading || lessonsLoading) {
-    return <div className="flex justify-center items-center h-64">Loading teacher data...</div>;
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading teachers...</div>
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  const totalLessonsCompleted = teachers.reduce((sum, teacher) => sum + teacher.lessonsCompleted, 0);
-  const totalLessonsPlanned = teachers.reduce((sum, teacher) => sum + teacher.totalLessons, 0);
-  const averageProgress = totalLessonsPlanned > 0 ? (totalLessonsCompleted / totalLessonsPlanned) * 100 : 0;
-  const totalStudents = teachers.reduce((sum, teacher) => sum + teacher.totalStudents, 0);
-
   return (
-    <DashboardLayout 
-      title="Teacher Management" 
-      subtitle="Track teaching progress and lesson completion"
-    >
-      <div className="space-y-6">
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Teachers</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teachers.length}</div>
-            <p className="text-xs text-muted-foreground">Active teaching staff</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Students Taught</CardTitle>
-            <Target className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">Across all teachers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lessons Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalLessonsCompleted}</div>
-            <p className="text-xs text-muted-foreground">Out of {totalLessonsPlanned} planned</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Progress</CardTitle>
-            <TrendingUp className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageProgress.toFixed(1)}%</div>
-            <Progress value={averageProgress} className="mt-2" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Search Teachers</label>
-            <Input
-              placeholder="Search by name or subject..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <DashboardLayout>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-6 w-6" />
+                Teacher Management
+              </CardTitle>
+              <p className="text-gray-600 mt-1">Manage teachers, assign subjects and classes, track daily teaching records</p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => setIsRecordModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <BookOpen className="mr-2 h-4 w-4" />
+                Add Teaching Record
+              </Button>
+              <Button onClick={() => setIsCreateModalOpen(true)}>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create Teacher
+              </Button>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">SO Center</label>
-            <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select center" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Centers</SelectItem>
-                <SelectItem value="1">Main Center</SelectItem>
-                <SelectItem value="2">Branch Center</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Class</label>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                <SelectItem value="Class 10">Class 10</SelectItem>
-                <SelectItem value="Class 12">Class 12</SelectItem>
-                <SelectItem value="Navodaya">Navodaya</SelectItem>
-                <SelectItem value="POLYCET">POLYCET</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedCenter('all');
-                setSelectedClass('all');
-                setSearchTerm('');
-              }}
-              className="w-full"
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      {/* Teachers Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Teachers Overview</h2>
-          <p className="text-sm text-gray-600">Track teaching performance and lesson completion</p>
-        </div>
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search teachers by name, mobile, or father name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardHeader>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Teacher</TableHead>
-              <TableHead>Center</TableHead>
-              <TableHead>Subjects</TableHead>
-              <TableHead>Students</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>This Month</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTeachers.map((teacher: any) => (
-              <TableRow key={teacher.id}>
-                <TableCell>
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-white">
-                        {getInitials(teacher.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{teacher.name}</div>
-                      <div className="text-sm text-gray-600">{teacher.email}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{teacher.centerName}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {teacher.subjects.map((subject: string) => (
-                      <Badge key={subject} variant="outline" className="text-xs">
-                        {subject}
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Teacher Details
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Contact Info
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Salary
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTeachers.map((teacher: Teacher) => (
+                  <tr key={teacher.id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center">
+                          <span className="text-white font-medium text-sm">
+                            {teacher.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{teacher.name}</div>
+                          <div className="text-sm text-gray-500">Father: {teacher.fatherName}</div>
+                          <div className="text-sm text-gray-500">DOB: {new Date(teacher.dateOfBirth).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{teacher.mobile}</div>
+                      <div className="text-sm text-gray-500">{teacher.address}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">₹{parseFloat(teacher.salary).toLocaleString()}</div>
+                      <Badge variant="outline" className="mt-1">
+                        {teacher.salaryType.toUpperCase()}
                       </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-center">
-                    <div className="font-medium">{teacher.totalStudents}</div>
-                    <div className="text-sm text-gray-600">students</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className={`text-sm font-medium ${getProgressColor(teacher.progressPercentage)}`}>
-                        {teacher.progressPercentage}%
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {teacher.lessonsCompleted}/{teacher.totalLessons}
-                      </span>
-                    </div>
-                    <Progress value={teacher.progressPercentage} className="h-2" />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <CheckCircle className="w-3 h-3 text-green-600" />
-                      <span>{teacher.currentMonth.lessonsCompleted} completed</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Clock className="w-3 h-3 text-yellow-600" />
-                      <span>{teacher.currentMonth.pendingLessons} pending</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1">
-                    <Award className="w-4 h-4 text-yellow-500" />
-                    <span className="font-medium">{teacher.averageRating}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(teacher.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewTeacher(teacher)}
+                        >
+                          <Eye className="text-blue-600" size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteClick(teacher)}
+                          disabled={deleteTeacherMutation.isPending}
+                        >
+                          <Trash2 className="text-destructive" size={16} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Recent Lessons */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Lessons</h2>
-          <p className="text-sm text-gray-600">Latest teaching activities and lesson updates</p>
-        </div>
+          {filteredTeachers.length === 0 && (
+            <div className="text-center py-8">
+              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No teachers found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm ? 'Try adjusting your search terms.' : 'Get started by creating your first teacher.'}
+              </p>
+            </div>
+          )}
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Teacher</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead>Topic</TableHead>
-              <TableHead>Planned Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Attendance</TableHead>
-              <TableHead>Rating</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lessons.map((lesson: any) => (
-              <TableRow key={lesson.id}>
-                <TableCell className="font-medium">{lesson.teacherName}</TableCell>
-                <TableCell>{lesson.subject}</TableCell>
-                <TableCell>{lesson.class}</TableCell>
-                <TableCell className="max-w-xs truncate">{lesson.topic}</TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <span>{new Date(lesson.plannedDate).toLocaleDateString()}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={lesson.status === 'completed' ? 'default' : 
-                           lesson.status === 'scheduled' ? 'secondary' : 'destructive'}
-                  >
-                    {lesson.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {lesson.status === 'completed' ? (
-                    <span className="text-sm">
-                      {lesson.studentsPresent}/{lesson.totalStudents}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-gray-400">-</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {lesson.lessonRating ? (
-                    <div className="flex items-center space-x-1">
-                      <Award className="w-4 h-4 text-yellow-500" />
-                      <span>{lesson.lessonRating}</span>
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-400">-</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      </div>
+          {/* Stats */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{teachers.filter((t: Teacher) => t.isActive).length}</div>
+                <p className="text-gray-600">Active Teachers</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{teachers.filter((t: Teacher) => t.salaryType === 'fixed').length}</div>
+                <p className="text-gray-600">Fixed Salary</p>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{teachers.filter((t: Teacher) => t.salaryType === 'hourly').length}</div>
+                <p className="text-gray-600">Hourly Rate</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create Teacher Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Teacher</DialogTitle>
+          </DialogHeader>
+          <CreateTeacherForm 
+            onSuccess={() => {
+              setIsCreateModalOpen(false);
+              queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers'] });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Teaching Record Modal */}
+      <Dialog open={isRecordModalOpen} onOpenChange={setIsRecordModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Daily Teaching Record</DialogTitle>
+          </DialogHeader>
+          <AddTeachingRecordForm 
+            onSuccess={() => {
+              setIsRecordModalOpen(false);
+              if (selectedTeacher) {
+                queryClient.invalidateQueries({ queryKey: ['/api/admin/teachers', selectedTeacher.id, 'records'] });
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Teacher Detail View Modal */}
+      {selectedTeacher && (
+        <Dialog open={!!selectedTeacher} onOpenChange={() => setSelectedTeacher(null)}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{selectedTeacher.name} - Teaching Profile</DialogTitle>
+            </DialogHeader>
+            <TeacherDetailView teacher={selectedTeacher} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!teacherToDelete} onOpenChange={() => setTeacherToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the teacher 
+              <strong> {teacherToDelete?.name}</strong> and remove all their teaching records from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteTeacherMutation.isPending}
+            >
+              {deleteTeacherMutation.isPending ? 'Deleting...' : 'Delete Teacher'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }
