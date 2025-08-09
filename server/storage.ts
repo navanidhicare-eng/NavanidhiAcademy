@@ -1247,7 +1247,11 @@ export class DrizzleStorage implements IStorage {
     }>;
   }> {
     const startDate = `${params.month}-01`;
-    const endDate = `${params.month}-31`;
+    // Calculate the last day of the month to avoid invalid dates like 2025-09-31
+    const year = parseInt(params.month.split('-')[0]);
+    const month = parseInt(params.month.split('-')[1]);
+    const lastDay = new Date(year, month, 0).getDate(); // month is 1-indexed, so this gets last day of the month
+    const endDate = `${params.month}-${lastDay.toString().padStart(2, '0')}`;
 
     // Base query conditions
     let whereConditions = [
@@ -1354,7 +1358,11 @@ export class DrizzleStorage implements IStorage {
     totalDays: number;
   }> {
     const startDate = `${month}-01`;
-    const endDate = `${month}-31`;
+    // Calculate the last day of the month to avoid invalid dates like 2025-09-31
+    const year = parseInt(month.split('-')[0]);
+    const monthNum = parseInt(month.split('-')[1]);
+    const lastDay = new Date(year, monthNum, 0).getDate(); // monthNum is 1-indexed, so this gets last day of the month
+    const endDate = `${month}-${lastDay.toString().padStart(2, '0')}`;
 
     // Get student details
     const student = await db.select()
