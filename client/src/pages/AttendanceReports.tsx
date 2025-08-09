@@ -45,11 +45,10 @@ export default function AttendanceReports() {
     queryKey: ['/api/attendance/stats', selectedMonth, selectedClass],
     queryFn: async () => {
       const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
-      const params = new URLSearchParams({
-        soCenterId,
-        month: selectedMonth,
-        ...(selectedClass && { classId: selectedClass })
-      });
+      const params = new URLSearchParams();
+      if (soCenterId) params.append('soCenterId', soCenterId);
+      if (selectedMonth) params.append('month', selectedMonth);
+      if (selectedClass) params.append('classId', selectedClass);
       
       const response = await fetch(`/api/attendance/stats?${params}`, {
         headers: {
@@ -95,13 +94,13 @@ export default function AttendanceReports() {
   });
 
   // Get unique classes
-  const availableClasses = Array.from(new Set(allStudents.map((student: any) => ({
+  const availableClasses = allStudents ? Array.from(new Set(allStudents.map((student: any) => ({
     id: student.classId,
     name: student.className
-  }))).filter(c => c.name)).map(c => ({ id: c.id, name: c.name }));
+  })).filter(c => c.name).map(c => JSON.stringify(c)))).map(c => JSON.parse(c)) : [];
 
   // Filter students by selected class
-  const classStudents = selectedClass ? allStudents.filter((student: any) => student.classId === selectedClass) : [];
+  const classStudents = selectedClass && allStudents ? allStudents.filter((student: any) => student.classId === selectedClass) : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -146,14 +145,14 @@ export default function AttendanceReports() {
             </div>
             <div>
               <Label>Filter by Class (Optional)</Label>
-              <Select value={selectedClass} onValueChange={setSelectedClass}>
+              <Select value={selectedClass || 'all'} onValueChange={(value) => setSelectedClass(value === 'all' ? '' : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Classes" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Classes</SelectItem>
+                  <SelectItem value="all">All Classes</SelectItem>
                   {availableClasses.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
+                    <SelectItem key={cls.id} value={cls.id || 'unknown'}>
                       {cls.name}
                     </SelectItem>
                   ))}
