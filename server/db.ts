@@ -11,11 +11,11 @@ if (!SUPABASE_CONNECTION) {
 
 console.log('🚫 FORCING NEON DISCONNECTION - ORIGINAL DATABASE_URL:', process.env.DATABASE_URL?.slice(0, 30) + '...');
 
-// CRITICAL: OVERRIDE DATABASE_URL TO FORCE DRIZZLE TO USE SUPABASE
-// This ensures drizzle.config.ts uses Supabase instead of Neon
-process.env.DATABASE_URL = SUPABASE_CONNECTION;
+// CRITICAL: COMPLETELY DISABLE ANY NEON CONNECTION ATTEMPTS
+// Remove any existing DATABASE_URL that might point to Neon
+delete process.env.DATABASE_URL;
 
-console.log('✅ DATABASE_URL OVERRIDDEN TO SUPABASE:', process.env.DATABASE_URL?.slice(0, 30) + '...');
+console.log('🚫 DATABASE_URL COMPLETELY DELETED - No Neon access possible');
 
 // COMPLETE REMOVAL OF ALL NEON/LOCAL DATABASE VARIABLES
 delete process.env.PGHOST;
@@ -26,7 +26,7 @@ delete process.env.PGDATABASE;
 
 console.log('🚫 NEON DATABASE COMPLETELY DISABLED');
 console.log('🔗 SUPABASE DATABASE ENFORCED:', SUPABASE_CONNECTION.slice(0, 60) + '...');
-console.log('✅ DATABASE_URL REDIRECTED TO SUPABASE');
+console.log('✅ ONLY SUPABASE_DATABASE_URL IS ACTIVE - Neon completely eliminated');
 
 // CREATE SUPABASE CONNECTION WITH REGULAR PG POOL (NO NEON DEPENDENCIES)
 export const pool = new Pool({ 
