@@ -69,6 +69,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
   const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
   const [facilities, setFacilities] = useState<{facilityName: string}[]>([]);
+  const [equipment, setEquipment] = useState<{itemName: string; serialNumber: string; warrantyYears: string; purchaseDate: string; brandName: string}[]>([]);
 
   // Generate next Center ID when modal opens - PRODUCTION READY
   const { data: nextCenterId = '' } = useQuery({
@@ -195,6 +196,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         facilities: facilities.map(f => f.facilityName).filter(name => name.trim() !== ''),
         nearbySchools: nearbySchools,
         nearbyTuitions: nearbyTuitions,
+        equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
       };
       return apiRequest('POST', '/api/admin/so-centers', processedData);
     },
@@ -707,6 +709,136 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 <p className="text-sm text-red-600 mt-2">
                   {form.formState.errors.facilities.message}
                 </p>
+              )}
+            </div>
+
+            {/* Equipment Management */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Equipment Inventory</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEquipment([...equipment, {itemName: '', serialNumber: '', warrantyYears: '', purchaseDate: '', brandName: ''}])}
+                >
+                  Add Equipment
+                </Button>
+              </div>
+              
+              {equipment.map((item, index) => (
+                <div key={index} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-gray-700">Equipment #{index + 1}</h4>
+                    {equipment.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updated = equipment.filter((_, i) => i !== index);
+                          setEquipment(updated);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Item Name</Label>
+                      <Input 
+                        placeholder="e.g., Computer, Projector, AC"
+                        value={item.itemName}
+                        onChange={(e) => {
+                          const updated = [...equipment];
+                          updated[index].itemName = e.target.value;
+                          setEquipment(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Serial Number</Label>
+                      <Input 
+                        placeholder="e.g., ABC123XYZ789"
+                        value={item.serialNumber}
+                        onChange={(e) => {
+                          const updated = [...equipment];
+                          updated[index].serialNumber = e.target.value;
+                          setEquipment(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>Warranty Years</Label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        max="10"
+                        placeholder="e.g., 2"
+                        value={item.warrantyYears}
+                        onChange={(e) => {
+                          const updated = [...equipment];
+                          updated[index].warrantyYears = e.target.value;
+                          setEquipment(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Purchase Date</Label>
+                      <Input 
+                        type="date"
+                        value={item.purchaseDate}
+                        onChange={(e) => {
+                          const updated = [...equipment];
+                          updated[index].purchaseDate = e.target.value;
+                          setEquipment(updated);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Brand Name</Label>
+                      <Input 
+                        placeholder="e.g., Dell, Samsung, LG"
+                        value={item.brandName}
+                        onChange={(e) => {
+                          const updated = [...equipment];
+                          updated[index].brandName = e.target.value;
+                          setEquipment(updated);
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {item.purchaseDate && item.warrantyYears && (
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <strong>Warranty End Date:</strong> {
+                          (() => {
+                            try {
+                              const purchaseDate = new Date(item.purchaseDate);
+                              const warrantyEnd = new Date(purchaseDate);
+                              warrantyEnd.setFullYear(warrantyEnd.getFullYear() + parseInt(item.warrantyYears || '0'));
+                              return warrantyEnd.toLocaleDateString();
+                            } catch {
+                              return 'Invalid date';
+                            }
+                          })()
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+              
+              {equipment.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  Click "Add Equipment" to register equipment for this center
+                </div>
               )}
             </div>
 

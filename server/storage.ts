@@ -432,7 +432,58 @@ export class DrizzleStorage implements IStorage {
     }));
   }
 
-  async createSoCenter(center: InsertSoCenter): Promise<SoCenter> {
+  // SO Center Equipment Management
+  async createSoCenterEquipment(soCenterId: string, equipment: any[]): Promise<void> {
+    if (equipment && equipment.length > 0) {
+      const equipmentData = equipment.map(item => ({
+        soCenterId,
+        itemName: item.itemName,
+        serialNumber: item.serialNumber,
+        warrantyYears: parseInt(item.warrantyYears),
+        purchaseDate: item.purchaseDate,
+        warrantyEndDate: this.calculateWarrantyEndDate(item.purchaseDate, parseInt(item.warrantyYears)),
+        brandName: item.brandName,
+      }));
+
+      await db.insert(schema.soCenterEquipment).values(equipmentData);
+    }
+  }
+
+  async getSoCenterEquipment(soCenterId: string) {
+    return await db.select()
+      .from(schema.soCenterEquipment)
+      .where(and(
+        eq(schema.soCenterEquipment.soCenterId, soCenterId),
+        eq(schema.soCenterEquipment.isActive, true)
+      ))
+      .orderBy(asc(schema.soCenterEquipment.createdAt));
+  }
+
+  async updateSoCenterEquipment(equipmentId: string, data: any) {
+    if (data.purchaseDate && data.warrantyYears) {
+      data.warrantyEndDate = this.calculateWarrantyEndDate(data.purchaseDate, parseInt(data.warrantyYears));
+    }
+    
+    return await db.update(schema.soCenterEquipment)
+      .set(data)
+      .where(eq(schema.soCenterEquipment.id, equipmentId))
+      .returning();
+  }
+
+  async deleteSoCenterEquipment(equipmentId: string): Promise<void> {
+    await db.update(schema.soCenterEquipment)
+      .set({ isActive: false })
+      .where(eq(schema.soCenterEquipment.id, equipmentId));
+  }
+
+  private calculateWarrantyEndDate(purchaseDate: string, warrantyYears: number): string {
+    const purchase = new Date(purchaseDate);
+    const warrantyEnd = new Date(purchase);
+    warrantyEnd.setFullYear(warrantyEnd.getFullYear() + warrantyYears);
+    return warrantyEnd.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+  }
+
+  async createSoCenter(center: InsertSoCenter, nearbySchools?: any[], nearbyTuitions?: any[], equipment?: any[]): Promise<SoCenter> {
     console.log('🏢 Creating SO Center with data:', {
       name: center.name,
       email: center.email,
@@ -444,6 +495,44 @@ export class DrizzleStorage implements IStorage {
       console.log('📝 Inserting SO Center record...');
       const [newCenter] = await tx.insert(schema.soCenters).values(center).returning();
       console.log('✅ SO Center created with ID:', newCenter.id);
+      
+      // Create nearby schools if provided
+      if (nearbySchools && nearbySchools.length > 0) {
+        const schoolsData = nearbySchools.map(school => ({
+          soCenterId: newCenter.id,
+          schoolName: school.schoolName,
+          studentStrength: parseInt(school.studentStrength) || 0,
+          schoolType: school.schoolType
+        }));
+        await tx.insert(schema.nearbySchools).values(schoolsData);
+        console.log('✅ Nearby schools created');
+      }
+
+      // Create nearby tuitions if provided
+      if (nearbyTuitions && nearbyTuitions.length > 0) {
+        const tuitionsData = nearbyTuitions.map(tuition => ({
+          soCenterId: newCenter.id,
+          tuitionName: tuition.tuitionName,
+          studentStrength: parseInt(tuition.studentStrength) || 0
+        }));
+        await tx.insert(schema.nearbyTuitions).values(tuitionsData);
+        console.log('✅ Nearby tuitions created');
+      }
+
+      // Create equipment if provided
+      if (equipment && equipment.length > 0) {
+        const equipmentData = equipment.map(item => ({
+          soCenterId: newCenter.id,
+          itemName: item.itemName,
+          serialNumber: item.serialNumber,
+          warrantyYears: parseInt(item.warrantyYears),
+          purchaseDate: item.purchaseDate,
+          warrantyEndDate: this.calculateWarrantyEndDate(item.purchaseDate, parseInt(item.warrantyYears)),
+          brandName: item.brandName,
+        }));
+        await tx.insert(schema.soCenterEquipment).values(equipmentData);
+        console.log('✅ Equipment inventory created');
+      }
       
       // Check if user with this email already exists
       const existingUser = await tx.select()
@@ -970,23 +1059,21 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getUnassignedManagers(): Promise<User[]> {
-    // Get users with 'so_center' role who are not assigned to any SO center
-    const assignedManagerIds = await db.select({ userId: schema.soCenters.userId })
-      .from(schema.soCenters)
-      .where(and(
-        eq(schema.soCenters.isActive, true),
-        isNotNull(schema.soCenters.userId)
-      ));
+    try {
+      // Since SO Centers don't have userId field anymore (they use separate auth),
+      // return all so_center role users who don't have corresponding SO center records
+      const users = await db.select().from(schema.users).where(
+        and(
+          eq(schema.users.isActive, true),
+          eq(schema.users.role, 'so_center')
+        )
+      ).orderBy(asc(schema.users.name));
 
-    const assignedIds = assignedManagerIds.map(row => row.userId).filter(id => id !== null);
-
-    return await db.select().from(schema.users).where(
-      and(
-        eq(schema.users.isActive, true),
-        eq(schema.users.role, 'so_center'),
-        assignedIds.length > 0 ? notInArray(schema.users.id, assignedIds) : sql`true`
-      )
-    ).orderBy(asc(schema.users.name));
+      return users;
+    } catch (error) {
+      console.error('Error in getUnassignedManagers:', error);
+      return [];
+    }
   }
 
   async updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter> {

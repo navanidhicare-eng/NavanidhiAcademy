@@ -377,6 +377,20 @@ export const nearbyTuitions = pgTable("nearby_tuitions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// SO Center Equipment
+export const soCenterEquipment = pgTable("so_center_equipment", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  itemName: text("item_name").notNull(),
+  serialNumber: text("serial_number").notNull(),
+  warrantyYears: integer("warranty_years").notNull(),
+  purchaseDate: date("purchase_date").notNull(),
+  warrantyEndDate: date("warranty_end_date").notNull(), // Auto-calculated
+  brandName: text("brand_name").notNull(),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Student Siblings
 export const studentSiblings = pgTable("student_siblings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -645,6 +659,14 @@ export const insertWalletTransactionSchema = createInsertSchema(walletTransactio
   createdAt: true,
 });
 
+export const insertSoCenterEquipmentSchema = createInsertSchema(soCenterEquipment).omit({
+  id: true,
+  createdAt: true,
+  warrantyEndDate: true, // Auto-calculated
+}).extend({
+  purchaseDate: z.string(), // Allow string date input
+});
+
 export const insertTeacherSchema = createInsertSchema(teachers).omit({
   id: true,
   createdAt: true,
@@ -720,6 +742,8 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type WalletTransaction = typeof walletTransactions.$inferSelect;
 export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
+export type SoCenterEquipment = typeof soCenterEquipment.$inferSelect;
+export type InsertSoCenterEquipment = z.infer<typeof insertSoCenterEquipmentSchema>;
 export type Attendance = typeof attendance.$inferSelect;
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type HomeworkActivity = typeof homeworkActivities.$inferSelect;

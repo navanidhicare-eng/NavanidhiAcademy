@@ -1565,22 +1565,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         internetAmount: req.body.internetAmount ? String(req.body.internetAmount) : undefined,
       };
 
+      // Extract additional data for SO Center creation
+      const { nearbySchools, nearbyTuitions, equipment, ...centerData } = centerDataWithStringFields;
+      
       // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createSoCenter({
-        email: centerDataWithStringFields.email,
-        password: centerDataWithStringFields.password || '12345678',
-        name: centerDataWithStringFields.name || centerDataWithStringFields.managerName || 'SO Manager',
-        phone: centerDataWithStringFields.phone || centerDataWithStringFields.managerPhone,
-        address: centerDataWithStringFields.address,
-        centerId: centerDataWithStringFields.centerId,
-        centerName: centerDataWithStringFields.centerName,
-        location: centerDataWithStringFields.location,
-        managerName: centerDataWithStringFields.managerName,
-        rentAmount: centerDataWithStringFields.rentAmount,
-        rentalAdvance: centerDataWithStringFields.rentalAdvance,
-        electricityAmount: centerDataWithStringFields.electricityAmount,
-        internetAmount: centerDataWithStringFields.internetAmount
-      });
+        email: centerData.email,
+        password: centerData.password || '12345678',
+        name: centerData.name || centerData.managerName || 'SO Manager',
+        phone: centerData.phone || centerData.managerPhone,
+        address: centerData.address,
+        centerId: centerData.centerId,
+        centerName: centerData.centerName,
+        location: centerData.location,
+        managerName: centerData.managerName,
+        rentAmount: centerData.rentAmount,
+        rentalAdvance: centerData.rentalAdvance,
+        electricityAmount: centerData.electricityAmount,
+        internetAmount: centerData.internetAmount,
+        facilities: centerData.facilities || [],
+        capacity: centerData.capacity,
+        roomSize: centerData.roomSize,
+        landmarks: centerData.landmarks,
+        ownerName: centerData.ownerName,
+        ownerLastName: centerData.ownerLastName,
+        ownerPhone: centerData.ownerPhone,
+        dateOfHouseTaken: centerData.dateOfHouseTaken,
+        monthlyRentDate: centerData.monthlyRentDate,
+        monthlyInternetDate: centerData.monthlyInternetDate,
+        internetServiceProvider: centerData.internetServiceProvider,
+        electricBillAccountNumber: centerData.electricBillAccountNumber,
+        internetBillAccountNumber: centerData.internetBillAccountNumber,
+        villageId: centerData.villageId
+      }, nearbySchools, nearbyTuitions, equipment);
 
       console.log('✅ Admin created SO Center through Supabase Auth:', result.soCenter.id);
 

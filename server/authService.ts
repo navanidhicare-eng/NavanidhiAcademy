@@ -285,7 +285,21 @@ export class AuthService {
     rentalAdvance?: string;
     electricityAmount?: string;
     internetAmount?: string;
-  }): Promise<{ supabaseUser: any; dbUser: User; soCenter: SoCenter }> {
+    facilities?: string[];
+    capacity?: number;
+    roomSize?: string;
+    landmarks?: string;
+    ownerName?: string;
+    ownerLastName?: string;
+    ownerPhone?: string;
+    dateOfHouseTaken?: string;
+    monthlyRentDate?: number;
+    monthlyInternetDate?: number;
+    internetServiceProvider?: string;
+    electricBillAccountNumber?: string;
+    internetBillAccountNumber?: string;
+    villageId?: string;
+  }, nearbySchools?: any[], nearbyTuitions?: any[], equipment?: any[]): Promise<{ supabaseUser: any; dbUser: User; soCenter: SoCenter }> {
     try {
       console.log('🔧 Creating SO Center with Supabase Auth:', soCenterData.email);
       console.log('📊 SO Center Data:', { 
@@ -308,24 +322,33 @@ export class AuthService {
       // Step 2: Create SO Center record linked to the user
       const soCenterRecord: InsertSoCenter = {
         centerId: soCenterData.centerId,
-        name: soCenterData.name || soCenterData.centerName, // Fix: Use name field first, then centerName
-        centerName: soCenterData.centerName,
-        email: soCenterData.email, // Fix: Add email field
-        location: soCenterData.location,
-        managerName: soCenterData.managerName,
-        managerEmail: soCenterData.email,
-        managerPhone: soCenterData.phone,
+        name: soCenterData.name || soCenterData.centerName,
+        email: soCenterData.email,
+        address: soCenterData.address,
+        villageId: soCenterData.villageId,
+        phone: soCenterData.phone,
+        ownerName: soCenterData.ownerName,
+        ownerLastName: soCenterData.ownerLastName,
+        ownerPhone: soCenterData.ownerPhone,
+        landmarks: soCenterData.landmarks,
+        roomSize: soCenterData.roomSize,
         rentAmount: soCenterData.rentAmount,
         rentalAdvance: soCenterData.rentalAdvance,
-        electricityAmount: soCenterData.electricityAmount,
-        internetAmount: soCenterData.internetAmount,
-        walletBalance: '0', // Initialize wallet balance
+        dateOfHouseTaken: soCenterData.dateOfHouseTaken,
+        monthlyRentDate: soCenterData.monthlyRentDate,
+        monthlyInternetDate: soCenterData.monthlyInternetDate,
+        internetServiceProvider: soCenterData.internetServiceProvider,
+        electricBillAccountNumber: soCenterData.electricBillAccountNumber,
+        internetBillAccountNumber: soCenterData.internetBillAccountNumber,
+        capacity: soCenterData.capacity,
+        facilities: soCenterData.facilities || [],
+        walletBalance: '0',
         isActive: true
       };
 
       console.log('📝 SO Center Record to be inserted:', soCenterRecord);
 
-      const soCenter = await storage.createSoCenter(soCenterRecord);
+      const soCenter = await storage.createSoCenter(soCenterRecord, nearbySchools, nearbyTuitions, equipment);
       console.log('✅ SO Center created with Supabase Auth:', soCenter.id);
 
       return {
