@@ -346,13 +346,12 @@ export default function Approvals() {
   });
 
   // Filter withdrawal requests based on status and search
-  const filteredRequests = withdrawalRequests.filter((request: any) => {
+  const filteredRequests = (Array.isArray(withdrawalRequests) ? withdrawalRequests : []).filter((request: any) => {
     const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
     const matchesSearch = !searchTerm || 
-      request.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.withdrawal_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (request.first_name && request.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (request.last_name && request.last_name.toLowerCase().includes(searchTerm.toLowerCase()));
+      request.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.user_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesStatus && matchesSearch;
   });
