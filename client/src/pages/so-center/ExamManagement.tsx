@@ -300,7 +300,7 @@ export default function SoCenterExamManagement() {
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Date:</span>
-                                  <p className="font-medium">{new Date(exam.examDate).toLocaleDateString()}</p>
+                                  <p className="font-medium">{new Date(exam.examDate).toLocaleDateString('en-GB')}</p>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Duration:</span>

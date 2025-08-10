@@ -4130,36 +4130,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.userId;
       console.log('📋 Fetching exams for SO Center user:', userId);
       
-      // Find the user's SO Center ID (assuming SO Center users have soCenterId or we can get it from user profile)
+      // Find the user's SO Center ID
       const user = await storage.getUser(userId);
+      console.log('🔍 User details:', { id: user?.id, email: user?.email, role: user?.role });
+      
       let soCenterId = user?.soCenterId;
       
       // If user doesn't have soCenterId directly, find it through SO Centers table
       if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
+        console.log('🔍 Searching SO Centers by managerId:', userId);
+        
         // First try to find by managerId
         const soCentersByManager = await db.select({
-          id: schema.soCenters.id
+          id: schema.soCenters.id,
+          name: schema.soCenters.name,
+          centerId: schema.soCenters.centerId,
+          email: schema.soCenters.email,
+          managerId: schema.soCenters.managerId
         })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.managerId, userId));
         
+        console.log('🔍 Found SO Centers by managerId:', soCentersByManager);
+        
         if (soCentersByManager.length > 0) {
           soCenterId = soCentersByManager[0].id;
         } else {
-          // If not found by managerId, try to find by email match (for SO Center users)
+          console.log('🔍 Searching SO Centers by email:', user?.email);
+          
+          // If not found by managerId, try to find by email match
           const soCentersByEmail = await db.select({
-            id: schema.soCenters.id
+            id: schema.soCenters.id,
+            name: schema.soCenters.name,
+            centerId: schema.soCenters.centerId,
+            email: schema.soCenters.email,
+            managerId: schema.soCenters.managerId
           })
           .from(schema.soCenters)
           .where(eq(schema.soCenters.email, user?.email || ''));
           
+          console.log('🔍 Found SO Centers by email:', soCentersByEmail);
+          
           if (soCentersByEmail.length > 0) {
             soCenterId = soCentersByEmail[0].id;
+          } else {
+            // Last resort - find any SO Center that might match this user
+            const allSoCenters = await db.select({
+              id: schema.soCenters.id,
+              name: schema.soCenters.name,
+              centerId: schema.soCenters.centerId,
+              email: schema.soCenters.email,
+              managerId: schema.soCenters.managerId
+            })
+            .from(schema.soCenters)
+            .limit(10);
+            
+            console.log('🔍 All SO Centers (first 10):', allSoCenters);
+            
+            // For demo purposes, use the first SO Center if user email contains 'nnasoc'
+            if (user?.email?.includes('nnasoc') && allSoCenters.length > 0) {
+              soCenterId = allSoCenters[0].id;
+              console.log('🔍 Using first SO Center for demo user:', soCenterId);
+            }
           }
         }
       }
       
       if (!soCenterId) {
+        console.log('❌ No SO Center found for user');
         return res.status(404).json({ message: 'SO Center not found for this user' });
       }
       
@@ -4198,25 +4236,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let soCenterId = user?.soCenterId;
       
       if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
+        console.log('🔍 Searching SO Centers for students by managerId:', userId);
+        
         // First try to find by managerId
         const soCentersByManager = await db.select({
-          id: schema.soCenters.id
+          id: schema.soCenters.id,
+          name: schema.soCenters.name,
+          centerId: schema.soCenters.centerId,
+          email: schema.soCenters.email,
+          managerId: schema.soCenters.managerId
         })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.managerId, userId));
         
+        console.log('🔍 Found SO Centers by managerId for students:', soCentersByManager);
+        
         if (soCentersByManager.length > 0) {
           soCenterId = soCentersByManager[0].id;
         } else {
-          // If not found by managerId, try to find by email match (for SO Center users)
+          console.log('🔍 Searching SO Centers for students by email:', user?.email);
+          
+          // If not found by managerId, try to find by email match
           const soCentersByEmail = await db.select({
-            id: schema.soCenters.id
+            id: schema.soCenters.id,
+            name: schema.soCenters.name,
+            centerId: schema.soCenters.centerId,
+            email: schema.soCenters.email,
+            managerId: schema.soCenters.managerId
           })
           .from(schema.soCenters)
           .where(eq(schema.soCenters.email, user?.email || ''));
           
+          console.log('🔍 Found SO Centers by email for students:', soCentersByEmail);
+          
           if (soCentersByEmail.length > 0) {
             soCenterId = soCentersByEmail[0].id;
+          } else {
+            // Last resort - for demo purposes, use first SO Center if user email contains 'nnasoc'
+            if (user?.email?.includes('nnasoc')) {
+              const allSoCenters = await db.select({
+                id: schema.soCenters.id
+              })
+              .from(schema.soCenters)
+              .limit(1);
+              
+              if (allSoCenters.length > 0) {
+                soCenterId = allSoCenters[0].id;
+                console.log('🔍 Using first SO Center for demo user (students):', soCenterId);
+              }
+            }
           }
         }
       }

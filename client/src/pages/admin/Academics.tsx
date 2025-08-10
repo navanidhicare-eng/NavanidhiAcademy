@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -96,20 +96,55 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
   const form = useForm<ExamFormData>({
     resolver: zodResolver(examSchema),
     defaultValues: {
-      title: editingExam?.title || '',
-      description: editingExam?.description || '',
-      classId: editingExam?.classId || '',
-      subjectId: editingExam?.subjectId || '',
-      chapterIds: editingExam?.chapterIds || [],
-      soCenterIds: editingExam?.soCenterIds || [],
-      examDate: editingExam?.examDate ? new Date(editingExam.examDate).toISOString().split('T')[0] : '',
-      duration: editingExam?.duration?.toString() || '',
-      totalQuestions: editingExam?.totalQuestions?.toString() || '',
-      totalMarks: editingExam?.totalMarks?.toString() || '',
-      passingMarks: editingExam?.passingMarks?.toString() || '',
-      status: editingExam?.status || 'scheduled',
+      title: '',
+      description: '',
+      classId: '',
+      subjectId: '',
+      chapterIds: [],
+      soCenterIds: [],
+      examDate: '',
+      duration: '',
+      totalQuestions: '',
+      totalMarks: '',
+      passingMarks: '',
+      status: 'scheduled',
     },
   });
+
+  // Reset form when editingExam changes
+  React.useEffect(() => {
+    if (editingExam) {
+      form.reset({
+        title: editingExam.title || '',
+        description: editingExam.description || '',
+        classId: editingExam.classId || '',
+        subjectId: editingExam.subjectId || '',
+        chapterIds: editingExam.chapterIds || [],
+        soCenterIds: editingExam.soCenterIds || [],
+        examDate: editingExam.examDate ? new Date(editingExam.examDate).toISOString().split('T')[0] : '',
+        duration: editingExam.duration?.toString() || '',
+        totalQuestions: editingExam.totalQuestions?.toString() || '',
+        totalMarks: editingExam.totalMarks?.toString() || '',
+        passingMarks: editingExam.passingMarks?.toString() || '',
+        status: editingExam.status || 'scheduled',
+      });
+    } else {
+      form.reset({
+        title: '',
+        description: '',
+        classId: '',
+        subjectId: '',
+        chapterIds: [],
+        soCenterIds: [],
+        examDate: '',
+        duration: '',
+        totalQuestions: '',
+        totalMarks: '',
+        passingMarks: '',
+        status: 'scheduled',
+      });
+    }
+  }, [editingExam, form]);
 
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
