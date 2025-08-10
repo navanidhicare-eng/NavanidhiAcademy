@@ -2109,8 +2109,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('📝 Creating new fee structure:', req.body);
       
+      // Convert string numbers to proper decimal values for database
+      const convertedData = {
+        ...req.body,
+        admissionFee: req.body.admissionFee.toString(),
+        monthlyFee: req.body.monthlyFee ? req.body.monthlyFee.toString() : null,
+        yearlyFee: req.body.yearlyFee ? req.body.yearlyFee.toString() : null,
+      };
+      
+      console.log('📝 Converted fee data:', convertedData);
+      
       // Use insertClassFeeSchema to validate the data
-      const feeData = insertClassFeeSchema.parse(req.body);
+      const feeData = insertClassFeeSchema.parse(convertedData);
       
       // Insert directly into classFees table using Drizzle
       const [newFee] = await db
@@ -2132,12 +2142,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      const updates = req.body;
-      const updatedFee = await storage.updateFeeStructure(req.params.id, updates);
+      
+      console.log('📝 Updating fee structure:', req.params.id, req.body);
+      
+      // Convert string numbers to proper decimal values for database
+      const convertedData = {
+        ...req.body,
+        admissionFee: req.body.admissionFee.toString(),
+        monthlyFee: req.body.monthlyFee ? req.body.monthlyFee.toString() : null,
+        yearlyFee: req.body.yearlyFee ? req.body.yearlyFee.toString() : null,
+      };
+      
+      // Validate the data
+      const feeData = insertClassFeeSchema.parse(convertedData);
+      
+      // Update the fee structure in database
+      const [updatedFee] = await db
+        .update(schema.classFees)
+        .set(feeData)
+        .where(eq(schema.classFees.id, req.params.id))
+        .returning();
+      
+      if (!updatedFee) {
+        return res.status(404).json({ message: 'Fee structure not found' });
+      }
+      
+      console.log('✅ Fee structure updated successfully:', updatedFee.id);
       res.json(updatedFee);
-    } catch (error) {
-      console.error('Error updating fee:', error);
-      res.status(500).json({ message: 'Failed to update fee' });
+    } catch (error: any) {
+      console.error('❌ Error updating fee:', error);
+      console.error('❌ Full error details:', error.message, error.stack);
+      res.status(500).json({ message: 'Failed to update fee structure' });
     }
   });
 

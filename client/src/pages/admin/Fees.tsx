@@ -42,9 +42,11 @@ import { Plus, Edit, Trash2, IndianRupee, Calendar } from 'lucide-react';
 
 const feeSchema = z.object({
   classId: z.string().min(1, 'Class selection is required'),
+  courseType: z.enum(['monthly', 'yearly'], { required_error: 'Course type is required' }),
   monthlyFee: z.string().min(1, 'Monthly fee is required'),
   yearlyFee: z.string().min(1, 'Yearly fee is required'),
   admissionFee: z.string().min(1, 'Admission fee is required'),
+  description: z.string().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -69,9 +71,11 @@ function AddEditFeeModal({ isOpen, onClose, editingFee }: AddEditFeeModalProps) 
     resolver: zodResolver(feeSchema),
     defaultValues: {
       classId: editingFee?.classId || '',
+      courseType: editingFee?.courseType || 'monthly',
       monthlyFee: editingFee?.monthlyFee?.toString() || '',
       yearlyFee: editingFee?.yearlyFee?.toString() || '',
       admissionFee: editingFee?.admissionFee?.toString() || '',
+      description: editingFee?.description || '',
       isActive: editingFee?.isActive ?? true,
     },
   });
@@ -147,21 +151,18 @@ function AddEditFeeModal({ isOpen, onClose, editingFee }: AddEditFeeModalProps) 
 
               <FormField
                 control={form.control}
-                name="isActive"
+                name="courseType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel>Course Type</FormLabel>
                     <FormControl>
-                      <Select 
-                        onValueChange={(value) => field.onChange(value === 'active')}
-                        value={field.value ? 'active' : 'inactive'}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select course type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="yearly">Yearly</SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -229,6 +230,23 @@ function AddEditFeeModal({ isOpen, onClose, editingFee }: AddEditFeeModalProps) 
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Additional details about this fee structure"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-800">
