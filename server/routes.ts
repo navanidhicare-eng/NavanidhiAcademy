@@ -2070,10 +2070,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      const fees = await storage.getAllFeeStructures();
+      
+      console.log('📋 Fetching all fee structures...');
+      
+      // Get all class fees with class names
+      const fees = await db
+        .select({
+          id: schema.classFees.id,
+          classId: schema.classFees.classId,
+          className: schema.classes.name,
+          courseType: schema.classFees.courseType,
+          admissionFee: schema.classFees.admissionFee,
+          monthlyFee: schema.classFees.monthlyFee,
+          yearlyFee: schema.classFees.yearlyFee,
+          description: schema.classFees.description,
+          isActive: schema.classFees.isActive,
+          createdAt: schema.classFees.createdAt,
+        })
+        .from(schema.classFees)
+        .leftJoin(schema.classes, eq(schema.classFees.classId, schema.classes.id))
+        .where(eq(schema.classFees.isActive, true))
+        .orderBy(desc(schema.classFees.createdAt));
+      
+      console.log('✅ Fee structures fetched successfully:', fees.length);
       res.json(fees);
-    } catch (error) {
-      console.error('Error fetching fees:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching fees:', error);
+      console.error('❌ Full error details:', error.message, error.stack);
       res.status(500).json({ message: 'Failed to fetch fees' });
     }
   });
@@ -2083,11 +2106,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      const feeData = req.body;
-      const newFee = await storage.createFeeStructure(feeData);
+      
+      console.log('📝 Creating new fee structure:', req.body);
+      
+      // Use insertClassFeeSchema to validate the data
+      const feeData = insertClassFeeSchema.parse(req.body);
+      
+      // Insert directly into classFees table using Drizzle
+      const [newFee] = await db
+        .insert(schema.classFees)
+        .values(feeData)
+        .returning();
+      
+      console.log('✅ Fee structure created successfully:', newFee.id);
       res.status(201).json(newFee);
-    } catch (error) {
-      console.error('Error creating fee:', error);
+    } catch (error: any) {
+      console.error('❌ Error creating fee:', error);
+      console.error('❌ Full error details:', error.message, error.stack);
       res.status(500).json({ message: 'Failed to create fee' });
     }
   });
