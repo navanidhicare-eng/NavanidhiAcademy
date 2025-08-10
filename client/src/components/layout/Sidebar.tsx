@@ -84,6 +84,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
           { icon: DollarSign, label: 'Expenses', href: '/expenses' },
+          { icon: GraduationCap, label: 'Exam Management', href: '/so-center/exam-management' },
         ];
       
       case 'teacher':

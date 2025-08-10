@@ -537,6 +537,7 @@ export const exams = pgTable("exams", {
   soCenterIds: text("so_center_ids").array().notNull(), // Array of SO Center IDs for visibility
   examDate: date("exam_date").notNull(),
   duration: integer("duration").notNull(), // Duration in minutes
+  totalQuestions: integer("total_questions").notNull(), // Total number of questions
   totalMarks: integer("total_marks").notNull(),
   passingMarks: integer("passing_marks").notNull(),
   status: text("status").default("scheduled"), // scheduled, active, completed, cancelled

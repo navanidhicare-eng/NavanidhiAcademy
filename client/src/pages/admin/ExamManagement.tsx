@@ -153,6 +153,7 @@ export default function ExamManagement() {
       subjectId: formData.get('subjectId'),
       examDate: formData.get('examDate'),
       duration: parseInt(formData.get('duration') as string),
+      totalQuestions: parseInt(formData.get('totalQuestions') as string),
       totalMarks: parseInt(formData.get('maxMarks') as string),
       passingMarks: parseInt(formData.get('passingMarks') as string),
       soCenterIds: selectedSoCenterIds,
@@ -397,7 +398,7 @@ export default function ExamManagement() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label htmlFor="examDate">Exam Date</Label>
                 <Input id="examDate" name="examDate" type="date" required />
@@ -405,6 +406,14 @@ export default function ExamManagement() {
               <div>
                 <Label htmlFor="duration">Duration (minutes)</Label>
                 <Input id="duration" name="duration" type="number" placeholder="120" required />
+              </div>
+              <div>
+                <Label htmlFor="totalQuestions">Total Questions</Label>
+                <Input id="totalQuestions" name="totalQuestions" type="number" placeholder="50" required />
+              </div>
+              <div>
+                <Label htmlFor="totalQuestions">Total Questions</Label>
+                <Input id="totalQuestions" name="totalQuestions" type="number" placeholder="50" required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

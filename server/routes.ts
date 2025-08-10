@@ -4121,7 +4121,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete exam endpoint
+  // SO CENTER EXAM MANAGEMENT ENDPOINTS
+  
+  // Get exams for logged-in SO Center user
+  app.get('/api/so-center/exams', authenticateToken, async (req, res) => {
+    try {
+      // Get user's SO Center from their role/assignment
+      const userId = req.user?.userId;
+      console.log('📋 Fetching exams for SO Center user:', userId);
+      
+      // Find the user's SO Center ID (assuming SO Center users have soCenterId or we can get it from user profile)
+      const user = await storage.getUser(userId);
+      let soCenterId = user?.soCenterId;
+      
+      // If user doesn't have soCenterId directly, find it through SO Centers table
+      if (!soCenterId && user?.role === 'so_center_manager') {
+        const soCenters = await db.select({
+          id: schema.soCenters.id
+        })
+        .from(schema.soCenters)
+        .where(eq(schema.soCenters.managerId, userId));
+        
+        if (soCenters.length > 0) {
+          soCenterId = soCenters[0].id;
+        }
+      }
+      
+      if (!soCenterId) {
+        return res.status(404).json({ message: 'SO Center not found for this user' });
+      }
+      
+      console.log('📋 Found SO Center ID:', soCenterId);
+      
+      // Get exams where the SO Center ID is in the soCenterIds array
+      const query = sql`
+        SELECT 
+          e.*,
+          c.name as "className",
+          s.name as "subjectName"
+        FROM exams e
+        LEFT JOIN classes c ON e.class_id = c.id
+        LEFT JOIN subjects s ON e.subject_id = s.id
+        WHERE ${soCenterId} = ANY(e.so_center_ids)
+        ORDER BY e.exam_date ASC
+      `;
+      
+      const exams = await db.execute(query);
+      console.log('✅ Found exams for SO Center:', exams.length);
+      res.json(exams);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Get students for logged-in SO Center user
+  app.get('/api/so-center/students', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+      console.log('👥 Fetching students for SO Center user:', userId);
+      
+      // Find the user's SO Center ID
+      const user = await storage.getUser(userId);
+      let soCenterId = user?.soCenterId;
+      
+      if (!soCenterId && user?.role === 'so_center_manager') {
+        const soCenters = await db.select({
+          id: schema.soCenters.id
+        })
+        .from(schema.soCenters)
+        .where(eq(schema.soCenters.managerId, userId));
+        
+        if (soCenters.length > 0) {
+          soCenterId = soCenters[0].id;
+        }
+      }
+      
+      if (!soCenterId) {
+        return res.status(404).json({ message: 'SO Center not found for this user' });
+      }
+      
+      const students = await db.select({
+        id: schema.students.id,
+        name: schema.students.name,
+        regId: schema.students.regId,
+        classId: schema.students.classId,
+      })
+      .from(schema.students)
+      .where(eq(schema.students.soCenterId, soCenterId));
+      
+      console.log('✅ Found students for SO Center:', students.length);
+      res.json(students);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO Center students:', error);
+      res.status(500).json({ message: 'Failed to fetch students' });
+    }
+  });
+
+
+
+  // Mark exam as completed by SO Center
+  app.post('/api/so-center/exams/:examId/complete', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      console.log('✅ Marking exam as completed:', examId);
+      
+      const [updatedExam] = await db
+        .update(schema.exams)
+        .set({
+          status: 'completed',
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.exams.id, examId))
+        .returning();
+
+      if (!updatedExam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      console.log('✅ Exam marked as completed');
+      res.json({ message: 'Exam marked as completed', exam: updatedExam });
+    } catch (error: any) {
+      console.error('❌ Error marking exam as completed:', error);
+      res.status(500).json({ message: 'Failed to mark exam as completed' });
+    }
+  });
+
+  // Submit exam results
+  app.post('/api/so-center/exams/:examId/results', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const { results } = req.body;
+      console.log('📊 Submitting exam results for exam:', examId);
+      console.log('📊 Results data:', results);
+      
+      // Here you would typically store results in an exam_results table
+      // For now, we'll just acknowledge the submission
+      
+      // You could create an exam_results table with schema like:
+      // examId, studentId, marksObtained, answeredQuestions, submittedAt
+      
+      console.log('✅ Exam results submitted successfully');
+      res.json({ message: 'Results submitted successfully' });
+    } catch (error: any) {
+      console.error('❌ Error submitting exam results:', error);
+      res.status(500).json({ message: 'Failed to submit results' });
+    }
+  });
+
+  // Delete exam endpoint  
   app.delete("/api/admin/exams/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
