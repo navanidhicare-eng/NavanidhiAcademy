@@ -2338,6 +2338,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API endpoint to fetch student details and payment history
+  app.get("/api/admin/students/:studentId/details", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const studentId = req.params.studentId;
+      console.log(`📊 Fetching student details for ID: ${studentId}`);
+      
+      // Get student basic details with SO center and location info
+      const studentDetails = await db
+        .select({
+          id: schema.students.id,
+          studentId: schema.students.studentId,
+          name: schema.students.name,
+          email: schema.students.email,
+          phone: schema.students.phone,
+          dateOfBirth: schema.students.dateOfBirth,
+          enrollmentDate: schema.students.enrollmentDate,
+          className: schema.classes.name,
+          soCenterName: schema.soCenters.name,
+          stateName: sql`COALESCE(${schema.states.name}, 'N/A')`.as('stateName'),
+          districtName: sql`COALESCE(${schema.districts.name}, 'N/A')`.as('districtName'),
+          mandalName: sql`COALESCE(${schema.mandals.name}, 'N/A')`.as('mandalName'),
+          villageName: sql`COALESCE(${schema.villages.name}, 'N/A')`.as('villageName'),
+          pendingAmount: schema.students.pendingAmount,
+          paidAmount: schema.students.paidAmount,
+        })
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(eq(schema.students.id, studentId))
+        .limit(1);
+
+      if (!studentDetails.length) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      // Get payment history for this student
+      const paymentHistory = await db
+        .select({
+          id: schema.payments.id,
+          amount: schema.payments.amount,
+          paymentMethod: schema.payments.paymentMethod,
+          description: schema.payments.description,
+          month: schema.payments.month,
+          year: schema.payments.year,
+          receiptNumber: schema.payments.receiptNumber,
+          transactionId: schema.payments.transactionId,
+          createdAt: schema.payments.createdAt,
+          recordedByName: sql`COALESCE(${schema.users.fullName}, 'N/A')`.as('recordedByName'),
+        })
+        .from(schema.payments)
+        .leftJoin(schema.users, eq(schema.payments.recordedBy, schema.users.id))
+        .where(eq(schema.payments.studentId, studentId))
+        .orderBy(desc(schema.payments.createdAt));
+
+      res.json({
+        student: studentDetails[0],
+        payments: paymentHistory
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Error fetching student details:', error);
+      res.status(500).json({ message: 'Failed to fetch student details' });
+    }
+  });
+
   // API endpoints for location filtering data
   app.get("/api/admin/locations/states", authenticateToken, async (req, res) => {
     try {

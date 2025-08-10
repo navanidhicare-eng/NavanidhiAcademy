@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Search, 
@@ -17,7 +18,12 @@ import {
   Filter,
   Users,
   Building2,
-  UserCheck
+  UserCheck,
+  Eye,
+  User,
+  Phone,
+  MapPin,
+  GraduationCap
 } from 'lucide-react';
 
 export default function AdminAllPayments() {
@@ -31,6 +37,11 @@ export default function AdminAllPayments() {
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedMandal, setSelectedMandal] = useState('all');
   const [selectedVillage, setSelectedVillage] = useState('all');
+  
+  // Student detail modal states
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
 
   // Fetch real student fee payment histories
   const { data: studentPayments = [], isLoading: isLoadingStudentPayments } = useQuery({
@@ -65,6 +76,12 @@ export default function AdminAllPayments() {
   const { data: villages = [] } = useQuery({
     queryKey: ['/api/admin/locations/villages', selectedMandal],
     enabled: selectedMandal !== 'all',
+  });
+
+  // Fetch student details when selected
+  const { data: studentDetails, isLoading: isLoadingStudentDetails } = useQuery({
+    queryKey: ['/api/admin/students', selectedStudent?.id, 'details'],
+    enabled: !!selectedStudent?.id,
   });
 
   const getMethodBadgeColor = (method: string) => {
@@ -183,6 +200,188 @@ export default function AdminAllPayments() {
   };
 
   const stats = getTabStatistics();
+
+  // Filter student payments by month/year
+  const getFilteredStudentPayments = () => {
+    if (!studentDetails?.payments) return [];
+    return studentDetails.payments.filter((payment: any) => {
+      const matchesMonth = monthFilter === 'all' || payment.month === monthFilter;
+      const matchesYear = yearFilter === 'all' || payment.year === yearFilter;
+      return matchesMonth && matchesYear;
+    });
+  };
+
+  // Student Detail Modal Component
+  const StudentDetailModal = () => {
+    if (!selectedStudent || !studentDetails) return null;
+
+    const student = studentDetails?.student;
+    const filteredPayments = getFilteredStudentPayments();
+    const totalPaid = filteredPayments.reduce((sum: number, payment: any) => sum + parseFloat(payment.amount || 0), 0);
+
+    return (
+      <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-emerald-800 dark:text-emerald-300">
+              <User className="w-6 h-6" />
+              Student Details - {student.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Student Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">Basic Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">Student ID:</span>
+                    <span>{student.studentId}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">Phone:</span>
+                    <span>{student.phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">Class:</span>
+                    <span>{student.className || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">Enrollment Date:</span>
+                    <span>{student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">Location & Center</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">SO Center:</span>
+                    <span>{student.soCenterName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">Location:</span>
+                    <span>{student.villageName}, {student.mandalName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium">District:</span>
+                    <span>{student.districtName}, {student.stateName}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Fee Summary */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300">Fee Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">₹{student.paidAmount || 0}</div>
+                    <div className="text-sm text-green-700 dark:text-green-300">Total Paid</div>
+                  </div>
+                  <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">₹{student.pendingAmount || 0}</div>
+                    <div className="text-sm text-orange-700 dark:text-orange-300">Pending Amount</div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">₹{totalPaid}</div>
+                    <div className="text-sm text-blue-700 dark:text-blue-300">Filtered Total</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Payment History with Filters */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg text-emerald-700 dark:text-emerald-300 flex items-center justify-between">
+                  Payment History
+                  <div className="flex gap-2">
+                    <Select value={monthFilter} onValueChange={setMonthFilter}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Months</SelectItem>
+                        <SelectItem value="01">January</SelectItem>
+                        <SelectItem value="02">February</SelectItem>
+                        <SelectItem value="03">March</SelectItem>
+                        <SelectItem value="04">April</SelectItem>
+                        <SelectItem value="05">May</SelectItem>
+                        <SelectItem value="06">June</SelectItem>
+                        <SelectItem value="07">July</SelectItem>
+                        <SelectItem value="08">August</SelectItem>
+                        <SelectItem value="09">September</SelectItem>
+                        <SelectItem value="10">October</SelectItem>
+                        <SelectItem value="11">November</SelectItem>
+                        <SelectItem value="12">December</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={yearFilter} onValueChange={setYearFilter}>
+                      <SelectTrigger className="w-24">
+                        <SelectValue placeholder="Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
+                        <SelectItem value="2024">2024</SelectItem>
+                        <SelectItem value="2025">2025</SelectItem>
+                        <SelectItem value="2026">2026</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoadingStudentDetails ? (
+                  <div className="text-center py-8">Loading payment history...</div>
+                ) : filteredPayments.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No payments found for selected filters</div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {filteredPayments.map((payment: any) => (
+                      <div key={payment.id} className="border rounded p-3 bg-gray-50 dark:bg-gray-800">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium">₹{payment.amount}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {payment.description} - {payment.month}/{payment.year}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Receipt: {payment.receiptNumber} | Method: {payment.paymentMethod}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">{new Date(payment.createdAt).toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500">by {payment.recordedByName}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   return (
     <DashboardLayout
@@ -352,18 +551,21 @@ export default function AdminAllPayments() {
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                           Receipt
                         </th>
+                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {isLoadingStudentPayments ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                          <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                             Loading student payments...
                           </td>
                         </tr>
                       ) : filteredStudentPayments.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                          <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                             No student payments found matching your criteria.
                           </td>
                         </tr>
@@ -400,6 +602,17 @@ export default function AdminAllPayments() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">{payment.receiptNumber || 'N/A'}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedStudent(payment)}
+                                className="flex items-center gap-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View Details
+                              </Button>
                             </td>
                           </tr>
                         ))
@@ -575,6 +788,9 @@ export default function AdminAllPayments() {
             </div>
           </CardContent>
         </Card>
+        
+        {/* Student Detail Modal */}
+        <StudentDetailModal />
       </div>
     </DashboardLayout>
   );
