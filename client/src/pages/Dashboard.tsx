@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { AnnouncementsPopup } from '@/components/announcements/AnnouncementsPopup';
 import { Link } from 'wouter';
 import { 
   Users, 
@@ -85,6 +86,9 @@ export default function Dashboard() {
       title="Dashboard"
       subtitle="Welcome back, manage your academy operations"
     >
+      {/* Active Announcements Popup */}
+      <AnnouncementsPopup />
+      
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard

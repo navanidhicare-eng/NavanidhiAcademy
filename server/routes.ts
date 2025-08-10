@@ -5189,6 +5189,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get active announcements for admin dashboard popup
+  app.get("/api/admin/active-announcements", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('📋 Fetching active admin announcements...');
+      
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      const adminAnnouncements = await db.select()
+        .from(schema.announcements)
+        .where(sql`
+          (${schema.announcements.targetAudience} && ARRAY['admin', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
+          AND ${schema.announcements.isActive} = true
+          AND ${schema.announcements.fromDate} <= ${currentDate}
+          AND ${schema.announcements.toDate} >= ${currentDate}
+        `)
+        .orderBy(sql`
+          CASE ${schema.announcements.priority}
+            WHEN 'urgent' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'low' THEN 4
+          END,
+          ${schema.announcements.createdAt} DESC
+        `);
+      
+      console.log('✅ Admin announcements fetched:', adminAnnouncements.length);
+      res.json(adminAnnouncements);
+    } catch (error) {
+      console.error('❌ Error fetching admin announcements:', error);
+      res.status(500).json({ message: 'Failed to fetch announcements' });
+    }
+  });
+
+  // Get active announcements for SO center dashboard popup
+  app.get("/api/so-center/active-announcements", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+      
+      console.log('📋 Fetching active SO center announcements...');
+      
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      const soCenterAnnouncements = await db.select()
+        .from(schema.announcements)
+        .where(sql`
+          (${schema.announcements.targetAudience} && ARRAY['so_centers', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
+          AND ${schema.announcements.isActive} = true
+          AND ${schema.announcements.fromDate} <= ${currentDate}
+          AND ${schema.announcements.toDate} >= ${currentDate}
+        `)
+        .orderBy(sql`
+          CASE ${schema.announcements.priority}
+            WHEN 'urgent' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'low' THEN 4
+          END,
+          ${schema.announcements.createdAt} DESC
+        `);
+      
+      console.log('✅ SO Center announcements fetched:', soCenterAnnouncements.length);
+      res.json(soCenterAnnouncements);
+    } catch (error) {
+      console.error('❌ Error fetching SO center announcements:', error);
+      res.status(500).json({ message: 'Failed to fetch announcements' });
+    }
+  });
+
+  // Get active announcements for teacher dashboard popup
+  app.get("/api/teacher/active-announcements", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Teacher access required' });
+      }
+      
+      console.log('📋 Fetching active teacher announcements...');
+      
+      const currentDate = new Date().toISOString().split('T')[0];
+      
+      const teacherAnnouncements = await db.select()
+        .from(schema.announcements)
+        .where(sql`
+          (${schema.announcements.targetAudience} && ARRAY['teachers', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
+          AND ${schema.announcements.isActive} = true
+          AND ${schema.announcements.fromDate} <= ${currentDate}
+          AND ${schema.announcements.toDate} >= ${currentDate}
+        `)
+        .orderBy(sql`
+          CASE ${schema.announcements.priority}
+            WHEN 'urgent' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'low' THEN 4
+          END,
+          ${schema.announcements.createdAt} DESC
+        `);
+      
+      console.log('✅ Teacher announcements fetched:', teacherAnnouncements.length);
+      res.json(teacherAnnouncements);
+    } catch (error) {
+      console.error('❌ Error fetching teacher announcements:', error);
+      res.status(500).json({ message: 'Failed to fetch announcements' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
