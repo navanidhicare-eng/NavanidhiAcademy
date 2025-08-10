@@ -20,11 +20,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-
 const addClassSchema = z.object({
   name: z.string().min(1, 'Class name is required'),
-  description: z.string().min(1, 'Description is required'),
 });
 
 type AddClassFormData = z.infer<typeof addClassSchema>;
@@ -42,7 +39,6 @@ export function AddClassModal({ isOpen, onClose }: AddClassModalProps) {
     resolver: zodResolver(addClassSchema),
     defaultValues: {
       name: '',
-      description: '',
     },
   });
 
@@ -90,25 +86,6 @@ export function AddClassModal({ isOpen, onClose }: AddClassModalProps) {
                   <FormLabel>Class Name</FormLabel>
                   <FormControl>
                     <Input placeholder="e.g. Class 10, Navodaya, POLYCET" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Brief description of the class/course"
-                      className="resize-none"
-                      rows={3}
-                      {...field} 
-                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

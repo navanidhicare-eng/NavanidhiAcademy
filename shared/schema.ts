@@ -502,6 +502,8 @@ export const insertSoCenterSchema = createInsertSchema(soCenters).omit({
 
 export const insertClassSchema = createInsertSchema(classes).omit({
   id: true,
+}).extend({
+  description: z.string().optional(),
 });
 
 export const insertSubjectSchema = createInsertSchema(subjects).omit({
