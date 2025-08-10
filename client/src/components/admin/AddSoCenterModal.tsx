@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const addSoCenterSchema = z.object({
   name: z.string().min(1, 'Center name is required'),
@@ -45,8 +45,7 @@ const addSoCenterSchema = z.object({
   rentalAdvance: z.string().min(1, 'Rental advance is required'),
   dateOfHouseTaken: z.string().min(1, 'Date of house taken is required'),
   monthlyRentDate: z.string().min(1, 'Monthly rent date is required'),
-  electricityAmount: z.string().min(1, 'Electricity amount is required'),
-  internetAmount: z.string().min(1, 'Internet amount is required'),
+
   monthlyInternetDate: z.string().min(1, 'Monthly internet date is required'),
   capacity: z.string().min(1, 'Center capacity is required'),
   facilities: z.array(z.string()).min(1, 'At least one facility must be selected'),
@@ -75,6 +74,8 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     queryKey: ['/api/admin/so-centers/next-id'],
     enabled: isOpen,
   });
+
+
 
   // Fetch available managers from database
   const { data: availableManagers = [] } = useQuery<any[]>({
@@ -121,7 +122,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     resolver: zodResolver(addSoCenterSchema),
     defaultValues: {
       name: '',
-      email: '',
+      email: nextCenterId ? `${nextCenterId.toLowerCase()}@navanidhi.org` : '',
       address: '',
       villageId: '',
       phone: '',
@@ -138,13 +139,20 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       rentalAdvance: '',
       dateOfHouseTaken: '',
       monthlyRentDate: '',
-      electricityAmount: '',
-      internetAmount: '',
+
       monthlyInternetDate: '',
       capacity: '',
       facilities: [],
     },
   });
+
+  // Auto-fill email when center ID is generated
+  useEffect(() => {
+    if (nextCenterId) {
+      const autoEmail = `${nextCenterId.toLowerCase()}@navanidhi.org`;
+      form.setValue('email', autoEmail);
+    }
+  }, [nextCenterId, form]);
 
   const availableFacilities = [
     { id: 'ac', label: 'Air Conditioning' },
@@ -195,9 +203,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         rentAmount: parseFloat(data.rentAmount),
         rentalAdvance: parseFloat(data.rentalAdvance),
         monthlyRentDate: parseInt(data.monthlyRentDate),
-        electricityAmount: parseFloat(data.electricityAmount),
         electricBillAccountNumber: data.electricBillAccountNumber,
-        internetAmount: parseFloat(data.internetAmount),
         monthlyInternetDate: parseInt(data.monthlyInternetDate),
         internetServiceProvider: data.internetServiceProvider,
         roomSize: data.roomSize,
@@ -280,9 +286,15 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Center Email</FormLabel>
+                      <FormLabel>Center Email (Auto-Generated)</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="center.kukatpally@navanidhi.com" {...field} />
+                        <Input 
+                          type="email" 
+                          placeholder="Will be auto-filled based on Center ID"
+                          value={nextCenterId ? `${nextCenterId.toLowerCase()}@navanidhi.org` : ''}
+                          readOnly
+                          className="bg-gray-50"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -560,43 +572,12 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="electricityAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Electricity Bill (₹)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="3000" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="electricBillAccountNumber"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Electric Bill Account Number</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter account number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="internetAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Internet Bill (₹)</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="1500" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

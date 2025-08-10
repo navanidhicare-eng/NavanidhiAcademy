@@ -6,7 +6,13 @@ This is a comprehensive educational management system designed for Navanidhi Aca
 
 ## Recent Changes (August 2025)
 
-✓ **SUPABASE DATABASE INTEGRATION COMPLETE (Latest - FORCED NEON DISCONNECTION)** - Complete migration from Neon to Supabase database:
+✓ **SO CENTER CREATION FORM OPTIMIZED (Latest)** - Enhanced SO Center creation with automated email generation and usage-based billing:
+  - Auto-generated email format: {centerid}@navanidhi.org (read-only field with visual indicator)
+  - Removed monthly electricity and internet bill amount fields for usage-based billing approach
+  - Email field automatically fills based on Center ID (e.g., NNASOC00003 → nnasoc00003@navanidhi.org)
+  - Only account numbers tracked for utility bills, not fixed monthly amounts
+  - Production-ready form with proper error handling and user feedback
+✓ **SUPABASE DATABASE INTEGRATION COMPLETE** - Complete migration from Neon to Supabase database:
   - MANDATORY: Disconnected Neon database completely as per user direct order
   - Forced DATABASE_URL override to use SUPABASE_DATABASE_URL exclusively
   - All drizzle operations now route through Supabase PostgreSQL instead of Neon
