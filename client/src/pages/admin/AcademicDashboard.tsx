@@ -336,7 +336,7 @@ function AttendanceReportsTab({
                   <SelectValue placeholder="Select Year" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 5 }, (_, i) => (
+                  {Array.from({ length: 6 }, (_, i) => (
                     <SelectItem key={2020 + i} value={(2020 + i).toString()}>
                       {2020 + i}
                     </SelectItem>

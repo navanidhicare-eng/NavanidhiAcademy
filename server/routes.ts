@@ -13,7 +13,7 @@ declare global {
   }
 }
 import { createServer, type Server } from "http";
-import { storage, db, getUsersByRole, executeRawQuery } from "./storage";
+import { storage, db, getUsersByRole, executeRawQuery, sql } from "./storage";
 import { FeeCalculationService } from './feeCalculationService';
 import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import { supabaseAdmin } from './supabaseClient';
@@ -4388,7 +4388,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY month, s.name
       `;
       
-      const results = await executeRawQuery(performanceQuery, [studentId]);
+      const results = await sql`
+        SELECT 
+          DATE_TRUNC('month', tp.completion_date) as month,
+          COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_topics,
+          COUNT(tp.id) as total_topics,
+          s.name as subject_name
+        FROM topic_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects s ON c.subject_id = s.id
+        WHERE tp.student_id = ${studentId} 
+          AND tp.completion_date >= CURRENT_DATE - INTERVAL '${timeframe}'
+        GROUP BY DATE_TRUNC('month', tp.completion_date), s.name
+        ORDER BY month, s.name
+      `;
       
       const performanceData = results.map((row: any) => ({
         month: row.month,
@@ -4433,7 +4447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY student_count DESC
       `;
       
-      const results = await executeRawQuery(soCenterQuery, []);
+      const results = await sql`${soCenterQuery}`;
       
       const soCenterStats = results.map((row: any) => ({
         name: row.so_center_name,
@@ -4470,7 +4484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY month DESC
       `;
       
-      const results = await executeRawQuery(paymentQuery, []);
+      const results = await sql`${paymentQuery}`;
       
       const paymentTrends = results.map((row: any) => ({
         month: row.month,
@@ -4516,7 +4530,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY sub.name, c.name, tp.status
       `;
       
-      const results = await executeRawQuery(progressQuery, []);
+      const results = await sql`
+        SELECT 
+          sub.name as subject_name,
+          c.name as chapter_name,
+          tp.status,
+          COUNT(tp.id) as status_count,
+          COUNT(DISTINCT tp.student_id) as student_count
+        FROM topic_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects sub ON c.subject_id = sub.id
+        JOIN students s ON tp.student_id = s.id
+        ${whereClause ? sql`WHERE ${sql.unsafe(whereClause)}` : sql``}
+        GROUP BY sub.name, c.name, tp.status
+        ORDER BY sub.name, c.name, tp.status
+      `;
       
       const academicProgress = results.map((row: any) => ({
         subject: row.subject_name,
@@ -4592,7 +4621,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY cs.center_name, ds.date
       `;
       
-      const results = await executeRawQuery(attendanceQuery, [`${currentYear}-${String(currentMonth).padStart(2, '0')}-01`]);
+      const targetDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      const results = await sql`
+        WITH date_series AS (
+          SELECT generate_series(
+            DATE_TRUNC('month', ${targetDate}::date),
+            DATE_TRUNC('month', ${targetDate}::date) + INTERVAL '1 month' - INTERVAL '1 day',
+            INTERVAL '1 day'
+          )::date as date
+        ),
+        centers_students AS (
+          SELECT 
+            sc.id as center_id,
+            sc.name as center_name,
+            sc.state,
+            sc.district,
+            sc.mandal,
+            COUNT(s.id) as total_students
+          FROM so_centers sc
+          LEFT JOIN students s ON s.so_center_id = sc.id
+          WHERE sc.status = 'active' ${soCenterId ? sql`AND sc.id = ${soCenterId}` : sql``}
+          GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
+        )
+        SELECT 
+          cs.center_id,
+          cs.center_name,
+          cs.state,
+          cs.district,
+          cs.mandal,
+          cs.total_students,
+          ds.date,
+          COUNT(a.id) as present_count,
+          ROUND(
+            CASE 
+              WHEN cs.total_students > 0 
+              THEN (COUNT(a.id)::numeric / cs.total_students * 100)
+              ELSE 0 
+            END, 2
+          ) as attendance_percentage
+        FROM centers_students cs
+        CROSS JOIN date_series ds
+        LEFT JOIN students s ON s.so_center_id = cs.center_id
+        LEFT JOIN attendance a ON a.student_id = s.id AND a.date = ds.date
+        GROUP BY cs.center_id, cs.center_name, cs.state, cs.district, cs.mandal, cs.total_students, ds.date
+        ORDER BY cs.center_name, ds.date
+      `;
       
       const attendanceReport = results.map((row: any) => ({
         centerId: row.center_id,
@@ -4632,7 +4705,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY day
       `;
       
-      const results = await executeRawQuery(attendanceQuery, [month || new Date().toISOString().slice(0, 7) + '-01']);
+      const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
+      const results = await sql`
+        SELECT 
+          DATE_TRUNC('day', a.date) as day,
+          COUNT(a.id) as present_count,
+          COUNT(DISTINCT a.student_id) as total_students,
+          ROUND(COUNT(a.id)::numeric / COUNT(DISTINCT a.student_id) * 100, 2) as attendance_rate
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        WHERE DATE_TRUNC('month', a.date) = DATE_TRUNC('month', ${targetMonth}::date)
+        ${soCenterId ? sql`AND s.so_center_id = ${soCenterId}` : sql``}
+        GROUP BY DATE_TRUNC('day', a.date)
+        ORDER BY day
+      `;
       
       const attendanceData = results.map((row: any) => ({
         day: row.day,
@@ -4682,7 +4768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY total_students DESC
       `;
       
-      const results = await executeRawQuery(comparisonQuery, [month || new Date().toISOString().slice(0, 7) + '-01']);
+      const results = await sql`${comparisonQuery}`.values([month || new Date().toISOString().slice(0, 7) + '-01']);
       
       const comparisonData = results.map((row: any) => ({
         soCenterName: row.so_center_name,

@@ -2578,4 +2578,4 @@ export const storage = new DrizzleStorage();
 // Initialize the database - DISABLED temporarily to fix login timeout
 // initializeDatabase();
 
-export { getUsersByRole, executeRawQuery };
+export { getUsersByRole, executeRawQuery, sql };
