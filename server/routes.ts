@@ -4203,6 +4203,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('📋 Found SO Center ID:', soCenterId);
       
+      // Debug: Check what exams exist and their soCenterIds
+      const allExams = await db.select({
+        id: schema.exams.id,
+        title: schema.exams.title,
+        soCenterIds: schema.exams.soCenterIds
+      })
+      .from(schema.exams)
+      .limit(10);
+      console.log('🔍 Sample exams and their SO Center IDs:', allExams);
+      console.log('🔍 Looking for SO Center ID:', soCenterId);
+      
       // Get exams where the SO Center ID is in the soCenterIds array using proper Drizzle syntax
       const exams = await db.select({
         id: schema.exams.id,
