@@ -2331,11 +2331,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         UPDATE withdrawal_requests 
         SET 
           status = 'approved',
-          processed_at = CURRENT_TIMESTAMP,
-          processed_by = ${req.user?.userId},
-          payment_mode = ${paymentMode},
-          payment_details = ${paymentDetails},
-          transaction_id = ${transactionId},
+          "processedAt" = CURRENT_TIMESTAMP,
+          "processedBy" = ${req.user?.userId},
+          "paymentMode" = ${paymentMode},
+          "paymentDetails" = ${paymentDetails},
+          "transactionId" = ${transactionId},
           notes = ${notes || ''}
         WHERE id = ${id}
       `;
