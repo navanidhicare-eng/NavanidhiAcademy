@@ -1,0 +1,25 @@
+In SO Center Login, Add a Page of "Add Expenses" and add it to the Sidebar, Opening Of That Page will Not Close Sidebar.
+The SO needs to Request a Expense. ( IN Dropdown Rent, Electric Bill, Internet bill, Others, SO Salary), They need to Select an Option for All, When a Option is Selected, 
+The Details was Autofilled from The Registration form ( If Electric Bill Selected Bill no, Internet Bill no, House Owner name, Rent amount , House Owner Phone number, Salary)
+
+if The Request is ELECTRIC BILL:
+The Bill Numbere will be autofilled, and Amount They will enter Manually. ( Just these 23 field ) and Hit request. 
+
+if the request is Internet BILL:
+The Bill number, Service Provider, Amount need to be entered by the SO and Hit Request
+
+if The request is Rent:
+the House Owner name, Phone number and Rent amount ( All were in registartion form) would be Filled and hit Request
+
+if the Request is Salary
+just A Reuest Salary Button with SO ID AND SO Center  NAME ahd  HIt request
+
+if The Request is Others
+They need to Fill the form, Servicer Name, What is The Service, Service amount, Phone number, 
+
+From The Request was Geneated to Admin accepts the approval, It will Show Pending Status in SO LOGIN IN Expense Page. When The admin Approves the Expense Request, Then I should say "Pay Button", After Clicking that Pay Button or "Mark as Paid", It will Ask for 3 Options, Bill or Voucher or UPI transaction. If The Option is Bill -> Enter Bill number-> Submit -> Transaction ID Generated . if the Vocher-> Direct Submit, UPI _> Enter Trasaction ID in UPI _> Submit -> a Transaction ID Was Generated. 
+Add a Expense Wallet for SO. All the Expenses will go to that EXpense Wallet. The Total wallet will Show Only Collection or any Credit. The outgoing going amount in Expense wallet and Add a Card to Remaining Balance ( Total Collections - Expenses) by Month, By year
+
+
+Admin: 
+When They Hit Request, Thyese will Go to Admin's Approval Page ( Expense Section). These are Shown with SO Center ID and Name . Place Filters and Search. Place Approval History

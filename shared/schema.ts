@@ -24,6 +24,9 @@ export const maritalStatusEnum = pgEnum("marital_status", ["single", "married", 
 export const homeworkStatusEnum = pgEnum("homework_status", ["completed", "not_completed", "not_given"]);
 export const homeworkActivityStatusEnum = pgEnum("homework_activity_status", ["completed", "not_completed", "not_given"]);
 export const completionTypeEnum = pgEnum("completion_type", ["self", "helped_by_so"]);
+export const expenseTypeEnum = pgEnum("expense_type", ["rent", "electric_bill", "internet_bill", "so_salary", "others"]);
+export const expenseStatusEnum = pgEnum("expense_status", ["pending", "approved", "rejected", "paid"]);
+export const paymentMethodEnum = pgEnum("payment_method", ["bill", "voucher", "upi", "cash", "online"]);
 
 // Address hierarchy tables
 export const states = pgTable("states", {
@@ -114,6 +117,64 @@ export const soCenters = pgTable("so_centers", {
   isPasswordChanged: boolean("is_password_changed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// SO Center Expenses
+export const soCenterExpenses = pgTable("so_center_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  expenseType: expenseTypeEnum("expense_type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  description: text("description"),
+  
+  // Electric Bill specific fields
+  electricBillNumber: text("electric_bill_number"),
+  
+  // Internet Bill specific fields
+  internetBillNumber: text("internet_bill_number"),
+  internetServiceProvider: text("internet_service_provider"),
+  
+  // Others specific fields
+  serviceName: text("service_name"),
+  serviceDescription: text("service_description"),
+  servicePhone: text("service_phone"),
+  
+  status: expenseStatusEnum("status").default("pending"),
+  adminNotes: text("admin_notes"),
+  
+  // Payment details (when paid)
+  paymentMethod: paymentMethodEnum("payment_method"),
+  paymentReference: text("payment_reference"), // Bill number, UPI transaction ID, etc.
+  transactionId: varchar("transaction_id"),
+  paidAt: timestamp("paid_at"),
+  paidBy: varchar("paid_by").references(() => users.id), // Admin who marked as paid
+  
+  requestedAt: timestamp("requested_at").defaultNow(),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+});
+
+// SO Center Expense Wallet - tracks all expense-related transactions
+export const soCenterExpenseWallet = pgTable("so_center_expense_wallet", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  totalExpenses: decimal("total_expenses", { precision: 10, scale: 2 }).default("0"),
+  remainingBalance: decimal("remaining_balance", { precision: 10, scale: 2 }).default("0"), // totalCollections - totalExpenses
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+// Monthly Expense Summary for reporting
+export const soCenterMonthlyExpenses = pgTable("so_center_monthly_expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  month: integer("month").notNull(), // 1-12
+  year: integer("year").notNull(),
+  totalExpenses: decimal("total_expenses", { precision: 10, scale: 2 }).default("0"),
+  totalCollections: decimal("total_collections", { precision: 10, scale: 2 }).default("0"),
+  remainingBalance: decimal("remaining_balance", { precision: 10, scale: 2 }).default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  unique().on(table.soCenterId, table.month, table.year)
+]);
 
 // Classes
 export const classes = pgTable("classes", {
@@ -678,3 +739,31 @@ export type TeacherSubject = typeof teacherSubjects.$inferSelect;
 export type TeacherClass = typeof teacherClasses.$inferSelect;
 export type TeacherDailyRecord = typeof teacherDailyRecords.$inferSelect;
 export type InsertTeacherDailyRecord = z.infer<typeof insertTeacherDailyRecordSchema>;
+
+// SO Center Expense schemas
+export const insertSoCenterExpenseSchema = createInsertSchema(soCenterExpenses).omit({
+  id: true,
+  requestedAt: true,
+  transactionId: true,
+});
+
+export type InsertSoCenterExpense = z.infer<typeof insertSoCenterExpenseSchema>;
+export type SoCenterExpense = typeof soCenterExpenses.$inferSelect;
+
+// SO Center Expense Wallet schemas  
+export const insertSoCenterExpenseWalletSchema = createInsertSchema(soCenterExpenseWallet).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+export type InsertSoCenterExpenseWallet = z.infer<typeof insertSoCenterExpenseWalletSchema>;
+export type SoCenterExpenseWallet = typeof soCenterExpenseWallet.$inferSelect;
+
+// SO Center Monthly Expenses schemas
+export const insertSoCenterMonthlyExpensesSchema = createInsertSchema(soCenterMonthlyExpenses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSoCenterMonthlyExpenses = z.infer<typeof insertSoCenterMonthlyExpensesSchema>;
+export type SoCenterMonthlyExpenses = typeof soCenterMonthlyExpenses.$inferSelect;

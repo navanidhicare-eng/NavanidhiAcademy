@@ -15,6 +15,7 @@ import Attendance from "@/pages/Attendance";
 import AttendanceReports from "@/pages/AttendanceReports";
 import Settings from "@/pages/Settings";
 import Wallet from "@/pages/Wallet";
+import Expenses from "@/pages/Expenses";
 import PublicProgress from "@/pages/PublicProgress";
 import NotFound from "@/pages/not-found";
 import StudentsAdmin from "@/pages/StudentsAdmin";
@@ -110,6 +111,11 @@ function Router() {
       <Route path="/attendance-reports">
         <ProtectedRoute>
           <AttendanceReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/expenses">
+        <ProtectedRoute>
+          <Expenses />
         </ProtectedRoute>
       </Route>
       <Route path="/settings">

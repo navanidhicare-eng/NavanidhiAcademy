@@ -43,6 +43,7 @@ import {
   insertHomeworkActivitySchema,
   insertTuitionProgressSchema,
   insertProductSchema,
+  insertSoCenterExpenseSchema,
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -2990,6 +2991,307 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating system setting:', error);
       res.status(500).json({ message: 'Failed to update system setting' });
+    }
+  });
+
+  // SO Center Expenses Management Routes
+  
+  // Get SO Center profile with autofill data
+  app.get("/api/so-center/profile", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const soCenter = await db.select()
+        .from(schema.soCenters)
+        .where(sqlQuery`id = ${req.user.userId}`)
+        .limit(1);
+
+      if (!soCenter.length) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      res.json(soCenter[0]);
+    } catch (error) {
+      console.error("Error fetching SO Center profile:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get expense requests for SO Center
+  app.get("/api/so-center/expenses", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const expenses = await db.select()
+        .from(schema.soCenterExpenses)
+        .where(sqlQuery`so_center_id = ${req.user.userId}`)
+        .orderBy(sqlQuery`requested_at DESC`);
+
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching expenses:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create expense request
+  app.post("/api/so-center/expenses", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const validatedData = insertSoCenterExpenseSchema.parse({
+        ...req.body,
+        soCenterId: req.user.userId,
+        status: 'pending'
+      });
+
+      const [expense] = await db.insert(schema.soCenterExpenses)
+        .values(validatedData)
+        .returning();
+
+      res.json(expense);
+    } catch (error) {
+      console.error("Error creating expense request:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get expense wallet for SO Center
+  app.get("/api/so-center/expense-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      // Get or create expense wallet
+      let [wallet] = await db.select()
+        .from(schema.soCenterExpenseWallet)
+        .where(sqlQuery`so_center_id = ${req.user.userId}`)
+        .limit(1);
+
+      if (!wallet) {
+        // Create wallet if not exists
+        [wallet] = await db.insert(schema.soCenterExpenseWallet)
+          .values({
+            soCenterId: req.user.userId,
+            totalExpenses: '0',
+            remainingBalance: '0'
+          })
+          .returning();
+      }
+
+      // Calculate current values from expenses and collections
+      const totalExpenses = await db.select({
+        sum: sqlQuery`COALESCE(SUM(CAST(amount AS DECIMAL)), 0)`
+      })
+      .from(schema.soCenterExpenses)
+      .where(sqlQuery`so_center_id = ${req.user.userId} AND status = 'paid'`);
+
+      // Get total collections from wallet
+      const [soCenter] = await db.select({ walletBalance: schema.soCenters.walletBalance })
+        .from(schema.soCenters)
+        .where(sqlQuery`id = ${req.user.userId}`)
+        .limit(1);
+
+      const totalCollections = parseFloat(soCenter?.walletBalance || '0');
+      const expenseAmount = parseFloat(totalExpenses[0]?.sum || '0');
+      const remainingBalance = totalCollections - expenseAmount;
+
+      // Update wallet with current values
+      await db.update(schema.soCenterExpenseWallet)
+        .set({
+          totalExpenses: expenseAmount.toString(),
+          remainingBalance: remainingBalance.toString(),
+          lastUpdated: new Date()
+        })
+        .where(sqlQuery`so_center_id = ${req.user.userId}`);
+
+      res.json({
+        totalExpenses: expenseAmount.toString(),
+        remainingBalance: remainingBalance.toString(),
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error fetching expense wallet:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Mark expense as paid (for SO Centers)
+  app.post("/api/so-center/expenses/:expenseId/pay", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'so_center') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { expenseId } = req.params;
+      const { paymentMethod, paymentReference } = req.body;
+
+      // Verify expense belongs to this SO Center and is approved
+      const [expense] = await db.select()
+        .from(schema.soCenterExpenses)
+        .where(sqlQuery`id = ${expenseId} AND so_center_id = ${req.user.userId} AND status = 'approved'`)
+        .limit(1);
+
+      if (!expense) {
+        return res.status(404).json({ message: "Expense not found or not approved" });
+      }
+
+      // Generate transaction ID
+      const transactionId = `TXN-${Date.now()}-EXP-${expenseId.slice(0, 8)}`;
+
+      // Update expense as paid
+      const [updatedExpense] = await db.update(schema.soCenterExpenses)
+        .set({
+          status: 'paid',
+          paymentMethod,
+          paymentReference,
+          transactionId,
+          paidAt: new Date(),
+          paidBy: req.user.userId
+        })
+        .where(sqlQuery`id = ${expenseId}`)
+        .returning();
+
+      res.json({ 
+        expense: updatedExpense, 
+        transactionId 
+      });
+    } catch (error) {
+      console.error("Error marking expense as paid:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Admin Expense Approval Routes
+  
+  // Get all expense requests for admin approval
+  app.get("/api/admin/expenses", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { status, search, soCenterId } = req.query;
+      
+      let query = db.select({
+        id: schema.soCenterExpenses.id,
+        expenseType: schema.soCenterExpenses.expenseType,
+        amount: schema.soCenterExpenses.amount,
+        description: schema.soCenterExpenses.description,
+        status: schema.soCenterExpenses.status,
+        requestedAt: schema.soCenterExpenses.requestedAt,
+        approvedAt: schema.soCenterExpenses.approvedAt,
+        soCenterId: schema.soCenterExpenses.soCenterId,
+        soCenterName: schema.soCenters.name,
+        centerCode: schema.soCenters.centerId,
+        electricBillNumber: schema.soCenterExpenses.electricBillNumber,
+        internetBillNumber: schema.soCenterExpenses.internetBillNumber,
+        serviceName: schema.soCenterExpenses.serviceName,
+        adminNotes: schema.soCenterExpenses.adminNotes
+      })
+      .from(schema.soCenterExpenses)
+      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`);
+
+      // Add filters
+      const conditions = [];
+      if (status && status !== 'all') {
+        conditions.push(sqlQuery`${schema.soCenterExpenses.status} = ${status}`);
+      }
+      if (soCenterId) {
+        conditions.push(sqlQuery`${schema.soCenterExpenses.soCenterId} = ${soCenterId}`);
+      }
+      if (search) {
+        conditions.push(sqlQuery`(${schema.soCenters.name} ILIKE ${`%${search}%`} OR ${schema.soCenters.centerId} ILIKE ${`%${search}%`})`);
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(sqlQuery`${conditions.join(' AND ')}`);
+      }
+
+      const expenses = await query.orderBy(sqlQuery`${schema.soCenterExpenses.requestedAt} DESC`);
+
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching admin expenses:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Approve/Reject expense request
+  app.post("/api/admin/expenses/:expenseId/approval", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const { expenseId } = req.params;
+      const { action, adminNotes } = req.body; // action: 'approve' or 'reject'
+
+      if (!['approve', 'reject'].includes(action)) {
+        return res.status(400).json({ message: "Invalid action" });
+      }
+
+      const [updatedExpense] = await db.update(schema.soCenterExpenses)
+        .set({
+          status: action === 'approve' ? 'approved' : 'rejected',
+          adminNotes,
+          approvedAt: new Date(),
+          approvedBy: req.user.userId
+        })
+        .where(sqlQuery`id = ${expenseId}`)
+        .returning();
+
+      if (!updatedExpense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+
+      res.json({ 
+        expense: updatedExpense,
+        message: `Expense ${action}d successfully`
+      });
+    } catch (error) {
+      console.error("Error processing expense approval:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get approval history
+  app.get("/api/admin/expenses/history", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const history = await db.select({
+        id: schema.soCenterExpenses.id,
+        expenseType: schema.soCenterExpenses.expenseType,
+        amount: schema.soCenterExpenses.amount,
+        status: schema.soCenterExpenses.status,
+        requestedAt: schema.soCenterExpenses.requestedAt,
+        approvedAt: schema.soCenterExpenses.approvedAt,
+        paidAt: schema.soCenterExpenses.paidAt,
+        soCenterName: schema.soCenters.name,
+        centerCode: schema.soCenters.centerId,
+        adminNotes: schema.soCenterExpenses.adminNotes,
+        approverName: schema.users.name
+      })
+      .from(schema.soCenterExpenses)
+      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`)
+      .leftJoin(schema.users, sqlQuery`${schema.soCenterExpenses.approvedBy} = ${schema.users.id}`)
+      .where(sqlQuery`${schema.soCenterExpenses.status} IN ('approved', 'rejected', 'paid')`)
+      .orderBy(sqlQuery`${schema.soCenterExpenses.approvedAt} DESC`);
+
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching approval history:", error);
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 

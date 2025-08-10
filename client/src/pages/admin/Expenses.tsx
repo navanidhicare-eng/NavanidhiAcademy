@@ -1,560 +1,481 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Plus, Edit, Trash2, IndianRupee, TrendingUp, TrendingDown, DollarSign, Users } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { apiRequest } from '@/lib/queryClient';
+import { CheckCircle, XCircle, Clock, Filter, Search, Calendar, DollarSign, FileText, Eye } from 'lucide-react';
 
-const expenseSchema = z.object({
-  type: z.string().min(1, 'Type is required'),
-  category: z.string().min(1, 'Category is required'),
-  amount: z.string().min(1, 'Amount is required'),
-  description: z.string().min(1, 'Description is required'),
-  date: z.string().min(1, 'Date is required'),
-  centerId: z.string().optional(),
-  approvalStatus: z.string().default('pending'),
-});
-
-type ExpenseFormData = z.infer<typeof expenseSchema>;
-
-const salarySchema = z.object({
-  employeeId: z.string().min(1, 'Employee is required'),
-  basicSalary: z.string().min(1, 'Basic salary is required'),
-  allowances: z.string().default('0'),
-  deductions: z.string().default('0'),
-  month: z.string().min(1, 'Month is required'),
-  year: z.string().min(1, 'Year is required'),
-  status: z.string().default('pending'),
-});
-
-type SalaryFormData = z.infer<typeof salarySchema>;
-
-interface AddExpenseModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  editingExpense?: any;
+interface ExpenseRequest {
+  id: string;
+  expenseType: 'rent' | 'electric_bill' | 'internet_bill' | 'so_salary' | 'others';
+  amount: string;
+  description?: string;
+  electricBillNumber?: string;
+  internetBillNumber?: string;
+  internetServiceProvider?: string;
+  serviceName?: string;
+  serviceDescription?: string;
+  servicePhone?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  requestedAt: string;
+  approvedAt?: string;
+  paidAt?: string;
+  soCenterId: string;
+  soCenterName: string;
+  centerCode: string;
+  adminNotes?: string;
 }
 
-function AddExpenseModal({ isOpen, onClose, editingExpense }: AddExpenseModalProps) {
+interface ExpenseStats {
+  totalPending: number;
+  totalApproved: number;
+  totalPaid: number;
+  totalAmount: string;
+}
+
+export default function AdminExpenses() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedExpense, setSelectedExpense] = useState<ExpenseRequest | null>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
 
-  const form = useForm<ExpenseFormData>({
-    resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      type: editingExpense?.type || 'expense',
-      category: editingExpense?.category || '',
-      amount: editingExpense?.amount?.toString() || '',
-      description: editingExpense?.description || '',
-      date: editingExpense?.date || new Date().toISOString().split('T')[0],
-      centerId: editingExpense?.centerId || '',
-      approvalStatus: editingExpense?.approvalStatus || 'pending',
+  // Fetch expense requests
+  const { data: expenseRequests = [], isLoading: loadingExpenses } = useQuery({
+    queryKey: ['/api/admin/expenses', { status: statusFilter, search: searchTerm }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+      if (searchTerm) params.append('search', searchTerm);
+      
+      const response = await apiRequest('GET', `/api/admin/expenses?${params}`);
+      return response.json();
     },
-  });
+  }) as { data: ExpenseRequest[], isLoading: boolean };
 
-  const mutation = useMutation({
-    mutationFn: async (data: ExpenseFormData) => {
-      const submitData = {
-        ...data,
-        amount: parseFloat(data.amount),
+  // Fetch expense statistics
+  const { data: expenseStats } = useQuery({
+    queryKey: ['/api/admin/expense-stats'],
+    queryFn: async () => {
+      // Calculate stats from expenses data
+      const totalPending = expenseRequests.filter(e => e.status === 'pending').length;
+      const totalApproved = expenseRequests.filter(e => e.status === 'approved').length;
+      const totalPaid = expenseRequests.filter(e => e.status === 'paid').length;
+      const totalAmount = expenseRequests
+        .filter(e => e.status === 'paid')
+        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+      
+      return {
+        totalPending,
+        totalApproved,
+        totalPaid,
+        totalAmount: totalAmount.toString()
       };
-      const endpoint = editingExpense ? `/api/admin/expenses/${editingExpense.id}` : '/api/admin/expenses';
-      const method = editingExpense ? 'PUT' : 'POST';
-      return apiRequest(method, endpoint, submitData);
     },
-    onSuccess: () => {
+    enabled: expenseRequests.length > 0
+  }) as { data: ExpenseStats };
+
+  // Approval mutation
+  const approvalMutation = useMutation({
+    mutationFn: async ({ expenseId, action, adminNotes }: { expenseId: string; action: 'approve' | 'reject'; adminNotes?: string }) => {
+      const response = await apiRequest('POST', `/api/admin/expenses/${expenseId}/approval`, {
+        action,
+        adminNotes,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
       toast({
-        title: editingExpense ? 'Expense Updated' : 'Expense Created',
-        description: `Expense has been successfully ${editingExpense ? 'updated' : 'created'}.`,
+        title: "Success",
+        description: data.message,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/expenses'] });
-      form.reset();
-      onClose();
+      setShowApprovalModal(false);
+      setSelectedExpense(null);
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || `Failed to ${editingExpense ? 'update' : 'create'} expense.`,
-        variant: 'destructive',
+        title: "Action Failed",
+        description: error.message || "Failed to process expense approval",
+        variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: ExpenseFormData) => {
-    mutation.mutate(data);
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { label: 'Pending', variant: 'secondary' as const, icon: Clock },
+      approved: { label: 'Approved', variant: 'default' as const, icon: CheckCircle },
+      rejected: { label: 'Rejected', variant: 'destructive' as const, icon: XCircle },
+      paid: { label: 'Paid', variant: 'success' as const, icon: CheckCircle },
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const IconComponent = config.icon;
+    
+    return (
+      <Badge variant={config.variant} className="flex items-center space-x-1">
+        <IconComponent className="w-3 h-3" />
+        <span>{config.label}</span>
+      </Badge>
+    );
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{editingExpense ? 'Edit Expense' : 'Add New Expense'}</DialogTitle>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="expense">Expense</SelectItem>
-                          <SelectItem value="petty_cash">Petty Cash</SelectItem>
-                          <SelectItem value="maintenance">Maintenance</SelectItem>
-                          <SelectItem value="travel">Travel</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+  const getExpenseTypeLabel = (type: string) => {
+    const labels = {
+      rent: 'Rent',
+      electric_bill: 'Electric Bill',
+      internet_bill: 'Internet Bill',
+      so_salary: 'SO Salary',
+      others: 'Others',
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
 
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="office_supplies">Office Supplies</SelectItem>
-                          <SelectItem value="utilities">Utilities</SelectItem>
-                          <SelectItem value="rent">Rent</SelectItem>
-                          <SelectItem value="internet">Internet</SelectItem>
-                          <SelectItem value="transport">Transport</SelectItem>
-                          <SelectItem value="marketing">Marketing</SelectItem>
-                          <SelectItem value="miscellaneous">Miscellaneous</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+  const ApprovalModal = () => {
+    const [action, setAction] = useState<'approve' | 'reject'>('approve');
+    const [adminNotes, setAdminNotes] = useState('');
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Amount (₹)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="5000"
-                        min="0"
-                        step="0.01"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    const handleSubmit = () => {
+      if (!selectedExpense) return;
+      
+      approvalMutation.mutate({
+        expenseId: selectedExpense.id,
+        action,
+        adminNotes: adminNotes || undefined,
+      });
+    };
 
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+    return (
+      <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Review Expense Request</DialogTitle>
+          </DialogHeader>
+          
+          {selectedExpense && (
+            <div className="space-y-6">
+              {/* Expense Details */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>SO Center</Label>
+                  <p className="font-semibold">{selectedExpense.soCenterName}</p>
+                  <p className="text-sm text-gray-600">{selectedExpense.centerCode}</p>
+                </div>
+                <div>
+                  <Label>Expense Type</Label>
+                  <p className="font-semibold">{getExpenseTypeLabel(selectedExpense.expenseType)}</p>
+                </div>
+                <div>
+                  <Label>Amount</Label>
+                  <p className="font-semibold text-green-600">₹{parseFloat(selectedExpense.amount).toFixed(2)}</p>
+                </div>
+                <div>
+                  <Label>Requested Date</Label>
+                  <p>{new Date(selectedExpense.requestedAt).toLocaleDateString()}</p>
+                </div>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe the expense details"
-                      className="resize-none"
-                      rows={3}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {/* Additional Details */}
+              {selectedExpense.description && (
+                <div>
+                  <Label>Description</Label>
+                  <p className="bg-gray-50 p-2 rounded">{selectedExpense.description}</p>
+                </div>
               )}
-            />
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={mutation.isPending}
-                className="bg-primary text-white hover:bg-blue-700"
-              >
-                {mutation.isPending 
-                  ? (editingExpense ? 'Updating...' : 'Creating...') 
-                  : (editingExpense ? 'Update Expense' : 'Create Expense')
-                }
-              </Button>
+              {selectedExpense.expenseType === 'electric_bill' && selectedExpense.electricBillNumber && (
+                <div>
+                  <Label>Electric Bill Number</Label>
+                  <p>{selectedExpense.electricBillNumber}</p>
+                </div>
+              )}
+
+              {selectedExpense.expenseType === 'internet_bill' && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {selectedExpense.internetBillNumber && (
+                    <div>
+                      <Label>Internet Bill Number</Label>
+                      <p>{selectedExpense.internetBillNumber}</p>
+                    </div>
+                  )}
+                  {selectedExpense.internetServiceProvider && (
+                    <div>
+                      <Label>Service Provider</Label>
+                      <p>{selectedExpense.internetServiceProvider}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedExpense.expenseType === 'others' && (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {selectedExpense.serviceName && (
+                    <div>
+                      <Label>Service Name</Label>
+                      <p>{selectedExpense.serviceName}</p>
+                    </div>
+                  )}
+                  {selectedExpense.servicePhone && (
+                    <div>
+                      <Label>Service Phone</Label>
+                      <p>{selectedExpense.servicePhone}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Selection */}
+              <div>
+                <Label>Action</Label>
+                <Select value={action} onValueChange={(value: 'approve' | 'reject') => setAction(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="approve">Approve</SelectItem>
+                    <SelectItem value="reject">Reject</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Admin Notes */}
+              <div>
+                <Label>Admin Notes (Optional)</Label>
+                <Textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Add any notes for this decision..."
+                  rows={3}
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={() => setShowApprovalModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={approvalMutation.isPending}
+                  className={action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+                >
+                  {approvalMutation.isPending ? 'Processing...' : `${action === 'approve' ? 'Approve' : 'Reject'} Request`}
+                </Button>
+              </div>
             </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export default function Expenses() {
-  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<any>(null);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Mock data - replace with actual API calls
-  const { data: expenses = [], isLoading: expensesLoading } = useQuery({
-    queryKey: ['/api/admin/expenses'],
-    queryFn: async () => {
-      // Mock data
-      return [
-        {
-          id: '1',
-          type: 'expense',
-          category: 'office_supplies',
-          amount: 2500,
-          description: 'Whiteboard markers and erasers for classrooms',
-          date: '2025-01-05',
-          centerId: '1',
-          centerName: 'Main Center',
-          approvalStatus: 'approved',
-          approvedBy: 'Admin',
-        },
-        {
-          id: '2',
-          type: 'utilities',
-          category: 'utilities',
-          amount: 4500,
-          description: 'Monthly electricity bill',
-          date: '2025-01-03',
-          centerId: '1',
-          centerName: 'Main Center',
-          approvalStatus: 'pending',
-        },
-        {
-          id: '3',
-          type: 'travel',
-          category: 'transport',
-          amount: 1200,
-          description: 'Teacher travel allowance',
-          date: '2025-01-02',
-          centerId: '2',
-          centerName: 'Branch Center',
-          approvalStatus: 'approved',
-          approvedBy: 'Manager',
-        },
-      ];
-    },
-  });
-
-  const { data: salaries = [], isLoading: salariesLoading } = useQuery({
-    queryKey: ['/api/admin/salaries'],
-    queryFn: async () => {
-      // Mock data
-      return [
-        {
-          id: '1',
-          employeeId: '1',
-          employeeName: 'Rajesh Kumar',
-          role: 'Teacher',
-          basicSalary: 25000,
-          allowances: 5000,
-          deductions: 2000,
-          netSalary: 28000,
-          month: '01',
-          year: '2025',
-          status: 'paid',
-        },
-        {
-          id: '2',
-          employeeId: '2',
-          employeeName: 'Priya Sharma',
-          role: 'SO Manager',
-          basicSalary: 30000,
-          allowances: 3000,
-          deductions: 1000,
-          netSalary: 32000,
-          month: '01',
-          year: '2025',
-          status: 'pending',
-        },
-        {
-          id: '3',
-          employeeId: '3',
-          employeeName: 'Amit Patel',
-          role: 'Teacher',
-          basicSalary: 22000,
-          allowances: 4000,
-          deductions: 1500,
-          netSalary: 24500,
-          month: '01',
-          year: '2025',
-          status: 'pending',
-        },
-      ];
-    },
-  });
-
-  const handleEditExpense = (expense: any) => {
-    setEditingExpense(expense);
-    setIsExpenseModalOpen(true);
+          )}
+        </DialogContent>
+      </Dialog>
+    );
   };
-
-  const handleCloseExpenseModal = () => {
-    setIsExpenseModalOpen(false);
-    setEditingExpense(null);
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const totalSalaries = salaries.reduce((sum, sal) => sum + sal.netSalary, 0);
-  const pendingApprovals = expenses.filter(exp => exp.approvalStatus === 'pending').length;
-
-  if (expensesLoading || salariesLoading) {
-    return <div className="flex justify-center items-center h-64">Loading expenses and salaries...</div>;
-  }
 
   return (
-    <DashboardLayout 
-      title="Expense & Salary Management" 
-      subtitle="Track expenses and manage payroll"
-      showAddButton={true}
-      onAddClick={() => setIsExpenseModalOpen(true)}
-    >
-      <div className="space-y-6">
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Salaries</CardTitle>
-            <Users className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(totalSalaries)}</div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <DollarSign className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingApprovals}</div>
-            <p className="text-xs text-muted-foreground">Expenses awaiting approval</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Outflow</CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {formatCurrency(totalExpenses + totalSalaries)}
-            </div>
-            <p className="text-xs text-muted-foreground">Total monthly cost</p>
-          </CardContent>
-        </Card>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Expenses & Salary Management</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage SO Center expense requests and approvals</p>
+        </div>
       </div>
 
-      <Tabs defaultValue="expenses" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="expenses">Expenses</TabsTrigger>
-          <TabsTrigger value="salaries">Salaries</TabsTrigger>
-        </TabsList>
+      {/* Statistics Cards */}
+      {expenseStats && (
+        <div className="grid md:grid-cols-4 gap-6 mb-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">{expenseStats.totalPending}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved Requests</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600">{expenseStats.totalApproved}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid Expenses</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{expenseStats.totalPaid}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Paid Amount</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">₹{parseFloat(expenseStats.totalAmount).toFixed(2)}</div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
-        <TabsContent value="expenses">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Expenses</h2>
-              <p className="text-sm text-gray-600">Track and manage organizational expenses</p>
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Filter Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-4">
+            <div className="flex-1">
+              <Label>Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Center</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expenses.map((expense: any) => (
-                  <TableRow key={expense.id}>
-                    <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                    <TableCell className="capitalize">{expense.category.replace('_', ' ')}</TableCell>
-                    <TableCell className="max-w-xs truncate">{expense.description}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(expense.amount)}</TableCell>
-                    <TableCell>{expense.centerName || 'All Centers'}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={expense.approvalStatus === 'approved' ? 'default' : 
-                               expense.approvalStatus === 'pending' ? 'secondary' : 'destructive'}
-                      >
-                        {expense.approvalStatus}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditExpense(expense)}
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="salaries">
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Salary Management</h2>
-              <p className="text-sm text-gray-600">Employee salary processing and payroll</p>
+            <div className="flex-1">
+              <Label>Search SO Centers</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by center name or code..."
+                  className="pl-8"
+                />
+              </div>
             </div>
-
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Basic Salary</TableHead>
-                  <TableHead>Allowances</TableHead>
-                  <TableHead>Deductions</TableHead>
-                  <TableHead>Net Salary</TableHead>
-                  <TableHead>Month/Year</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {salaries.map((salary: any) => (
-                  <TableRow key={salary.id}>
-                    <TableCell className="font-medium">{salary.employeeName}</TableCell>
-                    <TableCell>{salary.role}</TableCell>
-                    <TableCell>{formatCurrency(salary.basicSalary)}</TableCell>
-                    <TableCell className="text-green-600">+{formatCurrency(salary.allowances)}</TableCell>
-                    <TableCell className="text-red-600">-{formatCurrency(salary.deductions)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(salary.netSalary)}</TableCell>
-                    <TableCell>{salary.month}/{salary.year}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={salary.status === 'paid' ? 'default' : 'secondary'}
-                      >
-                        {salary.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
           </div>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
-        <AddExpenseModal 
-          isOpen={isExpenseModalOpen}
-          onClose={handleCloseExpenseModal}
-          editingExpense={editingExpense}
-        />
-      </div>
-    </DashboardLayout>
+      {/* Expense Requests Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Expense Requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingExpenses ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          ) : expenseRequests.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No expense requests found
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SO Center</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenseRequests.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-semibold">{expense.soCenterName}</div>
+                          <div className="text-sm text-gray-600">{expense.centerCode}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getExpenseTypeLabel(expense.expenseType)}</TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-green-600">
+                          ₹{parseFloat(expense.amount).toFixed(2)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(expense.status)}</TableCell>
+                      <TableCell>
+                        {new Date(expense.requestedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedExpense(expense);
+                              setShowApprovalModal(true);
+                            }}
+                            className="flex items-center"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                          {expense.status === 'pending' && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  approvalMutation.mutate({
+                                    expenseId: expense.id,
+                                    action: 'approve'
+                                  });
+                                }}
+                                disabled={approvalMutation.isPending}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  approvalMutation.mutate({
+                                    expenseId: expense.id,
+                                    action: 'reject'
+                                  });
+                                }}
+                                disabled={approvalMutation.isPending}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ApprovalModal />
+    </div>
   );
 }

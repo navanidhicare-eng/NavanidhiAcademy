@@ -83,6 +83,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: Calendar, label: 'Attendance', href: '/attendance' },
           { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
+          { icon: DollarSign, label: 'Expenses', href: '/expenses' },
         ];
       
       case 'teacher':
