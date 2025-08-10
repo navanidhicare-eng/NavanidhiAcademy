@@ -97,7 +97,7 @@ export default function Dashboard() {
         
         <StatCard
           title="Payments This Month"
-          value={`₹${displayStats.paymentsThisMonth.toLocaleString()}`}
+          value={`₹${(displayStats.paymentsThisMonth || 0).toLocaleString()}`}
           icon={IndianRupee}
           trend="+8% from last month"
           color="secondary"
@@ -113,7 +113,7 @@ export default function Dashboard() {
         
         <StatCard
           title="Wallet Balance"
-          value={`₹${displayStats.walletBalance.toLocaleString()}`}
+          value={`₹${(displayStats.walletBalance || 0).toLocaleString()}`}
           icon={Wallet}
           color="purple-600"
         />

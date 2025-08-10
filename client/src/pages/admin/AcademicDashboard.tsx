@@ -103,34 +103,16 @@ function StudentProgressTab({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>State</Label>
-              <Select value={selectedState} onValueChange={setSelectedState}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state: any) => (
-                    <SelectItem key={state.id} value={state.id}>
-                      {state.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="text-sm text-gray-600">
+                {selectedState ? 'State filter applied from universal filter above' : 'Use universal location filter above'}
+              </div>
             </div>
 
             <div>
               <Label>District</Label>
-              <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select district" />
-                </SelectTrigger>
-                <SelectContent>
-                  {districts.map((district: any) => (
-                    <SelectItem key={district.id} value={district.id}>
-                      {district.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="text-sm text-gray-600">
+                {selectedDistrict ? 'District filter applied from universal filter above' : 'Use universal location filter above'}
+              </div>
             </div>
 
             <div>
