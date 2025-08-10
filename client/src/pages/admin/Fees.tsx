@@ -270,6 +270,11 @@ export default function Fees() {
     queryKey: ['/api/admin/fees'],
   });
 
+  // Fetch classes for displaying class names
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
+
   const deleteFeeMutation = useMutation({
     mutationFn: async (feeId: string) => {
       return apiRequest('DELETE', `/api/admin/fees/${feeId}`);
