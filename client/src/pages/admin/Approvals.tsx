@@ -172,7 +172,7 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Withdrawal ID</label>
-                <p className="text-sm font-mono font-medium">{withdrawal.withdrawal_id}</p>
+                <p className="text-sm font-mono font-medium">#{withdrawal.id.slice(-8)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Status</label>
@@ -197,7 +197,7 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Date Requested</label>
-                <p className="text-sm">{new Date(withdrawal.requested_at).toLocaleDateString('en-IN')}</p>
+                <p className="text-sm">{new Date(withdrawal.request_date).toLocaleDateString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">User Name</label>
@@ -519,7 +519,7 @@ export default function Approvals() {
                 return (
                   <TableRow key={request.id}>
                     <TableCell>
-                      <div className="font-mono text-sm font-medium">{request.withdrawal_id}</div>
+                      <div className="font-mono text-sm font-medium">#{request.id.slice(-8)}</div>
                     </TableCell>
                     <TableCell>
                       <div>
@@ -540,8 +540,8 @@ export default function Approvals() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{new Date(request.requested_at).toLocaleDateString('en-IN')}</div>
-                        <div className="text-gray-600">{new Date(request.requested_at).toLocaleTimeString('en-IN')}</div>
+                        <div>{new Date(request.request_date).toLocaleDateString('en-IN')}</div>
+                        <div className="text-gray-600">{new Date(request.request_date).toLocaleTimeString('en-IN')}</div>
                       </div>
                     </TableCell>
                     <TableCell>
