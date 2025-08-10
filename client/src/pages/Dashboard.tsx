@@ -3,6 +3,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { AnnouncementsPopup } from '@/components/announcements/AnnouncementsPopup';
+import { ProductsList } from '@/components/products/ProductsList';
 import { Link } from 'wouter';
 import { 
   Users, 
@@ -12,7 +13,8 @@ import {
   TrendingUp,
   Building,
   Calendar,
-  BarChart3
+  BarChart3,
+  Package
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -125,7 +127,14 @@ export default function Dashboard() {
 
       {/* Role-specific content */}
       {user?.role === 'so_center' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
+          {/* Available Products */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Products</h3>
+            <ProductsList userRole="so_center" />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Activity */}
           <Card>
             <CardHeader>
@@ -227,6 +236,64 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+          </div>
+        </div>
+      )}
+
+      {user?.role === 'agent' && (
+        <div className="space-y-8">
+          {/* Available Products */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Products</h3>
+            <ProductsList userRole="agent" />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Commission Tracking */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Commission Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">This Month</span>
+                    <span className="font-semibold text-green-600">₹2,450</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Pending</span>
+                    <span className="font-semibold text-yellow-600">₹1,200</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Total Earned</span>
+                    <span className="font-semibold text-blue-600">₹15,670</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Link href="/products">
+                    <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                      <div className="flex items-center space-x-3">
+                        <Package size={20} className="text-primary" />
+                        <div>
+                          <p className="font-medium">View Products</p>
+                          <p className="text-sm text-gray-600">Browse available products</p>
+                        </div>
+                      </div>
+                    </button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 

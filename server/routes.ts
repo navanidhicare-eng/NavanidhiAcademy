@@ -1922,6 +1922,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Products endpoints for SO Centers and Agents (Active products only)
+  app.get('/api/so_center/products', authenticateToken, async (req, res) => {
+    try {
+      const result = await sql`
+        SELECT * FROM products 
+        WHERE is_active = true
+        ORDER BY created_at DESC
+      `;
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching products for SO center:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  app.get('/api/agent/products', authenticateToken, async (req, res) => {
+    try {
+      const result = await sql`
+        SELECT * FROM products 
+        WHERE is_active = true
+        ORDER BY created_at DESC
+      `;
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching products for agent:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
   // Get all students for admin with comprehensive data
   app.get("/api/admin/students", authenticateToken, async (req, res) => {
     try {

@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Package, Edit2, DollarSign, FileText, CheckSquare, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 interface Product {
   id: string;
@@ -153,44 +154,32 @@ function AdminProducts() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-              <Package className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Products Management</h1>
-              <p className="text-gray-600 dark:text-gray-400">Manage products and commission settings</p>
-            </div>
-          </div>
-          
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Product
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create New Product</DialogTitle>
-              </DialogHeader>
-              <ProductForm 
-                form={form} 
-                onSubmit={handleSubmit} 
-                isLoading={createProductMutation.isPending}
-                isEditing={false}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+    <DashboardLayout 
+      title="Products Management" 
+      subtitle="Manage products and commission settings"
+      showAddButton={true}
+      onAddClick={() => setIsCreateOpen(true)}
+    >
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogTrigger asChild>
+          <Button className="hidden">Create Product</Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create New Product</DialogTitle>
+          </DialogHeader>
+          <ProductForm 
+            form={form} 
+            onSubmit={handleSubmit} 
+            isLoading={createProductMutation.isPending}
+            isEditing={false}
+          />
+        </DialogContent>
+      </Dialog>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {isLoading ? (
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardHeader>
@@ -270,7 +259,6 @@ function AdminProducts() {
                       <Switch
                         checked={product.isActive}
                         onCheckedChange={() => handleToggleActive(product.id, product.isActive)}
-                        size="sm"
                       />
                       <span className="text-sm text-gray-600">
                         {product.isActive ? "Active" : "Inactive"}
@@ -305,10 +293,9 @@ function AdminProducts() {
                 </CardContent>
               </Card>
             ))
-          )}
-        </div>
+        )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 
