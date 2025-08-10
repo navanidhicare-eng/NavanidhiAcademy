@@ -44,6 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Academic Dashboard**: Universal location filter system (State → District → Mandal → Village → SO Center) shared across Student Progress and Attendance Reports tabs.
 - **Exam Management**: Dedicated sidebar page for Academic Admin with comprehensive exam creation, SO Centers selection, and management capabilities.
 - **Teacher Management**: Integrated with user authentication system, including teaching records and assignment of classes and subjects.
+- **Announcements System**: Complete role-based announcements management with multi-select target audiences, priority levels, date scheduling, QR code integration, and auto-popup display for active announcements based on user roles.
 
 ## External Dependencies
 
