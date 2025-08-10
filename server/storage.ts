@@ -1618,12 +1618,23 @@ export class DrizzleStorage implements IStorage {
 
   // Validate Aadhar Number uniqueness
   async validateAadharNumber(aadharNumber: string): Promise<boolean> {
+    console.log('🔍 CRITICAL: Checking Aadhar number globally across entire database:', aadharNumber);
+    
+    // Check ENTIRE database for existing Aadhar number - NOT just SO Center specific
     const existing = await db.select()
       .from(schema.students)
       .where(eq(schema.students.aadharNumber, aadharNumber))
       .limit(1);
     
-    return existing.length === 0; // Returns true if Aadhar is unique
+    const isUnique = existing.length === 0;
+    
+    if (existing.length > 0) {
+      console.log('❌ DUPLICATE AADHAR FOUND: Aadhar number', aadharNumber, 'already exists for student:', existing[0].name, 'ID:', existing[0].studentId);
+    } else {
+      console.log('✅ AADHAR UNIQUE: Aadhar number', aadharNumber, 'is available globally');
+    }
+    
+    return isUnique; // Returns true if Aadhar is unique across entire database
   }
 
   // Create student with siblings in a transaction

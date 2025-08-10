@@ -45,6 +45,7 @@ Preferred communication style: Simple, everyday language.
 - **Exam Management**: Dedicated sidebar page for Academic Admin with comprehensive exam creation, SO Centers selection, and management capabilities.
 - **Teacher Management**: Integrated with user authentication system, including teaching records and assignment of classes and subjects.
 - **Announcements System**: Complete role-based announcements management with multi-select target audiences, priority levels, date scheduling, QR code integration, and auto-popup display for active announcements based on user roles.
+- **Data Privacy & Integrity**: Strict SO Center data isolation with global Aadhar number validation to prevent system-wide duplicates while maintaining privacy between centers.
 
 ## External Dependencies
 
