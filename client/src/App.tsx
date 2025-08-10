@@ -157,6 +157,11 @@ function Router() {
           <AdminCenters />
         </ProtectedRoute>
       </Route>
+      <Route path="/admin/so-centers">
+        <ProtectedRoute>
+          <AdminCenters />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/students">
         <ProtectedRoute>
           <AdminStudents />

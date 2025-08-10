@@ -1209,30 +1209,64 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  // Enhanced SO Center methods
-  async getNextSoCenterId(): Promise<string> {
-    // Get all existing center IDs - only select needed columns to avoid column errors
+  // Enhanced SO Center methods with sequential number gap detection
+  async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
+    // Get all existing center IDs and emails
     const centers = await db.select({
       centerId: schema.soCenters.centerId
     }).from(schema.soCenters);
-    console.log('Existing centers:', centers.map(c => c.centerId));
     
-    // Extract numeric parts and find maximum
-    let maxNumber = 0;
+    const users = await db.select({
+      email: schema.users.email
+    }).from(schema.users).where(like(schema.users.email, 'nnasoc%@navanidhi.org'));
+    
+    console.log('Existing center IDs:', centers.map(c => c.centerId));
+    console.log('Existing SO Center emails:', users.map(u => u.email));
+    
+    // Extract numeric parts from both center IDs and emails
+    const existingNumbers = new Set<number>();
+    
+    // From center IDs
     centers.forEach(center => {
       if (center.centerId) {
         const match = center.centerId.match(/NNASOC(\d+)/);
         if (match) {
-          const num = parseInt(match[1], 10);
-          console.log(`Found center ID: ${center.centerId}, extracted number: ${num}`);
-          maxNumber = Math.max(maxNumber, num);
+          existingNumbers.add(parseInt(match[1], 10));
         }
       }
     });
     
-    const nextId = `NNASOC${String(maxNumber + 1).padStart(5, '0')}`;
-    console.log(`Next center ID will be: ${nextId}`);
-    return nextId;
+    // From emails
+    users.forEach(user => {
+      if (user.email) {
+        const match = user.email.match(/nnasoc(\d+)@navanidhi\.org/);
+        if (match) {
+          existingNumbers.add(parseInt(match[1], 10));
+        }
+      }
+    });
+    
+    console.log('Existing SO Center numbers:', Array.from(existingNumbers).sort((a, b) => a - b));
+    
+    // Find the first available number starting from 1
+    let nextNumber = 1;
+    while (existingNumbers.has(nextNumber)) {
+      nextNumber++;
+    }
+    
+    const centerId = `NNASOC${String(nextNumber).padStart(5, '0')}`;
+    const email = `nnasoc${String(nextNumber).padStart(5, '0')}@navanidhi.org`;
+    
+    console.log(`Next available SO Center number: ${nextNumber}`);
+    console.log(`Generated center ID: ${centerId}`);
+    console.log(`Generated email: ${email}`);
+    
+    return { centerId, email };
+  }
+  
+  async getNextSoCenterId(): Promise<string> {
+    const result = await this.getNextAvailableSoCenterNumber();
+    return result.centerId;
   }
 
   async getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined> {

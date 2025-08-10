@@ -1842,14 +1842,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract additional data for SO Center creation
       const { nearbySchools, nearbyTuitions, equipment, ...centerData } = centerDataWithStringFields;
       
+      // Generate next available SO Center account number automatically
+      const nextAvailable = await storage.getNextAvailableSoCenterNumber();
+      console.log('🔢 Generated next available SO Center details:', nextAvailable);
+      
       // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createSoCenter({
-        email: centerData.email,
+        email: nextAvailable.email, // Use auto-generated email
         password: centerData.password || '12345678',
         name: centerData.name || centerData.managerName || 'SO Manager',
         phone: centerData.phone || centerData.managerPhone,
         address: centerData.address,
-        centerId: centerData.centerId,
+        centerId: nextAvailable.centerId, // Use auto-generated center ID
         centerName: centerData.centerName,
         location: centerData.location,
         managerName: centerData.managerName,
