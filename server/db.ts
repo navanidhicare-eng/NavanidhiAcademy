@@ -9,9 +9,13 @@ if (!SUPABASE_CONNECTION) {
   throw new Error("SUPABASE_DATABASE_URL is required - System enforces Supabase exclusively");
 }
 
+console.log('🚫 FORCING NEON DISCONNECTION - ORIGINAL DATABASE_URL:', process.env.DATABASE_URL?.slice(0, 30) + '...');
+
 // CRITICAL: OVERRIDE DATABASE_URL TO FORCE DRIZZLE TO USE SUPABASE
 // This ensures drizzle.config.ts uses Supabase instead of Neon
 process.env.DATABASE_URL = SUPABASE_CONNECTION;
+
+console.log('✅ DATABASE_URL OVERRIDDEN TO SUPABASE:', process.env.DATABASE_URL?.slice(0, 30) + '...');
 
 // COMPLETE REMOVAL OF ALL NEON/LOCAL DATABASE VARIABLES
 delete process.env.PGHOST;
