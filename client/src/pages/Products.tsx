@@ -13,7 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package, DollarSign, Percent, FileText, ShoppingCart, User, GraduationCap, MapPin, Phone } from 'lucide-react';
+import { Package, DollarSign, Percent, FileText, ShoppingCart, User, GraduationCap, MapPin, Phone, Receipt } from 'lucide-react';
+import { InvoiceGenerator } from '@/components/InvoiceGenerator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import confetti from 'canvas-confetti';
@@ -42,6 +43,8 @@ type PurchaseFormData = z.infer<typeof purchaseFormSchema>;
 function Products() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [showInvoice, setShowInvoice] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -70,6 +73,8 @@ function Products() {
       return response;
     },
     onSuccess: (result: any) => {
+      console.log('Purchase success result:', result);
+      
       // Play success sound
       const audio = new Audio('/phone_pe_notification.mp3');
       audio.play().catch(() => {
@@ -84,15 +89,29 @@ function Products() {
         origin: { y: 0.6 }
       });
 
+      // Set invoice data and show invoice
+      setInvoiceData({
+        transactionId: result.transactionId || 'N/A',
+        productName: selectedProduct?.name || '',
+        studentName: form.getValues('studentName'),
+        coursePrice: Number(selectedProduct?.price || 0),
+        commissionAmount: Number(selectedProduct?.price || 0) * Number(selectedProduct?.commission_percentage || 0) / 100,
+        purchaseDate: new Date().toISOString(),
+        agentEmail: result.agentEmail || 'N/A'
+      });
+
       toast({
         title: "Course Successfully Purchased!",
-        description: `${selectedProduct?.name} purchased. Transaction ID: ${result.transactionId}`,
+        description: `${selectedProduct?.name} purchased. Transaction ID: ${result.transactionId || 'Processing...'}`,
       });
 
       // Reset form and close dialog
       form.reset();
       setShowPurchaseForm(false);
       setSelectedProduct(null);
+      
+      // Show invoice
+      setShowInvoice(true);
 
       // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['/api/wallet/balance'] });
@@ -414,6 +433,13 @@ function Products() {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Invoice Generator */}
+      <InvoiceGenerator 
+        invoiceData={invoiceData}
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+      />
     </DashboardLayout>
   );
 }

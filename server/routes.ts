@@ -2102,7 +2102,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get wallet balance - for agents and SO centers only
-  app.get('/api/wallet/balance', authenticateToken, requireRole(['agent', 'so_center']), async (req, res) => {
+  app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
+    // Check if user has appropriate role
+    if (!['agent', 'so_center'].includes(req.user?.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
     try {
       const userId = req.user?.userId;
 
@@ -2133,7 +2137,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get wallet transactions - for agents and SO centers only
-  app.get('/api/wallet/transactions', authenticateToken, requireRole(['agent', 'so_center']), async (req, res) => {
+  app.get('/api/wallet/transactions', authenticateToken, async (req, res) => {
+    // Check if user has appropriate role
+    if (!['agent', 'so_center'].includes(req.user?.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
     try {
       const userId = req.user?.userId;
 
@@ -2156,7 +2164,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Withdrawal request endpoint - for agents and SO centers only
-  app.post('/api/wallet/withdraw', authenticateToken, requireRole(['agent', 'so_center']), async (req, res) => {
+  app.post('/api/wallet/withdraw', authenticateToken, async (req, res) => {
+    // Check if user has appropriate role
+    if (!['agent', 'so_center'].includes(req.user?.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
     try {
       const { amount } = req.body;
       const userId = req.user?.userId;
