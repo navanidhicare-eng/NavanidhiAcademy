@@ -69,7 +69,7 @@ export function ExamCreationForm({
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map((cls: any) => (
+                  {classes.filter((cls: any) => cls.id && cls.id.trim() !== '').map((cls: any) => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.name}
                     </SelectItem>
@@ -84,7 +84,7 @@ export function ExamCreationForm({
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.map((subject: any) => (
+                  {subjects.filter((subject: any) => subject.id && subject.id.trim() !== '').map((subject: any) => (
                     <SelectItem key={subject.id} value={subject.id}>
                       {subject.name}
                     </SelectItem>

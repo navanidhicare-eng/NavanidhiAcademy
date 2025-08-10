@@ -26,11 +26,11 @@ export default function ExamManagement() {
   const { toast } = useToast();
 
   // Location filters
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedMandal, setSelectedMandal] = useState('');
-  const [selectedVillage, setSelectedVillage] = useState('');
-  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+  const [selectedState, setSelectedState] = useState('all-states');
+  const [selectedDistrict, setSelectedDistrict] = useState('all-districts');
+  const [selectedMandal, setSelectedMandal] = useState('all-mandals');
+  const [selectedVillage, setSelectedVillage] = useState('all-villages');
+  const [selectedSoCenter, setSelectedSoCenter] = useState('all');
 
   // Data queries
   const { data: exams = [] } = useQuery<any[]>({
@@ -68,10 +68,10 @@ export default function ExamManagement() {
 
   // Filter SO Centers based on location selection
   const filteredSoCenters = soCenters.filter((center: any) => {
-    if (selectedVillage && center.villageId !== selectedVillage) return false;
-    if (selectedMandal && !villages.some((v: any) => v.id === center.villageId && v.mandalId === selectedMandal)) return false;
-    if (selectedDistrict && !mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === selectedDistrict)) return false;
-    if (selectedState && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
+    if (selectedVillage && selectedVillage !== 'all-villages' && center.villageId !== selectedVillage) return false;
+    if (selectedMandal && selectedMandal !== 'all-mandals' && !villages.some((v: any) => v.id === center.villageId && v.mandalId === selectedMandal)) return false;
+    if (selectedDistrict && selectedDistrict !== 'all-districts' && !mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === selectedDistrict)) return false;
+    if (selectedState && selectedState !== 'all-states' && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
     return true;
   });
 
@@ -171,11 +171,11 @@ export default function ExamManagement() {
               variant="outline" 
               size="sm"
               onClick={() => {
-                setSelectedState('');
-                setSelectedDistrict('');
-                setSelectedMandal('');
-                setSelectedVillage('');
-                setSelectedSoCenter('');
+                setSelectedState('all-states');
+                setSelectedDistrict('all-districts');
+                setSelectedMandal('all-mandals');
+                setSelectedVillage('all-villages');
+                setSelectedSoCenter('all');
               }}
             >
               <RotateCcw size={16} className="mr-1" />
@@ -192,7 +192,7 @@ export default function ExamManagement() {
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All States</SelectItem>
+                  <SelectItem value="all-states">All States</SelectItem>
                   {states.map((state: any) => (
                     <SelectItem key={state.id} value={state.id}>
                       {state.name}
@@ -209,8 +209,8 @@ export default function ExamManagement() {
                   <SelectValue placeholder="Select District" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Districts</SelectItem>
-                  {districts.filter((d: any) => !selectedState || d.stateId === selectedState).map((district: any) => (
+                  <SelectItem value="all-districts">All Districts</SelectItem>
+                  {districts.filter((d: any) => !selectedState || selectedState === 'all-states' || d.stateId === selectedState).map((district: any) => (
                     <SelectItem key={district.id} value={district.id}>
                       {district.name}
                     </SelectItem>
@@ -226,8 +226,8 @@ export default function ExamManagement() {
                   <SelectValue placeholder="Select Mandal" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Mandals</SelectItem>
-                  {mandals.filter((m: any) => !selectedDistrict || m.districtId === selectedDistrict).map((mandal: any) => (
+                  <SelectItem value="all-mandals">All Mandals</SelectItem>
+                  {mandals.filter((m: any) => !selectedDistrict || selectedDistrict === 'all-districts' || m.districtId === selectedDistrict).map((mandal: any) => (
                     <SelectItem key={mandal.id} value={mandal.id}>
                       {mandal.name}
                     </SelectItem>
@@ -243,8 +243,8 @@ export default function ExamManagement() {
                   <SelectValue placeholder="Select Village" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Villages</SelectItem>
-                  {villages.filter((v: any) => !selectedMandal || v.mandalId === selectedMandal).map((village: any) => (
+                  <SelectItem value="all-villages">All Villages</SelectItem>
+                  {villages.filter((v: any) => !selectedMandal || selectedMandal === 'all-mandals' || v.mandalId === selectedMandal).map((village: any) => (
                     <SelectItem key={village.id} value={village.id}>
                       {village.name}
                     </SelectItem>
