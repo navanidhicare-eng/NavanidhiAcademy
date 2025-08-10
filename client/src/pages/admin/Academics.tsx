@@ -102,7 +102,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
       subjectId: editingExam?.subjectId || '',
       chapterIds: editingExam?.chapterIds || [],
       soCenterIds: editingExam?.soCenterIds || [],
-      examDate: editingExam?.examDate || '',
+      examDate: editingExam?.examDate ? new Date(editingExam.examDate).toISOString().split('T')[0] : '',
       duration: editingExam?.duration?.toString() || '',
       totalQuestions: editingExam?.totalQuestions?.toString() || '',
       totalMarks: editingExam?.totalMarks?.toString() || '',
@@ -695,7 +695,7 @@ export default function Academics() {
                         {subjects.find((s: any) => s.id === exam.subjectId)?.name || 'Unknown'}
                       </TableCell>
                       <TableCell>
-                        {new Date(exam.examDate).toLocaleDateString()}
+                        {new Date(exam.examDate).toLocaleDateString('en-GB')}
                       </TableCell>
                       <TableCell>{exam.duration} min</TableCell>
                       <TableCell>{exam.totalMarks}</TableCell>

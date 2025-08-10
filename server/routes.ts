@@ -4135,15 +4135,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let soCenterId = user?.soCenterId;
       
       // If user doesn't have soCenterId directly, find it through SO Centers table
-      if (!soCenterId && user?.role === 'so_center_manager') {
-        const soCenters = await db.select({
+      if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
+        // First try to find by managerId
+        const soCentersByManager = await db.select({
           id: schema.soCenters.id
         })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.managerId, userId));
         
-        if (soCenters.length > 0) {
-          soCenterId = soCenters[0].id;
+        if (soCentersByManager.length > 0) {
+          soCenterId = soCentersByManager[0].id;
+        } else {
+          // If not found by managerId, try to find by email match (for SO Center users)
+          const soCentersByEmail = await db.select({
+            id: schema.soCenters.id
+          })
+          .from(schema.soCenters)
+          .where(eq(schema.soCenters.email, user?.email || ''));
+          
+          if (soCentersByEmail.length > 0) {
+            soCenterId = soCentersByEmail[0].id;
+          }
         }
       }
       
@@ -4185,15 +4197,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       let soCenterId = user?.soCenterId;
       
-      if (!soCenterId && user?.role === 'so_center_manager') {
-        const soCenters = await db.select({
+      if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
+        // First try to find by managerId
+        const soCentersByManager = await db.select({
           id: schema.soCenters.id
         })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.managerId, userId));
         
-        if (soCenters.length > 0) {
-          soCenterId = soCenters[0].id;
+        if (soCentersByManager.length > 0) {
+          soCenterId = soCentersByManager[0].id;
+        } else {
+          // If not found by managerId, try to find by email match (for SO Center users)
+          const soCentersByEmail = await db.select({
+            id: schema.soCenters.id
+          })
+          .from(schema.soCenters)
+          .where(eq(schema.soCenters.email, user?.email || ''));
+          
+          if (soCentersByEmail.length > 0) {
+            soCenterId = soCentersByEmail[0].id;
+          }
         }
       }
       

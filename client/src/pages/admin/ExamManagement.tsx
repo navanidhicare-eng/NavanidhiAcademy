@@ -296,7 +296,7 @@ export default function ExamManagement() {
                   <div className="flex items-center space-x-2 mt-1">
                     <Badge variant="outline">{exam.className}</Badge>
                     <Badge variant="secondary">{exam.subjectName}</Badge>
-                    <Badge variant="outline">{exam.examDate}</Badge>
+                    <Badge variant="outline">{new Date(exam.examDate).toLocaleDateString('en-GB')}</Badge>
                     <Badge>{exam.totalMarks} marks</Badge>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{exam.description}</p>
