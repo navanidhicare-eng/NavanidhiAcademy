@@ -2286,7 +2286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u.role as user_role
         FROM withdrawal_requests wr
         JOIN users u ON wr.user_id = u.id
-        ORDER BY wr.request_date DESC
+        ORDER BY wr.requested_at DESC
       `;
 
       res.json(withdrawalRequests);
@@ -2326,17 +2326,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = request.user_id;
       const amount = parseFloat(request.amount);
 
-      // Update withdrawal request status
+      // Update withdrawal request status - only update existing columns
       await sql`
         UPDATE withdrawal_requests 
         SET 
-          status = 'approved',
-          "processedAt" = CURRENT_TIMESTAMP,
-          "processedBy" = ${req.user?.userId},
-          "paymentMode" = ${paymentMode},
-          "paymentDetails" = ${paymentDetails},
-          "transactionId" = ${transactionId},
-          notes = ${notes || ''}
+          status = 'approved'
         WHERE id = ${id}
       `;
 
