@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Receipt, Copy, Share, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-interface InvoiceData {
+interface CourseInvoiceData {
   transactionId: string;
   productName: string;
   studentName: string;
@@ -13,6 +13,20 @@ interface InvoiceData {
   purchaseDate: string;
   agentEmail: string;
 }
+
+interface WithdrawalInvoiceData {
+  transactionId: string;
+  withdrawalId: string;
+  amount: number;
+  paymentMode: string;
+  paymentDetails: string;
+  userEmail: string;
+  userName: string;
+  processedAt: string;
+  type: 'withdrawal';
+}
+
+type InvoiceData = CourseInvoiceData | WithdrawalInvoiceData;
 
 interface InvoiceGeneratorProps {
   invoiceData: InvoiceData | null;
@@ -27,6 +41,9 @@ export function InvoiceGenerator({ invoiceData, isOpen, onClose }: InvoiceGenera
   if (!invoiceData) return null;
 
   const formatCurrency = (amount: number) => {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      return '₹0';
+    }
     return `₹${amount.toLocaleString('en-IN')}`;
   };
 
@@ -41,32 +58,56 @@ export function InvoiceGenerator({ invoiceData, isOpen, onClose }: InvoiceGenera
   };
 
   const generateInvoiceText = () => {
-    return `
+    if ('type' in invoiceData && invoiceData.type === 'withdrawal') {
+      return `
+🧾 NAVANIDHI ACADEMY WITHDRAWAL RECEIPT
+=====================================
+
+📋 TRANSACTION DETAILS
+Transaction ID: ${invoiceData.transactionId}
+Withdrawal ID: ${invoiceData.withdrawalId}
+Date & Time: ${formatDate(invoiceData.processedAt)}
+
+💰 PAYMENT INFORMATION
+Amount: ${formatCurrency(invoiceData.amount)}
+Payment Mode: ${invoiceData.paymentMode.toUpperCase()}
+Payment Details: ${invoiceData.paymentDetails}
+
+👤 RECIPIENT DETAILS
+Name: ${invoiceData.userName}
+Email: ${invoiceData.userEmail}
+
+✅ STATUS: APPROVED & PROCESSED
+`;
+    } else {
+      const courseData = invoiceData as CourseInvoiceData;
+      return `
 🧾 NAVANIDHI ACADEMY INVOICE
 ================================
 
 📋 TRANSACTION DETAILS
-Transaction ID: ${invoiceData.transactionId}
-Date & Time: ${formatDate(invoiceData.purchaseDate)}
+Transaction ID: ${courseData.transactionId}
+Date & Time: ${formatDate(courseData.purchaseDate)}
 
 👨‍🎓 COURSE INFORMATION
-Course Name: ${invoiceData.productName}
-Student Name: ${invoiceData.studentName}
-Course Fee: ${formatCurrency(invoiceData.coursePrice)}
+Course Name: ${courseData.productName}
+Student Name: ${courseData.studentName}
+Course Fee: ${formatCurrency(courseData.coursePrice)}
 
 💰 COMMISSION DETAILS
-Agent Email: ${invoiceData.agentEmail}
-Commission Rate: ${((invoiceData.commissionAmount / invoiceData.coursePrice) * 100).toFixed(1)}%
-Commission Amount: ${formatCurrency(invoiceData.commissionAmount)}
+Agent Email: ${courseData.agentEmail}
+Commission Rate: ${((courseData.commissionAmount / courseData.coursePrice) * 100).toFixed(1)}%
+Commission Amount: ${formatCurrency(courseData.commissionAmount)}
 
 📊 PAYMENT SUMMARY
-Total Course Fee: ${formatCurrency(invoiceData.coursePrice)}
-Commission Earned: ${formatCurrency(invoiceData.commissionAmount)}
+Total Course Fee: ${formatCurrency(courseData.coursePrice)}
+Commission Earned: ${formatCurrency(courseData.commissionAmount)}
 
 ================================
 Thank you for your business!
 Navanidhi Academy Management System
-    `.trim();
+`;
+    }
   };
 
   const handleCopyInvoice = async () => {
