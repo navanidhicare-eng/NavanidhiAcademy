@@ -71,14 +71,24 @@ const authenticateToken = (req: Request, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
+  console.log('🔐 Authentication attempt:', {
+    hasAuthHeader: !!authHeader,
+    hasToken: !!token,
+    tokenLength: token?.length,
+    tokenStart: token?.substring(0, 20) + '...'
+  });
+
   if (!token) {
+    console.log('❌ No token provided');
     return res.status(401).json({ message: 'Access token required' });
   }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
+      console.log('❌ JWT verification failed:', err.message);
       return res.status(403).json({ message: 'Invalid token' });
     }
+    console.log('✅ JWT verified successfully:', { userId: user.userId, role: user.role });
     req.user = user;
     next();
   });
