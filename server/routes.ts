@@ -747,6 +747,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }));
         res.json(studentsWithStatus);
+      } else if (req.user.role === 'academic_admin') {
+        // Academic admin can see all students across all SO centers
+        const allStudents = await storage.getAllStudents();
+        res.json(allStudents);
       } else {
         res.status(403).json({ message: "Unauthorized" });
       }
@@ -1334,25 +1338,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // Calculate real stats from Supabase database
-      const soCenterId = '84bf6d19-8830-4abd-8374-2c29faecaa24';
-      const soCenter = await storage.getSoCenter(soCenterId);
-      const totalStudents = await storage.getStudentsBySoCenter(soCenterId);
+      // Get role-based stats
+      let stats;
       
-      // Calculate payments this month
-      const startOfMonth = new Date();
-      startOfMonth.setDate(1);
-      startOfMonth.setHours(0, 0, 0, 0);
-      
-      const payments = await storage.getPaymentsByDateRange(soCenterId, startOfMonth, new Date());
-      const paymentsThisMonth = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-      
-      const stats = {
-        totalStudents: totalStudents.length,
-        paymentsThisMonth: Math.round(paymentsThisMonth),
-        topicsCompleted: 0, // TODO: Calculate from progress data
-        walletBalance: parseFloat(soCenter?.walletBalance || '0'),
-      };
+      if (req.user.role === 'academic_admin') {
+        // Academic admin sees all students across all SO centers
+        const allStudents = await storage.getAllStudents();
+        const allSoCenters = await storage.getAllSoCenters();
+        
+        stats = {
+          totalStudents: allStudents.length,
+          totalSoCenters: allSoCenters.length,
+          totalExams: 0, // TODO: Add exam count
+          totalTopics: 0, // TODO: Add topic count
+        };
+      } else {
+        // Regular dashboard stats for SO centers
+        const soCenterId = '84bf6d19-8830-4abd-8374-2c29faecaa24';
+        const soCenter = await storage.getSoCenter(soCenterId);
+        const totalStudents = await storage.getStudentsBySoCenter(soCenterId);
+        
+        // Calculate payments this month
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        
+        const payments = await storage.getPaymentsByDateRange(soCenterId, startOfMonth, new Date());
+        const paymentsThisMonth = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        
+        stats = {
+          totalStudents: totalStudents.length,
+          paymentsThisMonth: Math.round(paymentsThisMonth),
+          topicsCompleted: 0, // TODO: Calculate from progress data
+          walletBalance: parseFloat(soCenter?.walletBalance || '0'),
+        };
+      }
 
       res.json(stats);
     } catch (error) {

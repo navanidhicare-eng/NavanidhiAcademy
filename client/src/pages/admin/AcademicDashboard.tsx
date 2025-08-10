@@ -1,0 +1,782 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  BookOpen, 
+  Users, 
+  TrendingUp, 
+  Calendar,
+  MapPin,
+  GraduationCap,
+  FileText,
+  PlusCircle,
+  Edit,
+  Trash2,
+  BarChart3,
+  Target,
+  Award
+} from 'lucide-react';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+
+// Student Progress with SO Center and Location Filters
+function StudentProgressTab() {
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+
+  const { data: states = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/states'],
+  });
+
+  const { data: districts = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/districts'],
+    enabled: !!selectedState,
+  });
+
+  const { data: soCenters = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/so-centers'],
+  });
+
+  const { data: students = [] } = useQuery<any[]>({
+    queryKey: ['/api/students'],
+  });
+
+  // Filter students based on location and SO center
+  const filteredStudents = students.filter((student: any) => {
+    if (selectedSoCenter && student.soCenterId !== selectedSoCenter) return false;
+    // Add additional location filtering logic here
+    return true;
+  });
+
+  // Mock performance data for selected student
+  const performanceData = selectedStudent ? [
+    { month: 'Jan', marks: 85, attendance: 92 },
+    { month: 'Feb', marks: 78, attendance: 88 },
+    { month: 'Mar', marks: 92, attendance: 95 },
+    { month: 'Apr', marks: 89, attendance: 90 },
+    { month: 'May', marks: 94, attendance: 97 },
+    { month: 'Jun', marks: 87, attendance: 89 },
+  ] : [];
+
+  const subjectProgress = selectedStudent ? [
+    { subject: 'Mathematics', progress: 85, color: '#8884d8' },
+    { subject: 'Science', progress: 92, color: '#82ca9d' },
+    { subject: 'English', progress: 78, color: '#ffc658' },
+    { subject: 'Social Studies', progress: 88, color: '#ff7300' },
+  ] : [];
+
+  return (
+    <div className="space-y-6">
+      {/* Location and SO Center Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <MapPin size={20} />
+            <span>Student Progress Filters</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>State</Label>
+              <Select value={selectedState} onValueChange={setSelectedState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {states.map((state: any) => (
+                    <SelectItem key={state.id} value={state.id}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>District</Label>
+              <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select district" />
+                </SelectTrigger>
+                <SelectContent>
+                  {districts.map((district: any) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>SO Center</Label>
+              <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select SO center" />
+                </SelectTrigger>
+                <SelectContent>
+                  {soCenters.map((center: any) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.name} ({center.centerId})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Students List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users size={20} />
+            <span>Students Progress Overview</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {filteredStudents.map((student: any) => (
+              <div 
+                key={student.id} 
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                onClick={() => setSelectedStudent(student)}
+              >
+                <div>
+                  <h3 className="font-semibold text-gray-900">{student.name}</h3>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Badge variant="outline">{student.studentId}</Badge>
+                    <Badge variant="secondary">{student.soCenterName || 'Unknown Center'}</Badge>
+                    <Badge variant="outline">{student.className || 'No Class'}</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Progress</div>
+                    <div className="font-semibold">{Math.floor(Math.random() * 40) + 60}%</div>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    <BarChart3 className="text-primary" size={16} />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Student Performance Modal */}
+      <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              Performance Analytics - {selectedStudent?.name} ({selectedStudent?.studentId})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {/* Performance Trends */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <TrendingUp size={20} />
+                  <span>Performance Trends</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={performanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="marks" stroke="#8884d8" strokeWidth={2} />
+                    <Line type="monotone" dataKey="attendance" stroke="#82ca9d" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Subject-wise Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Target size={20} />
+                  <span>Subject-wise Progress</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {subjectProgress.map((subject: any) => (
+                    <div key={subject.subject} className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="font-medium">{subject.subject}</span>
+                        <span className="font-semibold">{subject.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="h-2 rounded-full" 
+                          style={{ 
+                            width: `${subject.progress}%`, 
+                            backgroundColor: subject.color 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Exam Management Tab
+function ExamManagementTab() {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingExam, setEditingExam] = useState<any>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: exams = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/exams'],
+  });
+
+  const { data: classes = [] } = useQuery<any[]>({
+    queryKey: ['/api/classes'],
+  });
+
+  const { data: subjects = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/subjects'],
+  });
+
+  const createExamMutation = useMutation({
+    mutationFn: async (examData: any) => {
+      return apiRequest('POST', '/api/admin/exams', examData);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Exam created successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/exams'] });
+      setIsCreateModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create exam",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteExamMutation = useMutation({
+    mutationFn: async (examId: string) => {
+      return apiRequest('DELETE', `/api/admin/exams/${examId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Exam deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/exams'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete exam",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateExam = (formData: FormData) => {
+    const examData = {
+      name: formData.get('name'),
+      description: formData.get('description'),
+      classId: formData.get('classId'),
+      subjectId: formData.get('subjectId'),
+      examDate: formData.get('examDate'),
+      duration: parseInt(formData.get('duration') as string),
+      maxMarks: parseInt(formData.get('maxMarks') as string),
+      passingMarks: parseInt(formData.get('passingMarks') as string),
+    };
+    createExamMutation.mutate(examData);
+  };
+
+  const handleDeleteExam = (examId: string) => {
+    if (confirm('Are you sure you want to delete this exam?')) {
+      deleteExamMutation.mutate(examId);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <GraduationCap size={20} />
+              <span>Exam Management</span>
+            </CardTitle>
+            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-white">
+              <PlusCircle className="mr-2" size={16} />
+              Create Exam
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4">
+            {exams.map((exam: any) => (
+              <div key={exam.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{exam.name}</h3>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <Badge variant="outline">{exam.className}</Badge>
+                    <Badge variant="secondary">{exam.subjectName}</Badge>
+                    <Badge variant="outline">{exam.examDate}</Badge>
+                    <Badge>{exam.maxMarks} marks</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{exam.description}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <Button variant="ghost" size="sm" onClick={() => setEditingExam(exam)}>
+                    <Edit className="text-primary" size={16} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDeleteExam(exam.id)}>
+                    <Trash2 className="text-destructive" size={16} />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Exam Modal */}
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Exam</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            handleCreateExam(formData);
+          }} className="space-y-4">
+            <div>
+              <Label htmlFor="name">Exam Name</Label>
+              <Input id="name" name="name" placeholder="Enter exam name" required />
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" name="description" placeholder="Enter exam description" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="classId">Class</Label>
+                <Select name="classId" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="subjectId">Subject</Label>
+                <Select name="subjectId" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((subject: any) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="examDate">Exam Date</Label>
+                <Input id="examDate" name="examDate" type="date" required />
+              </div>
+              <div>
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Input id="duration" name="duration" type="number" placeholder="120" required />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="maxMarks">Maximum Marks</Label>
+                <Input id="maxMarks" name="maxMarks" type="number" placeholder="100" required />
+              </div>
+              <div>
+                <Label htmlFor="passingMarks">Passing Marks</Label>
+                <Input id="passingMarks" name="passingMarks" type="number" placeholder="35" required />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createExamMutation.isPending}>
+                {createExamMutation.isPending ? 'Creating...' : 'Create Exam'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Attendance Reports Tab
+function AttendanceReportsTab() {
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+
+  const { data: soCenters = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/so-centers'],
+  });
+
+  const { data: attendanceStats } = useQuery({
+    queryKey: ['/api/attendance/stats', selectedSoCenter, selectedMonth],
+    enabled: !!selectedSoCenter,
+  });
+
+  // Mock attendance data for visualization
+  const attendanceData = [
+    { date: '1', present: 85, absent: 15, holiday: 0 },
+    { date: '2', present: 78, absent: 22, holiday: 0 },
+    { date: '3', present: 92, absent: 8, holiday: 0 },
+    { date: '4', present: 88, absent: 12, holiday: 0 },
+    { date: '5', present: 0, absent: 0, holiday: 100 },
+    { date: '6', present: 95, absent: 5, holiday: 0 },
+    { date: '7', present: 89, absent: 11, holiday: 0 },
+  ];
+
+  const soCenterStats = [
+    { name: 'Center A', attendance: 92 },
+    { name: 'Center B', attendance: 88 },
+    { name: 'Center C', attendance: 95 },
+    { name: 'Center D', attendance: 85 },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Calendar size={20} />
+            <span>Attendance Reports</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Month</Label>
+              <Input 
+                type="month" 
+                value={selectedMonth} 
+                onChange={(e) => setSelectedMonth(e.target.value)} 
+              />
+            </div>
+            <div>
+              <Label>SO Center</Label>
+              <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select SO center" />
+                </SelectTrigger>
+                <SelectContent>
+                  {soCenters.map((center: any) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.name} ({center.centerId})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Attendance Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Daily Attendance Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={attendanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="present" fill="#82ca9d" />
+                <Bar dataKey="absent" fill="#ff7300" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>SO Center Comparison</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={soCenterStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="attendance" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Academic Content Management Tab
+function AcademicContentTab() {
+  const [activeContentTab, setActiveContentTab] = useState('classes');
+
+  const { data: classes = [] } = useQuery<any[]>({
+    queryKey: ['/api/classes'],
+  });
+
+  const { data: subjects = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/subjects'],
+  });
+
+  const { data: chapters = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/chapters'],
+  });
+
+  const { data: topics = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/topics'],
+  });
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <BookOpen size={20} />
+            <span>Academic Content Management</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs value={activeContentTab} onValueChange={setActiveContentTab}>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="classes">Classes</TabsTrigger>
+              <TabsTrigger value="subjects">Subjects</TabsTrigger>
+              <TabsTrigger value="chapters">Chapters</TabsTrigger>
+              <TabsTrigger value="topics">Topics</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="classes" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
+                <Button className="bg-primary text-white">
+                  <PlusCircle className="mr-2" size={16} />
+                  Add Class
+                </Button>
+              </div>
+              <div className="grid gap-4">
+                {classes.map((cls: any) => (
+                  <div key={cls.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h4 className="font-semibold">{cls.name}</h4>
+                      <p className="text-sm text-gray-600">{cls.description}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="text-primary" size={16} />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="text-destructive" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="subjects" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Subjects ({subjects.length})</h3>
+                <Button className="bg-primary text-white">
+                  <PlusCircle className="mr-2" size={16} />
+                  Add Subject
+                </Button>
+              </div>
+              <div className="grid gap-4">
+                {subjects.map((subject: any) => (
+                  <div key={subject.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h4 className="font-semibold">{subject.name}</h4>
+                      <p className="text-sm text-gray-600">{subject.description}</p>
+                      <Badge variant="outline" className="mt-1">{subject.className}</Badge>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="text-primary" size={16} />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="text-destructive" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="chapters" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Chapters ({chapters.length})</h3>
+                <Button className="bg-primary text-white">
+                  <PlusCircle className="mr-2" size={16} />
+                  Add Chapter
+                </Button>
+              </div>
+              <div className="grid gap-4">
+                {chapters.map((chapter: any) => (
+                  <div key={chapter.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h4 className="font-semibold">{chapter.name}</h4>
+                      <p className="text-sm text-gray-600">{chapter.description}</p>
+                      <div className="flex space-x-2 mt-1">
+                        <Badge variant="outline">{chapter.subjectName}</Badge>
+                        <Badge variant="secondary">{chapter.className}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="text-primary" size={16} />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="text-destructive" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="topics" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Topics ({topics.length})</h3>
+                <Button className="bg-primary text-white">
+                  <PlusCircle className="mr-2" size={16} />
+                  Add Topic
+                </Button>
+              </div>
+              <div className="grid gap-4">
+                {topics.map((topic: any) => (
+                  <div key={topic.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h4 className="font-semibold">{topic.name}</h4>
+                      <p className="text-sm text-gray-600">{topic.description}</p>
+                      <div className="flex space-x-2 mt-1">
+                        <Badge variant="outline">{topic.chapterName}</Badge>
+                        <Badge variant="secondary">{topic.subjectName}</Badge>
+                        <Badge variant="outline">{topic.className}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="text-primary" size={16} />
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="text-destructive" size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default function AcademicDashboard() {
+  const [activeTab, setActiveTab] = useState('progress');
+
+  return (
+    <DashboardLayout
+      title="Academic Admin Dashboard"
+      subtitle="Comprehensive academic management and student progress tracking"
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="progress">Student Progress</TabsTrigger>
+          <TabsTrigger value="exams">Exam Management</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance Reports</TabsTrigger>
+          <TabsTrigger value="content">Academic Content</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="progress">
+          <StudentProgressTab />
+        </TabsContent>
+
+        <TabsContent value="exams">
+          <ExamManagementTab />
+        </TabsContent>
+
+        <TabsContent value="attendance">
+          <AttendanceReportsTab />
+        </TabsContent>
+
+        <TabsContent value="content">
+          <AcademicContentTab />
+        </TabsContent>
+      </Tabs>
+    </DashboardLayout>
+  );
+}

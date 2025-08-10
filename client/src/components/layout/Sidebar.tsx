@@ -98,6 +98,7 @@ export function Sidebar({ className }: SidebarProps) {
       case 'academic_admin':
         return [
           ...baseItems,
+          { icon: BarChart3, label: 'Academic Dashboard', href: '/admin/academic-dashboard' },
           { icon: Users, label: 'Students', href: '/students' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
           { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
