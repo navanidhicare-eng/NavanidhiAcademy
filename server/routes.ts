@@ -1711,7 +1711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SO Center endpoints
   app.get("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
         return res.status(403).json({ message: 'Admin access required' });
       }
       

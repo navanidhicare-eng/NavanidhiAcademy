@@ -579,171 +579,7 @@ function AttendanceReportsTab() {
   );
 }
 
-// Academic Content Management Tab
-function AcademicContentTab() {
-  const [activeContentTab, setActiveContentTab] = useState('classes');
 
-  const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ['/api/classes'],
-  });
-
-  const { data: subjects = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/subjects'],
-  });
-
-  const { data: chapters = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/chapters'],
-  });
-
-  const { data: topics = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/topics'],
-  });
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BookOpen size={20} />
-            <span>Academic Content Management</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs value={activeContentTab} onValueChange={setActiveContentTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="classes">Classes</TabsTrigger>
-              <TabsTrigger value="subjects">Subjects</TabsTrigger>
-              <TabsTrigger value="chapters">Chapters</TabsTrigger>
-              <TabsTrigger value="topics">Topics</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="classes" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Classes ({classes.length})</h3>
-                <Button className="bg-primary text-white">
-                  <PlusCircle className="mr-2" size={16} />
-                  Add Class
-                </Button>
-              </div>
-              <div className="grid gap-4">
-                {classes.map((cls: any) => (
-                  <div key={cls.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h4 className="font-semibold">{cls.name}</h4>
-                      <p className="text-sm text-gray-600">{cls.description}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="subjects" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Subjects ({subjects.length})</h3>
-                <Button className="bg-primary text-white">
-                  <PlusCircle className="mr-2" size={16} />
-                  Add Subject
-                </Button>
-              </div>
-              <div className="grid gap-4">
-                {subjects.map((subject: any) => (
-                  <div key={subject.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h4 className="font-semibold">{subject.name}</h4>
-                      <p className="text-sm text-gray-600">{subject.description}</p>
-                      <Badge variant="outline" className="mt-1">{subject.className}</Badge>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="chapters" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Chapters ({chapters.length})</h3>
-                <Button className="bg-primary text-white">
-                  <PlusCircle className="mr-2" size={16} />
-                  Add Chapter
-                </Button>
-              </div>
-              <div className="grid gap-4">
-                {chapters.map((chapter: any) => (
-                  <div key={chapter.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h4 className="font-semibold">{chapter.name}</h4>
-                      <p className="text-sm text-gray-600">{chapter.description}</p>
-                      <div className="flex space-x-2 mt-1">
-                        <Badge variant="outline">{chapter.subjectName}</Badge>
-                        <Badge variant="secondary">{chapter.className}</Badge>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="topics" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Topics ({topics.length})</h3>
-                <Button className="bg-primary text-white">
-                  <PlusCircle className="mr-2" size={16} />
-                  Add Topic
-                </Button>
-              </div>
-              <div className="grid gap-4">
-                {topics.map((topic: any) => (
-                  <div key={topic.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <h4 className="font-semibold">{topic.name}</h4>
-                      <p className="text-sm text-gray-600">{topic.description}</p>
-                      <div className="flex space-x-2 mt-1">
-                        <Badge variant="outline">{topic.chapterName}</Badge>
-                        <Badge variant="secondary">{topic.subjectName}</Badge>
-                        <Badge variant="outline">{topic.className}</Badge>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="text-destructive" size={16} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 export default function AcademicDashboard() {
   const [activeTab, setActiveTab] = useState('progress');
@@ -754,11 +590,10 @@ export default function AcademicDashboard() {
       subtitle="Comprehensive academic management and student progress tracking"
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="progress">Student Progress</TabsTrigger>
           <TabsTrigger value="exams">Exam Management</TabsTrigger>
           <TabsTrigger value="attendance">Attendance Reports</TabsTrigger>
-          <TabsTrigger value="content">Academic Content</TabsTrigger>
         </TabsList>
 
         <TabsContent value="progress">
@@ -771,10 +606,6 @@ export default function AcademicDashboard() {
 
         <TabsContent value="attendance">
           <AttendanceReportsTab />
-        </TabsContent>
-
-        <TabsContent value="content">
-          <AcademicContentTab />
         </TabsContent>
       </Tabs>
     </DashboardLayout>
