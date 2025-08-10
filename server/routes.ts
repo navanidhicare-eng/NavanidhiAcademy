@@ -90,10 +90,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", async (req, res) => {
     try {
       console.log("Login attempt:", req.body);
-      const { email, password } = req.body;
+      let { email, password } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Convert SO Center ID format to email format
+      if (/^[A-Z0-9]+$/.test(email) && !email.includes('@')) {
+        console.log(`🔄 Converting SO Center ID "${email}" to email format`);
+        email = `${email.toLowerCase()}@navanidhi.org`;
+        console.log(`✅ Converted to: ${email}`);
       }
 
       try {
