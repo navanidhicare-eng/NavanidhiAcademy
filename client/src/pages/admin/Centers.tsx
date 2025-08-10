@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AddSoCenterModal } from '@/components/admin/AddSoCenterModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
   Search, 
   Building, 
@@ -23,6 +24,8 @@ import {
 export default function AdminCenters() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedCenter, setSelectedCenter] = useState<any>(null);
+  const [editingCenter, setEditingCenter] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -64,6 +67,28 @@ export default function AdminCenters() {
 
   const handleAddCenter = () => {
     setIsAddModalOpen(true);
+  };
+
+  const handleEditCenter = (center: any) => {
+    setEditingCenter(center);
+    // TODO: Open edit modal
+    toast({
+      title: 'Edit Feature',
+      description: `Edit functionality for ${center.name} will be implemented soon.`,
+    });
+  };
+
+  const handleDeleteCenter = (center: any) => {
+    const confirmation = prompt('Please type "Navanidhi Academy" to confirm deletion:');
+    if (confirmation === 'Navanidhi Academy') {
+      deleteCenterMutation.mutate(center.id);
+    } else if (confirmation !== null) {
+      toast({
+        title: 'Deletion Cancelled',
+        description: 'Incorrect confirmation text. Deletion cancelled.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -179,23 +204,30 @@ export default function AdminCenters() {
                     </div>
                     
                     <div className="flex space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="text-primary" size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="text-secondary" size={16} />
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setSelectedCenter(center)}
+                        className="hover:bg-blue-50"
+                      >
+                        <Eye className="text-blue-600" size={16} />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete this SO center?')) {
-                            deleteCenterMutation.mutate(center.id);
-                          }
-                        }}
-                        disabled={deleteCenterMutation.isPending}
+                        onClick={() => handleEditCenter(center)}
+                        className="hover:bg-green-50"
                       >
-                        <Trash2 className="text-destructive" size={16} />
+                        <Edit className="text-green-600" size={16} />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDeleteCenter(center)}
+                        disabled={deleteCenterMutation.isPending}
+                        className="hover:bg-red-50"
+                      >
+                        <Trash2 className="text-red-600" size={16} />
                       </Button>
                     </div>
                   </div>
@@ -219,6 +251,79 @@ export default function AdminCenters() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
       />
+
+      {/* View Details Dialog */}
+      <Dialog open={!!selectedCenter} onOpenChange={() => setSelectedCenter(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>SO Center Details</DialogTitle>
+            <DialogDescription>
+              Complete information about {selectedCenter?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedCenter && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold mb-3">Basic Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Center ID:</span> {selectedCenter.centerId}</p>
+                    <p><span className="font-medium">Name:</span> {selectedCenter.name}</p>
+                    <p><span className="font-medium">Email:</span> {selectedCenter.email}</p>
+                    <p><span className="font-medium">Phone:</span> {selectedCenter.phone}</p>
+                    <p><span className="font-medium">Address:</span> {selectedCenter.address}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold mb-3">Financial Information</h3>
+                  <div className="space-y-2 text-sm">
+                    <p><span className="font-medium">Wallet Balance:</span> ₹{(parseInt(selectedCenter.walletBalance) || 0).toLocaleString()}</p>
+                    <p><span className="font-medium">Rent Amount:</span> ₹{(parseFloat(selectedCenter.rentAmount) || 0).toLocaleString()}</p>
+                    <p><span className="font-medium">Electric Bill Account:</span> {selectedCenter.electricBillAccountNumber || 'N/A'}</p>
+                    <p><span className="font-medium">Internet Bill Account:</span> {selectedCenter.internetBillAccountNumber || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="font-semibold mb-3">Property Owner Information</h3>
+                <div className="grid grid-cols-2 gap-6 text-sm">
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Owner Name:</span> {selectedCenter.ownerName} {selectedCenter.ownerLastName}</p>
+                    <p><span className="font-medium">Father's Name:</span> {selectedCenter.ownerFatherName}</p>
+                    <p><span className="font-medium">Mother's Name:</span> {selectedCenter.ownerMotherName}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Owner Phone:</span> {selectedCenter.ownerPhone}</p>
+                    <p><span className="font-medium">Room Size:</span> {selectedCenter.roomSize}</p>
+                    <p><span className="font-medium">Landmarks:</span> {selectedCenter.landmarks}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Status & Statistics</h3>
+                <div className="grid grid-cols-3 gap-6 text-sm">
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Status:</span> 
+                      <Badge className={selectedCenter.isActive ? "bg-green-100 text-green-800 ml-2" : "bg-red-100 text-red-800 ml-2"}>
+                        {selectedCenter.isActive ? 'ACTIVE' : 'INACTIVE'}
+                      </Badge>
+                    </p>
+                    <p><span className="font-medium">Students:</span> {selectedCenter.studentCount || 0}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p><span className="font-medium">Capacity:</span> {selectedCenter.capacity || 'N/A'}</p>
+                    <p><span className="font-medium">Created:</span> {new Date(selectedCenter.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

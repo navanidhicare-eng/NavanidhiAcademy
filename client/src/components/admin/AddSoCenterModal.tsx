@@ -823,7 +823,11 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                               const purchaseDate = new Date(item.purchaseDate);
                               const warrantyEnd = new Date(purchaseDate);
                               warrantyEnd.setFullYear(warrantyEnd.getFullYear() + parseInt(item.warrantyYears || '0'));
-                              return warrantyEnd.toLocaleDateString();
+                              return warrantyEnd.toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: '2-digit', 
+                                year: 'numeric'
+                              });
                             } catch {
                               return 'Invalid date';
                             }

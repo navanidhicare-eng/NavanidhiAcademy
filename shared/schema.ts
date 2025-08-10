@@ -80,7 +80,7 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// SO Centers
+// SO Centers - Cleaned up to match only form fields
 export const soCenters = pgTable("so_centers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   centerId: text("center_id").notNull().unique(), // NNASOC00001 format
@@ -101,12 +101,6 @@ export const soCenters = pgTable("so_centers", {
   rentalAdvance: decimal("rental_advance", { precision: 10, scale: 2 }),
   dateOfHouseTaken: text("date_of_house_taken"),
   monthlyRentDate: integer("monthly_rent_date"), // Day of month (1-31)
-  electricityAmount: decimal("electricity_amount", { precision: 10, scale: 2 }),
-  monthlyElectricityDate: integer("monthly_electricity_date"), // Day of month (1-31)
-  electricalServiceProvider: text("electrical_service_provider"),
-  internetAmount: decimal("internet_amount", { precision: 10, scale: 2 }),
-  monthlyInternetDate: integer("monthly_internet_date"), // Day of month (1-31)
-  internetServiceProvider: text("internet_service_provider"),
   electricBillAccountNumber: text("electric_bill_account_number"),
   internetBillAccountNumber: text("internet_bill_account_number"),
   email: text("email"),
