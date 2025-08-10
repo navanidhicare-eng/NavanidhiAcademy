@@ -274,6 +274,12 @@ export interface IStorage {
   createDistrict(data: any): Promise<any>;
   createMandal(data: any): Promise<any>;
   createVillage(data: any): Promise<any>;
+  deleteState(id: string): Promise<void>;
+  deleteDistrict(id: string): Promise<void>;
+  deleteMandal(id: string): Promise<void>;
+  deleteVillage(id: string): Promise<void>;
+  getStudentsByVillage(villageId: string): Promise<Student[]>;
+  getSoCentersByVillage(villageId: string): Promise<SoCenter[]>;
 
   // Products methods (for commission calculation)
   getAllProducts(): Promise<any[]>;
@@ -1165,6 +1171,32 @@ export class DrizzleStorage implements IStorage {
   async createVillage(data: any): Promise<any> {
     const result = await db.insert(schema.villages).values(data).returning();
     return result[0];
+  }
+
+  async deleteState(id: string): Promise<void> {
+    await db.delete(schema.states).where(eq(schema.states.id, id));
+  }
+
+  async deleteDistrict(id: string): Promise<void> {
+    await db.delete(schema.districts).where(eq(schema.districts.id, id));
+  }
+
+  async deleteMandal(id: string): Promise<void> {
+    await db.delete(schema.mandals).where(eq(schema.mandals.id, id));
+  }
+
+  async deleteVillage(id: string): Promise<void> {
+    await db.delete(schema.villages).where(eq(schema.villages.id, id));
+  }
+
+  async getStudentsByVillage(villageId: string): Promise<Student[]> {
+    const result = await db.select().from(schema.students).where(eq(schema.students.villageId, villageId));
+    return result;
+  }
+
+  async getSoCentersByVillage(villageId: string): Promise<SoCenter[]> {
+    const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.villageId, villageId));
+    return result;
   }
 
   // Products methods (for commission calculation)

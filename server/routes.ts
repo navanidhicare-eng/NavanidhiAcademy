@@ -1549,6 +1549,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE routes for address entities
+  app.delete("/api/admin/addresses/states/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const stateId = req.params.id;
+      
+      // Check if state has any districts
+      const districts = await storage.getDistrictsByState(stateId);
+      if (districts.length > 0) {
+        return res.status(400).json({ 
+          message: 'Cannot delete state with existing districts. Please delete all districts first.' 
+        });
+      }
+      
+      await storage.deleteState(stateId);
+      res.json({ message: 'State deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting state:', error);
+      res.status(500).json({ message: 'Failed to delete state' });
+    }
+  });
+
+  app.delete("/api/admin/addresses/districts/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const districtId = req.params.id;
+      
+      // Check if district has any mandals
+      const mandals = await storage.getMandalsByDistrict(districtId);
+      if (mandals.length > 0) {
+        return res.status(400).json({ 
+          message: 'Cannot delete district with existing mandals. Please delete all mandals first.' 
+        });
+      }
+      
+      await storage.deleteDistrict(districtId);
+      res.json({ message: 'District deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting district:', error);
+      res.status(500).json({ message: 'Failed to delete district' });
+    }
+  });
+
+  app.delete("/api/admin/addresses/mandals/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const mandalId = req.params.id;
+      
+      // Check if mandal has any villages
+      const villages = await storage.getVillagesByMandal(mandalId);
+      if (villages.length > 0) {
+        return res.status(400).json({ 
+          message: 'Cannot delete mandal with existing villages. Please delete all villages first.' 
+        });
+      }
+      
+      await storage.deleteMandal(mandalId);
+      res.json({ message: 'Mandal deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting mandal:', error);
+      res.status(500).json({ message: 'Failed to delete mandal' });
+    }
+  });
+
+  app.delete("/api/admin/addresses/villages/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const villageId = req.params.id;
+      
+      // Check if village has any students or SO centers
+      const students = await storage.getStudentsByVillage(villageId);
+      const soCenters = await storage.getSoCentersByVillage(villageId);
+      
+      if (students.length > 0 || soCenters.length > 0) {
+        return res.status(400).json({ 
+          message: 'Cannot delete village with existing students or SO centers. Please relocate them first.' 
+        });
+      }
+      
+      await storage.deleteVillage(villageId);
+      res.json({ message: 'Village deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting village:', error);
+      res.status(500).json({ message: 'Failed to delete village' });
+    }
+  });
+
   // SUPABASE AUTH ENFORCED - Admin user creation endpoint
   app.post("/api/admin/users", authenticateToken, async (req, res) => {
     try {
