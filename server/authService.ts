@@ -384,6 +384,7 @@ export class AuthService {
         capacity: soCenterData.capacity,
         facilities: soCenterData.facilities || [],
         walletBalance: '0',
+        admissionFeeApplicable: true, // Default value for new SO Centers
         isActive: true
       };
 
@@ -391,6 +392,14 @@ export class AuthService {
 
       const soCenter = await storage.createSoCenter(soCenterRecord, nearbySchools, nearbyTuitions, equipment);
       console.log('✅ SO Center created with Supabase Auth:', soCenter.id);
+      
+      // Verify SO Center was created successfully
+      const verification = await storage.getSoCenterByEmail(soCenterData.email);
+      if (!verification) {
+        console.error('❌ CRITICAL: SO Center created but not retrievable by email!');
+        throw new Error('SO Center creation verification failed - data synchronization issue');
+      }
+      console.log('✅ SO Center creation verified:', verification.centerId);
 
       return {
         supabaseUser: userResult.supabaseUser,

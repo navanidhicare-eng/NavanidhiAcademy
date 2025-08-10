@@ -1285,11 +1285,26 @@ export class DrizzleStorage implements IStorage {
 
   async getSoCenterByEmail(email: string): Promise<SoCenter | undefined> {
     try {
+      console.log('🔍 Storage: Starting getSoCenterByEmail lookup for:', email);
       const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
-      console.log('🔍 getSoCenterByEmail result for', email, ':', result[0] ? `Found SO Center ${result[0].centerId}` : 'Not found');
-      return result[0];
-    } catch (error) {
+      console.log('🔍 Storage: Database query completed, found', result.length, 'SO Center(s)');
+      
+      if (result[0]) {
+        console.log('✅ Found SO Center:', result[0].centerId, 'Name:', result[0].name);
+        return result[0];
+      } else {
+        console.log('❌ No SO Center found for user email:', email);
+        return undefined;
+      }
+    } catch (error: any) {
       console.error('❌ Error in getSoCenterByEmail:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        column: error.column,
+        position: error.position
+      });
       return undefined;
     }
   }
