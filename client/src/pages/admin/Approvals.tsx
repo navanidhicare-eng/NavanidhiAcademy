@@ -341,7 +341,9 @@ export default function Approvals() {
   const { data: withdrawalRequests = [], isLoading } = useQuery({
     queryKey: ['/api/admin/withdrawal-requests'],
     queryFn: async () => {
-      return apiRequest('GET', '/api/admin/withdrawal-requests');
+      const result = await apiRequest('GET', '/api/admin/withdrawal-requests');
+      console.log('📋 Withdrawal requests data:', result);
+      return result;
     },
   });
 
@@ -354,6 +356,13 @@ export default function Approvals() {
       request.user_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesStatus && matchesSearch;
+  });
+
+  console.log('🔍 Filter Debug:', {
+    rawData: withdrawalRequests,
+    selectedStatus,
+    filteredCount: filteredRequests.length,
+    filteredRequests
   });
 
   const handleViewDetails = (withdrawal: any) => {
