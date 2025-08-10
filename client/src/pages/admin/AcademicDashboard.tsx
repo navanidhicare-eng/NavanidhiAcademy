@@ -509,7 +509,7 @@ function AttendanceReportsTab({
                   <SelectValue placeholder={selectedSoCenter ? filteredSoCenters.find((c: any) => c.id === selectedSoCenter)?.name : "Use location filter above"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="" disabled>Use universal location filter above</SelectItem>
+                  <SelectItem value="disabled" disabled>Use universal location filter above</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -605,7 +605,7 @@ export default function AcademicDashboard() {
 
   // Reset dependent filters when parent changes
   const handleStateChange = (value: string) => {
-    setSelectedState(value);
+    setSelectedState(value === 'all' ? '' : value);
     setSelectedDistrict('');
     setSelectedMandal('');
     setSelectedVillage('');
@@ -613,20 +613,20 @@ export default function AcademicDashboard() {
   };
 
   const handleDistrictChange = (value: string) => {
-    setSelectedDistrict(value);
+    setSelectedDistrict(value === 'all' ? '' : value);
     setSelectedMandal('');
     setSelectedVillage('');
     setSelectedSoCenter('');
   };
 
   const handleMandalChange = (value: string) => {
-    setSelectedMandal(value);
+    setSelectedMandal(value === 'all' ? '' : value);
     setSelectedVillage('');
     setSelectedSoCenter('');
   };
 
   const handleVillageChange = (value: string) => {
-    setSelectedVillage(value);
+    setSelectedVillage(value === 'all' ? '' : value);
     setSelectedSoCenter('');
   };
 
@@ -656,7 +656,7 @@ export default function AcademicDashboard() {
                     <SelectValue placeholder="Select State" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All States</SelectItem>
+                    <SelectItem value="all">All States</SelectItem>
                     {states.map((state: any) => (
                       <SelectItem key={state.id} value={state.id}>
                         {state.name}
@@ -677,7 +677,7 @@ export default function AcademicDashboard() {
                     <SelectValue placeholder="Select District" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Districts</SelectItem>
+                    <SelectItem value="all">All Districts</SelectItem>
                     {districts
                       .filter((district: any) => district.stateId === selectedState)
                       .map((district: any) => (
@@ -700,7 +700,7 @@ export default function AcademicDashboard() {
                     <SelectValue placeholder="Select Mandal" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Mandals</SelectItem>
+                    <SelectItem value="all">All Mandals</SelectItem>
                     {mandals
                       .filter((mandal: any) => mandal.districtId === selectedDistrict)
                       .map((mandal: any) => (
@@ -723,7 +723,7 @@ export default function AcademicDashboard() {
                     <SelectValue placeholder="Select Village" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Villages</SelectItem>
+                    <SelectItem value="all">All Villages</SelectItem>
                     {villages
                       .filter((village: any) => village.mandalId === selectedMandal)
                       .map((village: any) => (
@@ -742,7 +742,7 @@ export default function AcademicDashboard() {
                     <SelectValue placeholder="Select SO Center" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All SO Centers</SelectItem>
+                    <SelectItem value="all">All SO Centers</SelectItem>
                     {filteredSoCenters.map((center: any) => (
                       <SelectItem key={center.id} value={center.id}>
                         {center.name}
