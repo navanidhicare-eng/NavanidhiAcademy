@@ -76,6 +76,23 @@ const authenticateToken = (req: Request, res: any, next: any) => {
   });
 };
 
+// Middleware to check user role
+const requireRole = (allowedRoles: string[]) => {
+  return (req: Request, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ 
+        message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
+      });
+    }
+    
+    next();
+  };
+};
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize teacher storage
@@ -236,13 +253,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SUPABASE AUTH ENFORCED - SO Center Login
+  // SO CENTER AUTHENTICATION MANAGEMENT
+  app.post("/api/admin/so-centers/create-auth", authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      console.log('🔧 Creating SO Center authentication via standardized flow');
+      const { centerId, centerName, password, phone, address } = req.body;
+
+      if (!centerId || !centerName || !password) {
+        return res.status(400).json({ 
+          message: "Center ID, center name, and password are required" 
+        });
+      }
+
+      // Import SO Center Auth Manager
+      const { SOCenterAuthManager } = await import('./createSOCenterAuth');
+      
+      // Check if SO Center already exists
+      const exists = await SOCenterAuthManager.checkSOCenterExists(centerId);
+      if (exists) {
+        return res.status(409).json({ 
+          message: `SO Center ${centerId} already exists` 
+        });
+      }
+
+      // Create SO Center authentication
+      const result = await SOCenterAuthManager.createSOCenterAuth({
+        centerId,
+        centerName,
+        password,
+        phone,
+        address
+      });
+
+      console.log('✅ SO Center authentication created:', result.centerId);
+
+      res.status(201).json({
+        message: "SO Center authentication created successfully",
+        data: result
+      });
+    } catch (error: any) {
+      console.error('❌ SO Center auth creation failed:', error);
+      res.status(500).json({ message: error.message || "Failed to create SO Center authentication" });
+    }
+  });
+
   app.post("/api/so-center/login", async (req, res) => {
     try {
       console.log('🔧 SO Center login through Supabase Auth (MANDATORY)');
-      const { email, password } = req.body;
+      let { email, password } = req.body;
 
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Convert SO Center ID format to email format if needed
+      if (/^[A-Z0-9]+$/.test(email) && !email.includes('@')) {
+        console.log(`🔄 Converting SO Center ID "${email}" to email format`);
+        email = `${email.toLowerCase()}@navanidhi.org`;
+        console.log(`✅ Converted to: ${email}`);
       }
 
       // ALL SO CENTER LOGIN MUST GO THROUGH SUPABASE AUTH
