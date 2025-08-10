@@ -480,7 +480,13 @@ export class DrizzleStorage implements IStorage {
     const purchase = new Date(purchaseDate);
     const warrantyEnd = new Date(purchase);
     warrantyEnd.setFullYear(warrantyEnd.getFullYear() + warrantyYears);
-    return warrantyEnd.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    
+    // Format as DD/MM/YYYY as required
+    const day = warrantyEnd.getDate().toString().padStart(2, '0');
+    const month = (warrantyEnd.getMonth() + 1).toString().padStart(2, '0');
+    const year = warrantyEnd.getFullYear();
+    
+    return `${day}/${month}/${year}`;
   }
 
   async createSoCenter(center: InsertSoCenter, nearbySchools?: any[], nearbyTuitions?: any[], equipment?: any[]): Promise<SoCenter> {

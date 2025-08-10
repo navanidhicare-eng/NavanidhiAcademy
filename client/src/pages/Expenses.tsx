@@ -130,6 +130,7 @@ export default function Expenses() {
 
   const resetForm = () => {
     setSelectedExpenseType('');
+    setFormData({});
   };
 
   const getStatusBadge = (status: string) => {
@@ -161,7 +162,7 @@ export default function Expenses() {
   });
 
   const ExpenseForm = () => {
-    const [formData, setFormData] = useState<any>({});
+    const [formData, setFormData] = useState<any>(() => ({ expenseType: selectedExpenseType }));
 
     React.useEffect(() => {
       // Autofill based on expense type
@@ -193,7 +194,7 @@ export default function Expenses() {
             break;
         }
         
-        setFormData(autofillData);
+        setFormData(prev => ({ ...prev, ...autofillData }));
       }
     }, [selectedExpenseType, soCenterData]);
 
@@ -213,7 +214,7 @@ export default function Expenses() {
             <Label htmlFor="expenseType">Expense Type</Label>
             <Select value={selectedExpenseType} onValueChange={(value) => {
               setSelectedExpenseType(value);
-              setFormData({ expenseType: value });
+              setFormData(prev => ({ ...prev, expenseType: value }));
             }}>
               <SelectTrigger>
                 <SelectValue placeholder="Select expense type" />
@@ -235,9 +236,15 @@ export default function Expenses() {
                 <Input
                   id="electricBillNumber"
                   value={formData.electricBillNumber || ''}
-                  onChange={(e) => handleInputChange('electricBillNumber', e.target.value)}
-                  placeholder="Enter bill number"
+                  disabled
+                  className="bg-gray-50 cursor-not-allowed"
+                  placeholder="Bill number auto-filled from registration"
                 />
+                {!formData.electricBillNumber && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Electric bill account number not found in registration data
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="amount">Amount</Label>

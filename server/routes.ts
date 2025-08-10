@@ -3030,15 +3030,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized" });
       }
 
+      // Debug: Check what email we're looking for
+      console.log('🔍 Looking for SO Center with email:', req.user.email);
+      
+      // Look up SO Center by email since SO Centers use email authentication
       const soCenter = await db.select()
         .from(schema.soCenters)
-        .where(sqlQuery`id = ${req.user.userId}`)
+        .where(eq(schema.soCenters.email, req.user.email))
         .limit(1);
 
+      // Debug: If not found by email, try to find any centers and see their emails
       if (!soCenter.length) {
+        console.log('❌ No SO Center found with exact email match');
+        const allCenters = await db.select({ id: schema.soCenters.id, email: schema.soCenters.email, centerId: schema.soCenters.centerId })
+          .from(schema.soCenters)
+          .limit(5);
+        console.log('📋 Available SO Centers:', allCenters);
+        
+        // Try to find by similar email pattern
+        const emailMatch = await db.select()
+          .from(schema.soCenters)
+          .where(sqlQuery`email ILIKE ${`%${req.user.email.split('@')[0]}%`}`)
+          .limit(1);
+          
+        if (emailMatch.length) {
+          console.log('✅ Found SO Center by email pattern match:', emailMatch[0].centerId);
+          return res.json(emailMatch[0]);
+        }
+        
+        console.error('SO Center not found for email:', req.user.email);
         return res.status(404).json({ message: "SO Center not found" });
       }
 
+      console.log('✅ SO Center profile retrieved:', soCenter[0].centerId);
       res.json(soCenter[0]);
     } catch (error) {
       console.error("Error fetching SO Center profile:", error);
