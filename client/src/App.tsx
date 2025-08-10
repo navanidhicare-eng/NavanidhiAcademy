@@ -42,6 +42,7 @@ import AcademicDashboard from "@/pages/admin/AcademicDashboard";
 import ExamManagement from "@/pages/admin/ExamManagement";
 import SoCenterExamManagement from "@/pages/so-center/ExamManagement";
 import Products from "@/pages/Products";
+import CoursePurchases from "@/pages/admin/CoursePurchases";
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -225,6 +226,11 @@ function Router() {
       <Route path="/admin/announcements">
         <ProtectedRoute>
           <AdminAnnouncements />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/course-purchases">
+        <ProtectedRoute>
+          <CoursePurchases />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/approvals">

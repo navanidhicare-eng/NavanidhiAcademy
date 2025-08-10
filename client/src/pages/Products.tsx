@@ -84,9 +84,10 @@ function Products() {
         origin: { y: 0.6 }
       });
 
+      const resultData = result as any;
       toast({
         title: "Course Successfully Purchased!",
-        description: `${selectedProduct?.name} has been purchased. Commission added to your wallet.`,
+        description: `${selectedProduct?.name} purchased. Transaction ID: ${resultData.transactionId}`,
       });
 
       // Reset form and close dialog

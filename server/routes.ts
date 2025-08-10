@@ -2002,6 +2002,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const currentWallet = wallet[0];
 
+      // Generate transaction ID
+      const transactionId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
       // Record the purchase
       await sql`
         INSERT INTO product_purchases (
@@ -2027,8 +2030,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE user_id = ${userId}
       `;
 
+      // Create transaction records
+      await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_id, type, amount, description, status
+        ) VALUES (
+          ${userId}, ${transactionId + '_COURSE'}, 'course_purchase', ${coursePrice}, 
+          'Course purchase: ${productData.name} for student ${studentName}', 'completed'
+        )
+      `;
+
+      await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_id, type, amount, description, status
+        ) VALUES (
+          ${userId}, ${transactionId + '_COMM'}, 'commission_earned', ${commissionAmount}, 
+          'Commission earned from ${productData.name} sale', 'completed'
+        )
+      `;
+
+      // Create admin notification for new course purchase
+      await sql`
+        INSERT INTO admin_notifications (
+          type, title, message, data, created_at
+        ) VALUES (
+          'course_purchase', 'New Course Purchase', 
+          'Agent ${req.user?.email} purchased ${productData.name} for student ${studentName}',
+          ${JSON.stringify({
+            agentId: userId,
+            agentEmail: req.user?.email,
+            productId,
+            productName: productData.name,
+            studentName,
+            coursePrice,
+            commissionAmount,
+            transactionId
+          })},
+          CURRENT_TIMESTAMP
+        )
+      `;
+
       res.json({
         message: 'Product purchased successfully',
+        transactionId,
+        invoice: {
+          transactionId,
+          productName: productData.name,
+          studentName,
+          coursePrice,
+          commissionAmount,
+          purchaseDate: new Date().toISOString(),
+          agentEmail: req.user?.email
+        },
         purchase: {
           productName: productData.name,
           coursePrice,
@@ -2079,6 +2132,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get wallet transactions
+  app.get('/api/wallet/transactions', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      const transactions = await sql`
+        SELECT * FROM wallet_transactions 
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT 50
+      `;
+
+      res.json(transactions);
+    } catch (error) {
+      console.error('Error fetching wallet transactions:', error);
+      res.status(500).json({ message: 'Failed to fetch transactions' });
+    }
+  });
+
   // Withdrawal request endpoint
   app.post('/api/wallet/withdraw', authenticateToken, async (req, res) => {
     try {
@@ -2111,21 +2187,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Generate withdrawal transaction ID
+      const withdrawalId = `WDR${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
       // Create withdrawal request
       await sql`
         INSERT INTO withdrawal_requests (user_id, amount)
         VALUES (${userId}, ${amount})
       `;
 
+      // Create transaction record
+      await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_id, type, amount, description, status
+        ) VALUES (
+          ${userId}, ${withdrawalId}, 'withdrawal_request', ${amount}, 
+          'Withdrawal request submitted', 'pending'
+        )
+      `;
+
       res.json({
         message: 'Withdrawal request submitted successfully',
         amount,
+        withdrawalId,
         status: 'pending'
       });
 
     } catch (error) {
       console.error('Error processing withdrawal request:', error);
       res.status(500).json({ message: 'Failed to process withdrawal request' });
+    }
+  });
+
+  // Admin: Get course purchase notifications
+  app.get('/api/admin/course-purchases', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const notifications = await sql`
+        SELECT * FROM admin_notifications 
+        WHERE type = 'course_purchase'
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+
+      res.json(notifications);
+    } catch (error) {
+      console.error('Error fetching course purchase notifications:', error);
+      res.status(500).json({ message: 'Failed to fetch course purchases' });
+    }
+  });
+
+  // Admin: Mark notification as read
+  app.patch('/api/admin/notifications/:id/read', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      await sql`
+        UPDATE admin_notifications 
+        SET is_read = true 
+        WHERE id = ${id}
+      `;
+
+      res.json({ message: 'Notification marked as read' });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({ message: 'Failed to update notification' });
     }
   });
 

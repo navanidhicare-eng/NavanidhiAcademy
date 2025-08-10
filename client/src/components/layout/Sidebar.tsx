@@ -28,6 +28,7 @@ import {
   BarChart3,
   Settings,
   Package,
+  ShoppingCart,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -71,6 +72,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: ClipboardCheck, label: 'Attendance Monitoring', href: '/admin/attendance' },
           { icon: TrendingUp, label: 'Progress Tracking', href: '/admin/progress-tracking' },
           { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },
+          { icon: ShoppingCart, label: 'Course Purchases', href: '/admin/course-purchases' },
           { icon: FileCheck, label: 'Approvals', href: '/admin/approvals' },
         ];
       
