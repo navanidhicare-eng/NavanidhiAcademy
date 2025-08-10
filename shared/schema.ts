@@ -526,6 +526,25 @@ export const tuitionProgress = pgTable("tuition_progress", {
   uniqueStudentTopic: unique().on(table.studentId, table.topicId),
 }));
 
+// Exams - New exam management system
+export const exams = pgTable("exams", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  classId: varchar("class_id").references(() => classes.id).notNull(),
+  subjectId: varchar("subject_id").references(() => subjects.id).notNull(),
+  chapterIds: text("chapter_ids").array().notNull(), // Array of chapter IDs
+  soCenterIds: text("so_center_ids").array().notNull(), // Array of SO Center IDs for visibility
+  examDate: date("exam_date").notNull(),
+  duration: integer("duration").notNull(), // Duration in minutes
+  totalMarks: integer("total_marks").notNull(),
+  passingMarks: integer("passing_marks").notNull(),
+  status: text("status").default("scheduled"), // scheduled, active, completed, cancelled
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
   id: true,
@@ -642,6 +661,12 @@ export const insertTuitionProgressSchema = createInsertSchema(tuitionProgress).o
   updatedAt: true,
 });
 
+export const insertExamSchema = createInsertSchema(exams).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
@@ -745,6 +770,9 @@ export type HomeworkActivity = typeof homeworkActivities.$inferSelect;
 export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema>;
 export type TuitionProgress = typeof tuitionProgress.$inferSelect;
 export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
+
+export type Exam = typeof exams.$inferSelect;
+export type InsertExam = z.infer<typeof insertExamSchema>;
 
 export type FeeCalculationHistory = typeof feeCalculationHistory.$inferSelect;
 export type InsertFeeCalculationHistory = z.infer<typeof insertFeeCalculationHistorySchema>;

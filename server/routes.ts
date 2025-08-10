@@ -44,6 +44,7 @@ import {
   insertTuitionProgressSchema,
   insertProductSchema,
   insertSoCenterExpenseSchema,
+  insertExamSchema,
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -3436,6 +3437,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching admin expense stats:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // EXAM MANAGEMENT ENDPOINTS
+
+  // Get all exams with related data
+  app.get('/api/admin/exams', authenticateToken, async (req, res) => {
+    try {
+      console.log('📋 Fetching all exams for admin...');
+      
+      const examsList = await db
+        .select({
+          id: schema.exams.id,
+          title: schema.exams.title,
+          description: schema.exams.description,
+          classId: schema.exams.classId,
+          className: schema.classes.name,
+          subjectId: schema.exams.subjectId,
+          subjectName: schema.subjects.name,
+          chapterIds: schema.exams.chapterIds,
+          soCenterIds: schema.exams.soCenterIds,
+          examDate: schema.exams.examDate,
+          duration: schema.exams.duration,
+          totalMarks: schema.exams.totalMarks,
+          passingMarks: schema.exams.passingMarks,
+          status: schema.exams.status,
+          createdAt: schema.exams.createdAt,
+        })
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.createdAt));
+
+      console.log('✅ Exams fetched successfully:', examsList.length);
+      res.json(examsList);
+    } catch (error: any) {
+      console.error('❌ Error fetching exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Create new exam
+  app.post('/api/admin/exams', authenticateToken, async (req, res) => {
+    try {
+      console.log('🆕 Creating new exam...');
+      
+      const examData = insertExamSchema.parse(req.body);
+      const userId = req.user?.userId;
+      
+      const [newExam] = await db
+        .insert(schema.exams)
+        .values({
+          ...examData,
+          createdBy: userId,
+        })
+        .returning();
+
+      console.log('✅ Exam created successfully:', newExam.id);
+      res.json(newExam);
+    } catch (error: any) {
+      console.error('❌ Error creating exam:', error);
+      res.status(500).json({ message: 'Failed to create exam' });
+    }
+  });
+
+  // Update exam
+  app.put('/api/admin/exams/:id', authenticateToken, async (req, res) => {
+    try {
+      const examId = req.params.id;
+      console.log('📝 Updating exam:', examId);
+      
+      const examData = insertExamSchema.parse(req.body);
+      
+      const [updatedExam] = await db
+        .update(schema.exams)
+        .set({
+          ...examData,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.exams.id, examId))
+        .returning();
+
+      if (!updatedExam) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      console.log('✅ Exam updated successfully');
+      res.json(updatedExam);
+    } catch (error: any) {
+      console.error('❌ Error updating exam:', error);
+      res.status(500).json({ message: 'Failed to update exam' });
+    }
+  });
+
+  // Delete exam
+  app.delete('/api/admin/exams/:id', authenticateToken, async (req, res) => {
+    try {
+      const examId = req.params.id;
+      console.log('🗑️ Deleting exam:', examId);
+      
+      await db.delete(schema.exams).where(eq(schema.exams.id, examId));
+      
+      console.log('✅ Exam deleted successfully');
+      res.json({ message: 'Exam deleted successfully' });
+    } catch (error: any) {
+      console.error('❌ Error deleting exam:', error);
+      res.status(500).json({ message: 'Failed to delete exam' });
     }
   });
 
