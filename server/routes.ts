@@ -3180,7 +3180,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { status, search, soCenterId } = req.query;
       
-      let query = db.select({
+      // Build base query with joins
+      let whereClause = sqlQuery`1=1`;
+      
+      if (status && status !== 'all') {
+        whereClause = sqlQuery`${whereClause} AND ${schema.soCenterExpenses.status} = ${status}`;
+      }
+      if (soCenterId) {
+        whereClause = sqlQuery`${whereClause} AND ${schema.soCenterExpenses.soCenterId} = ${soCenterId}`;
+      }
+      if (search) {
+        whereClause = sqlQuery`${whereClause} AND (${schema.soCenters.name} ILIKE ${`%${search}%`} OR ${schema.soCenters.centerId} ILIKE ${`%${search}%`})`;
+      }
+
+      const expenses = await db.select({
         id: schema.soCenterExpenses.id,
         expenseType: schema.soCenterExpenses.expenseType,
         amount: schema.soCenterExpenses.amount,
@@ -3188,34 +3201,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: schema.soCenterExpenses.status,
         requestedAt: schema.soCenterExpenses.requestedAt,
         approvedAt: schema.soCenterExpenses.approvedAt,
+        paidAt: schema.soCenterExpenses.paidAt,
         soCenterId: schema.soCenterExpenses.soCenterId,
         soCenterName: schema.soCenters.name,
         centerCode: schema.soCenters.centerId,
         electricBillNumber: schema.soCenterExpenses.electricBillNumber,
         internetBillNumber: schema.soCenterExpenses.internetBillNumber,
+        internetServiceProvider: schema.soCenterExpenses.internetServiceProvider,
         serviceName: schema.soCenterExpenses.serviceName,
-        adminNotes: schema.soCenterExpenses.adminNotes
+        servicePhone: schema.soCenterExpenses.servicePhone,
+        adminNotes: schema.soCenterExpenses.adminNotes,
+        transactionId: schema.soCenterExpenses.transactionId,
+        paymentMethod: schema.soCenterExpenses.paymentMethod,
+        paymentReference: schema.soCenterExpenses.paymentReference
       })
       .from(schema.soCenterExpenses)
-      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`);
-
-      // Add filters
-      const conditions = [];
-      if (status && status !== 'all') {
-        conditions.push(sqlQuery`${schema.soCenterExpenses.status} = ${status}`);
-      }
-      if (soCenterId) {
-        conditions.push(sqlQuery`${schema.soCenterExpenses.soCenterId} = ${soCenterId}`);
-      }
-      if (search) {
-        conditions.push(sqlQuery`(${schema.soCenters.name} ILIKE ${`%${search}%`} OR ${schema.soCenters.centerId} ILIKE ${`%${search}%`})`);
-      }
-
-      if (conditions.length > 0) {
-        query = query.where(sqlQuery`${conditions.join(' AND ')}`);
-      }
-
-      const expenses = await query.orderBy(sqlQuery`${schema.soCenterExpenses.requestedAt} DESC`);
+      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`)
+      .where(whereClause)
+      .orderBy(sqlQuery`${schema.soCenterExpenses.requestedAt} DESC`);
 
       res.json(expenses);
     } catch (error) {
@@ -3245,7 +3248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           approvedAt: new Date(),
           approvedBy: req.user.userId
         })
-        .where(sqlQuery`id = ${expenseId}`)
+        .where(sqlQuery`${schema.soCenterExpenses.id} = ${expenseId}`)
         .returning();
 
       if (!updatedExpense) {
@@ -3291,6 +3294,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(history);
     } catch (error) {
       console.error("Error fetching approval history:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get admin expense statistics
+  app.get("/api/admin/expense-stats", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const [statsResult] = await db.execute(sqlQuery`
+        SELECT 
+          COUNT(CASE WHEN status = 'pending' THEN 1 END) as total_pending,
+          COUNT(CASE WHEN status = 'approved' THEN 1 END) as total_approved,
+          COUNT(CASE WHEN status = 'paid' THEN 1 END) as total_paid,
+          COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_amount
+        FROM so_center_expenses
+      `);
+
+      const stats = {
+        totalPending: Number(statsResult.total_pending || 0),
+        totalApproved: Number(statsResult.total_approved || 0), 
+        totalPaid: Number(statsResult.total_paid || 0),
+        totalAmount: (statsResult.total_amount || 0).toString()
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin expense stats:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

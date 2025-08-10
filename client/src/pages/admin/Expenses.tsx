@@ -63,26 +63,13 @@ export default function AdminExpenses() {
     },
   }) as { data: ExpenseRequest[], isLoading: boolean };
 
-  // Fetch expense statistics
+  // Fetch expense statistics from API
   const { data: expenseStats } = useQuery({
     queryKey: ['/api/admin/expense-stats'],
     queryFn: async () => {
-      // Calculate stats from expenses data
-      const totalPending = expenseRequests.filter(e => e.status === 'pending').length;
-      const totalApproved = expenseRequests.filter(e => e.status === 'approved').length;
-      const totalPaid = expenseRequests.filter(e => e.status === 'paid').length;
-      const totalAmount = expenseRequests
-        .filter(e => e.status === 'paid')
-        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
-      
-      return {
-        totalPending,
-        totalApproved,
-        totalPaid,
-        totalAmount: totalAmount.toString()
-      };
+      const response = await apiRequest('GET', '/api/admin/expense-stats');
+      return response.json();
     },
-    enabled: expenseRequests.length > 0
   }) as { data: ExpenseStats };
 
   // Approval mutation
