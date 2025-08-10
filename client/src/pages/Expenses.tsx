@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PlusCircle, Receipt, Wallet, Calendar, Filter, DollarSign, Clock } from 'lucide-react';
 
 interface ExpenseRequest {
@@ -502,7 +503,8 @@ export default function Expenses() {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <DashboardLayout>
+      <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Expenses Management</h1>
@@ -647,6 +649,7 @@ export default function Expenses() {
       </Card>
 
       <PaymentModal />
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
