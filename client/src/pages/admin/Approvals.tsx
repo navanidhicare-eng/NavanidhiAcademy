@@ -55,8 +55,17 @@ const paymentFormSchema = z.object({
   paymentMode: z.enum(['upi', 'voucher'], {
     required_error: 'Please select a payment mode',
   }),
-  paymentDetails: z.string().min(1, 'Payment details are required'),
+  paymentDetails: z.string().optional(),
   notes: z.string().optional(),
+}).refine((data) => {
+  // Only require payment details for UPI transactions
+  if (data.paymentMode === 'upi' && (!data.paymentDetails || data.paymentDetails.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: "UPI Transaction ID is required for UPI payments",
+  path: ["paymentDetails"],
 });
 
 type PaymentFormData = z.infer<typeof paymentFormSchema>;
@@ -153,6 +162,10 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
   };
 
   const onSubmit = (data: PaymentFormData) => {
+    // For voucher payments, set a default payment details message
+    if (data.paymentMode === 'voucher' && !data.paymentDetails) {
+      data.paymentDetails = 'Voucher payment processed';
+    }
     approveMutation.mutate(data);
   };
 
@@ -234,28 +247,36 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="paymentDetails"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {form.watch('paymentMode') === 'upi' ? 'UPI Transaction ID' : 'Voucher Details'}
-                        </FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder={
-                              form.watch('paymentMode') === 'upi' 
-                                ? 'Enter UPI transaction ID' 
-                                : 'Enter voucher number/details'
-                            } 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {form.watch('paymentMode') === 'voucher' ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-5 w-5 text-blue-600 mr-2" />
+                        <div>
+                          <p className="text-sm font-medium text-blue-900">Voucher Payment Selected</p>
+                          <p className="text-sm text-blue-700">Ready to process voucher payment for ₹{parseFloat(withdrawal.amount).toLocaleString('en-IN')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="paymentDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            UPI Transaction ID
+                          </FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter UPI transaction ID"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <FormField
                     control={form.control}
@@ -343,7 +364,6 @@ export default function Approvals() {
     queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/withdrawal-requests');
       const result = await response.json();
-      console.log('📋 Withdrawal requests data:', result);
       return result;
     },
   });
@@ -357,13 +377,6 @@ export default function Approvals() {
       request.user_name?.toLowerCase().includes(searchTerm.toLowerCase());
     
     return matchesStatus && matchesSearch;
-  });
-
-  console.log('🔍 Filter Debug:', {
-    rawData: withdrawalRequests,
-    selectedStatus,
-    filteredCount: filteredRequests.length,
-    filteredRequests
   });
 
   const handleViewDetails = (withdrawal: any) => {
