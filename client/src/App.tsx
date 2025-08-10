@@ -39,6 +39,7 @@ import AdminProgressTracking from "@/pages/admin/ProgressTracking";
 import AdminProducts from "@/pages/admin/Products";
 import AdminStudents from "@/pages/admin/Students";
 import AcademicDashboard from "@/pages/admin/AcademicDashboard";
+import ExamManagement from "@/pages/admin/ExamManagement";
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -156,6 +157,11 @@ function Router() {
       <Route path="/admin/academic-dashboard">
         <ProtectedRoute>
           <AcademicDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/exam-management">
+        <ProtectedRoute>
+          <ExamManagement />
         </ProtectedRoute>
       </Route>
 

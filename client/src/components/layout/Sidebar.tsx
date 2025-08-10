@@ -99,6 +99,7 @@ export function Sidebar({ className }: SidebarProps) {
         return [
           ...baseItems,
           { icon: BarChart3, label: 'Academic Dashboard', href: '/admin/academic-dashboard' },
+          { icon: GraduationCap, label: 'Exam Management', href: '/admin/exam-management' },
           { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
         ];
       

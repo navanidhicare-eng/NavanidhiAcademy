@@ -41,7 +41,8 @@ Preferred communication style: Simple, everyday language.
 - **Wallet Management**: Non-cash wallet system for SO centers with transaction tracking.
 - **Progress Tracking**: Granular topic-level progress monitoring.
 - **Payment Processing**: Comprehensive enrollment-based fee calculation, including enrollment date logic, previous balance tracking, monthly fee scheduling, and auto-update system. Supports multi-method payment recording (cash, online, wallet).
-- **Academic Dashboard**: Universal location filter system (State → District → Mandal → Village → SO Center) shared across Student Progress, Exam Management, and Attendance Reports tabs.
+- **Academic Dashboard**: Universal location filter system (State → District → Mandal → Village → SO Center) shared across Student Progress and Attendance Reports tabs.
+- **Exam Management**: Dedicated sidebar page for Academic Admin with comprehensive exam creation, SO Centers selection, and management capabilities.
 - **Teacher Management**: Integrated with user authentication system, including teaching records and assignment of classes and subjects.
 
 ## External Dependencies
