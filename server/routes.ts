@@ -4535,6 +4535,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Additional analytics for attendance and SO center comparison
   
+  // Center-wise, Month-wise Attendance Report (real data)
+  app.get("/api/analytics/center-month-attendance", authenticateToken, async (req, res) => {
+    try {
+      const { month, year, soCenterId } = req.query;
+      const currentMonth = month || new Date().getMonth() + 1;
+      const currentYear = year || new Date().getFullYear();
+      
+      let whereClause = '';
+      if (soCenterId) {
+        whereClause = `AND s.so_center_id = '${soCenterId}'`;
+      }
+      
+      const attendanceQuery = `
+        WITH date_series AS (
+          SELECT generate_series(
+            DATE_TRUNC('month', $1::date),
+            DATE_TRUNC('month', $1::date) + INTERVAL '1 month' - INTERVAL '1 day',
+            INTERVAL '1 day'
+          )::date as date
+        ),
+        centers_students AS (
+          SELECT 
+            sc.id as center_id,
+            sc.name as center_name,
+            sc.state,
+            sc.district,
+            sc.mandal,
+            COUNT(s.id) as total_students
+          FROM so_centers sc
+          LEFT JOIN students s ON s.so_center_id = sc.id
+          WHERE sc.status = 'active' ${whereClause.replace('s.so_center_id', 'sc.id')}
+          GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
+        )
+        SELECT 
+          cs.center_id,
+          cs.center_name,
+          cs.state,
+          cs.district,
+          cs.mandal,
+          cs.total_students,
+          ds.date,
+          COUNT(a.id) as present_count,
+          ROUND(
+            CASE 
+              WHEN cs.total_students > 0 
+              THEN (COUNT(a.id)::numeric / cs.total_students * 100)
+              ELSE 0 
+            END, 2
+          ) as attendance_percentage
+        FROM centers_students cs
+        CROSS JOIN date_series ds
+        LEFT JOIN students s ON s.so_center_id = cs.center_id
+        LEFT JOIN attendance a ON a.student_id = s.id AND a.date = ds.date
+        GROUP BY cs.center_id, cs.center_name, cs.state, cs.district, cs.mandal, cs.total_students, ds.date
+        ORDER BY cs.center_name, ds.date
+      `;
+      
+      const results = await executeRawQuery(attendanceQuery, [`${currentYear}-${String(currentMonth).padStart(2, '0')}-01`]);
+      
+      const attendanceReport = results.map((row: any) => ({
+        centerId: row.center_id,
+        centerName: row.center_name,
+        state: row.state,
+        district: row.district,
+        mandal: row.mandal,
+        totalStudents: parseInt(row.total_students) || 0,
+        date: row.date,
+        presentCount: parseInt(row.present_count) || 0,
+        attendancePercentage: parseFloat(row.attendance_percentage) || 0
+      }));
+      
+      res.json(attendanceReport);
+    } catch (error) {
+      console.error('Error fetching center-month attendance:', error);
+      res.status(500).json({ message: "Failed to fetch attendance report" });
+    }
+  });
+
   // Attendance trends analytics (real data)
   app.get("/api/analytics/attendance-trends", authenticateToken, async (req, res) => {
     try {

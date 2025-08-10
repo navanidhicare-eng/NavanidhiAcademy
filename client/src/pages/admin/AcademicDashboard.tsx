@@ -253,29 +253,54 @@ function AttendanceReportsTab({
   selectedSoCenter, 
   filteredSoCenters 
 }: any) {
-  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // Center-wise Month-wise Attendance Report (real data)
+  const { data: centerAttendanceReport = [] } = useQuery<any[]>({
+    queryKey: ['/api/analytics/center-month-attendance', selectedMonth, selectedYear, selectedSoCenter],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      params.append('month', selectedMonth.toString());
+      params.append('year', selectedYear.toString());
+      if (selectedSoCenter) params.append('soCenterId', selectedSoCenter);
+      
+      return apiRequest('GET', `/api/analytics/center-month-attendance?${params.toString()}`);
+    },
+  });
 
   // Real attendance data from database
   const { data: attendanceData = [] } = useQuery<any[]>({
     queryKey: ['/api/analytics/attendance-trends'],
-    queryFn: () => apiRequest('GET', `/api/analytics/attendance-trends?soCenterId=${selectedSoCenter}&month=${selectedMonth}`),
-    enabled: !!selectedSoCenter && !!selectedMonth,
+    queryFn: () => apiRequest('GET', `/api/analytics/attendance-trends?soCenterId=${selectedSoCenter}&month=${selectedYear}-${String(selectedMonth).padStart(2, '0')}`),
+    enabled: !!selectedSoCenter,
   });
 
-  const { data: soCenterStats = [] } = useQuery<any[]>({
-    queryKey: ['/api/analytics/so-center-comparison', selectedState, selectedDistrict, selectedMandal, selectedVillage, selectedMonth],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (selectedState) params.append('stateId', selectedState);
-      if (selectedDistrict) params.append('districtId', selectedDistrict);
-      if (selectedMandal) params.append('mandalId', selectedMandal);
-      if (selectedVillage) params.append('villageId', selectedVillage);
-      if (selectedMonth) params.append('month', selectedMonth);
-      
-      return apiRequest('GET', `/api/analytics/so-center-comparison?${params.toString()}`);
-    },
-    enabled: !!(selectedState || selectedDistrict || selectedMandal || selectedVillage),
-  });
+  // Group attendance data by center for table display
+  const groupedAttendanceData = centerAttendanceReport.reduce((acc: any, record: any) => {
+    const key = record.centerId;
+    if (!acc[key]) {
+      acc[key] = {
+        centerInfo: {
+          centerId: record.centerId,
+          centerName: record.centerName,
+          state: record.state,
+          district: record.district,
+          mandal: record.mandal,
+          totalStudents: record.totalStudents
+        },
+        dailyAttendance: []
+      };
+    }
+    acc[key].dailyAttendance.push({
+      date: record.date,
+      presentCount: record.presentCount,
+      attendancePercentage: record.attendancePercentage
+    });
+    return acc;
+  }, {});
+
+  const centerAttendanceArray = Object.values(groupedAttendanceData);
 
   return (
     <div className="space-y-6">
@@ -284,72 +309,195 @@ function AttendanceReportsTab({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Calendar size={20} />
-            <span>Attendance Reports</span>
+            <span>Center-wise Month-wise Attendance Reports</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label>Month</Label>
-              <Input 
-                type="month" 
-                value={selectedMonth} 
-                onChange={(e) => setSelectedMonth(e.target.value)} 
-              />
-            </div>
-            <div>
-              <Label>SO Center</Label>
-              <Select value={selectedSoCenter} onValueChange={() => {}}>
+              <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
                 <SelectTrigger>
-                  <SelectValue placeholder={selectedSoCenter ? filteredSoCenters.find((c: any) => c.id === selectedSoCenter)?.name : "Use location filter above"} />
+                  <SelectValue placeholder="Select Month" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="disabled" disabled>Use universal location filter above</SelectItem>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {new Date(2024, i, 1).toLocaleString('default', { month: 'long' })}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Year</Label>
+              <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 5 }, (_, i) => (
+                    <SelectItem key={2020 + i} value={(2020 + i).toString()}>
+                      {2020 + i}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>SO Center Filter</Label>
+              <div className="text-sm text-gray-600 mt-2">
+                {selectedSoCenter ? filteredSoCenters.find((c: any) => c.id === selectedSoCenter)?.name || 'Selected from universal filter' : 'All centers (use filter above to select specific center)'}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Attendance Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily Attendance Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={attendanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="presentCount" fill="#82ca9d" name="Present Students" />
-                <Bar dataKey="attendanceRate" fill="#8884d8" name="Attendance %" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Center-wise Attendance Report Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Building size={20} />
+            <span>Center-wise Daily Attendance Report - {new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+          </CardTitle>
+          <CardDescription>
+            Detailed attendance data for each SO Center with daily breakdown
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-8">
+            {centerAttendanceArray.map((centerData: any) => (
+              <div key={centerData.centerInfo.centerId} className="border rounded-lg p-6">
+                {/* Center Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{centerData.centerInfo.centerName}</h3>
+                    <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                      <span className="flex items-center space-x-1">
+                        <MapPinIcon size={14} />
+                        <span>{centerData.centerInfo.state}, {centerData.centerInfo.district}, {centerData.centerInfo.mandal}</span>
+                      </span>
+                      <span className="flex items-center space-x-1">
+                        <Users size={14} />
+                        <span>{centerData.centerInfo.totalStudents} Total Students</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">Average Attendance</div>
+                    <div className="text-2xl font-bold text-primary">
+                      {centerData.dailyAttendance.length > 0 
+                        ? Math.round(centerData.dailyAttendance.reduce((sum: number, day: any) => sum + day.attendancePercentage, 0) / centerData.dailyAttendance.length)
+                        : 0}%
+                    </div>
+                  </div>
+                </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>SO Center Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={soCenterStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="soCenterName" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="totalStudents" fill="#8884d8" name="Total Students" />
-                <Bar dataKey="completionRate" fill="#82ca9d" name="Completion Rate %" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+                {/* Daily Attendance Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border border-gray-200 rounded-lg">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Day</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Present</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Total Students</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Attendance %</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {centerData.dailyAttendance.map((dayData: any, index: number) => {
+                        const attendanceDate = new Date(dayData.date);
+                        const dayName = attendanceDate.toLocaleDateString('en-US', { weekday: 'short' });
+                        const isWeekend = dayName === 'Sat' || dayName === 'Sun';
+                        
+                        return (
+                          <tr key={index} className={isWeekend ? 'bg-gray-50' : ''}>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {attendanceDate.toLocaleDateString('en-IN')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              <Badge variant={isWeekend ? "secondary" : "outline"}>
+                                {dayName}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {dayData.presentCount}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              {centerData.centerInfo.totalStudents}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">{dayData.attendancePercentage}%</span>
+                                <div className="w-16 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="h-2 rounded-full bg-primary" 
+                                    style={{ width: `${Math.min(dayData.attendancePercentage, 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {isWeekend ? (
+                                <Badge variant="secondary">Weekend</Badge>
+                              ) : dayData.attendancePercentage >= 75 ? (
+                                <Badge className="bg-green-100 text-green-800">Good</Badge>
+                              ) : dayData.attendancePercentage >= 50 ? (
+                                <Badge className="bg-yellow-100 text-yellow-800">Average</Badge>
+                              ) : (
+                                <Badge className="bg-red-100 text-red-800">Poor</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Center Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary">
+                      {centerData.dailyAttendance.filter((d: any) => d.attendancePercentage >= 75).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Good Days (≥75%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {centerData.dailyAttendance.filter((d: any) => d.attendancePercentage >= 50 && d.attendancePercentage < 75).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Average Days (50-74%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {centerData.dailyAttendance.filter((d: any) => d.attendancePercentage < 50).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Poor Days (&lt;50%)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">
+                      {Math.round(centerData.dailyAttendance.reduce((sum: number, day: any) => sum + day.presentCount, 0) / centerData.dailyAttendance.length) || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">Avg Daily Present</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {centerAttendanceArray.length === 0 && (
+            <div className="text-center py-12">
+              <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Attendance Data</h3>
+              <p className="text-gray-600">No attendance records found for the selected month and year.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
