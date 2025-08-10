@@ -8,6 +8,7 @@ declare global {
         userId: string;
         email: string;
         role: string;
+        id?: string; // For backward compatibility
       };
     }
   }
@@ -1955,9 +1956,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/products/purchase', authenticateToken, async (req, res) => {
     try {
       const { productId, studentName, class: studentClass, education, address, mobileNumber } = req.body;
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
+
+      console.log('🛒 Product purchase request:', {
+        userId,
+        productId,
+        studentName,
+        hasUser: !!req.user,
+        userKeys: req.user ? Object.keys(req.user) : null
+      });
 
       if (!userId) {
+        console.log('❌ User not authenticated - missing userId in req.user:', req.user);
         return res.status(401).json({ message: 'User not authenticated' });
       }
 
@@ -2041,7 +2051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get wallet balance
   app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
     try {
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
 
       if (!userId) {
         return res.status(401).json({ message: 'User not authenticated' });
@@ -2073,7 +2083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/wallet/withdraw', authenticateToken, async (req, res) => {
     try {
       const { amount } = req.body;
-      const userId = req.user?.id;
+      const userId = req.user?.userId;
 
       if (!userId) {
         return res.status(401).json({ message: 'User not authenticated' });
