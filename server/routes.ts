@@ -4203,20 +4203,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('📋 Found SO Center ID:', soCenterId);
       
-      // Get exams where the SO Center ID is in the soCenterIds array
-      const query = sql`
-        SELECT 
-          e.*,
-          c.name as "className",
-          s.name as "subjectName"
-        FROM exams e
-        LEFT JOIN classes c ON e.class_id = c.id
-        LEFT JOIN subjects s ON e.subject_id = s.id
-        WHERE ${soCenterId} = ANY(e.so_center_ids)
-        ORDER BY e.exam_date ASC
-      `;
-      
-      const exams = await db.execute(query);
+      // Get exams where the SO Center ID is in the soCenterIds array using proper Drizzle syntax
+      const exams = await db.select({
+        id: schema.exams.id,
+        title: schema.exams.title,
+        description: schema.exams.description,
+        classId: schema.exams.classId,
+        subjectId: schema.exams.subjectId,
+        chapterIds: schema.exams.chapterIds,
+        soCenterIds: schema.exams.soCenterIds,
+        examDate: schema.exams.examDate,
+        duration: schema.exams.duration,
+        totalQuestions: schema.exams.totalQuestions,
+        totalMarks: schema.exams.totalMarks,
+        passingMarks: schema.exams.passingMarks,
+        status: schema.exams.status,
+        createdBy: schema.exams.createdBy,
+        createdAt: schema.exams.createdAt,
+        updatedAt: schema.exams.updatedAt,
+        className: schema.classes.name,
+        subjectName: schema.subjects.name
+      })
+      .from(schema.exams)
+      .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+      .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+      .where(sql`${soCenterId} = ANY(${schema.exams.soCenterIds})`)
+      .orderBy(schema.exams.examDate);
       console.log('✅ Found exams for SO Center:', exams.length);
       res.json(exams);
     } catch (error: any) {
