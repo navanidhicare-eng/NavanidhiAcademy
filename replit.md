@@ -6,6 +6,10 @@ This is a comprehensive educational management system for Navanidhi Academy and 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Critical Issues Resolved
+- **SO Center Synchronization Issue (Aug 10, 2025)**: Fixed critical bug where SO Centers were created in Supabase Auth but failed to sync to database due to missing `admission_fee_applicable` column. Added missing column and related equipment tables.
+- **Database Schema Completion**: Successfully migrated all missing tables including `so_center_equipment`, ensuring complete SO Center registration process works end-to-end.
+
 ## System Architecture
 
 ### Frontend Architecture
