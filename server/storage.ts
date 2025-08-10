@@ -1284,8 +1284,14 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getSoCenterByEmail(email: string): Promise<SoCenter | undefined> {
-    const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
-    return result[0];
+    try {
+      const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
+      console.log('🔍 getSoCenterByEmail result for', email, ':', result[0] ? `Found SO Center ${result[0].centerId}` : 'Not found');
+      return result[0];
+    } catch (error) {
+      console.error('❌ Error in getSoCenterByEmail:', error);
+      return undefined;
+    }
   }
 
   async getSoCenterDashboardStats(soCenterId: string): Promise<any> {

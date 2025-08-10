@@ -730,31 +730,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.role === 'so_center') {
         // CRITICAL PRIVACY: SO Center can ONLY see their own students
         console.log('🏢 SO Center requesting students - enforcing strict privacy');
+        console.log('🔍 SO Center user email:', req.user.email);
         
-        // Get SO Center associated with this user
-        const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        if (!soCenter) {
-          console.log('❌ No SO Center found for user email:', req.user.email);
-          return res.status(403).json({ message: "SO Center not found for user" });
-        }
+        try {
+          // Get SO Center associated with this user
+          const soCenter = await storage.getSoCenterByEmail(req.user.email);
+          if (!soCenter) {
+            console.log('❌ No SO Center found for user email:', req.user.email);
+            return res.status(403).json({ message: "SO Center not found for user" });
+          }
 
-        console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their students');
-        
-        // Get ONLY students registered by THIS SO Center
-        const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
-        
-        console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
-        
-        // Preserve database values and only add progress info
-        const studentsWithStatus = await Promise.all(studentsFromDb.map(async (student: any) => {
-          return {
-            ...student,
-            paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
-            progress: 0
-          };
-        }));
-        
-        res.json(studentsWithStatus);
+          console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their students');
+          
+          // Get ONLY students registered by THIS SO Center
+          const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
+          
+          console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
+          
+          // Preserve database values and only add progress info
+          const studentsWithStatus = await Promise.all(studentsFromDb.map(async (student: any) => {
+            return {
+              ...student,
+              paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
+              progress: 0
+            };
+          }));
+          
+          res.json(studentsWithStatus);
+        } catch (error) {
+          console.error('❌ Error in SO Center students endpoint:', error);
+          return res.status(500).json({ message: "Failed to fetch students" });
+        }
       } else if (req.user.role === 'admin') {
         // Admin can see all students
         const students = await storage.getAllStudents();
