@@ -2070,9 +2070,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
       `;
 
-      res.json({
+      const response = {
         message: 'Product purchased successfully',
         transactionId,
+        agentEmail: req.user?.email,
         invoice: {
           transactionId,
           productName: productData.name,
@@ -2093,7 +2094,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           commissionBalance: newCommissionBalance,
           totalEarnings: newTotalEarnings
         }
+      };
+      
+      console.log('✅ Purchase successful - Response:', {
+        transactionId,
+        coursePrice,
+        commissionAmount,
+        newCourseBalance,
+        newCommissionBalance
       });
+      
+      res.json(response);
 
     } catch (error) {
       console.error('Error processing product purchase:', error);
@@ -2103,8 +2114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get wallet balance - for agents and SO centers only
   app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
+    console.log('🔍 Wallet balance request - User data:', {
+      userId: req.user?.userId,
+      role: req.user?.role,
+      email: req.user?.email,
+      hasUser: !!req.user
+    });
+    
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
+      console.log('❌ Access denied for role:', req.user?.role);
       return res.status(403).json({ message: 'Access denied' });
     }
     try {
@@ -2138,8 +2157,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get wallet transactions - for agents and SO centers only
   app.get('/api/wallet/transactions', authenticateToken, async (req, res) => {
+    console.log('🔍 Wallet transactions request - User data:', {
+      userId: req.user?.userId,
+      role: req.user?.role,
+      email: req.user?.email,
+      hasUser: !!req.user
+    });
+    
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
+      console.log('❌ Access denied for role:', req.user?.role);
       return res.status(403).json({ message: 'Access denied' });
     }
     try {
