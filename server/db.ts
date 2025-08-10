@@ -1,26 +1,30 @@
-// BYPASS NEON COMPLETELY - USE REGULAR PG POOL FOR SUPABASE
+// MANDATORY SUPABASE DATABASE CONNECTION - NEON COMPLETELY DISABLED
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-// HARDCODED SUPABASE CONNECTION - NO NEON IMPORTS OR REFERENCES
+// FORCE SUPABASE DATABASE URL AS PRIMARY CONNECTION
 const SUPABASE_CONNECTION = process.env.SUPABASE_DATABASE_URL;
 if (!SUPABASE_CONNECTION) {
-  throw new Error("SUPABASE_DATABASE_URL is required - Neon completely disabled");
+  throw new Error("SUPABASE_DATABASE_URL is required - System enforces Supabase exclusively");
 }
 
-// FORCE DELETE ALL NEON/LOCAL DATABASE ENVIRONMENT VARIABLES
-delete process.env.DATABASE_URL;
+// CRITICAL: OVERRIDE DATABASE_URL TO FORCE DRIZZLE TO USE SUPABASE
+// This ensures drizzle.config.ts uses Supabase instead of Neon
+process.env.DATABASE_URL = SUPABASE_CONNECTION;
+
+// COMPLETE REMOVAL OF ALL NEON/LOCAL DATABASE VARIABLES
 delete process.env.PGHOST;
 delete process.env.PGPORT; 
 delete process.env.PGUSER;
 delete process.env.PGPASSWORD;
 delete process.env.PGDATABASE;
 
-console.log('🚫 NEON SERVERLESS COMPLETELY BYPASSED');
-console.log('🔗 SUPABASE DIRECT CONNECTION:', SUPABASE_CONNECTION.slice(0, 60) + '...');
+console.log('🚫 NEON DATABASE COMPLETELY DISABLED');
+console.log('🔗 SUPABASE DATABASE ENFORCED:', SUPABASE_CONNECTION.slice(0, 60) + '...');
+console.log('✅ DATABASE_URL REDIRECTED TO SUPABASE');
 
-// CREATE DIRECT SUPABASE CONNECTION WITH REGULAR PG POOL (NOT NEON)
+// CREATE SUPABASE CONNECTION WITH REGULAR PG POOL (NO NEON DEPENDENCIES)
 export const pool = new Pool({ 
   connectionString: SUPABASE_CONNECTION,
   max: 20,
@@ -31,14 +35,16 @@ export const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
-// Test the connection immediately after creating the pool
+// IMMEDIATE CONNECTION VERIFICATION TO SUPABASE
 pool.query('SELECT current_database(), current_user, version()', (err, result) => {
   if (err) {
     console.error('❌ SUPABASE CONNECTION FAILED:', err.message);
+    throw new Error('Supabase connection mandatory - cannot proceed with Neon');
   } else {
-    console.log('✅ SUPABASE CONNECTION VERIFIED:');
+    console.log('✅ SUPABASE DATABASE CONNECTED SUCCESSFULLY:');
     console.log('   Database:', result.rows[0].current_database);
     console.log('   User:', result.rows[0].current_user);
-    console.log('   Version:', result.rows[0].version.slice(0, 50) + '...');
+    console.log('   PostgreSQL Version:', result.rows[0].version.slice(0, 50) + '...');
+    console.log('🎉 ALL DATABASE OPERATIONS NOW USE SUPABASE EXCLUSIVELY');
   }
 });
