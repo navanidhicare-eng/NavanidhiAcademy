@@ -2226,15 +2226,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdAt: schema.payments.createdAt,
           studentName: schema.students.name,
           studentId: schema.students.studentId,
-          studentClass: schema.classes.name,
-          soCenterName: schema.soCenters.name,
-          recordedByName: schema.users.fullName,
+          studentClass: sql`COALESCE(${schema.classes.name}, 'N/A')`.as('studentClass'),
+          soCenterName: sql`COALESCE(${schema.soCenters.name}, 'N/A')`.as('soCenterName'),
+          recordedByName: sql`COALESCE(${schema.users.fullName}, 'N/A')`.as('recordedByName'),
+          stateName: sql`COALESCE(${schema.states.name}, 'N/A')`.as('stateName'),
+          districtName: sql`COALESCE(${schema.districts.name}, 'N/A')`.as('districtName'),
+          mandalName: sql`COALESCE(${schema.mandals.name}, 'N/A')`.as('mandalName'),
+          villageName: sql`COALESCE(${schema.villages.name}, 'N/A')`.as('villageName'),
         })
         .from(schema.payments)
         .leftJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
         .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
         .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
         .leftJoin(schema.users, eq(schema.payments.recordedBy, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .orderBy(desc(schema.payments.createdAt));
       
       console.log('✅ Student payments fetched successfully:', studentPayments.length);
@@ -2262,13 +2270,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: schema.walletTransactions.type,
           description: schema.walletTransactions.description,
           createdAt: schema.walletTransactions.createdAt,
-          soCenterName: schema.soCenters.name,
-          soCenterId: schema.soCenters.id,
-          collectionAgentName: schema.users.fullName,
+          soCenterName: sql`COALESCE(${schema.soCenters.name}, 'N/A')`.as('soCenterName'),
+          soCenterId: schema.walletTransactions.soCenterId,
+          collectionAgentName: sql`COALESCE(${schema.users.fullName}, 'N/A')`.as('collectionAgentName'),
+          stateName: sql`COALESCE(${schema.states.name}, 'N/A')`.as('stateName'),
+          districtName: sql`COALESCE(${schema.districts.name}, 'N/A')`.as('districtName'),
+          mandalName: sql`COALESCE(${schema.mandals.name}, 'N/A')`.as('mandalName'),
+          villageName: sql`COALESCE(${schema.villages.name}, 'N/A')`.as('villageName'),
         })
         .from(schema.walletTransactions)
         .leftJoin(schema.soCenters, eq(schema.walletTransactions.soCenterId, schema.soCenters.id))
         .leftJoin(schema.users, eq(schema.walletTransactions.collectionAgentId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .orderBy(desc(schema.walletTransactions.createdAt));
       
       console.log('✅ SO wallet transactions fetched successfully:', soWalletTransactions.length);
@@ -2288,30 +2304,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('🎯 Fetching Agent wallet transaction histories...');
       
-      // Get all commission transactions for agents with wallet and SO center details
+      // For now, return product orders as agent transactions since commission_transactions might not exist yet
       const agentWalletTransactions = await db
         .select({
-          id: schema.commissionTransactions.id,
-          amount: schema.commissionTransactions.amount,
-          type: schema.commissionTransactions.type,
-          description: schema.commissionTransactions.description,
-          createdAt: schema.commissionTransactions.createdAt,
-          soCenterName: schema.soCenters.name,
-          soCenterId: schema.commissionWallets.soCenterId,
-          walletTotalEarned: schema.commissionWallets.totalEarned,
-          walletAvailableBalance: schema.commissionWallets.availableBalance,
-          walletTotalWithdrawn: schema.commissionWallets.totalWithdrawn,
+          id: schema.productOrders.id,
+          amount: schema.productOrders.commissionAmount,
+          type: sql`'commission'`.as('type'),
+          description: sql`CONCAT('Commission from product order: ', ${schema.productOrders.receiptNumber})`.as('description'),
+          createdAt: schema.productOrders.createdAt,
+          soCenterName: sql`COALESCE(${schema.soCenters.name}, 'N/A')`.as('soCenterName'),
+          soCenterId: schema.productOrders.soCenterId,
+          walletTotalEarned: sql`'0'`.as('walletTotalEarned'),
+          walletAvailableBalance: sql`'0'`.as('walletAvailableBalance'),
+          walletTotalWithdrawn: sql`'0'`.as('walletTotalWithdrawn'),
+          stateName: sql`COALESCE(${schema.states.name}, 'N/A')`.as('stateName'),
+          districtName: sql`COALESCE(${schema.districts.name}, 'N/A')`.as('districtName'),
+          mandalName: sql`COALESCE(${schema.mandals.name}, 'N/A')`.as('mandalName'),
+          villageName: sql`COALESCE(${schema.villages.name}, 'N/A')`.as('villageName'),
         })
-        .from(schema.commissionTransactions)
-        .leftJoin(schema.commissionWallets, eq(schema.commissionTransactions.commissionWalletId, schema.commissionWallets.id))
-        .leftJoin(schema.soCenters, eq(schema.commissionWallets.soCenterId, schema.soCenters.id))
-        .orderBy(desc(schema.commissionTransactions.createdAt));
+        .from(schema.productOrders)
+        .leftJoin(schema.soCenters, eq(schema.productOrders.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .orderBy(desc(schema.productOrders.createdAt));
       
       console.log('✅ Agent wallet transactions fetched successfully:', agentWalletTransactions.length);
       res.json(agentWalletTransactions);
     } catch (error: any) {
       console.error('❌ Error fetching agent wallet transactions:', error);
       res.status(500).json({ message: 'Failed to fetch agent wallet transactions' });
+    }
+  });
+
+  // API endpoints for location filtering data
+  app.get("/api/admin/locations/states", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const states = await db.select().from(schema.states).orderBy(schema.states.name);
+      res.json(states);
+    } catch (error: any) {
+      console.error('❌ Error fetching states:', error);
+      res.status(500).json({ message: 'Failed to fetch states' });
+    }
+  });
+
+  app.get("/api/admin/locations/districts/:stateId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const districts = await db
+        .select()
+        .from(schema.districts)
+        .where(eq(schema.districts.stateId, req.params.stateId))
+        .orderBy(schema.districts.name);
+      res.json(districts);
+    } catch (error: any) {
+      console.error('❌ Error fetching districts:', error);
+      res.status(500).json({ message: 'Failed to fetch districts' });
+    }
+  });
+
+  app.get("/api/admin/locations/mandals/:districtId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const mandals = await db
+        .select()
+        .from(schema.mandals)
+        .where(eq(schema.mandals.districtId, req.params.districtId))
+        .orderBy(schema.mandals.name);
+      res.json(mandals);
+    } catch (error: any) {
+      console.error('❌ Error fetching mandals:', error);
+      res.status(500).json({ message: 'Failed to fetch mandals' });
+    }
+  });
+
+  app.get("/api/admin/locations/villages/:mandalId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const villages = await db
+        .select()
+        .from(schema.villages)
+        .where(eq(schema.villages.mandalId, req.params.mandalId))
+        .orderBy(schema.villages.name);
+      res.json(villages);
+    } catch (error: any) {
+      console.error('❌ Error fetching villages:', error);
+      res.status(500).json({ message: 'Failed to fetch villages' });
     }
   });
 

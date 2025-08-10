@@ -25,6 +25,12 @@ export default function AdminAllPayments() {
   const [methodFilter, setMethodFilter] = useState('all');
   const [activeTab, setActiveTab] = useState('student-fees');
   const { toast } = useToast();
+  
+  // Location filter states
+  const [selectedState, setSelectedState] = useState('all');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [selectedMandal, setSelectedMandal] = useState('all');
+  const [selectedVillage, setSelectedVillage] = useState('all');
 
   // Fetch real student fee payment histories
   const { data: studentPayments = [], isLoading: isLoadingStudentPayments } = useQuery({
@@ -39,6 +45,26 @@ export default function AdminAllPayments() {
   // Fetch real Agent wallet transaction histories  
   const { data: agentWalletTransactions = [], isLoading: isLoadingAgentWallet } = useQuery({
     queryKey: ['/api/admin/payments/agent-wallet-histories'],
+  });
+
+  // Fetch location data for filtering
+  const { data: states = [] } = useQuery({
+    queryKey: ['/api/admin/locations/states'],
+  });
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ['/api/admin/locations/districts', selectedState],
+    enabled: selectedState !== 'all',
+  });
+
+  const { data: mandals = [] } = useQuery({
+    queryKey: ['/api/admin/locations/mandals', selectedDistrict],
+    enabled: selectedDistrict !== 'all',
+  });
+
+  const { data: villages = [] } = useQuery({
+    queryKey: ['/api/admin/locations/villages', selectedMandal],
+    enabled: selectedMandal !== 'all',
   });
 
   const getMethodBadgeColor = (method: string) => {
@@ -61,26 +87,57 @@ export default function AdminAllPayments() {
     }
   };
 
-  // Filter functions for each tab
+  // Location filter change handlers
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
+    setSelectedDistrict('all');
+    setSelectedMandal('all');
+    setSelectedVillage('all');
+  };
+
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedMandal('all');
+    setSelectedVillage('all');
+  };
+
+  const handleMandalChange = (value: string) => {
+    setSelectedMandal(value);
+    setSelectedVillage('all');
+  };
+
+  // Filter functions for each tab with location filtering
   const filteredStudentPayments = studentPayments.filter((payment: any) => {
     const matchesSearch = payment.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          payment.soCenterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          payment.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
-    return matchesSearch && matchesMethod;
+    const matchesState = selectedState === 'all' || payment.stateName === selectedState;
+    const matchesDistrict = selectedDistrict === 'all' || payment.districtName === selectedDistrict;
+    const matchesMandal = selectedMandal === 'all' || payment.mandalName === selectedMandal;
+    const matchesVillage = selectedVillage === 'all' || payment.villageName === selectedVillage;
+    return matchesSearch && matchesMethod && matchesState && matchesDistrict && matchesMandal && matchesVillage;
   });
 
   const filteredSoWalletTransactions = soWalletTransactions.filter((transaction: any) => {
     const matchesSearch = transaction.soCenterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.collectionAgentName?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesState = selectedState === 'all' || transaction.stateName === selectedState;
+    const matchesDistrict = selectedDistrict === 'all' || transaction.districtName === selectedDistrict;
+    const matchesMandal = selectedMandal === 'all' || transaction.mandalName === selectedMandal;
+    const matchesVillage = selectedVillage === 'all' || transaction.villageName === selectedVillage;
+    return matchesSearch && matchesState && matchesDistrict && matchesMandal && matchesVillage;
   });
 
   const filteredAgentWalletTransactions = agentWalletTransactions.filter((transaction: any) => {
     const matchesSearch = transaction.soCenterName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const matchesState = selectedState === 'all' || transaction.stateName === selectedState;
+    const matchesDistrict = selectedDistrict === 'all' || transaction.districtName === selectedDistrict;
+    const matchesMandal = selectedMandal === 'all' || transaction.mandalName === selectedMandal;
+    const matchesVillage = selectedVillage === 'all' || transaction.villageName === selectedVillage;
+    return matchesSearch && matchesState && matchesDistrict && matchesMandal && matchesVillage;
   });
 
   const handleExport = () => {
@@ -187,6 +244,61 @@ export default function AdminAllPayments() {
                       <SelectItem value="online">Online</SelectItem>
                       <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                       <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {/* Location Filters */}
+                <Select value={selectedState} onValueChange={handleStateChange}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Select State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    {states.map((state: any) => (
+                      <SelectItem key={state.id} value={state.name}>{state.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {selectedState !== 'all' && (
+                  <Select value={selectedDistrict} onValueChange={handleDistrictChange}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Districts</SelectItem>
+                      {districts.map((district: any) => (
+                        <SelectItem key={district.id} value={district.name}>{district.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {selectedDistrict !== 'all' && (
+                  <Select value={selectedMandal} onValueChange={handleMandalChange}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Mandals</SelectItem>
+                      {mandals.map((mandal: any) => (
+                        <SelectItem key={mandal.id} value={mandal.name}>{mandal.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {selectedMandal !== 'all' && (
+                  <Select value={selectedVillage} onValueChange={setSelectedVillage}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Villages</SelectItem>
+                      {villages.map((village: any) => (
+                        <SelectItem key={village.id} value={village.name}>{village.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 )}
