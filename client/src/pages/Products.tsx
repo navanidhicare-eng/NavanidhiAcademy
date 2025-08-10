@@ -69,7 +69,7 @@ function Products() {
       const response = await apiRequest('POST', '/api/products/purchase', data);
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       // Play success sound
       const audio = new Audio('/phone_pe_notification.mp3');
       audio.play().catch(() => {
@@ -84,10 +84,9 @@ function Products() {
         origin: { y: 0.6 }
       });
 
-      const resultData = result as any;
       toast({
         title: "Course Successfully Purchased!",
-        description: `${selectedProduct?.name} purchased. Transaction ID: ${resultData.transactionId}`,
+        description: `${selectedProduct?.name} purchased. Transaction ID: ${result.transactionId}`,
       });
 
       // Reset form and close dialog
