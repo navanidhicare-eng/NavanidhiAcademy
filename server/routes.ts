@@ -1172,7 +1172,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public route for QR code progress (no auth required)
+  // Public route for QR code progress (no auth required) - REAL DATA
   app.get("/api/public/progress/:qrCode", async (req, res) => {
     try {
       const student = await storage.getStudentByQr(req.params.qrCode);
@@ -1180,12 +1180,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      const progress = await storage.getStudentProgress(student.id);
+      // Get comprehensive real progress data
+      const progressQuery = `
+        SELECT 
+          tp.id,
+          tp.status,
+          tp.completion_date,
+          t.name as topic_name,
+          c.name as chapter_name,
+          s.name as subject_name,
+          tp.created_at,
+          tp.updated_at
+        FROM topic_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects s ON c.subject_id = s.id
+        WHERE tp.student_id = $1
+        ORDER BY s.name, c.name, t.name
+      `;
+      
+      const progressResults = await executeRawQuery(progressQuery, [student.id]);
+      
+      const progress = progressResults.map((row: any) => ({
+        id: row.id,
+        status: row.status,
+        topicName: row.topic_name,
+        chapterName: row.chapter_name,
+        subjectName: row.subject_name,
+        completionDate: row.completion_date,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }));
+
       res.json({
-        student,
+        student: {
+          id: student.id,
+          name: student.name,
+          class: student.classId,
+        },
         progress,
       });
     } catch (error) {
+      console.error('Error fetching student progress:', error);
       res.status(500).json({ message: "Failed to fetch progress" });
     }
   });
@@ -1338,41 +1374,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      // Get role-based stats
-      let stats;
+      const userData = await storage.getUserByEmail(req.user.email);
+      let whereClause = '';
       
-      if (req.user.role === 'academic_admin') {
-        // Academic admin sees all students across all SO centers
-        const allStudents = await storage.getAllStudents();
-        const allSoCenters = await storage.getAllSoCenters();
-        
-        stats = {
-          totalStudents: allStudents.length,
-          totalSoCenters: allSoCenters.length,
-          totalExams: 0, // TODO: Add exam count
-          totalTopics: 0, // TODO: Add topic count
-        };
-      } else {
-        // Regular dashboard stats for SO centers
-        const soCenterId = '84bf6d19-8830-4abd-8374-2c29faecaa24';
-        const soCenter = await storage.getSoCenter(soCenterId);
-        const totalStudents = await storage.getStudentsBySoCenter(soCenterId);
-        
-        // Calculate payments this month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
-        
-        const payments = await storage.getPaymentsByDateRange(soCenterId, startOfMonth, new Date());
-        const paymentsThisMonth = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-        
-        stats = {
-          totalStudents: totalStudents.length,
-          paymentsThisMonth: Math.round(paymentsThisMonth),
-          topicsCompleted: 0, // TODO: Calculate from progress data
-          walletBalance: parseFloat(soCenter?.walletBalance || '0'),
-        };
+      // Filter by SO Center for so_center role
+      if (userData?.role === 'so_center' && userData?.soCenterId) {
+        whereClause = `WHERE s.so_center_id = '${userData.soCenterId}'`;
       }
+      
+      // Get real dashboard statistics using raw queries
+      const statsQuery = `
+        SELECT 
+          COUNT(s.id) as total_students,
+          COUNT(DISTINCT s.so_center_id) as total_so_centers,
+          COALESCE(SUM(CASE WHEN p.payment_date >= DATE_TRUNC('month', CURRENT_DATE) THEN p.amount ELSE 0 END), 0) as monthly_revenue,
+          COUNT(CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_students_this_month
+        FROM students s
+        LEFT JOIN payments p ON p.student_id = s.id
+        ${whereClause}
+      `;
+      
+      const results = await executeRawQuery(statsQuery, []);
+      const statsData = results[0] || {};
+      
+      const stats = {
+        totalStudents: parseInt(statsData.total_students) || 0,
+        totalSoCenters: parseInt(statsData.total_so_centers) || 0,
+        monthlyRevenue: parseFloat(statsData.monthly_revenue) || 0,
+        newStudentsThisMonth: parseInt(statsData.new_students_this_month) || 0
+      };
 
       res.json(stats);
     } catch (error) {
@@ -4109,6 +4139,489 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting exam:", error);
       res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+
+  // Analytics API endpoints for real data
+  app.get('/api/analytics/student-performance/:studentId', authenticateToken, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      const { timeframe = '6m' } = req.query;
+      
+      // Get exam results over time for performance trends
+      const performanceQuery = sqlQuery`
+        SELECT 
+          DATE_TRUNC('month', e.exam_date) as month,
+          AVG(er.marks_obtained) as avg_marks,
+          COUNT(er.id) as exam_count
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        WHERE er.student_id = ${studentId}
+          AND e.exam_date >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', e.exam_date)
+        ORDER BY month ASC
+      `;
+      
+      const attendanceQuery = sqlQuery`
+        SELECT 
+          DATE_TRUNC('month', a.date) as month,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(*) as attendance_percentage
+        FROM attendance a
+        WHERE a.student_id = ${studentId}
+          AND a.date >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', a.date)
+        ORDER BY month ASC
+      `;
+      
+      const [performanceResults, attendanceResults] = await Promise.all([
+        db.execute(performanceQuery),
+        db.execute(attendanceQuery)
+      ]);
+      
+      const combinedData = performanceResults.rows.map((perf: any) => {
+        const monthStr = new Date(perf.month).toLocaleString('default', { month: 'short' });
+        const attendance = attendanceResults.rows.find((att: any) => 
+          new Date(att.month).getTime() === new Date(perf.month).getTime()
+        );
+        
+        return {
+          month: monthStr,
+          marks: Math.round(parseFloat(perf.avg_marks) || 0),
+          attendance: Math.round(parseFloat(attendance?.attendance_percentage) || 0)
+        };
+      });
+      
+      res.json(combinedData);
+    } catch (error) {
+      console.error('Error fetching student performance:', error);
+      res.status(500).json({ message: 'Failed to fetch performance data' });
+    }
+  });
+
+  app.get('/api/analytics/subject-progress/:studentId', authenticateToken, async (req, res) => {
+    try {
+      const { studentId } = req.params;
+      
+      // Get subject-wise progress from topic completion
+      const progressQuery = sqlQuery`
+        SELECT 
+          s.name as subject,
+          s.id as subject_id,
+          COUNT(tp.id) * 100.0 / COUNT(t.id) as progress_percentage
+        FROM subjects s
+        JOIN chapters c ON c.subject_id = s.id
+        JOIN topics t ON t.chapter_id = c.id
+        LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = ${studentId} AND tp.status = 'learned'
+        GROUP BY s.id, s.name
+        ORDER BY s.name
+      `;
+      
+      const results = await db.execute(progressQuery);
+      const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
+      
+      const subjectProgress = results.rows.map((row: any, index: number) => ({
+        subject: row.subject,
+        progress: Math.round(parseFloat(row.progress_percentage) || 0),
+        color: colors[index % colors.length]
+      }));
+      
+      res.json(subjectProgress);
+    } catch (error) {
+      console.error('Error fetching subject progress:', error);
+      res.status(500).json({ message: 'Failed to fetch subject progress' });
+    }
+  });
+
+  app.get('/api/analytics/attendance-trends', authenticateToken, async (req, res) => {
+    try {
+      const { soCenterId, month } = req.query;
+      
+      if (!soCenterId || !month) {
+        return res.status(400).json({ message: 'SO Center ID and month are required' });
+      }
+      
+      // Get daily attendance for the month
+      const attendanceQuery = sqlQuery`
+        SELECT 
+          EXTRACT(DAY FROM a.date) as day,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present_count,
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absent_count,
+          COUNT(CASE WHEN a.status = 'holiday' THEN 1 END) as holiday_count
+        FROM attendance a
+        JOIN students st ON a.student_id = st.id
+        WHERE st.so_center_id = ${soCenterId}
+          AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', ${month}::date)
+        GROUP BY EXTRACT(DAY FROM a.date)
+        ORDER BY day ASC
+      `;
+      
+      const results = await db.execute(attendanceQuery);
+      
+      const attendanceData = results.rows.map((row: any) => ({
+        date: row.day.toString(),
+        present: parseInt(row.present_count) || 0,
+        absent: parseInt(row.absent_count) || 0,
+        holiday: parseInt(row.holiday_count) || 0
+      }));
+      
+      res.json(attendanceData);
+    } catch (error) {
+      console.error('Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance data' });
+    }
+  });
+
+  app.get('/api/analytics/so-center-comparison', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, month } = req.query;
+      
+      // Build dynamic WHERE clause based on location filters
+      let locationFilter = '';
+      const params = [];
+      
+      if (villageId) {
+        locationFilter = 'WHERE sc.village_id = $1';
+        params.push(villageId);
+      } else if (mandalId) {
+        locationFilter = `WHERE v.mandal_id = $1`;
+        params.push(mandalId);
+      } else if (districtId) {
+        locationFilter = `WHERE m.district_id = $1`;
+        params.push(districtId);
+      } else if (stateId) {
+        locationFilter = `WHERE d.state_id = $1`;
+        params.push(stateId);
+      }
+      
+      const monthFilter = month ? `AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $${params.length + 1}::date)` : '';
+      if (month) params.push(month);
+      
+      const comparisonQuery = `
+        SELECT 
+          sc.name,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / NULLIF(COUNT(a.id), 0) as attendance_percentage
+        FROM so_centers sc
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN students st ON st.so_center_id = sc.id
+        LEFT JOIN attendance a ON a.student_id = st.id ${monthFilter}
+        ${locationFilter}
+        GROUP BY sc.id, sc.name
+        ORDER BY sc.name
+      `;
+      
+      const results = await executeRawQuery(comparisonQuery, params);
+      
+      const soCenterStats = results.map((row: any) => ({
+        name: row.name,
+        attendance: Math.round(parseFloat(row.attendance_percentage) || 0)
+      }));
+      
+      res.json(soCenterStats);
+    } catch (error) {
+      console.error('Error fetching SO center comparison:', error);
+      res.status(500).json({ message: 'Failed to fetch SO center data' });
+    }
+  });
+
+  app.get('/api/analytics/dashboard-stats', authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      let whereClause = '';
+      
+      // Filter by SO Center for so_center role
+      if (user?.role === 'so_center') {
+        const userRecord = await storage.getUserByEmail(user.email);
+        if (userRecord?.soCenterId) {
+          whereClause = `WHERE s.so_center_id = '${userRecord.soCenterId}'`;
+        }
+      }
+      
+      // Get real dashboard statistics
+      const statsQuery = `
+        SELECT 
+          COUNT(s.id) as total_students,
+          COUNT(DISTINCT s.so_center_id) as total_so_centers,
+          SUM(CASE WHEN p.payment_date >= DATE_TRUNC('month', CURRENT_DATE) THEN p.amount ELSE 0 END) as monthly_revenue,
+          COUNT(CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_students_this_month
+        FROM students s
+        LEFT JOIN payments p ON p.student_id = s.id
+        ${whereClause}
+      `;
+      
+      const results = await executeRawQuery(statsQuery);
+      const stats = results[0] || {};
+      
+      res.json({
+        totalStudents: parseInt(stats.total_students) || 0,
+        totalSoCenters: parseInt(stats.total_so_centers) || 0,
+        monthlyRevenue: parseFloat(stats.monthly_revenue) || 0,
+        newStudentsThisMonth: parseInt(stats.new_students_this_month) || 0
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
+    }
+  });
+
+  // Real analytics endpoints for charts and graphs
+  
+  // Student performance analytics (real data for line/bar charts)
+  app.get("/api/analytics/student-performance", authenticateToken, async (req, res) => {
+    try {
+      const { studentId, timeframe = '6months' } = req.query;
+      
+      const performanceQuery = `
+        SELECT 
+          DATE_TRUNC('month', tp.completion_date) as month,
+          COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_topics,
+          COUNT(tp.id) as total_topics,
+          s.name as subject_name
+        FROM topic_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects s ON c.subject_id = s.id
+        WHERE tp.student_id = $1 
+          AND tp.completion_date >= CURRENT_DATE - INTERVAL '${timeframe}'
+        GROUP BY DATE_TRUNC('month', tp.completion_date), s.name
+        ORDER BY month, s.name
+      `;
+      
+      const results = await executeRawQuery(performanceQuery, [studentId]);
+      
+      const performanceData = results.map((row: any) => ({
+        month: row.month,
+        completedTopics: parseInt(row.completed_topics) || 0,
+        totalTopics: parseInt(row.total_topics) || 0,
+        subject: row.subject_name,
+        percentage: row.total_topics > 0 ? Math.round((row.completed_topics / row.total_topics) * 100) : 0
+      }));
+      
+      res.json(performanceData);
+    } catch (error) {
+      console.error('Error fetching student performance:', error);
+      res.status(500).json({ message: "Failed to fetch performance data" });
+    }
+  });
+
+  // SO Center analytics (real data for admin dashboard)
+  app.get("/api/analytics/so-center-stats", authenticateToken, async (req, res) => {
+    try {
+      const { location } = req.query;
+      let whereClause = '';
+      
+      if (location) {
+        whereClause = `WHERE sc.state = '${location}' OR sc.district = '${location}' OR sc.mandal = '${location}'`;
+      }
+      
+      const soCenterQuery = `
+        SELECT 
+          sc.name as so_center_name,
+          sc.state,
+          sc.district,
+          sc.mandal,
+          COUNT(s.id) as student_count,
+          SUM(p.amount) as total_revenue,
+          AVG(CASE WHEN tp.status = 'learned' THEN 1.0 ELSE 0.0 END) * 100 as avg_completion_rate
+        FROM so_centers sc
+        LEFT JOIN students s ON s.so_center_id = sc.id
+        LEFT JOIN payments p ON p.student_id = s.id
+        LEFT JOIN topic_progress tp ON tp.student_id = s.id
+        ${whereClause}
+        GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
+        ORDER BY student_count DESC
+      `;
+      
+      const results = await executeRawQuery(soCenterQuery, []);
+      
+      const soCenterStats = results.map((row: any) => ({
+        name: row.so_center_name,
+        state: row.state,
+        district: row.district,
+        mandal: row.mandal,
+        studentCount: parseInt(row.student_count) || 0,
+        totalRevenue: parseFloat(row.total_revenue) || 0,
+        avgCompletionRate: parseFloat(row.avg_completion_rate) || 0
+      }));
+      
+      res.json(soCenterStats);
+    } catch (error) {
+      console.error('Error fetching SO center stats:', error);
+      res.status(500).json({ message: "Failed to fetch SO center statistics" });
+    }
+  });
+
+  // Payment analytics (real data for revenue charts)
+  app.get("/api/analytics/payment-trends", authenticateToken, async (req, res) => {
+    try {
+      const { timeframe = '12months' } = req.query;
+      
+      const paymentQuery = `
+        SELECT 
+          DATE_TRUNC('month', p.payment_date) as month,
+          SUM(p.amount) as total_amount,
+          COUNT(p.id) as payment_count,
+          COUNT(DISTINCT p.student_id) as unique_students,
+          p.payment_method
+        FROM payments p
+        WHERE p.payment_date >= CURRENT_DATE - INTERVAL '${timeframe}'
+        GROUP BY DATE_TRUNC('month', p.payment_date), p.payment_method
+        ORDER BY month DESC
+      `;
+      
+      const results = await executeRawQuery(paymentQuery, []);
+      
+      const paymentTrends = results.map((row: any) => ({
+        month: row.month,
+        totalAmount: parseFloat(row.total_amount) || 0,
+        paymentCount: parseInt(row.payment_count) || 0,
+        uniqueStudents: parseInt(row.unique_students) || 0,
+        paymentMethod: row.payment_method
+      }));
+      
+      res.json(paymentTrends);
+    } catch (error) {
+      console.error('Error fetching payment trends:', error);
+      res.status(500).json({ message: "Failed to fetch payment analytics" });
+    }
+  });
+
+  // Academic progress analytics (real data for pie charts and progress bars)
+  app.get("/api/analytics/academic-progress", authenticateToken, async (req, res) => {
+    try {
+      const { classId, subjectId, soCenterId } = req.query;
+      let whereConditions = [];
+      
+      if (classId) whereConditions.push(`s.class_id = '${classId}'`);
+      if (subjectId) whereConditions.push(`sub.id = '${subjectId}'`);
+      if (soCenterId) whereConditions.push(`s.so_center_id = '${soCenterId}'`);
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const progressQuery = `
+        SELECT 
+          sub.name as subject_name,
+          c.name as chapter_name,
+          tp.status,
+          COUNT(tp.id) as status_count,
+          COUNT(DISTINCT tp.student_id) as student_count
+        FROM topic_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects sub ON c.subject_id = sub.id
+        JOIN students s ON tp.student_id = s.id
+        ${whereClause}
+        GROUP BY sub.name, c.name, tp.status
+        ORDER BY sub.name, c.name, tp.status
+      `;
+      
+      const results = await executeRawQuery(progressQuery, []);
+      
+      const academicProgress = results.map((row: any) => ({
+        subject: row.subject_name,
+        chapter: row.chapter_name,
+        status: row.status,
+        count: parseInt(row.status_count) || 0,
+        studentCount: parseInt(row.student_count) || 0
+      }));
+      
+      res.json(academicProgress);
+    } catch (error) {
+      console.error('Error fetching academic progress:', error);
+      res.status(500).json({ message: "Failed to fetch academic analytics" });
+    }
+  });
+
+  // Additional analytics for attendance and SO center comparison
+  
+  // Attendance trends analytics (real data)
+  app.get("/api/analytics/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { soCenterId, month } = req.query;
+      
+      const attendanceQuery = `
+        SELECT 
+          DATE_TRUNC('day', a.date) as day,
+          COUNT(a.id) as present_count,
+          COUNT(DISTINCT a.student_id) as total_students,
+          ROUND(COUNT(a.id)::numeric / COUNT(DISTINCT a.student_id) * 100, 2) as attendance_rate
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        WHERE DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $1::date)
+        ${soCenterId ? `AND s.so_center_id = '${soCenterId}'` : ''}
+        GROUP BY DATE_TRUNC('day', a.date)
+        ORDER BY day
+      `;
+      
+      const results = await executeRawQuery(attendanceQuery, [month || new Date().toISOString().slice(0, 7) + '-01']);
+      
+      const attendanceData = results.map((row: any) => ({
+        day: row.day,
+        presentCount: parseInt(row.present_count) || 0,
+        totalStudents: parseInt(row.total_students) || 0,
+        attendanceRate: parseFloat(row.attendance_rate) || 0
+      }));
+      
+      res.json(attendanceData);
+    } catch (error) {
+      console.error('Error fetching attendance trends:', error);
+      res.status(500).json({ message: "Failed to fetch attendance data" });
+    }
+  });
+
+  // SO Center comparison analytics (real data)
+  app.get("/api/analytics/so-center-comparison", authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, month } = req.query;
+      let whereConditions = [];
+      
+      if (stateId) whereConditions.push(`sc.state = '${stateId}'`);
+      if (districtId) whereConditions.push(`sc.district = '${districtId}'`);
+      if (mandalId) whereConditions.push(`sc.mandal = '${mandalId}'`);
+      if (villageId) whereConditions.push(`sc.village = '${villageId}'`);
+      
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+      
+      const comparisonQuery = `
+        SELECT 
+          sc.name as so_center_name,
+          sc.state,
+          sc.district,
+          sc.mandal,
+          COUNT(s.id) as total_students,
+          COUNT(a.id) as total_attendance,
+          COUNT(p.id) as total_payments,
+          SUM(p.amount) as total_revenue,
+          AVG(CASE WHEN tp.status = 'learned' THEN 1.0 ELSE 0.0 END) * 100 as completion_rate
+        FROM so_centers sc
+        LEFT JOIN students s ON s.so_center_id = sc.id
+        LEFT JOIN attendance a ON a.student_id = s.id AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $1::date)
+        LEFT JOIN payments p ON p.student_id = s.id AND DATE_TRUNC('month', p.payment_date) = DATE_TRUNC('month', $1::date)
+        LEFT JOIN topic_progress tp ON tp.student_id = s.id
+        ${whereClause}
+        GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
+        ORDER BY total_students DESC
+      `;
+      
+      const results = await executeRawQuery(comparisonQuery, [month || new Date().toISOString().slice(0, 7) + '-01']);
+      
+      const comparisonData = results.map((row: any) => ({
+        soCenterName: row.so_center_name,
+        state: row.state,
+        district: row.district,
+        mandal: row.mandal,
+        totalStudents: parseInt(row.total_students) || 0,
+        totalAttendance: parseInt(row.total_attendance) || 0,
+        totalPayments: parseInt(row.total_payments) || 0,
+        totalRevenue: parseFloat(row.total_revenue) || 0,
+        completionRate: parseFloat(row.completion_rate) || 0
+      }));
+      
+      res.json(comparisonData);
+    } catch (error) {
+      console.error('Error fetching SO center comparison:', error);
+      res.status(500).json({ message: "Failed to fetch comparison data" });
     }
   });
 

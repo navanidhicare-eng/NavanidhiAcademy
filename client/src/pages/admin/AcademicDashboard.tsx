@@ -72,22 +72,19 @@ function StudentProgressTab({
     return true;
   });
 
-  // Mock performance data for selected student
-  const performanceData = selectedStudent ? [
-    { month: 'Jan', marks: 85, attendance: 92 },
-    { month: 'Feb', marks: 78, attendance: 88 },
-    { month: 'Mar', marks: 92, attendance: 95 },
-    { month: 'Apr', marks: 89, attendance: 90 },
-    { month: 'May', marks: 94, attendance: 97 },
-    { month: 'Jun', marks: 87, attendance: 89 },
-  ] : [];
+  // Real performance data for selected student
+  const { data: performanceData = [] } = useQuery<any[]>({
+    queryKey: ['/api/analytics/student-performance', selectedStudent?.id],
+    enabled: !!selectedStudent?.id,
+  });
 
-  const subjectProgress = selectedStudent ? [
-    { subject: 'Mathematics', progress: 85, color: '#8884d8' },
-    { subject: 'Science', progress: 92, color: '#82ca9d' },
-    { subject: 'English', progress: 78, color: '#ffc658' },
-    { subject: 'Social Studies', progress: 88, color: '#ff7300' },
-  ] : [];
+  // Real academic progress data
+  const { data: academicProgress = [] } = useQuery<any[]>({
+    queryKey: ['/api/analytics/academic-progress'],
+    ...(selectedSoCenter && { 
+      queryKey: ['/api/analytics/academic-progress', { soCenterId: selectedSoCenter }] 
+    }),
+  });
 
   return (
     <div className="space-y-6">
@@ -152,7 +149,11 @@ function StudentProgressTab({
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <div className="text-sm text-gray-500">Progress</div>
-                    <div className="font-semibold">{Math.floor(Math.random() * 40) + 60}%</div>
+                    <div className="font-semibold">
+                      {academicProgress.filter((p: any) => p.status === 'learned').length > 0 
+                        ? Math.round((academicProgress.filter((p: any) => p.status === 'learned').length / academicProgress.length) * 100)
+                        : 0}%
+                    </div>
                   </div>
                   <Button variant="ghost" size="sm">
                     <BarChart3 className="text-primary" size={16} />
@@ -188,8 +189,8 @@ function StudentProgressTab({
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="marks" stroke="#8884d8" strokeWidth={2} />
-                    <Line type="monotone" dataKey="attendance" stroke="#82ca9d" strokeWidth={2} />
+                    <Line type="monotone" dataKey="percentage" stroke="#8884d8" strokeWidth={2} name="Completion %" />
+                    <Line type="monotone" dataKey="completedTopics" stroke="#82ca9d" strokeWidth={2} name="Topics Learned" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -205,23 +206,33 @@ function StudentProgressTab({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  {subjectProgress.map((subject: any) => (
-                    <div key={subject.subject} className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="font-medium">{subject.subject}</span>
-                        <span className="font-semibold">{subject.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="h-2 rounded-full" 
-                          style={{ 
-                            width: `${subject.progress}%`, 
-                            backgroundColor: subject.color 
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                  {academicProgress
+                    .filter((item: any, index: number, self: any[]) => 
+                      self.findIndex((i: any) => i.subject === item.subject) === index
+                    )
+                    .map((subject: any) => {
+                      const subjectData = academicProgress.filter((p: any) => p.subject === subject.subject);
+                      const totalTopics = subjectData.reduce((sum: number, p: any) => sum + p.count, 0);
+                      const learnedTopics = subjectData
+                        .filter((p: any) => p.status === 'learned')
+                        .reduce((sum: number, p: any) => sum + p.count, 0);
+                      const progress = totalTopics > 0 ? Math.round((learnedTopics / totalTopics) * 100) : 0;
+                      
+                      return (
+                        <div key={subject.subject} className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="font-medium">{subject.subject}</span>
+                            <span className="font-semibold">{progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                 </div>
               </CardContent>
             </Card>
@@ -244,28 +255,27 @@ function AttendanceReportsTab({
 }: any) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
 
-  const { data: attendanceStats } = useQuery({
-    queryKey: ['/api/attendance/stats', selectedSoCenter, selectedMonth],
-    enabled: !!selectedSoCenter,
+  // Real attendance data from database
+  const { data: attendanceData = [] } = useQuery<any[]>({
+    queryKey: ['/api/analytics/attendance-trends'],
+    queryFn: () => apiRequest('GET', `/api/analytics/attendance-trends?soCenterId=${selectedSoCenter}&month=${selectedMonth}`),
+    enabled: !!selectedSoCenter && !!selectedMonth,
   });
 
-  // Mock attendance data for visualization
-  const attendanceData = [
-    { date: '1', present: 85, absent: 15, holiday: 0 },
-    { date: '2', present: 78, absent: 22, holiday: 0 },
-    { date: '3', present: 92, absent: 8, holiday: 0 },
-    { date: '4', present: 88, absent: 12, holiday: 0 },
-    { date: '5', present: 0, absent: 0, holiday: 100 },
-    { date: '6', present: 95, absent: 5, holiday: 0 },
-    { date: '7', present: 89, absent: 11, holiday: 0 },
-  ];
-
-  const soCenterStats = [
-    { name: 'Center A', attendance: 92 },
-    { name: 'Center B', attendance: 88 },
-    { name: 'Center C', attendance: 95 },
-    { name: 'Center D', attendance: 85 },
-  ];
+  const { data: soCenterStats = [] } = useQuery<any[]>({
+    queryKey: ['/api/analytics/so-center-comparison', selectedState, selectedDistrict, selectedMandal, selectedVillage, selectedMonth],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (selectedState) params.append('stateId', selectedState);
+      if (selectedDistrict) params.append('districtId', selectedDistrict);
+      if (selectedMandal) params.append('mandalId', selectedMandal);
+      if (selectedVillage) params.append('villageId', selectedVillage);
+      if (selectedMonth) params.append('month', selectedMonth);
+      
+      return apiRequest('GET', `/api/analytics/so-center-comparison?${params.toString()}`);
+    },
+    enabled: !!(selectedState || selectedDistrict || selectedMandal || selectedVillage),
+  });
 
   return (
     <div className="space-y-6">
@@ -312,11 +322,11 @@ function AttendanceReportsTab({
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={attendanceData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
+                <XAxis dataKey="day" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="present" fill="#82ca9d" />
-                <Bar dataKey="absent" fill="#ff7300" />
+                <Bar dataKey="presentCount" fill="#82ca9d" name="Present Students" />
+                <Bar dataKey="attendanceRate" fill="#8884d8" name="Attendance %" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -330,10 +340,11 @@ function AttendanceReportsTab({
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={soCenterStats}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="soCenterName" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="attendance" fill="#8884d8" />
+                <Bar dataKey="totalStudents" fill="#8884d8" name="Total Students" />
+                <Bar dataKey="completionRate" fill="#82ca9d" name="Completion Rate %" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

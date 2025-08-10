@@ -51,11 +51,11 @@ export default function PublicProgress() {
   const { student, progress = [] } = data;
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase();
 
-  // Calculate progress stats
-  const totalTopics = 57; // Mock total
+  // Calculate progress stats from real data
   const completedTopics = progress.filter((p: any) => p.status === 'learned').length;
+  const totalTopics = progress.length || completedTopics; // Use actual progress data length
   const pendingTopics = totalTopics - completedTopics;
-  const overallProgress = Math.round((completedTopics / totalTopics) * 100);
+  const overallProgress = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
