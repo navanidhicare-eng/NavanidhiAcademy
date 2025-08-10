@@ -268,55 +268,76 @@ export default function AdminCenters() {
                 <div>
                   <h3 className="font-semibold mb-3">Basic Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Center ID:</span> {selectedCenter.centerId}</p>
-                    <p><span className="font-medium">Name:</span> {selectedCenter.name}</p>
-                    <p><span className="font-medium">Email:</span> {selectedCenter.email}</p>
-                    <p><span className="font-medium">Phone:</span> {selectedCenter.phone}</p>
-                    <p><span className="font-medium">Address:</span> {selectedCenter.address}</p>
+                    <p><span className="font-medium">Center ID:</span> {selectedCenter.centerId || selectedCenter.center_id || 'N/A'}</p>
+                    <p><span className="font-medium">Name:</span> {selectedCenter.name || 'N/A'}</p>
+                    <p><span className="font-medium">Email:</span> {selectedCenter.email || 'N/A'}</p>
+                    <p><span className="font-medium">Phone:</span> {selectedCenter.phone || 'N/A'}</p>
+                    <p><span className="font-medium">Address:</span> {selectedCenter.address || 'N/A'}</p>
                   </div>
                 </div>
                 
                 <div>
                   <h3 className="font-semibold mb-3">Financial Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Wallet Balance:</span> ₹{(parseInt(selectedCenter.walletBalance) || 0).toLocaleString()}</p>
-                    <p><span className="font-medium">Rent Amount:</span> ₹{(parseFloat(selectedCenter.rentAmount) || 0).toLocaleString()}</p>
-                    <p><span className="font-medium">Electric Bill Account:</span> {selectedCenter.electricBillAccountNumber || 'N/A'}</p>
-                    <p><span className="font-medium">Internet Bill Account:</span> {selectedCenter.internetBillAccountNumber || 'N/A'}</p>
+                    <p><span className="font-medium">Wallet Balance:</span> ₹{(parseFloat(selectedCenter.walletBalance || selectedCenter.wallet_balance) || 0).toLocaleString()}</p>
+                    {selectedCenter.rentAmount && (
+                      <p><span className="font-medium">Rent Amount:</span> ₹{(parseFloat(selectedCenter.rentAmount || selectedCenter.rent_amount) || 0).toLocaleString()}</p>
+                    )}
+                    {selectedCenter.electricBillAccountNumber && (
+                      <p><span className="font-medium">Electric Bill Account:</span> {selectedCenter.electricBillAccountNumber || selectedCenter.electric_bill_account_number || 'N/A'}</p>
+                    )}
+                    {selectedCenter.internetBillAccountNumber && (
+                      <p><span className="font-medium">Internet Bill Account:</span> {selectedCenter.internetBillAccountNumber || selectedCenter.internet_bill_account_number || 'N/A'}</p>
+                    )}
                   </div>
                 </div>
               </div>
               
-              <div>
-                <h3 className="font-semibold mb-3">Property Owner Information</h3>
-                <div className="grid grid-cols-2 gap-6 text-sm">
-                  <div className="space-y-2">
-                    <p><span className="font-medium">Owner Name:</span> {selectedCenter.ownerName} {selectedCenter.ownerLastName}</p>
-                    <p><span className="font-medium">Father's Name:</span> {selectedCenter.ownerFatherName}</p>
-                    <p><span className="font-medium">Mother's Name:</span> {selectedCenter.ownerMotherName}</p>
-                  </div>
-                  <div className="space-y-2">
-                    <p><span className="font-medium">Owner Phone:</span> {selectedCenter.ownerPhone}</p>
-                    <p><span className="font-medium">Room Size:</span> {selectedCenter.roomSize}</p>
-                    <p><span className="font-medium">Landmarks:</span> {selectedCenter.landmarks}</p>
+              {(selectedCenter.ownerName || selectedCenter.owner_name) && (
+                <div>
+                  <h3 className="font-semibold mb-3">Property Owner Information</h3>
+                  <div className="grid grid-cols-2 gap-6 text-sm">
+                    <div className="space-y-2">
+                      <p><span className="font-medium">Owner Name:</span> {(selectedCenter.ownerName || selectedCenter.owner_name || '')} {(selectedCenter.ownerLastName || selectedCenter.owner_last_name || '')}</p>
+                      {selectedCenter.ownerFatherName && (
+                        <p><span className="font-medium">Father's Name:</span> {selectedCenter.ownerFatherName || selectedCenter.owner_father_name}</p>
+                      )}
+                      {selectedCenter.ownerMotherName && (
+                        <p><span className="font-medium">Mother's Name:</span> {selectedCenter.ownerMotherName || selectedCenter.owner_mother_name}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {selectedCenter.ownerPhone && (
+                        <p><span className="font-medium">Owner Phone:</span> {selectedCenter.ownerPhone || selectedCenter.owner_phone}</p>
+                      )}
+                      {selectedCenter.roomSize && (
+                        <p><span className="font-medium">Room Size:</span> {selectedCenter.roomSize || selectedCenter.room_size}</p>
+                      )}
+                      {selectedCenter.landmarks && (
+                        <p><span className="font-medium">Landmarks:</span> {selectedCenter.landmarks}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <h3 className="font-semibold mb-3">Status & Statistics</h3>
                 <div className="grid grid-cols-3 gap-6 text-sm">
                   <div className="space-y-2">
-                    <p><span className="font-medium">Status:</span> 
-                      <Badge className={selectedCenter.isActive ? "bg-green-100 text-green-800 ml-2" : "bg-red-100 text-red-800 ml-2"}>
-                        {selectedCenter.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    <div className="flex items-center">
+                      <span className="font-medium mr-2">Status:</span> 
+                      <Badge className={(selectedCenter.isActive !== false && selectedCenter.is_active !== false) ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                        {(selectedCenter.isActive !== false && selectedCenter.is_active !== false) ? 'ACTIVE' : 'INACTIVE'}
                       </Badge>
-                    </p>
-                    <p><span className="font-medium">Students:</span> {selectedCenter.studentCount || 0}</p>
+                    </div>
+                    <p><span className="font-medium">Students:</span> {selectedCenter.studentCount || selectedCenter.student_count || 0}</p>
                   </div>
                   <div className="space-y-2">
-                    <p><span className="font-medium">Capacity:</span> {selectedCenter.capacity || 'N/A'}</p>
-                    <p><span className="font-medium">Created:</span> {new Date(selectedCenter.createdAt).toLocaleDateString()}</p>
+                    {selectedCenter.capacity && (
+                      <p><span className="font-medium">Capacity:</span> {selectedCenter.capacity || 'N/A'}</p>
+                    )}
+                    <p><span className="font-medium">Created:</span> {new Date(selectedCenter.createdAt || selectedCenter.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
               </div>
