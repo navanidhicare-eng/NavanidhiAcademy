@@ -51,7 +51,16 @@ if (!process.env.SUPABASE_DATABASE_URL) {
 }
 
 console.log('🔗 STORAGE: Using SUPABASE_DATABASE_URL exclusively');
-const sql = postgres(process.env.SUPABASE_DATABASE_URL!, { max: 1 });
+const sql = postgres(process.env.SUPABASE_DATABASE_URL!, { 
+  max: 5,
+  idle_timeout: 20,
+  connect_timeout: 30,
+  statement_timeout: 30000, // 30 seconds
+  query_timeout: 30000, // 30 seconds  
+  connection: {
+    options: '--statement_timeout=30s'
+  }
+});
 export const db = drizzle(sql, { schema });
 
 // Add method to get users by role
@@ -351,12 +360,28 @@ export class DrizzleStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     console.log(`🔍 Storage: Starting getUserByEmail lookup for: ${email}`);
     try {
-      const result = await db.select().from(schema.users).where(eq(schema.users.email, email));
+      // Add timeout to prevent hanging
+      const queryPromise = db.select().from(schema.users).where(eq(schema.users.email, email));
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('getUserByEmail query timeout')), 5000);
+      });
+      
+      const result = await Promise.race([queryPromise, timeoutPromise]);
       console.log(`🔍 Storage: Database query completed, found ${result.length} user(s)`);
       return result[0];
     } catch (error) {
       console.error(`❌ Storage: Error in getUserByEmail:`, error);
-      throw error;
+      
+      // Try a simpler query as fallback
+      try {
+        console.log(`🔄 Storage: Attempting fallback query...`);
+        const fallbackResult = await sql`SELECT * FROM users WHERE email = ${email} LIMIT 1`;
+        console.log(`✅ Storage: Fallback query completed, found ${fallbackResult.length} user(s)`);
+        return fallbackResult[0] as User;
+      } catch (fallbackError) {
+        console.error(`❌ Storage: Fallback query also failed:`, fallbackError);
+        throw error;
+      }
     }
   }
 

@@ -121,113 +121,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
   });
 
+  // Database health check endpoint
+  app.get("/api/health/db", async (req, res) => {
+    try {
+      const startTime = Date.now();
+      const result = await db.select().from(schema.users).limit(1);
+      const duration = Date.now() - startTime;
+      res.json({ 
+        status: "connected", 
+        duration: `${duration}ms`,
+        recordCount: result.length,
+        timestamp: new Date().toISOString() 
+      });
+    } catch (error) {
+      console.error("Database health check failed:", error);
+      res.status(500).json({ 
+        status: "failed", 
+        error: error.message,
+        timestamp: new Date().toISOString() 
+      });
+    }
+  });
+
   // Auth routes - Supabase Authentication
   app.post("/api/auth/login", async (req, res) => {
+    // Add timeout wrapper to prevent infinite hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Login timeout - request took too long')), 15000);
+    });
+
     try {
-      console.log("Login attempt:", req.body);
-      let { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-      }
+      await Promise.race([
+        (async () => {
+          console.log("Login attempt:", req.body);
+          let { email, password } = req.body;
+          
+          if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required" });
+          }
 
-      // Convert SO Center ID format to email format
-      if (/^[A-Z0-9]+$/.test(email) && !email.includes('@')) {
-        console.log(`🔄 Converting SO Center ID "${email}" to email format`);
-        email = `${email.toLowerCase()}@navanidhi.org`;
-        console.log(`✅ Converted to: ${email}`);
-      }
+          // Convert SO Center ID format to email format
+          if (/^[A-Z0-9]+$/.test(email) && !email.includes('@')) {
+            console.log(`🔄 Converting SO Center ID "${email}" to email format`);
+            email = `${email.toLowerCase()}@navanidhi.org`;
+            console.log(`✅ Converted to: ${email}`);
+          }
 
-      try {
-        // 1. Authenticate with Supabase Auth
-        console.log(`🔐 Authenticating with Supabase Auth: ${email}`);
-        const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (authError || !authData.user) {
-          console.log(`❌ Supabase Auth failed:`, authError?.message);
-          return res.status(401).json({ message: "Invalid credentials" });
-        }
-        
-        console.log(`✅ Supabase Auth successful:`, authData.user.id);
-        
-        // 2. Get or sync user from our database
-        let user = await storage.getUserByEmail(email);
-        
-        if (!user) {
-          // User exists in Supabase but not in our database - sync them
-          console.log(`🔄 Syncing user from Supabase to database: ${email}`);
-          const userMetadata = authData.user.user_metadata;
-          user = await storage.createUser({
-            email: email,
-            role: userMetadata.role || 'admin',
-            name: userMetadata.name || authData.user.email?.split('@')[0] || 'User',
-            isActive: true,
-            password: '' // We use Supabase Auth, no local password needed
-          });
-          console.log(`✅ User synced to database:`, user.id);
-        }
-        
-        console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
+          try {
+            // 1. Authenticate with Supabase Auth
+            console.log(`🔐 Authenticating with Supabase Auth: ${email}`);
+            const { data: authData, error: authError } = await supabaseAdmin.auth.signInWithPassword({
+              email,
+              password
+            });
+            
+            if (authError || !authData.user) {
+              console.log(`❌ Supabase Auth failed:`, authError?.message);
+              return res.status(401).json({ message: "Invalid credentials" });
+            }
+            
+            console.log(`✅ Supabase Auth successful:`, authData.user.id);
+            
+            // 2. Get or sync user from our database with timeout
+            console.log(`🔍 Getting user from database: ${email}`);
+            const dbQueryPromise = storage.getUserByEmail(email);
+            const dbTimeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error('Database query timeout')), 5000);
+            });
+            
+            let user = await Promise.race([dbQueryPromise, dbTimeoutPromise]);
+            console.log(`✅ Database query completed successfully`);
+            
+            if (!user) {
+              // User exists in Supabase but not in our database - sync them
+              console.log(`🔄 Syncing user from Supabase to database: ${email}`);
+              const userMetadata = authData.user.user_metadata;
+              user = await storage.createUser({
+                email: email,
+                role: userMetadata.role || 'admin',
+                name: userMetadata.name || authData.user.email?.split('@')[0] || 'User',
+                isActive: true,
+                password: '' // We use Supabase Auth, no local password needed
+              });
+              console.log(`✅ User synced to database:`, user.id);
+            }
+            
+            console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
 
-        const token = jwt.sign(
-          { userId: user.id, email: user.email, role: user.role },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
+            const token = jwt.sign(
+              { userId: user.id, email: user.email, role: user.role },
+              JWT_SECRET,
+              { expiresIn: '24h' }
+            );
 
-        // Determine dashboard route based on role
-        let dashboardRoute = '/dashboard';
-        switch (user.role) {
-          case 'admin':
-            dashboardRoute = '/admin/users';
-            break;
-          case 'so_center':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'teacher':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'academic_admin':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'agent':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'office_staff':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'collection_agent':
-            dashboardRoute = '/dashboard';
-            break;
-          case 'marketing_staff':
-            dashboardRoute = '/dashboard';
-            break;
-          default:
-            dashboardRoute = '/dashboard';
-        }
+            // Determine dashboard route based on role
+            let dashboardRoute = '/dashboard';
+            switch (user.role) {
+              case 'admin':
+                dashboardRoute = '/admin/users';
+                break;
+              case 'so_center':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'teacher':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'academic_admin':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'agent':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'office_staff':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'collection_agent':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'marketing_staff':
+                dashboardRoute = '/dashboard';
+                break;
+              default:
+                dashboardRoute = '/dashboard';
+            }
 
-        console.log(`📍 Redirecting ${user.role} to: ${dashboardRoute}`);
+            console.log(`📍 Redirecting ${user.role} to: ${dashboardRoute}`);
+            console.log(`🚀 Sending login response...`);
 
-        res.json({
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-          },
-          redirectTo: dashboardRoute
-        });
-      } catch (dbError) {
-        console.error("Database error:", dbError);
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
+            res.json({
+              token,
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+              },
+              redirectTo: dashboardRoute
+            });
+            
+            console.log(`✅ Login response sent successfully`);
+          } catch (dbError) {
+            console.error("Database error:", dbError);
+            if (!res.headersSent) {
+              return res.status(401).json({ message: "Database connection failed" });
+            }
+          }
+        })(),
+        timeoutPromise
+      ]);
     } catch (error) {
       console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
+      if (!res.headersSent) {
+        if (error.message.includes('timeout')) {
+          res.status(408).json({ message: "Login request timed out - please try again" });
+        } else {
+          res.status(500).json({ message: "Login failed" });
+        }
+      }
     }
   });
 
