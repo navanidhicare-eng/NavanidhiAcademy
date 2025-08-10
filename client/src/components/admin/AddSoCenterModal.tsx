@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+// Removed Checkbox import - now using dynamic inputs instead of checkboxes
 import { Label } from '@/components/ui/label';
 import React, { useState, useEffect } from 'react';
 
@@ -48,7 +48,7 @@ const addSoCenterSchema = z.object({
 
   monthlyInternetDate: z.string().min(1, 'Monthly internet date is required'),
   capacity: z.string().min(1, 'Center capacity is required'),
-  facilities: z.array(z.string()).min(1, 'At least one facility must be selected'),
+  facilities: z.array(z.string()).min(1, 'At least one facility must be added'),
 });
 
 type AddSoCenterFormData = z.infer<typeof addSoCenterSchema>;
@@ -64,10 +64,11 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedMandal, setSelectedMandal] = useState('');
-  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
+  // Remove selectedFacilities state - now using dynamic facilities array
   const [generatedCenterId, setGeneratedCenterId] = useState('');
   const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
   const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
+  const [facilities, setFacilities] = useState<{facilityName: string}[]>([]);
 
   // Generate next Center ID when modal opens - PRODUCTION READY
   const { data: nextCenterId = '' } = useQuery({
@@ -154,62 +155,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     }
   }, [nextCenterId, form]);
 
-  const availableFacilities = [
-    { id: 'ac', label: 'Air Conditioning' },
-    { id: 'wifi', label: 'Wi-Fi Internet' },
-    { id: 'projector', label: 'Projector' },
-    { id: 'whiteboard', label: 'Whiteboard' },
-    { id: 'smartboard', label: 'Smart Board' },
-    { id: 'library', label: 'Library' },
-    { id: 'parking', label: 'Parking' },
-    { id: 'canteen', label: 'Canteen' },
-    { id: 'playground', label: 'Playground' },
-    { id: 'laboratory', label: 'Science Laboratory' },
-    { id: 'computer_lab', label: 'Computer Laboratory' },
-    { id: 'sports', label: 'Sports Facilities' },
-    { id: 'cctv', label: 'CCTV Security' },
-    { id: 'generator', label: 'Power Generator' },
-    { id: 'water_cooler', label: 'Water Cooler' },
-    { id: 'restrooms', label: 'Clean Restrooms' },
-    { id: 'first_aid', label: 'First Aid Kit' },
-    { id: 'fire_safety', label: 'Fire Safety Equipment' },
-    { id: 'study_hall', label: 'Study Hall' },
-    { id: 'conference_room', label: 'Conference Room' },
-    { id: 'reception', label: 'Reception Area' },
-    { id: 'storage', label: 'Storage Room' },
-    { id: 'kitchen', label: 'Kitchen Facility' },
-    { id: 'garden', label: 'Garden Area' },
-    { id: 'auditorium', label: 'Auditorium/Assembly Hall' },
-    { id: 'music_room', label: 'Music Room' },
-    { id: 'art_room', label: 'Art & Craft Room' },
-    { id: 'counseling_room', label: 'Counseling Room' },
-    { id: 'medical_room', label: 'Medical Room' },
-    { id: 'transportation', label: 'Transportation Service' },
-    { id: 'hostel', label: 'Hostel Facility' },
-    { id: 'solar_power', label: 'Solar Power System' },
-    { id: 'elevator', label: 'Elevator Access' },
-    { id: 'disability_access', label: 'Disability Access' },
-    { id: 'security_guard', label: '24/7 Security Guard' },
-    { id: 'intercom', label: 'Intercom System' },
-    { id: 'ups_backup', label: 'UPS Power Backup' },
-    { id: 'water_purifier', label: 'Water Purification System' },
-    { id: 'weather_protection', label: 'Weather Protection' },
-    { id: 'ventilation', label: 'Proper Ventilation' },
-    { id: 'lighting', label: 'Adequate Lighting' },
-    { id: 'furniture', label: 'Quality Furniture' },
-    { id: 'lockers', label: 'Student Lockers' },
-    { id: 'notice_board', label: 'Notice Board' },
-    { id: 'photocopier', label: 'Photocopier/Printer' },
-    { id: 'scanner', label: 'Scanner Facility' },
-    { id: 'sound_system', label: 'Sound System' },
-    { id: 'video_conferencing', label: 'Video Conferencing Setup' },
-    { id: 'cleaning_service', label: 'Regular Cleaning Service' },
-    { id: 'waste_management', label: 'Waste Management System' },
-    { id: 'green_environment', label: 'Eco-Friendly Environment' },
-    { id: 'study_materials', label: 'Study Materials Library' },
-    { id: 'stationery_shop', label: 'Stationery Shop' },
-    { id: 'uniform_shop', label: 'Uniform Shop' }
-  ];
+  // Remove the static facilities array - now using dynamic input
 
   // Handle address cascade changes
   const handleStateChange = (stateId: string) => {
@@ -230,13 +176,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     form.setValue('villageId', '');
   };
 
-  const handleFacilityToggle = (facilityId: string) => {
-    const updatedFacilities = selectedFacilities.includes(facilityId)
-      ? selectedFacilities.filter(id => id !== facilityId)
-      : [...selectedFacilities, facilityId];
-    setSelectedFacilities(updatedFacilities);
-    form.setValue('facilities', updatedFacilities);
-  };
+  // Remove old facility toggle function - now using dynamic input
 
   const createSoCenterMutation = useMutation({
     mutationFn: async (data: AddSoCenterFormData) => {
@@ -252,7 +192,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         internetServiceProvider: data.internetServiceProvider,
         roomSize: data.roomSize,
         capacity: parseInt(data.capacity),
-        facilities: selectedFacilities,
+        facilities: facilities.map(f => f.facilityName).filter(name => name.trim() !== ''),
         nearbySchools: nearbySchools,
         nearbyTuitions: nearbyTuitions,
       };
@@ -709,23 +649,59 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
             {/* Facilities */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Available Facilities</h3>
-              <p className="text-sm text-gray-600">Select the facilities available at this center</p>
-              
-              <div className="grid grid-cols-2 gap-3">
-                {availableFacilities.map((facility) => (
-                  <div key={facility.id} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={facility.id}
-                      checked={selectedFacilities.includes(facility.id)}
-                      onCheckedChange={() => handleFacilityToggle(facility.id)}
-                    />
-                    <Label htmlFor={facility.id} className="font-medium text-sm cursor-pointer">
-                      {facility.label}
-                    </Label>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Available Facilities</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFacilities([...facilities, {facilityName: ''}])}
+                >
+                  Add Facility
+                </Button>
               </div>
+              
+              {facilities.map((facility, index) => (
+                <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <div className="flex-1">
+                    <Label>Facility Name</Label>
+                    <Input 
+                      placeholder="Enter facility name (e.g., Wi-Fi, AC, Parking)"
+                      value={facility.facilityName}
+                      onChange={(e) => {
+                        const updated = [...facilities];
+                        updated[index].facilityName = e.target.value;
+                        setFacilities(updated);
+                        // Update form value for validation
+                        const facilityNames = updated.map(f => f.facilityName).filter(name => name.trim() !== '');
+                        form.setValue('facilities', facilityNames);
+                      }}
+                    />
+                  </div>
+                  {facilities.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const updated = facilities.filter((_, i) => i !== index);
+                        setFacilities(updated);
+                        // Update form value for validation
+                        const facilityNames = updated.map(f => f.facilityName).filter(name => name.trim() !== '');
+                        form.setValue('facilities', facilityNames);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              ))}
+              
+              {facilities.length === 0 && (
+                <div className="text-center py-4 text-gray-500">
+                  Click "Add Facility" to add facilities available at this center
+                </div>
+              )}
               
               {form.formState.errors.facilities && (
                 <p className="text-sm text-red-600 mt-2">
