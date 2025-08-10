@@ -5052,6 +5052,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ANNOUNCEMENTS MANAGEMENT ENDPOINTS
+  
+  // Get all announcements (admin only)
+  app.get("/api/admin/announcements", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('📋 Fetching all announcements for admin...');
+      
+      const announcementsList = await db.select().from(schema.announcements)
+        .orderBy(sql`${schema.announcements.createdAt} DESC`);
+      
+      console.log('✅ Announcements fetched successfully:', announcementsList.length);
+      res.json(announcementsList);
+    } catch (error) {
+      console.error('❌ Error fetching announcements:', error);
+      res.status(500).json({ message: 'Failed to fetch announcements' });
+    }
+  });
+
+  // Create new announcement (admin only)
+  app.post("/api/admin/announcements", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('🆕 Creating new announcement...');
+      
+      const announcementData = schema.insertAnnouncementSchema.parse(req.body);
+      const userId = req.user?.userId;
+      
+      const [newAnnouncement] = await db
+        .insert(schema.announcements)
+        .values({
+          ...announcementData,
+          createdBy: userId,
+        })
+        .returning();
+
+      console.log('✅ Announcement created successfully:', newAnnouncement.id);
+      res.status(201).json(newAnnouncement);
+    } catch (error) {
+      console.error('❌ Error creating announcement:', error);
+      res.status(500).json({ message: 'Failed to create announcement' });
+    }
+  });
+
+  // Update announcement (admin only)
+  app.put("/api/admin/announcements/:id", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const announcementId = req.params.id;
+      console.log('📝 Updating announcement:', announcementId);
+      
+      const announcementData = schema.insertAnnouncementSchema.parse(req.body);
+      
+      const [updatedAnnouncement] = await db
+        .update(schema.announcements)
+        .set({
+          ...announcementData,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.announcements.id, announcementId))
+        .returning();
+
+      if (!updatedAnnouncement) {
+        return res.status(404).json({ message: 'Announcement not found' });
+      }
+
+      console.log('✅ Announcement updated successfully');
+      res.json(updatedAnnouncement);
+    } catch (error) {
+      console.error('❌ Error updating announcement:', error);
+      res.status(500).json({ message: 'Failed to update announcement' });
+    }
+  });
+
+  // Delete announcement (admin only)
+  app.delete("/api/admin/announcements/:id", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const announcementId = req.params.id;
+      console.log('🗑️ Deleting announcement:', announcementId);
+      
+      await db.delete(schema.announcements).where(eq(schema.announcements.id, announcementId));
+      
+      console.log('✅ Announcement deleted successfully');
+      res.json({ message: 'Announcement deleted successfully' });
+    } catch (error) {
+      console.error('❌ Error deleting announcement:', error);
+      res.status(500).json({ message: 'Failed to delete announcement' });
+    }
+  });
+
+  // Get active announcements for students (public endpoint for QR code display)
+  app.get("/api/announcements/students", async (req, res) => {
+    try {
+      console.log('📋 Fetching active student announcements...');
+      
+      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const studentAnnouncements = await db.select()
+        .from(schema.announcements)
+        .where(sql`
+          ${schema.announcements.targetAudience} IN ('students', 'all') 
+          AND ${schema.announcements.isActive} = true
+          AND ${schema.announcements.fromDate} <= ${currentDate}
+          AND ${schema.announcements.toDate} >= ${currentDate}
+          AND ${schema.announcements.showOnQrCode} = true
+        `)
+        .orderBy(sql`
+          CASE ${schema.announcements.priority}
+            WHEN 'urgent' THEN 1
+            WHEN 'high' THEN 2
+            WHEN 'normal' THEN 3
+            WHEN 'low' THEN 4
+          END,
+          ${schema.announcements.createdAt} DESC
+        `);
+      
+      console.log('✅ Student announcements fetched:', studentAnnouncements.length);
+      res.json(studentAnnouncements);
+    } catch (error) {
+      console.error('❌ Error fetching student announcements:', error);
+      res.status(500).json({ message: 'Failed to fetch announcements' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -27,6 +27,8 @@ export const completionTypeEnum = pgEnum("completion_type", ["self", "helped_by_
 export const expenseTypeEnum = pgEnum("expense_type", ["rent", "electric_bill", "internet_bill", "so_salary", "others"]);
 export const expenseStatusEnum = pgEnum("expense_status", ["pending", "approved", "rejected", "paid"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["bill", "voucher", "upi", "cash", "online"]);
+export const announcementTargetAudienceEnum = pgEnum("announcement_target_audience", ["students", "teachers", "so_centers", "admin", "all"]);
+export const announcementPriorityEnum = pgEnum("announcement_priority", ["low", "normal", "high", "urgent"]);
 
 // Address hierarchy tables
 export const states = pgTable("states", {
@@ -815,3 +817,31 @@ export const insertSoCenterMonthlyExpensesSchema = createInsertSchema(soCenterMo
 
 export type InsertSoCenterMonthlyExpenses = z.infer<typeof insertSoCenterMonthlyExpensesSchema>;
 export type SoCenterMonthlyExpenses = typeof soCenterMonthlyExpenses.$inferSelect;
+
+// Announcements table
+export const announcements = pgTable("announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  content: text("content"), // Rich text content
+  targetAudience: announcementTargetAudienceEnum("target_audience").notNull(),
+  priority: announcementPriorityEnum("priority").default("normal"),
+  imageUrl: text("image_url"), // Optional banner/image
+  fromDate: date("from_date").notNull(), // When to start showing
+  toDate: date("to_date").notNull(), // When to stop showing
+  isActive: boolean("is_active").default(true),
+  showOnQrCode: boolean("show_on_qr_code").default(false), // Show when students scan QR
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Announcement schemas
+export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Announcement = typeof announcements.$inferSelect;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;

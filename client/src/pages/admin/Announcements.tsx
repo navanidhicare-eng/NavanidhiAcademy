@@ -1,67 +1,71 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
+import { useToast } from '@/hooks/use-toast';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage, 
+  FormDescription 
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+import { Button } from '@/components/ui/button';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Megaphone, Users, Eye, Link as LinkIcon, Calendar, Send } from 'lucide-react';
+import { Plus, Edit, Trash2, Megaphone, Users, Eye, LinkIcon, Calendar, Send, QrCode } from 'lucide-react';
 
 const announcementSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
-  link: z.string().url().optional().or(z.literal('')),
-  targetRoles: z.array(z.string()).min(1, 'At least one role must be selected'),
-  priority: z.string().min(1, 'Priority is required'),
-  displayDuration: z.string().min(1, 'Display duration is required'),
+  content: z.string().optional(),
+  targetAudience: z.enum(['students', 'teachers', 'so_centers', 'admin', 'all'], {
+    required_error: 'Target audience is required'
+  }),
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+  fromDate: z.string().min(1, 'From date is required'),
+  toDate: z.string().min(1, 'To date is required'),
   isActive: z.boolean().default(true),
-  scheduledFor: z.string().optional(),
+  showOnQrCode: z.boolean().default(false),
 });
 
 type AnnouncementFormData = z.infer<typeof announcementSchema>;
 
-const availableRoles = [
+const targetAudienceOptions = [
+  { id: 'students', name: 'Students', description: 'Students and parents (via QR code)' },
+  { id: 'teachers', name: 'Teachers', description: 'All teaching staff' },
+  { id: 'so_centers', name: 'SO Centers', description: 'SO center managers and staff' },
   { id: 'admin', name: 'Administrators', description: 'System administrators' },
-  { id: 'so_center', name: 'SO Center Managers', description: 'Center managers and staff' },
-  { id: 'teacher', name: 'Teachers', description: 'All teaching staff' },
-  { id: 'academic_admin', name: 'Academic Admins', description: 'Academic administrators' },
-  { id: 'agent', name: 'Agents', description: 'Field agents and representatives' },
+  { id: 'all', name: 'Everyone', description: 'All users in the system' },
+];
+
+const priorityOptions = [
+  { value: 'low', label: 'Low', color: 'bg-green-100 text-green-800' },
+  { value: 'normal', label: 'Normal', color: 'bg-blue-100 text-blue-800' },
+  { value: 'high', label: 'High', color: 'bg-orange-100 text-orange-800' },
+  { value: 'urgent', label: 'Urgent', color: 'bg-red-100 text-red-800' },
 ];
 
 interface AddAnnouncementModalProps {
@@ -77,29 +81,42 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
   const form = useForm<AnnouncementFormData>({
     resolver: zodResolver(announcementSchema),
     defaultValues: {
-      title: editingAnnouncement?.title || '',
-      description: editingAnnouncement?.description || '',
-      link: editingAnnouncement?.link || '',
-      targetRoles: editingAnnouncement?.targetRoles || [],
-      priority: editingAnnouncement?.priority || 'medium',
-      displayDuration: editingAnnouncement?.displayDuration?.toString() || '10',
-      isActive: editingAnnouncement?.isActive ?? true,
-      scheduledFor: editingAnnouncement?.scheduledFor || '',
+      title: '',
+      description: '',
+      content: '',
+      targetAudience: 'students',
+      priority: 'normal',
+      imageUrl: '',
+      fromDate: new Date().toISOString().split('T')[0],
+      toDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      isActive: true,
+      showOnQrCode: false,
     },
   });
 
-  const selectedRoles = form.watch('targetRoles');
+  // Reset form when editing announcement changes
+  useEffect(() => {
+    if (editingAnnouncement) {
+      form.reset({
+        title: editingAnnouncement.title || '',
+        description: editingAnnouncement.description || '',
+        content: editingAnnouncement.content || '',
+        targetAudience: editingAnnouncement.targetAudience || 'students',
+        priority: editingAnnouncement.priority || 'normal',
+        imageUrl: editingAnnouncement.imageUrl || '',
+        fromDate: editingAnnouncement.fromDate || new Date().toISOString().split('T')[0],
+        toDate: editingAnnouncement.toDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        isActive: editingAnnouncement.isActive ?? true,
+        showOnQrCode: editingAnnouncement.showOnQrCode ?? false,
+      });
+    }
+  }, [editingAnnouncement, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: AnnouncementFormData) => {
-      const submitData = {
-        ...data,
-        displayDuration: parseInt(data.displayDuration),
-        scheduledFor: data.scheduledFor || null,
-      };
       const endpoint = editingAnnouncement ? `/api/admin/announcements/${editingAnnouncement.id}` : '/api/admin/announcements';
       const method = editingAnnouncement ? 'PUT' : 'POST';
-      return apiRequest(method, endpoint, submitData);
+      return apiRequest(method, endpoint, data);
     },
     onSuccess: () => {
       toast({
@@ -121,14 +138,6 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
 
   const onSubmit = (data: AnnouncementFormData) => {
     mutation.mutate(data);
-  };
-
-  const toggleRole = (roleId: string) => {
-    const current = selectedRoles || [];
-    const updated = current.includes(roleId)
-      ? current.filter(id => id !== roleId)
-      : [...current, roleId];
-    form.setValue('targetRoles', updated);
   };
 
   return (
@@ -175,14 +184,15 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
 
             <FormField
               control={form.control}
-              name="link"
+              name="content"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Link (Optional)</FormLabel>
+                  <FormLabel>Additional Content (Optional)</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="url"
-                      placeholder="https://example.com/more-details"
+                    <Textarea 
+                      placeholder="Additional details, instructions, or rich text content..."
+                      className="resize-none"
+                      rows={3}
                       {...field} 
                     />
                   </FormControl>
@@ -191,34 +201,53 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
               )}
             />
 
-            <div>
-              <FormLabel className="text-base font-medium">Target Roles</FormLabel>
-              <p className="text-sm text-gray-600 mb-3">Select which user roles should see this announcement</p>
-              <div className="space-y-3">
-                {availableRoles.map((role) => (
-                  <div key={role.id} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={role.id}
-                      checked={selectedRoles?.includes(role.id)}
-                      onCheckedChange={() => toggleRole(role.id)}
+            <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Banner Image URL (Optional)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="url"
+                      placeholder="https://example.com/banner-image.jpg"
+                      {...field} 
                     />
-                    <div className="flex-1">
-                      <label htmlFor={role.id} className="font-medium text-sm cursor-pointer">
-                        {role.name}
-                      </label>
-                      <p className="text-xs text-gray-600">{role.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {form.formState.errors.targetRoles && (
-                <p className="text-sm text-red-600 mt-2">
-                  {form.formState.errors.targetRoles.message}
-                </p>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
+            />
 
-            <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="targetAudience"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Target Audience</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select target audience" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {targetAudienceOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            <div>
+                              <div className="font-medium">{option.name}</div>
+                              <div className="text-sm text-gray-600">{option.description}</div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="priority"
@@ -231,10 +260,13 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
                           <SelectValue placeholder="Select priority" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
+                          {priorityOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <span className={`px-2 py-1 rounded text-xs ${option.color}`}>
+                                {option.label}
+                              </span>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -245,16 +277,30 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
 
               <FormField
                 control={form.control}
-                name="displayDuration"
+                name="fromDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Display Duration (seconds)</FormLabel>
+                    <FormLabel>From Date</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        placeholder="10"
-                        min="5"
-                        max="30"
+                        type="date" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="toDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>To Date</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
                         {...field} 
                       />
                     </FormControl>
@@ -264,24 +310,59 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="scheduledFor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Schedule For (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Active Announcement</FormLabel>
+                      <FormDescription>
+                        This announcement will be visible to target users when active
+                      </FormDescription>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="showOnQrCode"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="flex items-center gap-2">
+                        <QrCode className="h-4 w-4" />
+                        Show on QR Code Scan
+                      </FormLabel>
+                      <FormDescription>
+                        Display this announcement when students scan QR codes
+                      </FormDescription>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="bg-blue-50 p-4 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>Note:</strong> The announcement will appear as an overlay popup for the selected duration 
-                after users log in. It will also remain in their notification panel for reference.
+                <strong>Note:</strong> Announcements will be displayed based on the selected dates and target audience. 
+                QR code announcements are shown when students scan their progress QR codes.
               </p>
             </div>
 
@@ -313,78 +394,9 @@ export default function Announcements() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Mock data - replace with actual API calls
+  // Fetch real announcements from Supabase database
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ['/api/admin/announcements'],
-    queryFn: async () => {
-      return [
-        {
-          id: '1',
-          title: 'System Maintenance Notice',
-          description: 'The system will be under maintenance on January 15th from 2 AM to 4 AM. During this time, the platform will be temporarily unavailable.',
-          link: 'https://navanidhi.com/maintenance-info',
-          targetRoles: ['admin', 'so_center', 'teacher'],
-          priority: 'high',
-          displayDuration: 10,
-          isActive: true,
-          scheduledFor: '2025-01-15T02:00:00',
-          createdAt: '2025-01-08T10:00:00',
-          createdBy: 'Super Admin',
-          viewCount: 45,
-          status: 'scheduled'
-        },
-        {
-          id: '2',
-          title: 'Holiday Announcement',
-          description: 'All centers will remain closed on January 26th (Republic Day). Regular classes will resume on January 27th.',
-          link: null,
-          targetRoles: ['so_center', 'teacher', 'agent'],
-          priority: 'medium',
-          displayDuration: 8,
-          isActive: true,
-          scheduledFor: null,
-          createdAt: '2025-01-05T14:30:00',
-          createdBy: 'Admin',
-          viewCount: 78,
-          status: 'active'
-        },
-        {
-          id: '3',
-          title: 'New Feature: QR Code Tracking',
-          description: 'We have launched a new QR code tracking system for students. Parents can now scan QR codes to view their child\'s progress.',
-          link: 'https://navanidhi.com/qr-tracking-guide',
-          targetRoles: ['so_center', 'teacher'],
-          priority: 'low',
-          displayDuration: 12,
-          isActive: false,
-          scheduledFor: null,
-          createdAt: '2025-01-01T09:00:00',
-          createdBy: 'System Admin',
-          viewCount: 125,
-          status: 'completed'
-        }
-      ];
-    },
-  });
-
-  const publishAnnouncementMutation = useMutation({
-    mutationFn: async (announcementId: string) => {
-      return apiRequest('POST', `/api/admin/announcements/${announcementId}/publish`);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Announcement Published',
-        description: 'The announcement is now live and visible to target users.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/announcements'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to publish announcement.',
-        variant: 'destructive',
-      });
-    },
   });
 
   const deleteAnnouncementMutation = useMutation({
@@ -418,41 +430,22 @@ export default function Announcements() {
     }
   };
 
-  const handlePublish = (announcementId: string) => {
-    publishAnnouncementMutation.mutate(announcementId);
-  };
-
   const handleCloseModal = () => {
     setIsAddModalOpen(false);
     setEditingAnnouncement(null);
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'destructive';
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
-      default: return 'secondary';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'default';
-      case 'scheduled': return 'secondary';
-      case 'completed': return 'outline';
-      default: return 'secondary';
-    }
+    const option = priorityOptions.find(p => p.value === priority);
+    return option ? option.color : 'bg-gray-100 text-gray-800';
   };
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading announcements...</div>;
   }
 
-  const activeAnnouncements = announcements.filter(a => a.isActive).length;
-  const totalViews = announcements.reduce((sum, a) => sum + a.viewCount, 0);
-  const scheduledAnnouncements = announcements.filter(a => a.status === 'scheduled').length;
+  const activeAnnouncements = announcements.filter((a: any) => a.isActive).length;
+  const qrCodeAnnouncements = announcements.filter((a: any) => a.showOnQrCode).length;
 
   return (
     <DashboardLayout 
@@ -462,166 +455,163 @@ export default function Announcements() {
       onAddClick={() => setIsAddModalOpen(true)}
     >
       <div className="space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Announcements</CardTitle>
+              <Megaphone className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{announcements.length}</div>
+              <p className="text-xs text-muted-foreground">{activeAnnouncements} active</p>
+            </CardContent>
+          </Card>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Announcements</CardTitle>
-            <Megaphone className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{announcements.length}</div>
-            <p className="text-xs text-muted-foreground">{activeAnnouncements} active</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active</CardTitle>
+              <Eye className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeAnnouncements}</div>
+              <p className="text-xs text-muted-foreground">Currently visible</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-            <Eye className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalViews}</div>
-            <p className="text-xs text-muted-foreground">Across all announcements</p>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">QR Code Enabled</CardTitle>
+              <QrCode className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{qrCodeAnnouncements}</div>
+              <p className="text-xs text-muted-foreground">Shown on QR scans</p>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Scheduled</CardTitle>
-            <Calendar className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{scheduledAnnouncements}</div>
-            <p className="text-xs text-muted-foreground">Future announcements</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Views</CardTitle>
-            <Users className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {announcements.length > 0 ? Math.round(totalViews / announcements.length) : 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Per announcement</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Announcements Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">All Announcements</h2>
-          <p className="text-sm text-gray-600">Manage system-wide notifications and alerts</p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Target Audiences</CardTitle>
+              <Users className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{targetAudienceOptions.length}</div>
+              <p className="text-xs text-muted-foreground">Available audiences</p>
+            </CardContent>
+          </Card>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Title</TableHead>
-              <TableHead>Target Roles</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Views</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {announcements.map((announcement: any) => (
-              <TableRow key={announcement.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{announcement.title}</div>
-                    <div className="text-sm text-gray-600 max-w-xs truncate">
-                      {announcement.description}
-                    </div>
-                    {announcement.link && (
-                      <div className="flex items-center text-xs text-blue-600 mt-1">
-                        <LinkIcon className="w-3 h-3 mr-1" />
-                        <span>Has link</span>
+        {/* Announcements Table */}
+        <div className="bg-white rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">All Announcements</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Title & Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Audience & Priority
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dates
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {announcements.length > 0 ? announcements.map((announcement: any) => (
+                  <tr key={announcement.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{announcement.title}</div>
+                        <div className="text-sm text-gray-500">{announcement.description}</div>
                       </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {announcement.targetRoles.map((roleId: string) => (
-                      <Badge key={roleId} variant="outline" className="text-xs">
-                        {availableRoles.find(r => r.id === roleId)?.name.split(' ')[0] || roleId}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getPriorityColor(announcement.priority)}>
-                    {announcement.priority.toUpperCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getStatusColor(announcement.status)}>
-                    {announcement.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-1">
-                    <Eye className="w-4 h-4 text-gray-400" />
-                    <span>{announcement.viewCount}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    <div>{new Date(announcement.createdAt).toLocaleDateString()}</div>
-                    <div className="text-gray-600">{announcement.createdBy}</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    {announcement.status === 'scheduled' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePublish(announcement.id)}
-                      >
-                        <Send className="w-4 h-4 mr-1" />
-                        Publish
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEdit(announcement)}
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDelete(announcement.id)}
-                      className="text-red-600 hover:text-red-700 hover:border-red-300"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        <Badge variant="outline">
+                          {targetAudienceOptions.find(opt => opt.id === announcement.targetAudience)?.name || announcement.targetAudience}
+                        </Badge>
+                        <div>
+                          <span className={`px-2 py-1 rounded text-xs ${getPriorityColor(announcement.priority)}`}>
+                            {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div>
+                        <div>From: {announcement.fromDate}</div>
+                        <div>To: {announcement.toDate}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col space-y-1">
+                        <Badge variant={announcement.isActive ? "default" : "secondary"}>
+                          {announcement.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        {announcement.showOnQrCode && (
+                          <Badge variant="outline" className="text-purple-600">
+                            <QrCode className="h-3 w-3 mr-1" />
+                            QR Enabled
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={() => handleEdit(announcement)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDelete(announcement.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <div className="flex flex-col items-center space-y-2">
+                        <Megaphone className="h-8 w-8 text-gray-300" />
+                        <p>No announcements found</p>
+                        <Button onClick={() => setIsAddModalOpen(true)} variant="outline" size="sm">
+                          Create First Announcement
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-        <AddAnnouncementModal 
-          isOpen={isAddModalOpen}
-          onClose={handleCloseModal}
-          editingAnnouncement={editingAnnouncement}
-        />
-      </div>
+      <AddAnnouncementModal
+        isOpen={isAddModalOpen}
+        onClose={handleCloseModal}
+        editingAnnouncement={editingAnnouncement}
+      />
     </DashboardLayout>
   );
 }

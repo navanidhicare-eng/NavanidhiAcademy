@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
   onAddClick?: () => void;
 }
 
-export function DashboardLayout({ 
+function DashboardLayout({ 
   children, 
   title, 
   subtitle, 
@@ -38,3 +38,5 @@ export function DashboardLayout({
     </div>
   );
 }
+
+export default DashboardLayout;

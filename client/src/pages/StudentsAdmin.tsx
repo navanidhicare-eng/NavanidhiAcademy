@@ -1,5 +1,5 @@
 import { AdminStudentsList } from '@/components/students/AdminStudentsList';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 
 export default function StudentsAdmin() {
   return (

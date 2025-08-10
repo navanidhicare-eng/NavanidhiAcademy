@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StudentTable } from '@/components/students/StudentTable';
 import { AddStudentModal } from '@/components/students/AddStudentModal';
 import { useAuth } from '@/hooks/useAuth';
