@@ -1951,6 +1951,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Product purchase endpoint
+  app.post('/api/products/purchase', authenticateToken, async (req, res) => {
+    try {
+      const { productId, studentName, class: studentClass, education, address, mobileNumber } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      // Get product details
+      const product = await sql`
+        SELECT * FROM products WHERE id = ${productId} AND is_active = true
+      `;
+
+      if (product.length === 0) {
+        return res.status(404).json({ message: 'Product not found or inactive' });
+      }
+
+      const productData = product[0];
+      const coursePrice = parseFloat(productData.price);
+      const commissionPercentage = parseFloat(productData.commission_percentage);
+      const commissionAmount = (coursePrice * commissionPercentage) / 100;
+
+      // Create or get user wallet
+      let wallet = await sql`
+        SELECT * FROM wallets WHERE user_id = ${userId}
+      `;
+
+      if (wallet.length === 0) {
+        await sql`
+          INSERT INTO wallets (user_id, course_wallet_balance, commission_wallet_balance, total_earnings)
+          VALUES (${userId}, 0.00, 0.00, 0.00)
+        `;
+        wallet = await sql`
+          SELECT * FROM wallets WHERE user_id = ${userId}
+        `;
+      }
+
+      const currentWallet = wallet[0];
+
+      // Record the purchase
+      await sql`
+        INSERT INTO product_purchases (
+          product_id, agent_id, student_name, student_class, student_education,
+          student_address, student_mobile, course_price, commission_percentage, commission_amount
+        ) VALUES (
+          ${productId}, ${userId}, ${studentName}, ${studentClass}, ${education},
+          ${address}, ${mobileNumber}, ${coursePrice}, ${commissionPercentage}, ${commissionAmount}
+        )
+      `;
+
+      // Update wallet balances
+      const newCourseBalance = parseFloat(currentWallet.course_wallet_balance) + coursePrice;
+      const newCommissionBalance = parseFloat(currentWallet.commission_wallet_balance) + commissionAmount;
+      const newTotalEarnings = parseFloat(currentWallet.total_earnings) + commissionAmount;
+
+      await sql`
+        UPDATE wallets SET 
+          course_wallet_balance = ${newCourseBalance},
+          commission_wallet_balance = ${newCommissionBalance},
+          total_earnings = ${newTotalEarnings},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${userId}
+      `;
+
+      res.json({
+        message: 'Product purchased successfully',
+        purchase: {
+          productName: productData.name,
+          coursePrice,
+          commissionAmount,
+          studentName
+        },
+        wallet: {
+          courseBalance: newCourseBalance,
+          commissionBalance: newCommissionBalance,
+          totalEarnings: newTotalEarnings
+        }
+      });
+
+    } catch (error) {
+      console.error('Error processing product purchase:', error);
+      res.status(500).json({ message: 'Failed to process purchase' });
+    }
+  });
+
+  // Get wallet balance
+  app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      let wallet = await sql`
+        SELECT * FROM wallets WHERE user_id = ${userId}
+      `;
+
+      if (wallet.length === 0) {
+        // Create wallet if it doesn't exist
+        await sql`
+          INSERT INTO wallets (user_id, course_wallet_balance, commission_wallet_balance, total_earnings)
+          VALUES (${userId}, 0.00, 0.00, 0.00)
+        `;
+        wallet = await sql`
+          SELECT * FROM wallets WHERE user_id = ${userId}
+        `;
+      }
+
+      res.json(wallet[0]);
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error);
+      res.status(500).json({ message: 'Failed to fetch wallet balance' });
+    }
+  });
+
+  // Withdrawal request endpoint
+  app.post('/api/wallet/withdraw', authenticateToken, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ message: 'User not authenticated' });
+      }
+
+      if (amount < 1000) {
+        return res.status(400).json({ message: 'Minimum withdrawal amount is ₹1000' });
+      }
+
+      // Check commission wallet balance
+      const wallet = await sql`
+        SELECT * FROM wallets WHERE user_id = ${userId}
+      `;
+
+      if (wallet.length === 0) {
+        return res.status(404).json({ message: 'Wallet not found' });
+      }
+
+      const commissionBalance = parseFloat(wallet[0].commission_wallet_balance);
+
+      if (commissionBalance < amount) {
+        return res.status(400).json({ 
+          message: 'Insufficient commission balance',
+          availableBalance: commissionBalance
+        });
+      }
+
+      // Create withdrawal request
+      await sql`
+        INSERT INTO withdrawal_requests (user_id, amount)
+        VALUES (${userId}, ${amount})
+      `;
+
+      res.json({
+        message: 'Withdrawal request submitted successfully',
+        amount,
+        status: 'pending'
+      });
+
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ message: 'Failed to process withdrawal request' });
+    }
+  });
+
   // Get all students for admin with comprehensive data
   app.get("/api/admin/students", authenticateToken, async (req, res) => {
     try {

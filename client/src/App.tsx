@@ -41,6 +41,7 @@ import AdminStudents from "@/pages/admin/Students";
 import AcademicDashboard from "@/pages/admin/AcademicDashboard";
 import ExamManagement from "@/pages/admin/ExamManagement";
 import SoCenterExamManagement from "@/pages/so-center/ExamManagement";
+import Products from "@/pages/Products";
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -121,6 +122,11 @@ function Router() {
       <Route path="/expenses">
         <ProtectedRoute>
           <Expenses />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/products">
+        <ProtectedRoute>
+          <Products />
         </ProtectedRoute>
       </Route>
       <Route path="/so-center/exam-management">

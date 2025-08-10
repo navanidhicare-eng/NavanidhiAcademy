@@ -82,6 +82,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: TrendingUp, label: 'Progress Tracking', href: '/admin/progress-tracking' },
           { icon: Calendar, label: 'Attendance', href: '/attendance' },
           { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
+          { icon: Package, label: 'Products', href: '/products' },
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
           { icon: DollarSign, label: 'Expenses', href: '/expenses' },
           { icon: GraduationCap, label: 'Exam Management', href: '/so-center/exam-management' },
@@ -104,6 +105,14 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
         ];
       
+      case 'agent':
+        return [
+          ...baseItems,
+          { icon: Package, label: 'Products', href: '/products' },
+          { icon: Wallet, label: 'Wallet', href: '/wallet' },
+          { icon: DollarSign, label: 'Expenses', href: '/expenses' },
+        ];
+
       default:
         return baseItems;
     }
