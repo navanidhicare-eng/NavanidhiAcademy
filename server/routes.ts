@@ -2231,8 +2231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create withdrawal request
       await sql`
-        INSERT INTO withdrawal_requests (user_id, amount, status)
-        VALUES (${userId}, ${amount}, 'pending')
+        INSERT INTO withdrawal_requests (user_id, amount, status, withdrawal_id, request_date)
+        VALUES (${userId}, ${amount}, 'pending', ${withdrawalId}, CURRENT_TIMESTAMP)
       `;
 
       // Create transaction record
@@ -2286,7 +2286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           u.role as user_role
         FROM withdrawal_requests wr
         JOIN users u ON wr.user_id = u.id
-        ORDER BY wr.requested_at DESC
+        ORDER BY wr.request_date DESC
       `;
 
       res.json(withdrawalRequests);
