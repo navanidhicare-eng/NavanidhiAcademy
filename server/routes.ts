@@ -1684,6 +1684,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all students for admin with comprehensive data
+  app.get("/api/admin/students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('📋 Admin fetching all students with comprehensive data...');
+      
+      const students = await storage.getAllStudentsWithDetails();
+      
+      console.log('✅ Retrieved', students.length, 'students for admin');
+      res.json(students);
+    } catch (error) {
+      console.error('❌ Error fetching students for admin:', error);
+      res.status(500).json({ message: 'Failed to fetch students' });
+    }
+  });
+
   // Get all users for admin
   app.get("/api/admin/users", authenticateToken, async (req, res) => {
     try {

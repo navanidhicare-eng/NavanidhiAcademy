@@ -37,6 +37,7 @@ import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminApprovals from "@/pages/admin/Approvals";
 import AdminProgressTracking from "@/pages/admin/ProgressTracking";
 import AdminProducts from "@/pages/admin/Products";
+import AdminStudents from "@/pages/admin/Students";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -142,7 +143,7 @@ function Router() {
       </Route>
       <Route path="/admin/students">
         <ProtectedRoute>
-          <AdminAllStudents />
+          <AdminStudents />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/payments">

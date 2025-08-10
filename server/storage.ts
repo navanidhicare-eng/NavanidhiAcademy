@@ -779,6 +779,90 @@ export class DrizzleStorage implements IStorage {
     return results;
   }
 
+  async getAllStudentsWithDetails(): Promise<any[]> {
+    try {
+      console.log('🔍 Storage: Fetching all students with comprehensive details...');
+      
+      // Main students query with joins for comprehensive data
+      const students = await db
+        .select({
+          // Student basic info
+          id: schema.students.id,
+          studentId: schema.students.studentId,
+          name: schema.students.name,
+          dateOfBirth: schema.students.dateOfBirth,
+          gender: schema.students.gender,
+          aadharNumber: schema.students.aadharNumber,
+          enrollmentDate: schema.students.enrollmentDate,
+          courseType: schema.students.courseType,
+          address: schema.students.address,
+          isActive: schema.students.isActive,
+          createdAt: schema.students.createdAt,
+          
+          // Parent information
+          fatherName: schema.students.fatherName,
+          fatherMobile: schema.students.fatherMobile,
+          fatherOccupation: schema.students.fatherOccupation,
+          motherName: schema.students.motherName,
+          motherMobile: schema.students.motherMobile,
+          motherOccupation: schema.students.motherOccupation,
+          
+          // Fee information
+          totalFeeAmount: schema.students.totalFeeAmount,
+          paidAmount: schema.students.paidAmount,
+          pendingAmount: schema.students.pendingAmount,
+          
+          // Foreign keys
+          classId: schema.students.classId,
+          soCenterId: schema.students.soCenterId,
+          villageId: schema.students.villageId,
+          
+          // Joined data
+          className: schema.classes.name,
+          soCenterName: schema.soCenters.name,
+          soCenterCenterId: schema.soCenters.centerId,
+          villageName: schema.villages.name,
+          mandalName: schema.mandals.name,
+          districtName: schema.districts.name,
+          stateName: schema.states.name,
+        })
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.villages, eq(schema.students.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(eq(schema.students.isActive, true))
+        .orderBy(desc(schema.students.createdAt));
+
+      // Get siblings for each student
+      const studentIds = students.map(s => s.id);
+      const siblings = studentIds.length > 0 ? await db
+        .select()
+        .from(schema.siblings)
+        .where(inArray(schema.siblings.studentId, studentIds)) : [];
+
+      // Combine student data with siblings
+      const studentsWithDetails = students.map(student => {
+        const studentSiblings = siblings.filter(s => s.studentId === student.id);
+        
+        return {
+          ...student,
+          paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
+          progress: 0, // Initial progress
+          siblings: studentSiblings,
+        };
+      });
+
+      console.log('✅ Storage: Retrieved', studentsWithDetails.length, 'students with comprehensive details');
+      return studentsWithDetails;
+    } catch (error) {
+      console.error('❌ Storage: Failed to fetch students with details:', error);
+      throw error;
+    }
+  }
+
   async updateStudent(id: string, updates: Partial<InsertStudent>): Promise<Student> {
     const result = await db.update(schema.students)
       .set(updates)
