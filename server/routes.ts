@@ -1537,6 +1537,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/users/unassigned-managers", authenticateToken, async (req, res) => {
+    try {
+      const unassignedManagers = await storage.getUnassignedManagers();
+      res.json(unassignedManagers);
+    } catch (error) {
+      console.error('Error fetching unassigned managers:', error);
+      res.status(500).json({ message: 'Failed to fetch unassigned managers' });
+    }
+  });
+
   // SUPABASE AUTH ENFORCED - SO Center creation
   app.post("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {

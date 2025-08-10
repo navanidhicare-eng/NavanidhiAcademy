@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, and, desc, asc, sql as sqlQuery, inArray, gte, lte, like } from "drizzle-orm";
+import { eq, and, desc, asc, sql as sqlQuery, sql, inArray, gte, lte, like, notInArray, isNotNull } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -274,6 +274,7 @@ export interface IStorage {
   getNextSoCenterId(): Promise<string>;
   getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined>;
   getAvailableManagers(): Promise<User[]>;
+  getUnassignedManagers(): Promise<User[]>;
   updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter>;
   deleteSoCenter(id: string): Promise<void>;
 
@@ -964,6 +965,26 @@ export class DrizzleStorage implements IStorage {
       and(
         eq(schema.users.isActive, true),
         eq(schema.users.role, 'so_center')
+      )
+    ).orderBy(asc(schema.users.name));
+  }
+
+  async getUnassignedManagers(): Promise<User[]> {
+    // Get users with 'so_center' role who are not assigned to any SO center
+    const assignedManagerIds = await db.select({ userId: schema.soCenters.userId })
+      .from(schema.soCenters)
+      .where(and(
+        eq(schema.soCenters.isActive, true),
+        isNotNull(schema.soCenters.userId)
+      ));
+
+    const assignedIds = assignedManagerIds.map(row => row.userId).filter(id => id !== null);
+
+    return await db.select().from(schema.users).where(
+      and(
+        eq(schema.users.isActive, true),
+        eq(schema.users.role, 'so_center'),
+        assignedIds.length > 0 ? notInArray(schema.users.id, assignedIds) : sql`true`
       )
     ).orderBy(asc(schema.users.name));
   }

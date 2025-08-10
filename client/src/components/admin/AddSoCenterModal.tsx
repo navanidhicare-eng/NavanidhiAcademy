@@ -77,9 +77,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
 
 
-  // Fetch available managers from database
+  // Fetch unassigned managers only
   const { data: availableManagers = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/users/managers'],
+    queryKey: ['/api/admin/users/unassigned-managers'],
     enabled: isOpen,
   });
 
@@ -122,7 +122,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     resolver: zodResolver(addSoCenterSchema),
     defaultValues: {
       name: '',
-      email: nextCenterId ? `${nextCenterId.toLowerCase()}@navanidhi.org` : '',
+      email: nextCenterId ? `${(nextCenterId as string).toLowerCase()}@navanidhi.org` : '',
       address: '',
       villageId: '',
       phone: '',
@@ -149,7 +149,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   // Auto-fill email when center ID is generated
   useEffect(() => {
     if (nextCenterId) {
-      const autoEmail = `${nextCenterId.toLowerCase()}@navanidhi.org`;
+      const autoEmail = `${(nextCenterId as string).toLowerCase()}@navanidhi.org`;
       form.setValue('email', autoEmail);
     }
   }, [nextCenterId, form]);
@@ -159,12 +159,56 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     { id: 'wifi', label: 'Wi-Fi Internet' },
     { id: 'projector', label: 'Projector' },
     { id: 'whiteboard', label: 'Whiteboard' },
+    { id: 'smartboard', label: 'Smart Board' },
     { id: 'library', label: 'Library' },
     { id: 'parking', label: 'Parking' },
     { id: 'canteen', label: 'Canteen' },
     { id: 'playground', label: 'Playground' },
-    { id: 'laboratory', label: 'Laboratory' },
+    { id: 'laboratory', label: 'Science Laboratory' },
+    { id: 'computer_lab', label: 'Computer Laboratory' },
     { id: 'sports', label: 'Sports Facilities' },
+    { id: 'cctv', label: 'CCTV Security' },
+    { id: 'generator', label: 'Power Generator' },
+    { id: 'water_cooler', label: 'Water Cooler' },
+    { id: 'restrooms', label: 'Clean Restrooms' },
+    { id: 'first_aid', label: 'First Aid Kit' },
+    { id: 'fire_safety', label: 'Fire Safety Equipment' },
+    { id: 'study_hall', label: 'Study Hall' },
+    { id: 'conference_room', label: 'Conference Room' },
+    { id: 'reception', label: 'Reception Area' },
+    { id: 'storage', label: 'Storage Room' },
+    { id: 'kitchen', label: 'Kitchen Facility' },
+    { id: 'garden', label: 'Garden Area' },
+    { id: 'auditorium', label: 'Auditorium/Assembly Hall' },
+    { id: 'music_room', label: 'Music Room' },
+    { id: 'art_room', label: 'Art & Craft Room' },
+    { id: 'counseling_room', label: 'Counseling Room' },
+    { id: 'medical_room', label: 'Medical Room' },
+    { id: 'transportation', label: 'Transportation Service' },
+    { id: 'hostel', label: 'Hostel Facility' },
+    { id: 'solar_power', label: 'Solar Power System' },
+    { id: 'elevator', label: 'Elevator Access' },
+    { id: 'disability_access', label: 'Disability Access' },
+    { id: 'security_guard', label: '24/7 Security Guard' },
+    { id: 'intercom', label: 'Intercom System' },
+    { id: 'ups_backup', label: 'UPS Power Backup' },
+    { id: 'water_purifier', label: 'Water Purification System' },
+    { id: 'weather_protection', label: 'Weather Protection' },
+    { id: 'ventilation', label: 'Proper Ventilation' },
+    { id: 'lighting', label: 'Adequate Lighting' },
+    { id: 'furniture', label: 'Quality Furniture' },
+    { id: 'lockers', label: 'Student Lockers' },
+    { id: 'notice_board', label: 'Notice Board' },
+    { id: 'photocopier', label: 'Photocopier/Printer' },
+    { id: 'scanner', label: 'Scanner Facility' },
+    { id: 'sound_system', label: 'Sound System' },
+    { id: 'video_conferencing', label: 'Video Conferencing Setup' },
+    { id: 'cleaning_service', label: 'Regular Cleaning Service' },
+    { id: 'waste_management', label: 'Waste Management System' },
+    { id: 'green_environment', label: 'Eco-Friendly Environment' },
+    { id: 'study_materials', label: 'Study Materials Library' },
+    { id: 'stationery_shop', label: 'Stationery Shop' },
+    { id: 'uniform_shop', label: 'Uniform Shop' }
   ];
 
   // Handle address cascade changes
@@ -251,12 +295,12 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-medium text-blue-900">Center ID</h3>
-                  <p className="text-2xl font-bold text-blue-700">{nextCenterId || 'Generating...'}</p>
+                  <p className="text-2xl font-bold text-blue-700">{(nextCenterId as string) || 'Generating...'}</p>
                   <p className="text-sm text-blue-600">Default Password: 12345678</p>
                 </div>
                 <div className="text-sm text-blue-700">
                   <p>📧 Center can login with:</p>
-                  <p>• Center ID: <strong>{nextCenterId}</strong></p>
+                  <p>• Center ID: <strong>{(nextCenterId as string) || 'Generating...'}</strong></p>
                   <p>• Password: <strong>12345678</strong></p>
                 </div>
               </div>
@@ -291,7 +335,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                         <Input 
                           type="email" 
                           placeholder="Will be auto-filled based on Center ID"
-                          value={nextCenterId ? `${nextCenterId.toLowerCase()}@navanidhi.org` : ''}
+                          value={nextCenterId ? `${(nextCenterId as string).toLowerCase()}@navanidhi.org` : ''}
                           readOnly
                           className="bg-gray-50"
                         />
@@ -502,7 +546,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   <FormItem>
                     <FormLabel>House Owner Name & Conditions</FormLabel>
                     <FormControl>
-                      <Input placeholder="+91 98765 43210" {...field} />
+                      <Input placeholder="Owner name, special conditions, requirements" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -803,7 +847,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-800">
                 <strong>Important:</strong> 
-                • The center will be created with ID <strong>{nextCenterId}</strong> and default password <strong>12345678</strong><br/>
+                • The center will be created with ID <strong>{(nextCenterId as string) || 'Generating...'}</strong> and default password <strong>12345678</strong><br/>
                 • The center will be required to change password on first login<br/>
                 • Manager can be assigned now or later and can be reassigned if needed<br/>
                 • All selected facilities will be displayed to students and parents
