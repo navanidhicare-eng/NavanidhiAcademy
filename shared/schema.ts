@@ -332,16 +332,21 @@ export const commissionTransactions = pgTable("commission_transactions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Withdrawal Requests
+// Withdrawal Requests - Updated for agent support
 export const withdrawalRequests = pgTable("withdrawal_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
-  commissionWalletId: varchar("commission_wallet_id").references(() => commissionWallets.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(), // Support both agents and SO centers
+  soCenterId: varchar("so_center_id").references(() => soCenters.id), // Optional for SO centers
+  commissionWalletId: varchar("commission_wallet_id").references(() => commissionWallets.id), // Optional for legacy
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   status: text("status").default("pending"), // pending, approved, rejected
+  withdrawalId: text("withdrawal_id").unique(), // WDR123456 format
   requestedAt: timestamp("requested_at").defaultNow(),
   processedAt: timestamp("processed_at"),
   processedBy: varchar("processed_by").references(() => users.id),
+  paymentMode: text("payment_mode"), // 'upi', 'voucher'
+  paymentDetails: text("payment_details"), // UPI transaction ID or voucher details
+  transactionId: text("transaction_id"), // Final payment transaction ID
   notes: text("notes"),
 });
 

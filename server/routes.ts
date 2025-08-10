@@ -2231,8 +2231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create withdrawal request
       await sql`
-        INSERT INTO withdrawal_requests (user_id, amount)
-        VALUES (${userId}, ${amount})
+        INSERT INTO withdrawal_requests (user_id, amount, withdrawal_id, status)
+        VALUES (${userId}, ${amount}, ${withdrawalId}, 'pending')
       `;
 
       // Create transaction record
@@ -2272,6 +2272,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching course purchase notifications:', error);
       res.status(500).json({ message: 'Failed to fetch course purchases' });
+    }
+  });
+
+  // Admin: Get all withdrawal requests for approval
+  app.get('/api/admin/withdrawal-requests', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const withdrawalRequests = await sql`
+        SELECT 
+          wr.*,
+          u.email as user_email,
+          u.first_name,
+          u.last_name,
+          u.role as user_role
+        FROM withdrawal_requests wr
+        JOIN users u ON wr.user_id = u.id
+        ORDER BY wr.requested_at DESC
+      `;
+
+      res.json(withdrawalRequests);
+    } catch (error) {
+      console.error('Error fetching withdrawal requests:', error);
+      res.status(500).json({ message: 'Failed to fetch withdrawal requests' });
+    }
+  });
+
+  // Admin: Approve withdrawal request with payment details
+  app.post('/api/admin/withdrawal-requests/:id/approve', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentMode, paymentDetails, notes } = req.body;
+
+      if (!['upi', 'voucher'].includes(paymentMode)) {
+        return res.status(400).json({ message: 'Invalid payment mode. Must be upi or voucher.' });
+      }
+
+      if (!paymentDetails) {
+        return res.status(400).json({ message: 'Payment details are required.' });
+      }
+
+      // Generate final transaction ID
+      const transactionId = `PAY${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+
+      // Get withdrawal request details
+      const withdrawalRequest = await sql`
+        SELECT * FROM withdrawal_requests WHERE id = ${id} AND status = 'pending'
+      `;
+
+      if (withdrawalRequest.length === 0) {
+        return res.status(404).json({ message: 'Withdrawal request not found or already processed.' });
+      }
+
+      const request = withdrawalRequest[0];
+      const userId = request.user_id;
+      const amount = parseFloat(request.amount);
+
+      // Update withdrawal request status
+      await sql`
+        UPDATE withdrawal_requests 
+        SET 
+          status = 'approved',
+          processed_at = CURRENT_TIMESTAMP,
+          processed_by = ${req.user?.userId},
+          payment_mode = ${paymentMode},
+          payment_details = ${paymentDetails},
+          transaction_id = ${transactionId},
+          notes = ${notes || ''}
+        WHERE id = ${id}
+      `;
+
+      // Update commission wallet balance - deduct the approved amount
+      await sql`
+        UPDATE wallets 
+        SET commission_wallet_balance = commission_wallet_balance - ${amount}
+        WHERE user_id = ${userId}
+      `;
+
+      // Create transaction record for the successful withdrawal
+      await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_id, type, amount, description, status
+        ) VALUES (
+          ${userId}, ${transactionId}, 'withdrawal_completed', ${amount}, 
+          ${`Withdrawal approved - ${paymentMode.toUpperCase()}: ${paymentDetails}`}, 'completed'
+        )
+      `;
+
+      res.json({
+        message: 'Withdrawal request approved successfully',
+        transactionId,
+        paymentMode,
+        amount,
+        invoice: {
+          transactionId,
+          withdrawalId: request.withdrawal_id,
+          amount,
+          paymentMode,
+          paymentDetails,
+          processedAt: new Date().toISOString(),
+          processedBy: req.user?.email
+        }
+      });
+
+    } catch (error) {
+      console.error('Error approving withdrawal request:', error);
+      res.status(500).json({ message: 'Failed to approve withdrawal request' });
+    }
+  });
+
+  // Admin: Reject withdrawal request
+  app.post('/api/admin/withdrawal-requests/:id/reject', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+
+      // Update withdrawal request status
+      await sql`
+        UPDATE withdrawal_requests 
+        SET 
+          status = 'rejected',
+          processed_at = CURRENT_TIMESTAMP,
+          processed_by = ${req.user?.userId},
+          notes = ${notes || ''}
+        WHERE id = ${id} AND status = 'pending'
+      `;
+
+      res.json({
+        message: 'Withdrawal request rejected successfully'
+      });
+
+    } catch (error) {
+      console.error('Error rejecting withdrawal request:', error);
+      res.status(500).json({ message: 'Failed to reject withdrawal request' });
     }
   });
 

@@ -30,6 +30,11 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { InvoiceGenerator } from '@/components/InvoiceGenerator';
 import { 
   CheckCircle, 
   XCircle, 
@@ -40,252 +45,326 @@ import {
   User,
   Calendar,
   AlertTriangle,
-  MessageSquare
+  MessageSquare,
+  Wallet,
+  CreditCard
 } from 'lucide-react';
 
-interface ApprovalDetailsModalProps {
+// Form schemas
+const paymentFormSchema = z.object({
+  paymentMode: z.enum(['upi', 'voucher'], {
+    required_error: 'Please select a payment mode',
+  }),
+  paymentDetails: z.string().min(1, 'Payment details are required'),
+  notes: z.string().optional(),
+});
+
+type PaymentFormData = z.infer<typeof paymentFormSchema>;
+
+interface WithdrawalApprovalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  approval: any;
+  withdrawal: any;
 }
 
-function ApprovalDetailsModal({ isOpen, onClose, approval }: ApprovalDetailsModalProps) {
-  const [comments, setComments] = useState('');
+function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalApprovalModalProps) {
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [invoiceData, setInvoiceData] = useState<any>(null);
+  const [showInvoice, setShowInvoice] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const approveMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: string, action: 'approve' | 'reject' }) => {
-      return apiRequest('POST', `/api/admin/approvals/${id}/${action}`, { comments });
+  const form = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues: {
+      paymentMode: undefined,
+      paymentDetails: '',
+      notes: '',
     },
-    onSuccess: (_, variables) => {
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (data: PaymentFormData) => {
+      return apiRequest('POST', `/api/admin/withdrawal-requests/${withdrawal.id}/approve`, data);
+    },
+    onSuccess: (response) => {
       toast({
-        title: `Request ${variables.action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `The request has been successfully ${variables.action === 'approve' ? 'approved' : 'rejected'}.`,
+        title: 'Withdrawal Approved',
+        description: `Payment issued successfully. Transaction ID: ${response.transactionId}`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/approvals'] });
+      
+      // Set invoice data for payment
+      setInvoiceData({
+        transactionId: response.transactionId,
+        withdrawalId: withdrawal.withdrawal_id,
+        amount: parseFloat(withdrawal.amount),
+        paymentMode: response.paymentMode,
+        paymentDetails: form.getValues('paymentDetails'),
+        userEmail: withdrawal.user_email,
+        userName: `${withdrawal.first_name || ''} ${withdrawal.last_name || ''}`.trim(),
+        processedAt: new Date().toISOString(),
+        type: 'withdrawal'
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawal-requests'] });
+      setShowPaymentForm(false);
+      onClose();
+      setShowInvoice(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Approval Failed',
+        description: error.message || 'Failed to approve withdrawal request.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      return apiRequest('POST', `/api/admin/withdrawal-requests/${withdrawal.id}/reject`, { notes });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Withdrawal Rejected',
+        description: 'The withdrawal request has been rejected.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/withdrawal-requests'] });
       onClose();
     },
     onError: (error: any) => {
       toast({
         title: 'Error',
-        description: error.message || 'Failed to process the request.',
+        description: error.message || 'Failed to reject withdrawal request.',
         variant: 'destructive',
       });
     },
   });
 
-  const handleAction = (action: 'approve' | 'reject') => {
-    if (action === 'reject' && !comments.trim()) {
-      toast({
-        title: 'Comments Required',
-        description: 'Please provide comments when rejecting a request.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    approveMutation.mutate({ id: approval?.id, action });
+  if (!withdrawal) return null;
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
-  if (!approval) return null;
+  const onSubmit = (data: PaymentFormData) => {
+    approveMutation.mutate(data);
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Request Details</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Request Type</label>
-              <p className="text-sm text-gray-900">{approval.requestType}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Requested By</label>
-              <p className="text-sm text-gray-900">{approval.requestedBy}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700">Amount</label>
-              <p className="text-sm text-gray-900 font-medium">
-                ₹{approval.amount?.toLocaleString() || 'N/A'}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700">Priority</label>
-              <Badge variant={approval.priority === 'high' ? 'destructive' : 'secondary'}>
-                {approval.priority}
-              </Badge>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700">Description</label>
-            <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">
-              {approval.description}
-            </p>
-          </div>
-
-          {approval.attachments && approval.attachments.length > 0 && (
-            <div>
-              <label className="text-sm font-medium text-gray-700">Attachments</label>
-              <div className="space-y-2">
-                {approval.attachments.map((attachment: any, index: number) => (
-                  <div key={index} className="flex items-center space-x-2 text-sm">
-                    <FileText className="w-4 h-4 text-gray-400" />
-                    <span>{attachment.name}</span>
-                    <Button size="sm" variant="outline">View</Button>
-                  </div>
-                ))}
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Withdrawal Request Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Request Overview */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Withdrawal ID</label>
+                <p className="text-sm font-mono font-medium">{withdrawal.withdrawal_id}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Status</label>
+                <Badge 
+                  variant={withdrawal.status === 'pending' ? 'secondary' : 
+                          withdrawal.status === 'approved' ? 'default' : 'destructive'}
+                >
+                  {withdrawal.status}
+                </Badge>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Requested By</label>
+                <p className="text-sm">{withdrawal.user_email}</p>
+                <p className="text-xs text-gray-500 capitalize">{withdrawal.user_role}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Amount</label>
+                <p className="text-sm font-medium text-green-600 flex items-center">
+                  <IndianRupee className="h-4 w-4" />
+                  {parseFloat(withdrawal.amount).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Date Requested</label>
+                <p className="text-sm">{new Date(withdrawal.requested_at).toLocaleDateString('en-IN')}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">User Name</label>
+                <p className="text-sm">{`${withdrawal.first_name || ''} ${withdrawal.last_name || ''}`.trim() || 'N/A'}</p>
               </div>
             </div>
-          )}
 
-          <div>
-            <label className="text-sm font-medium text-gray-700">Comments (Optional for Approval, Required for Rejection)</label>
-            <Textarea
-              placeholder="Add your comments here..."
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              className="mt-1"
-              rows={3}
-            />
-          </div>
+            {/* Payment Form */}
+            {showPaymentForm && withdrawal.status === 'pending' && (
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="paymentMode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          Payment Mode
+                        </FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment mode" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="upi">UPI Payment</SelectItem>
+                            <SelectItem value="voucher">Bank Voucher</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={() => handleAction('reject')}
-              disabled={approveMutation.isPending}
-            >
-              <XCircle className="w-4 h-4 mr-1" />
-              Reject
-            </Button>
-            <Button 
-              onClick={() => handleAction('approve')}
-              disabled={approveMutation.isPending}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Approve
-            </Button>
+                  <FormField
+                    control={form.control}
+                    name="paymentDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {form.watch('paymentMode') === 'upi' ? 'UPI Transaction ID' : 'Voucher Details'}
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder={
+                              form.watch('paymentMode') === 'upi' 
+                                ? 'Enter UPI transaction ID' 
+                                : 'Enter voucher number/details'
+                            } 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Additional Notes (Optional)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter any additional notes..."
+                            className="resize-none"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowPaymentForm(false)}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={approveMutation.isPending}
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                    >
+                      {approveMutation.isPending ? 'Processing...' : 'Confirm Payment'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            )}
+
+            {/* Action Buttons */}
+            {!showPaymentForm && withdrawal.status === 'pending' && (
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => rejectMutation.mutate('Request rejected by admin')}
+                  variant="outline"
+                  disabled={rejectMutation.isPending}
+                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Reject Request
+                </Button>
+                <Button
+                  onClick={() => setShowPaymentForm(true)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Issue Payment
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Generator */}
+      <InvoiceGenerator 
+        invoiceData={invoiceData}
+        isOpen={showInvoice}
+        onClose={() => setShowInvoice(false)}
+      />
+    </>
   );
 }
 
 export default function Approvals() {
-  const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('pending');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedApproval, setSelectedApproval] = useState<any>(null);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  // Mock data - replace with actual API calls
-  const { data: approvals = [], isLoading } = useQuery({
-    queryKey: ['/api/admin/approvals', selectedType, selectedStatus, searchTerm],
+  // Fetch real withdrawal requests from API
+  const { data: withdrawalRequests = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/withdrawal-requests'],
     queryFn: async () => {
-      return [
-        {
-          id: '1',
-          requestType: 'Expense Request',
-          title: 'Office Supplies Purchase',
-          description: 'Need to purchase whiteboard markers, erasers, and notebooks for the new batch of students.',
-          amount: 5500,
-          requestedBy: 'Priya Sharma',
-          requestedById: '2',
-          requestedDate: '2025-01-08T10:30:00',
-          center: 'Branch Center',
-          priority: 'medium',
-          status: 'pending',
-          attachments: [
-            { name: 'purchase_quotation.pdf', size: '245 KB' },
-            { name: 'supplier_details.jpg', size: '128 KB' }
-          ]
-        },
-        {
-          id: '2',
-          requestType: 'Leave Request',
-          title: 'Medical Leave Application',
-          description: 'Requesting 3 days leave for medical treatment. Have doctor appointment on 15th January.',
-          amount: null,
-          requestedBy: 'Rajesh Kumar',
-          requestedById: '1',
-          requestedDate: '2025-01-07T14:20:00',
-          center: 'Main Center',
-          priority: 'high',
-          status: 'pending',
-          attachments: [
-            { name: 'medical_certificate.pdf', size: '180 KB' }
-          ]
-        },
-        {
-          id: '3',
-          requestType: 'Budget Approval',
-          title: 'Marketing Campaign Budget',
-          description: 'Request approval for Q1 marketing campaign budget including digital ads, flyers, and promotional materials.',
-          amount: 25000,
-          requestedBy: 'Admin User',
-          requestedById: '3',
-          requestedDate: '2025-01-06T09:15:00',
-          center: 'All Centers',
-          priority: 'low',
-          status: 'approved',
-          approvedBy: 'Super Admin',
-          approvedDate: '2025-01-07T11:30:00',
-          attachments: []
-        },
-        {
-          id: '4',
-          requestType: 'Equipment Request',
-          title: 'New Projector for Classroom',
-          description: 'The current projector in classroom B is not working properly. Students are having difficulty seeing the presentations clearly.',
-          amount: 35000,
-          requestedBy: 'Amit Patel',
-          requestedById: '4',
-          requestedDate: '2025-01-05T16:45:00',
-          center: 'Main Center',
-          priority: 'high',
-          status: 'rejected',
-          rejectedBy: 'Admin',
-          rejectedDate: '2025-01-06T10:00:00',
-          rejectionReason: 'Budget constraints for this quarter. Please re-submit next quarter.',
-          attachments: [
-            { name: 'projector_specs.pdf', size: '320 KB' },
-            { name: 'classroom_photo.jpg', size: '450 KB' }
-          ]
-        }
-      ];
+      return apiRequest('GET', '/api/admin/withdrawal-requests');
     },
   });
 
-  // Filter approvals
-  const filteredApprovals = approvals.filter(approval => {
-    const matchesType = selectedType === 'all' || approval.requestType === selectedType;
-    const matchesStatus = selectedStatus === 'all' || approval.status === selectedStatus;
-    const matchesSearch = approval.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         approval.requestedBy.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter withdrawal requests based on status and search
+  const filteredRequests = withdrawalRequests.filter((request: any) => {
+    const matchesStatus = selectedStatus === 'all' || request.status === selectedStatus;
+    const matchesSearch = !searchTerm || 
+      request.user_email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.withdrawal_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (request.first_name && request.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (request.last_name && request.last_name.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    return matchesType && matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch;
   });
 
-  const handleViewDetails = (approval: any) => {
-    setSelectedApproval(approval);
+  const handleViewDetails = (withdrawal: any) => {
+    setSelectedWithdrawal(withdrawal);
     setIsDetailsModalOpen(true);
   };
 
   const handleCloseDetailsModal = () => {
     setIsDetailsModalOpen(false);
-    setSelectedApproval(null);
+    setSelectedWithdrawal(null);
   };
 
   const getStatusColor = (status: string) => {
@@ -293,15 +372,6 @@ export default function Approvals() {
       case 'pending': return 'secondary';
       case 'approved': return 'default';
       case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'destructive';
-      case 'medium': return 'default';
-      case 'low': return 'secondary';
       default: return 'secondary';
     }
   };
@@ -316,23 +386,23 @@ export default function Approvals() {
   };
 
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64">Loading approval requests...</div>;
+    return <div className="flex justify-center items-center h-64">Loading withdrawal requests...</div>;
   }
 
-  const pendingCount = approvals.filter(a => a.status === 'pending').length;
-  const approvedCount = approvals.filter(a => a.status === 'approved').length;
-  const rejectedCount = approvals.filter(a => a.status === 'rejected').length;
-  const totalAmount = approvals.filter(a => a.amount && a.status === 'approved').reduce((sum, a) => sum + (a.amount || 0), 0);
+  const pendingCount = filteredRequests.filter(w => w.status === 'pending').length;
+  const approvedCount = filteredRequests.filter(w => w.status === 'approved').length;
+  const rejectedCount = filteredRequests.filter(w => w.status === 'rejected').length;
+  const totalAmount = filteredRequests.filter(w => w.amount && w.status === 'approved').reduce((sum, w) => sum + (parseFloat(w.amount) || 0), 0);
 
   return (
-    <DashboardLayout title="Approvals" subtitle="Review and approve various requests">
+    <DashboardLayout title="Withdrawal Approvals" subtitle="Review and approve agent withdrawal requests">
       <div className="space-y-6">
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">Pending Withdrawals</CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
@@ -380,31 +450,14 @@ export default function Approvals() {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
             <Input
-              placeholder="Search requests..."
+              placeholder="Search by email, withdrawal ID, or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Request Type</label>
-            <Select value={selectedType} onValueChange={setSelectedType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="Expense Request">Expense Request</SelectItem>
-                <SelectItem value="Leave Request">Leave Request</SelectItem>
-                <SelectItem value="Budget Approval">Budget Approval</SelectItem>
-                <SelectItem value="Equipment Request">Equipment Request</SelectItem>
-                <SelectItem value="Salary Advance">Salary Advance</SelectItem>
-                <SelectItem value="Policy Change">Policy Change</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 mb-2 block">Status</label>
@@ -424,7 +477,6 @@ export default function Approvals() {
             <Button 
               variant="outline" 
               onClick={() => {
-                setSelectedType('all');
                 setSelectedStatus('pending');
                 setSearchTerm('');
               }}
@@ -436,106 +488,94 @@ export default function Approvals() {
         </div>
       </div>
 
-      {/* Approvals Table */}
+      {/* Withdrawal Requests Table */}
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Approval Requests</h2>
-          <p className="text-sm text-gray-600">Review and process approval requests</p>
+          <h2 className="text-lg font-semibold text-gray-900">Withdrawal Requests</h2>
+          <p className="text-sm text-gray-600">Review and process agent withdrawal requests</p>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Request</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Requested By</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Priority</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredApprovals.map((approval: any) => {
-              const StatusIcon = getStatusIcon(approval.status);
-              return (
-                <TableRow key={approval.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{approval.title}</div>
-                      <div className="text-sm text-gray-600 max-w-xs truncate">
-                        {approval.description}
-                      </div>
-                      {approval.attachments.length > 0 && (
-                        <div className="flex items-center text-xs text-blue-600 mt-1">
-                          <FileText className="w-3 h-3 mr-1" />
-                          <span>{approval.attachments.length} attachment(s)</span>
+        {filteredRequests.length === 0 ? (
+          <div className="text-center py-12">
+            <Wallet className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No withdrawal requests</h3>
+            <p className="text-gray-600">There are no withdrawal requests to display.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Withdrawal ID</TableHead>
+                <TableHead>Requested By</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Date Requested</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRequests.map((request: any) => {
+                const StatusIcon = getStatusIcon(request.status);
+                return (
+                  <TableRow key={request.id}>
+                    <TableCell>
+                      <div className="font-mono text-sm font-medium">{request.withdrawal_id}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{request.user_email}</div>
+                        <div className="text-sm text-gray-600 capitalize">
+                          {`${request.first_name || ''} ${request.last_name || ''}`.trim() || 'N/A'} 
+                          {request.user_role && ` • ${request.user_role}`}
                         </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{approval.requestType}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{approval.requestedBy}</div>
-                      <div className="text-sm text-gray-600">{approval.center}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {approval.amount ? (
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center space-x-1">
                         <IndianRupee className="w-4 h-4 text-green-600" />
                         <span className="font-medium">
-                          {approval.amount.toLocaleString()}
+                          {parseFloat(request.amount).toLocaleString('en-IN')}
                         </span>
                       </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getPriorityColor(approval.priority)}>
-                      {approval.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <div>{new Date(approval.requestedDate).toLocaleDateString()}</div>
-                      <div className="text-gray-600">{new Date(approval.requestedDate).toLocaleTimeString()}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <StatusIcon className="w-4 h-4" />
-                      <Badge variant={getStatusColor(approval.status)}>
-                        {approval.status}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleViewDetails(approval)}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        {approval.status === 'pending' ? 'Review' : 'View'}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        <div>{new Date(request.requested_at).toLocaleDateString('en-IN')}</div>
+                        <div className="text-gray-600">{new Date(request.requested_at).toLocaleTimeString('en-IN')}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <StatusIcon className="w-4 h-4" />
+                        <Badge variant={getStatusColor(request.status)}>
+                          {request.status}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(request)}
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          {request.status === 'pending' ? 'Review' : 'View'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
-        <ApprovalDetailsModal 
+        <WithdrawalApprovalModal
           isOpen={isDetailsModalOpen}
           onClose={handleCloseDetailsModal}
-          approval={selectedApproval}
+          withdrawal={selectedWithdrawal}
         />
       </div>
     </DashboardLayout>
