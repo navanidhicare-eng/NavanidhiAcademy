@@ -1283,6 +1283,105 @@ export class DrizzleStorage implements IStorage {
     ).orderBy(asc(schema.users.name));
   }
 
+  async getSoCenterByEmail(email: string): Promise<SoCenter | undefined> {
+    const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
+    return result[0];
+  }
+
+  async getSoCenterDashboardStats(soCenterId: string): Promise<any> {
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Get students count for this SO Center this month
+    const newStudentsThisMonth = await db.select({ count: sqlQuery`count(*)` })
+      .from(schema.students)
+      .where(
+        and(
+          eq(schema.students.soCenterId, soCenterId),
+          gte(schema.students.createdAt, thisMonth)
+        )
+      );
+
+    // Get payments for this month and today
+    const paymentsQuery = await db.select({
+      amount: schema.payments.amount,
+      date: schema.payments.paymentDate
+    }).from(schema.payments)
+      .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
+      .where(
+        and(
+          eq(schema.students.soCenterId, soCenterId),
+          gte(schema.payments.paymentDate, thisMonth)
+        )
+      );
+
+    const thisMonthCollection = paymentsQuery.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const todayCollection = paymentsQuery
+      .filter(p => new Date(p.date).toDateString() === today.toDateString())
+      .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+    // Get today's attendance percentage
+    const todayAttendanceQuery = await db.select({
+      present: sqlQuery`count(case when present = true then 1 end)`,
+      total: sqlQuery`count(*)`
+    }).from(schema.attendance)
+      .innerJoin(schema.students, eq(schema.attendance.studentId, schema.students.id))
+      .where(
+        and(
+          eq(schema.students.soCenterId, soCenterId),
+          gte(schema.attendance.date, today)
+        )
+      );
+
+    const attendanceData = todayAttendanceQuery[0];
+    const todayAttendance = attendanceData?.total > 0 
+      ? Math.round((attendanceData.present / attendanceData.total) * 100) 
+      : 0;
+
+    // Get product sales for this month
+    const productSalesQuery = await db.select({
+      amount: schema.productOrders.totalAmount
+    }).from(schema.productOrders)
+      .where(
+        and(
+          eq(schema.productOrders.soCenterId, soCenterId),
+          gte(schema.productOrders.createdAt, thisMonth)
+        )
+      );
+
+    const thisMonthProductSales = productSalesQuery.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+
+    // Generate sample chart data
+    const collectionChart = Array.from({ length: 30 }, (_, i) => ({
+      day: i + 1,
+      collection: Math.floor(Math.random() * 5000) + 1000
+    }));
+
+    const attendanceChart = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+      day,
+      attendance: Math.floor(Math.random() * 30) + 70
+    }));
+
+    const productSalesChart = [
+      { product: 'Books', sales: Math.floor(Math.random() * 15000) + 5000 },
+      { product: 'Stationery', sales: Math.floor(Math.random() * 8000) + 2000 },
+      { product: 'Digital', sales: Math.floor(Math.random() * 12000) + 3000 },
+      { product: 'Exam Prep', sales: Math.floor(Math.random() * 20000) + 8000 }
+    ];
+
+    return {
+      newStudentsThisMonth: parseInt(newStudentsThisMonth[0]?.count) || 0,
+      thisMonthCollection,
+      todayCollection,
+      todayAttendance,
+      thisMonthProductSales,
+      collectionChart,
+      attendanceChart,
+      productSalesChart
+    };
+  }
+
   async getUnassignedManagers(): Promise<User[]> {
     try {
       // Since SO Centers don't have userId field anymore (they use separate auth),

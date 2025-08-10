@@ -415,6 +415,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // SO Center Dashboard Stats API
+  app.get("/api/so-center/dashboard-stats", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user!.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      console.log('📊 Fetching SO Center dashboard stats for user:', req.user!.userId);
+
+      // Get SO Center from user email
+      const soCenter = await storage.getSoCenterByEmail(req.user!.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: 'SO Center not found' });
+      }
+
+      // Calculate real metrics from database
+      const stats = await storage.getSoCenterDashboardStats(soCenter.id);
+      
+      console.log('✅ SO Center dashboard stats calculated:', stats);
+      res.json(stats);
+    } catch (error) {
+      console.error('❌ Error fetching SO Center dashboard stats:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard stats', error: error.message });
+    }
+  });
+
   app.get("/api/auth/me", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {

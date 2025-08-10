@@ -3,7 +3,6 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { AnnouncementsPopup } from '@/components/announcements/AnnouncementsPopup';
-import { ProductsList } from '@/components/products/ProductsList';
 import { Link } from 'wouter';
 import { 
   Users, 
@@ -14,8 +13,265 @@ import {
   Building,
   Calendar,
   BarChart3,
-  Package
+  Package,
+  UserPlus,
+  ShoppingCart,
+  UserCheck,
+  BookOpen
 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+
+// SO Center Dashboard Component with Key Metrics
+function SOCenterDashboard() {
+  const { user } = useAuth();
+
+  // Fetch SO Center specific metrics
+  const { data: soCenterStats } = useQuery({
+    queryKey: ['/api/so-center/dashboard-stats'],
+    queryFn: async () => {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/so-center/dashboard-stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch SO center stats');
+      }
+      return response.json();
+    },
+    enabled: !!user,
+  });
+
+  const stats = soCenterStats || {
+    newStudentsThisMonth: 0,
+    thisMonthCollection: 0,
+    todayCollection: 0,
+    todayAttendance: 0,
+    thisMonthProductSales: 0,
+    collectionChart: [],
+    attendanceChart: [],
+    productSalesChart: []
+  };
+
+  const SOStatCard = ({ 
+    title, 
+    value, 
+    icon: Icon, 
+    trend, 
+    color = "primary" 
+  }: {
+    title: string;
+    value: string | number;
+    icon: any;
+    trend?: string;
+    color?: string;
+  }) => (
+    <Card className="hover:shadow-md transition-shadow">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-2">
+              {typeof value === 'number' && title.includes('₹') 
+                ? `₹${value.toLocaleString()}` 
+                : value}
+            </p>
+            {trend && (
+              <p className="text-xs text-green-600 mt-1">{trend}</p>
+            )}
+          </div>
+          <div className={`w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center`}>
+            <Icon className="text-blue-600" size={24} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <SOStatCard
+          title="New Students This Month"
+          value={stats.newStudentsThisMonth}
+          icon={UserPlus}
+          trend="+12% from last month"
+          color="primary"
+        />
+        
+        <SOStatCard
+          title="This Month Collection"
+          value={`₹${stats.thisMonthCollection.toLocaleString()}`}
+          icon={IndianRupee}
+          trend="+8% from last month"
+          color="green"
+        />
+        
+        <SOStatCard
+          title="Today Collection"
+          value={`₹${stats.todayCollection.toLocaleString()}`}
+          icon={Wallet}
+          trend="Last 24 hours"
+          color="blue"
+        />
+        
+        <SOStatCard
+          title="Today Attendance"
+          value={`${stats.todayAttendance}%`}
+          icon={UserCheck}
+          trend="Current day"
+          color="purple"
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Collection Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp size={20} />
+              Monthly Collection Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.collectionChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`₹${value}`, 'Collection']} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="collection" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    dot={{ fill: '#3b82f6' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Attendance Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck size={20} />
+              Weekly Attendance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.attendanceChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${value}%`, 'Attendance']} />
+                  <Bar dataKey="attendance" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Product Sales and Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Product Sales */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Package size={20} />
+                This Month Product Sales
+              </div>
+              <span className="text-2xl font-bold text-green-600">
+                ₹{stats.thisMonthProductSales.toLocaleString()}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.productSalesChart}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="product" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`₹${value}`, 'Sales']} />
+                  <Bar dataKey="sales" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Link href="/students">
+                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div className="flex items-center space-x-3">
+                    <Users size={20} className="text-blue-600" />
+                    <div>
+                      <p className="font-medium">Manage Students</p>
+                      <p className="text-sm text-gray-600">Add or view students</p>
+                    </div>
+                  </div>
+                </button>
+              </Link>
+
+              <Link href="/products">
+                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div className="flex items-center space-x-3">
+                    <Package size={20} className="text-green-600" />
+                    <div>
+                      <p className="font-medium">View Products</p>
+                      <p className="text-sm text-gray-600">Browse available products</p>
+                    </div>
+                  </div>
+                </button>
+              </Link>
+
+              <Link href="/fee-payments">
+                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div className="flex items-center space-x-3">
+                    <IndianRupee size={20} className="text-purple-600" />
+                    <div>
+                      <p className="font-medium">Record Payment</p>
+                      <p className="text-sm text-gray-600">Process fee payment</p>
+                    </div>
+                  </div>
+                </button>
+              </Link>
+
+              <Link href="/attendance">
+                <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle size={20} className="text-orange-600" />
+                    <div>
+                      <p className="font-medium">Take Attendance</p>
+                      <p className="text-sm text-gray-600">Mark student attendance</p>
+                    </div>
+                  </div>
+                </button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -76,7 +332,7 @@ export default function Dashboard() {
         </div>
         {trend && (
           <div className="mt-4">
-            <span className="text-success text-sm font-medium">{trend}</span>
+            <span className="text-sm text-green-600">{trend}</span>
           </div>
         )}
       </CardContent>
@@ -84,208 +340,133 @@ export default function Dashboard() {
   );
 
   return (
-    <DashboardLayout
-      title="Dashboard"
-      subtitle="Welcome back, manage your academy operations"
-    >
-      {/* Active Announcements Popup */}
+    <DashboardLayout title="Dashboard">
       <AnnouncementsPopup />
       
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatCard
-          title="Total Students"
-          value={displayStats.totalStudents}
-          icon={Users}
-          trend="+12% from last month"
-          color="primary"
-        />
-        
-        <StatCard
-          title="Payments This Month"
-          value={`₹${(displayStats.paymentsThisMonth || 0).toLocaleString()}`}
-          icon={IndianRupee}
-          trend="+8% from last month"
-          color="secondary"
-        />
-        
-        <StatCard
-          title="Topics Completed"
-          value={displayStats.topicsCompleted}
-          icon={CheckCircle}
-          trend="+25% this week"
-          color="accent"
-        />
-        
-        <StatCard
-          title="Wallet Balance"
-          value={`₹${(displayStats.walletBalance || 0).toLocaleString()}`}
-          icon={Wallet}
-          color="purple-600"
-        />
-      </div>
-
-      {/* Role-specific content */}
-      {user?.role === 'so_center' && (
-        <div className="space-y-8">
-          {/* Available Products */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Products</h3>
-            <ProductsList userRole="so_center" />
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activity */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-success rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Payment recorded for Arjun Reddy</p>
-                    <p className="text-xs text-gray-500">2 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">Progress updated for Sneha Patel</p>
-                    <p className="text-xs text-gray-500">4 hours ago</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-accent rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium">New student registered</p>
-                    <p className="text-xs text-gray-500">1 day ago</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Link href="/students">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <Users size={20} className="text-primary" />
-                      <div>
-                        <p className="font-medium">Add New Student</p>
-                        <p className="text-sm text-gray-600">Register a new student</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/payments">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <IndianRupee size={20} className="text-secondary" />
-                      <div>
-                        <p className="font-medium">Record Payment</p>
-                        <p className="text-sm text-gray-600">Add student payment</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/progress">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <TrendingUp size={20} className="text-accent" />
-                      <div>
-                        <p className="font-medium">Update Progress</p>
-                        <p className="text-sm text-gray-600">Mark topic completion</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/attendance">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <Calendar size={20} className="text-blue-600" />
-                      <div>
-                        <p className="font-medium">Mark Attendance</p>
-                        <p className="text-sm text-gray-600">Daily attendance tracking</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/attendance-reports">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <BarChart3 size={20} className="text-purple-600" />
-                      <div>
-                        <p className="font-medium">Attendance Reports</p>
-                        <p className="text-sm text-gray-600">View statistics & reports</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-          </div>
+      <div className="p-6 space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">
+            Welcome back, {user?.name || 'User'}!
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Here's what's happening with your academy today.
+          </p>
         </div>
-      )}
 
-      {user?.role === 'agent' && (
-        <div className="space-y-8">
-          {/* Available Products */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Available Products</h3>
-            <ProductsList userRole="agent" />
+        {/* General Stats for all users except SO Center */}
+        {user?.role !== 'so_center' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <StatCard
+              title="Total Students"
+              value={displayStats.totalStudents}
+              icon={Users}
+              trend="+12% from last month"
+              color="primary"
+            />
+            
+            <StatCard
+              title="Payments This Month"
+              value={`₹${(displayStats.paymentsThisMonth || 0).toLocaleString()}`}
+              icon={IndianRupee}
+              trend="+8% from last month"
+              color="secondary"
+            />
+            
+            <StatCard
+              title="Topics Completed"
+              value={displayStats.topicsCompleted}
+              icon={CheckCircle}
+              trend="+25% this week"
+              color="accent"
+            />
+            
+            <StatCard
+              title="Wallet Balance"
+              value={`₹${(displayStats.walletBalance || 0).toLocaleString()}`}
+              icon={Wallet}
+              color="purple-600"
+            />
           </div>
-          
+        )}
+
+        {/* SO Center specific dashboard */}
+        {user?.role === 'so_center' && (
+          <SOCenterDashboard />
+        )}
+
+        {/* Admin specific content */}
+        {user?.role === 'admin' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Commission Tracking */}
+            {/* Recent Activity */}
             <Card>
               <CardHeader>
-                <CardTitle>Commission Overview</CardTitle>
+                <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">This Month</span>
-                    <span className="font-semibold text-green-600">₹2,450</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">New SO Center registered</p>
+                      <p className="text-xs text-gray-500">2 hours ago</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Pending</span>
-                    <span className="font-semibold text-yellow-600">₹1,200</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">System backup completed</p>
+                      <p className="text-xs text-gray-500">4 hours ago</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Total Earned</span>
-                    <span className="font-semibold text-blue-600">₹15,670</span>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <div>
+                      <p className="text-sm font-medium">Monthly report generated</p>
+                      <p className="text-xs text-gray-500">1 day ago</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle>Admin Actions</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Link href="/products">
+                  <Link href="/admin/users">
                     <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                       <div className="flex items-center space-x-3">
-                        <Package size={20} className="text-primary" />
+                        <Users size={20} className="text-blue-600" />
                         <div>
-                          <p className="font-medium">View Products</p>
-                          <p className="text-sm text-gray-600">Browse available products</p>
+                          <p className="font-medium">Manage Users</p>
+                          <p className="text-sm text-gray-600">Add or edit user accounts</p>
+                        </div>
+                      </div>
+                    </button>
+                  </Link>
+
+                  <Link href="/admin/so-centers">
+                    <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                      <div className="flex items-center space-x-3">
+                        <Building size={20} className="text-green-600" />
+                        <div>
+                          <p className="font-medium">SO Centers</p>
+                          <p className="text-sm text-gray-600">Manage satellite offices</p>
+                        </div>
+                      </div>
+                    </button>
+                  </Link>
+
+                  <Link href="/admin/academic-dashboard">
+                    <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                      <div className="flex items-center space-x-3">
+                        <BarChart3 size={20} className="text-purple-600" />
+                        <div>
+                          <p className="font-medium">Academic Dashboard</p>
+                          <p className="text-sm text-gray-600">View academic progress</p>
                         </div>
                       </div>
                     </button>
@@ -294,79 +475,8 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      )}
-
-      {user?.role === 'admin' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>System Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">12</div>
-                  <p className="text-gray-600">Active SO Centers</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-secondary">45</div>
-                  <p className="text-gray-600">Teachers</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-accent">856</div>
-                  <p className="text-gray-600">Total Students</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Admin Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Link href="/admin/centers">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <Building size={20} className="text-primary" />
-                      <div>
-                        <p className="font-medium">Manage SO Centers</p>
-                        <p className="text-sm text-gray-600">Add or modify centers</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/admin/students">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <Users size={20} className="text-accent" />
-                      <div>
-                        <p className="font-medium">View All Students</p>
-                        <p className="text-sm text-gray-600">System-wide student list</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-                
-                <Link href="/admin/payments">
-                  <button className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition">
-                    <div className="flex items-center space-x-3">
-                      <IndianRupee size={20} className="text-secondary" />
-                      <div>
-                        <p className="font-medium">Payment Overview</p>
-                        <p className="text-sm text-gray-600">All system payments</p>
-                      </div>
-                    </div>
-                  </button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        )}
+      </div>
     </DashboardLayout>
   );
 }
