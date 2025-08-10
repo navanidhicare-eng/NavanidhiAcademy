@@ -45,11 +45,13 @@ import type {
   InsertSystemSetting,
 } from "@shared/schema";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
+// MANDATORY SUPABASE DATABASE CONNECTION - NEON COMPLETELY DISABLED  
+if (!process.env.SUPABASE_DATABASE_URL) {
+  throw new Error("SUPABASE_DATABASE_URL environment variable is required - Neon database disabled");
 }
 
-const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
+console.log('🔗 STORAGE: Using SUPABASE_DATABASE_URL exclusively');
+const sql = postgres(process.env.SUPABASE_DATABASE_URL!, { max: 1 });
 export const db = drizzle(sql, { schema });
 
 // Add method to get users by role

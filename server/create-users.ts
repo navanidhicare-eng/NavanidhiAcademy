@@ -1,13 +1,15 @@
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+// MANDATORY SUPABASE DATABASE CONNECTION - NEON COMPLETELY DISABLED
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
+if (!process.env.SUPABASE_DATABASE_URL) {
+  throw new Error("SUPABASE_DATABASE_URL environment variable is required - Neon database disabled");
 }
 
-const sql = neon(process.env.DATABASE_URL);
+console.log('🔗 CREATE-USERS: Using SUPABASE_DATABASE_URL exclusively');
+const sql = postgres(process.env.SUPABASE_DATABASE_URL!, { max: 1 });
 const db = drizzle(sql, { schema });
 
 async function createUsers() {
