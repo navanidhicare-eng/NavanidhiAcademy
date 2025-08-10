@@ -1190,12 +1190,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all subjects
+  app.get("/api/subjects", authenticateToken, async (req, res) => {
+    try {
+      const subjects = await storage.getAllSubjects();
+      res.json(subjects);
+    } catch (error) {
+      console.error('Error fetching all subjects:', error);
+      res.status(500).json({ message: "Failed to fetch subjects" });
+    }
+  });
+
   app.get("/api/subjects/:classId", authenticateToken, async (req, res) => {
     try {
       const subjects = await storage.getSubjectsByClass(req.params.classId);
       res.json(subjects);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch subjects" });
+    }
+  });
+
+  // Get all chapters
+  app.get("/api/chapters", authenticateToken, async (req, res) => {
+    try {
+      const chapters = await storage.getAllChapters();
+      res.json(chapters);
+    } catch (error) {
+      console.error('Error fetching all chapters:', error);
+      res.status(500).json({ message: "Failed to fetch chapters" });
     }
   });
 

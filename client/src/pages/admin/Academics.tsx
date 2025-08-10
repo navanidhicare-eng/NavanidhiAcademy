@@ -115,9 +115,10 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
   const selectedSoCenterIds = form.watch('soCenterIds');
   
   // Filter subjects by selected class
-  const filteredSubjects = subjects.filter((subject: any) => 
-    selectedClassId ? subject.classId === selectedClassId : false
-  );
+  const filteredSubjects = subjects.filter((subject: any) => {
+    console.log('Subject:', subject, 'Selected Class ID:', selectedClassId);
+    return selectedClassId ? subject.classId === selectedClassId : false;
+  });
 
   // Filter chapters by selected subject
   const filteredChapters = chapters.filter((chapter: any) => 
@@ -396,7 +397,29 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
                   name="soCenterIds"
                   render={() => (
                     <FormItem>
-                      <FormLabel>SO Centers (Select Multiple)</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel>SO Centers (Select Multiple)</FormLabel>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const currentIds = form.getValues('soCenterIds') || [];
+                            const allIds = soCenters.map((center: any) => center.id);
+                            
+                            if (currentIds.length === allIds.length) {
+                              // If all are selected, unselect all
+                              form.setValue('soCenterIds', []);
+                            } else {
+                              // Select all
+                              form.setValue('soCenterIds', allIds);
+                            }
+                          }}
+                          className="text-xs"
+                        >
+                          {selectedSoCenterIds.length === soCenters.length ? 'Unselect All' : 'Select All'}
+                        </Button>
+                      </div>
                       <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2">
                         {soCentersLoading ? (
                           <div className="text-sm text-gray-500">Loading SO Centers...</div>
