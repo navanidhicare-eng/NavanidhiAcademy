@@ -384,7 +384,6 @@ export class AuthService {
         capacity: soCenterData.capacity,
         facilities: soCenterData.facilities || [],
         walletBalance: '0',
-        admissionFeeApplicable: soCenterData.admissionFeeApplicable !== false,
         isActive: true
       };
 
