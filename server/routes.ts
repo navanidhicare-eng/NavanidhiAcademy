@@ -1766,17 +1766,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SO Center endpoints
+  // SO Center endpoints with PRIVACY CONTROL
   app.get("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user) {
+        return res.status(401).json({ message: 'Authentication required' });
       }
-      
-      console.log('📋 Fetching SO Centers list for admin...');
-      const centers = await storage.getAllSoCenters();
-      console.log(`✅ Found ${centers.length} SO Centers`);
-      res.json(centers);
+
+      // PRIVACY ENFORCEMENT: SO Centers can ONLY see their own data
+      if (req.user.role === 'so_center') {
+        console.log('🔒 SO Center requesting their own data - enforcing strict privacy');
+        try {
+          const soCenter = await storage.getSoCenterByEmail(req.user.email);
+          if (!soCenter) {
+            console.log('❌ No SO Center found for user email:', req.user.email);
+            return res.status(403).json({ message: "SO Center not found for user" });
+          }
+          
+          console.log(`✅ SO Center ${soCenter.centerId} accessing ONLY their own data`);
+          // Return ONLY their own center data
+          res.json([soCenter]);
+        } catch (error) {
+          console.error('❌ Error in SO Center privacy check:', error);
+          return res.status(500).json({ message: "Failed to fetch SO Center data" });
+        }
+      } else if (req.user.role === 'admin' || req.user.role === 'academic_admin') {
+        // Admin can see all SO Centers
+        console.log('📋 Admin fetching SO Centers list...');
+        const centers = await storage.getAllSoCenters();
+        console.log(`✅ Found ${centers.length} SO Centers`);
+        res.json(centers);
+      } else {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     } catch (error: any) {
       console.error('❌ Error fetching SO Centers:', error);
       res.status(500).json({ message: 'Failed to fetch SO Centers' });
@@ -1803,9 +1825,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // FIXED: Get users with 'so_center' role for manager dropdown (NOT all users)
   app.get("/api/admin/users/unassigned-managers", authenticateToken, async (req, res) => {
     try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('🔧 Fetching SO Center role users for manager dropdown');
       const unassignedManagers = await storage.getUnassignedManagers();
+      console.log(`✅ Found ${unassignedManagers.length} SO Center users available as managers`);
       res.json(unassignedManagers);
     } catch (error) {
       console.error('Error fetching unassigned managers:', error);
@@ -1813,15 +1842,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SUPABASE AUTH ENFORCED - SO Center update
+  // SUPABASE AUTH ENFORCED - SO Center update with PRIVACY ENFORCEMENT
   app.put("/api/admin/so-centers/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user!.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user) {
+        return res.status(401).json({ message: 'Authentication required' });
       }
 
       const centerId = req.params.id;
       const updateData = req.body;
+
+      // PRIVACY ENFORCEMENT: SO Centers can ONLY update their own data
+      if (req.user.role === 'so_center') {
+        console.log('🔒 SO Center attempting to update data - enforcing strict privacy');
+        try {
+          const soCenter = await storage.getSoCenterByEmail(req.user.email);
+          if (!soCenter || soCenter.id !== centerId) {
+            console.log('❌ SO Center trying to access unauthorized data:', { userEmail: req.user.email, requestedCenterId: centerId });
+            return res.status(403).json({ message: "Access denied: can only update your own center" });
+          }
+          console.log(`✅ SO Center ${soCenter.centerId} updating their own data`);
+        } catch (error) {
+          console.error('❌ Error in SO Center privacy check:', error);
+          return res.status(500).json({ message: "Failed to verify access" });
+        }
+      } else if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin or SO Center access required' });
+      }
 
       // Remove restricted fields that cannot be updated
       delete updateData.id;

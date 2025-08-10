@@ -123,12 +123,11 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
     queryKey: ['/api/admin/addresses/villages'],
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ['/api/admin/users'],
+  // FIXED: Use dedicated endpoint that fetches SO Center role users only
+  const { data: managers = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/users/unassigned-managers'],
+    enabled: isOpen,
   });
-
-  // Filter managers (users with 'manager' role)
-  const managers = users.filter((user: any) => user.role === 'manager' || user.role === 'so_center');
 
   // Filter location data based on selections
   const filteredDistricts = districts.filter((district: any) => district.stateId === selectedState);
