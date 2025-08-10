@@ -42,7 +42,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Edit, Eye, FileText, Award, TrendingUp, Users, Calendar, BookOpen, School, Building } from 'lucide-react';
+import { Plus, Edit, Eye, FileText, Award, TrendingUp, Users, Calendar, BookOpen, School, Building, Trash2, Clock, Target, CheckCircle } from 'lucide-react';
 
 // Updated schema removing examType and adding multi-selection support
 const examSchema = z.object({
@@ -511,10 +511,32 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
 export default function Academics() {
   const [showExamModal, setShowExamModal] = useState(false);
   const [editingExam, setEditingExam] = useState<any>(null);
+  const { toast } = useToast();
 
   // Fetch real exams data from Supabase
-  const { data: exams = [], isLoading: examsLoading } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, refetch: refetchExams } = useQuery({
     queryKey: ['/api/admin/exams'],
+  });
+
+  // Delete exam mutation
+  const deleteExamMutation = useMutation({
+    mutationFn: async (examId: string) => {
+      await apiRequest('DELETE', `/api/admin/exams/${examId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Exam deleted successfully",
+      });
+      refetchExams();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete exam",
+        variant: "destructive",
+      });
+    },
   });
 
   // Fetch real stats from Supabase
@@ -619,73 +641,84 @@ export default function Academics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="h-5 w-5 text-green-600" />
-              Exams
+              Exams ({exams.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {examsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full" />
-                <span className="ml-2 text-gray-600">Loading exams...</span>
+              <div className="flex justify-center py-8">
+                <div className="animate-spin w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full" />
               </div>
-            ) : exams.length > 0 ? (
+            ) : exams.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No exams found. Create your first exam to get started.
+              </div>
+            ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Subject</TableHead>
-                    <TableHead>Chapters</TableHead>
-                    <TableHead>SO Centers</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Total Marks</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {exams.map((exam: any) => (
                     <TableRow key={exam.id}>
                       <TableCell className="font-medium">{exam.title}</TableCell>
-                      <TableCell>{exam.className || 'N/A'}</TableCell>
-                      <TableCell>{exam.subjectName || 'N/A'}</TableCell>
                       <TableCell>
-                        {exam.chapterIds ? (
-                          <Badge variant="outline">
-                            {exam.chapterIds.length} chapters
-                          </Badge>
-                        ) : 'N/A'}
+                        {classes.find((c: any) => c.id === exam.classId)?.name || 'Unknown'}
                       </TableCell>
                       <TableCell>
-                        {exam.soCenterIds ? (
-                          <Badge variant="outline">
-                            {exam.soCenterIds.length} centers
-                          </Badge>
-                        ) : 'N/A'}
+                        {subjects.find((s: any) => s.id === exam.subjectId)?.name || 'Unknown'}
                       </TableCell>
-                      <TableCell>{exam.examDate}</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={exam.status === 'completed' ? 'default' : 'secondary'}
-                          className={
-                            exam.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }
+                        {new Date(exam.examDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{exam.duration} min</TableCell>
+                      <TableCell>{exam.totalMarks}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={exam.status === 'completed' ? 'default' : 
+                                  exam.status === 'ongoing' ? 'secondary' : 'outline'}
+                          className={exam.status === 'completed' ? 'bg-green-100 text-green-800 border-green-200' : 
+                                    exam.status === 'ongoing' ? 'bg-blue-100 text-blue-800 border-blue-200' : 
+                                    'bg-yellow-100 text-yellow-800 border-yellow-200'}
                         >
                           {exam.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
                           <Button
-                            size="sm"
                             variant="outline"
+                            size="sm"
                             onClick={() => handleEditExam(exam)}
+                            className="h-8 w-8 p-0"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline">
-                            <Eye className="h-4 w-4" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this exam?')) {
+                                deleteExamMutation.mutate(exam.id);
+                              }
+                            }}
+                            disabled={deleteExamMutation.isPending}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            {deleteExamMutation.isPending ? (
+                              <div className="animate-spin w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </TableCell>
@@ -693,24 +726,11 @@ export default function Academics() {
                   ))}
                 </TableBody>
               </Table>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Award className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No exams found</h3>
-                <p className="text-gray-500">Create your first exam to get started.</p>
-                <Button
-                  onClick={handleCreateExam}
-                  className="mt-4 bg-green-600 hover:bg-green-700"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Exam
-                </Button>
-              </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Create/Edit Exam Modal */}
+        {/* Add Exam Modal */}
         <AddExamModal
           isOpen={showExamModal}
           onClose={closeModal}

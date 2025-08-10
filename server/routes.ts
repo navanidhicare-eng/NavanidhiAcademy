@@ -3569,6 +3569,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete exam endpoint
+  app.delete("/api/admin/exams/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const examId = req.params.id;
+      await storage.deleteExam(examId);
+      
+      res.json({ message: "Exam deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+      res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

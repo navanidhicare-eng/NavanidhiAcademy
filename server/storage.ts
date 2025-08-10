@@ -2501,6 +2501,19 @@ export class DrizzleStorage implements IStorage {
       return created;
     }
   }
+
+  async deleteExam(examId: string): Promise<void> {
+    console.log('🗑️ Deleting exam with ID:', examId);
+    try {
+      await db
+        .delete(schema.exams)
+        .where(eq(schema.exams.id, examId));
+      console.log('✅ Deleted exam successfully');
+    } catch (error) {
+      console.error('❌ Error deleting exam:', error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new DrizzleStorage();
