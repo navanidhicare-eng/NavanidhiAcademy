@@ -1123,8 +1123,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Wallet API endpoint
-  app.get("/api/wallet/:soCenterId", authenticateToken, async (req, res) => {
+  // SO Center Wallet API endpoint (specific path to avoid conflicts)
+  app.get("/api/so-center/wallet/:soCenterId", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -1412,8 +1412,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Wallet endpoint - REAL SUPABASE DATA WITH TRANSACTION HISTORY
-  app.get("/api/wallet/:userId", authenticateToken, async (req, res) => {
+  // Admin User Wallet endpoint - REAL SUPABASE DATA WITH TRANSACTION HISTORY
+  app.get("/api/admin/wallet/:userId", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
@@ -2124,7 +2124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
       console.log('❌ Access denied for role:', req.user?.role);
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied - Role not authorized for wallet access' });
     }
     try {
       const userId = req.user?.userId;
@@ -2167,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
       console.log('❌ Access denied for role:', req.user?.role);
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: 'Access denied - Role not authorized for wallet access' });
     }
     try {
       const userId = req.user?.userId;
