@@ -60,6 +60,7 @@ export default function Expenses() {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<ExpenseRequest | null>(null);
+  const [formData, setFormData] = useState<any>({});
 
   // Fetch SO Center data for autofill
   const { data: soCenterData } = useQuery({
@@ -142,7 +143,7 @@ export default function Expenses() {
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant={config.variant === 'success' ? 'default' : config.variant}>{config.label}</Badge>;
   };
 
   const getExpenseTypeLabel = (type: string) => {
@@ -194,7 +195,7 @@ export default function Expenses() {
             break;
         }
         
-        setFormData(prev => ({ ...prev, ...autofillData }));
+        setFormData((prev: any) => ({ ...prev, ...autofillData }));
       }
     }, [selectedExpenseType, soCenterData]);
 
@@ -510,7 +511,7 @@ export default function Expenses() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Expenses Management">
       <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
