@@ -2146,11 +2146,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      await storage.deleteFeeStructure(req.params.id);
-      res.json({ message: 'Fee deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting fee:', error);
-      res.status(500).json({ message: 'Failed to delete fee' });
+      
+      console.log('🗑️ Deleting fee structure:', req.params.id);
+      
+      // Actually DELETE the record from database (not just set isActive: false)
+      const deletedResult = await db
+        .delete(schema.classFees)
+        .where(eq(schema.classFees.id, req.params.id))
+        .returning();
+      
+      if (deletedResult.length === 0) {
+        return res.status(404).json({ message: 'Fee structure not found' });
+      }
+      
+      console.log('✅ Fee structure deleted permanently from database:', req.params.id);
+      res.json({ message: 'Fee structure deleted successfully' });
+    } catch (error: any) {
+      console.error('❌ Error deleting fee:', error);
+      console.error('❌ Full error details:', error.message, error.stack);
+      res.status(500).json({ message: 'Failed to delete fee structure' });
     }
   });
 
