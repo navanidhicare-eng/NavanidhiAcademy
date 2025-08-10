@@ -2282,8 +2282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           wr.*,
           u.email as user_email,
-          u.first_name,
-          u.last_name,
+          u.name as user_name,
           u.role as user_role
         FROM withdrawal_requests wr
         JOIN users u ON wr.user_id = u.id

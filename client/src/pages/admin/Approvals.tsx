@@ -201,7 +201,7 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">User Name</label>
-                <p className="text-sm">{`${withdrawal.first_name || ''} ${withdrawal.last_name || ''}`.trim() || 'N/A'}</p>
+                <p className="text-sm">{withdrawal.user_name || 'N/A'}</p>
               </div>
             </div>
 
@@ -525,7 +525,7 @@ export default function Approvals() {
                       <div>
                         <div className="font-medium">{request.user_email}</div>
                         <div className="text-sm text-gray-600 capitalize">
-                          {`${request.first_name || ''} ${request.last_name || ''}`.trim() || 'N/A'} 
+                          {request.user_name || 'N/A'} 
                           {request.user_role && ` • ${request.user_role}`}
                         </div>
                       </div>
