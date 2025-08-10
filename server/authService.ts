@@ -29,22 +29,65 @@ export class AuthService {
       
       console.log('✅ Supabase Auth successful:', authData.user.id);
       
-      // Step 2: Get or sync user from our database
-      let user = await storage.getUserByEmail(email);
-      
-      if (!user) {
-        // User exists in Supabase but not in our database - sync them
-        console.log('🔄 Syncing user from Supabase to database:', email);
+      // Step 2: Get or sync user from our database with timeout handling
+      let user: User | null = null;
+      try {
+        user = await Promise.race([
+          storage.getUserByEmail(email),
+          new Promise<null>((_, reject) => 
+            setTimeout(() => reject(new Error('Database query timeout')), 10000)
+          )
+        ]);
+      } catch (error: any) {
+        console.warn('⚠️ Database query failed, continuing with minimal user data:', error.message);
+        // Fallback user data from Supabase Auth
         const userMetadata = authData.user.user_metadata;
-        user = await storage.createUser({
+        user = {
+          id: authData.user.id,
           email: email,
-          role: (userMetadata?.role || 'agent') as any,
           name: userMetadata?.name || authData.user.email?.split('@')[0] || 'User',
+          role: userMetadata?.role || 'agent',
           phone: userMetadata?.phone,
           isActive: true,
-          password: '' // We use Supabase Auth, no local password needed
-        });
-        console.log('✅ User synced to database:', user.id);
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } as User;
+      }
+      
+      if (!user) {
+        // User exists in Supabase but not in our database - sync them (with timeout)
+        console.log('🔄 Attempting user sync to database:', email);
+        try {
+          const userMetadata = authData.user.user_metadata;
+          user = await Promise.race([
+            storage.createUser({
+              email: email,
+              role: (userMetadata?.role || 'agent') as any,
+              name: userMetadata?.name || authData.user.email?.split('@')[0] || 'User',
+              phone: userMetadata?.phone,
+              isActive: true,
+              password: '' // We use Supabase Auth, no local password needed
+            }),
+            new Promise<never>((_, reject) => 
+              setTimeout(() => reject(new Error('User creation timeout')), 8000)
+            )
+          ]);
+          console.log('✅ User synced to database:', user.id);
+        } catch (syncError: any) {
+          console.warn('⚠️ Database sync failed, using Supabase data:', syncError.message);
+          // Use Supabase user data as fallback
+          const userMetadata = authData.user.user_metadata;
+          user = {
+            id: authData.user.id,
+            email: email,
+            name: userMetadata?.name || authData.user.email?.split('@')[0] || 'User',
+            role: userMetadata?.role || 'agent',
+            phone: userMetadata?.phone,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as User;
+        }
       }
       
       console.log('✅ User authenticated:', { id: user.id, email: user.email, role: user.role });

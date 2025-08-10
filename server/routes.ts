@@ -49,13 +49,19 @@ import { z } from 'zod';
 
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
-// Initialize admin user on server start
+// Initialize admin user on server start with timeout
 (async () => {
   try {
     console.log('🚀 Initializing Supabase authentication...');
-    await createAdminUser();
-  } catch (error) {
-    console.error('❌ Failed to initialize admin user:', error);
+    await Promise.race([
+      createAdminUser(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Admin initialization timeout - continuing without full setup')), 10000)
+      )
+    ]);
+  } catch (error: any) {
+    console.warn('⚠️ Admin initialization failed, continuing with basic functionality:', error.message);
+    console.log('🔄 System will continue - authentication may work after database reconnects');
   }
 })();
 

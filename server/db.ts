@@ -31,9 +31,11 @@ console.log('✅ ONLY SUPABASE_DATABASE_URL IS ACTIVE - Neon completely eliminat
 // CREATE SUPABASE CONNECTION WITH REGULAR PG POOL (NO NEON DEPENDENCIES)
 export const pool = new Pool({ 
   connectionString: SUPABASE_CONNECTION,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 10,
+  idleTimeoutMillis: 20000,
+  connectionTimeoutMillis: 8000,
+  query_timeout: 15000,
+  statement_timeout: 15000,
   ssl: { rejectUnauthorized: false }
 });
 

@@ -34,28 +34,38 @@ export function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
+      console.log('Login form submitting...', { email: data.email });
+      
       const result = await login(data.email, data.password);
+      console.log('Login result received:', result);
       
-      toast({
-        title: 'Login Successful',
-        description: `Welcome ${result.user.name}!`,
-      });
-      
-      // Navigate to the appropriate dashboard based on role
-      if (result.redirectTo) {
-        navigate(result.redirectTo);
+      if (result && result.user) {
+        toast({
+          title: 'Login Successful',
+          description: `Welcome ${result.user.name || result.user.email}!`,
+        });
+        
+        // Small delay to ensure token is saved
+        setTimeout(() => {
+          // Navigate to the appropriate dashboard based on role
+          if (result.redirectTo) {
+            navigate(result.redirectTo);
+          } else {
+            navigate('/dashboard');
+          }
+        }, 100);
       } else {
-        navigate('/dashboard');
+        throw new Error('Invalid login response');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: 'Login Failed',
-        description: loginError?.message || 'Invalid credentials',
+        description: error?.message || loginError?.message || 'Invalid credentials',
         variant: 'destructive',
       });
     }
   };
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-blue-600 p-4">
@@ -116,14 +126,16 @@ export function LoginForm() {
               )}
             </div>
 
-
             <Button
               type="submit"
               className="w-full bg-primary text-white hover:bg-blue-700"
               disabled={isLoginLoading}
             >
               {isLoginLoading ? (
-                'Signing In...'
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                  Signing In...
+                </div>
               ) : (
                 <>
                   <LogIn className="mr-2" size={16} />
