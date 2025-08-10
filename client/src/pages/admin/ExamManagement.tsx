@@ -146,19 +146,33 @@ export default function ExamManagement() {
   });
 
   const handleCreateExam = (formData: FormData) => {
+    const totalQuestionsValue = formData.get('totalQuestions') as string;
+    const durationValue = formData.get('duration') as string;
+    const maxMarksValue = formData.get('maxMarks') as string;
+    const passingMarksValue = formData.get('passingMarks') as string;
+
+    console.log('Form data capture:', {
+      totalQuestions: totalQuestionsValue,
+      duration: durationValue,
+      maxMarks: maxMarksValue,
+      passingMarks: passingMarksValue
+    });
+
     const examData = {
       title: formData.get('name'),
       description: formData.get('description'),
       classId: formData.get('classId'),
       subjectId: formData.get('subjectId'),
       examDate: formData.get('examDate'),
-      duration: parseInt(formData.get('duration') as string),
-      totalQuestions: parseInt(formData.get('totalQuestions') as string),
-      totalMarks: parseInt(formData.get('maxMarks') as string),
-      passingMarks: parseInt(formData.get('passingMarks') as string),
+      duration: parseInt(durationValue) || 0,
+      totalQuestions: parseInt(totalQuestionsValue) || 0,
+      totalMarks: parseInt(maxMarksValue) || 0,
+      passingMarks: parseInt(passingMarksValue) || 0,
       soCenterIds: selectedSoCenterIds,
       chapterIds: [], // Default empty, can be enhanced later
     };
+
+    console.log('Exam data being sent:', examData);
     createExamMutation.mutate(examData);
   };
 
@@ -406,10 +420,6 @@ export default function ExamManagement() {
               <div>
                 <Label htmlFor="duration">Duration (minutes)</Label>
                 <Input id="duration" name="duration" type="number" placeholder="120" required />
-              </div>
-              <div>
-                <Label htmlFor="totalQuestions">Total Questions</Label>
-                <Input id="totalQuestions" name="totalQuestions" type="number" placeholder="50" required />
               </div>
               <div>
                 <Label htmlFor="totalQuestions">Total Questions</Label>
