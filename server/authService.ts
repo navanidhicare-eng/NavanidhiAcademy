@@ -336,13 +336,12 @@ export class AuthService {
         rentalAdvance: soCenterData.rentalAdvance,
         dateOfHouseTaken: soCenterData.dateOfHouseTaken,
         monthlyRentDate: soCenterData.monthlyRentDate,
-        monthlyInternetDate: soCenterData.monthlyInternetDate,
-        internetServiceProvider: soCenterData.internetServiceProvider,
         electricBillAccountNumber: soCenterData.electricBillAccountNumber,
         internetBillAccountNumber: soCenterData.internetBillAccountNumber,
         capacity: soCenterData.capacity,
         facilities: soCenterData.facilities || [],
         walletBalance: '0',
+        admissionFeeApplicable: soCenterData.admissionFeeApplicable !== false,
         isActive: true
       };
 

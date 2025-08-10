@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 // Removed Checkbox import - now using dynamic inputs instead of checkboxes
 import { Label } from '@/components/ui/label';
+import { CreditCard } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 
 const addSoCenterSchema = z.object({
@@ -49,6 +50,7 @@ const addSoCenterSchema = z.object({
   monthlyInternetDate: z.string().min(1, 'Monthly internet date is required'),
   capacity: z.string().min(1, 'Center capacity is required'),
   facilities: z.array(z.string()).min(1, 'At least one facility must be added'),
+  admissionFeeApplicable: z.string().min(1, 'Admission fee applicability must be selected'),
 });
 
 type AddSoCenterFormData = z.infer<typeof addSoCenterSchema>;
@@ -145,6 +147,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       monthlyInternetDate: '',
       capacity: '',
       facilities: [],
+      admissionFeeApplicable: 'applicable',
     },
   });
 
@@ -197,6 +200,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         nearbySchools: nearbySchools,
         nearbyTuitions: nearbyTuitions,
         equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
+        admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
       };
       return apiRequest('POST', '/api/admin/so-centers', processedData);
     },
@@ -246,6 +250,64 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   <p>• Password: <strong>12345678</strong></p>
                 </div>
               </div>
+            </div>
+
+            {/* ADMISSION FEE APPLICABILITY - CRITICAL FIELD */}
+            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 p-6 rounded-lg">
+              <div className="flex items-center mb-4">
+                <div className="bg-orange-100 p-2 rounded-full mr-3">
+                  <CreditCard className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-orange-900">⚠️ Admission Fee Policy</h3>
+                  <p className="text-sm text-orange-700">This setting controls admission fee charging for all students in this center</p>
+                </div>
+              </div>
+              
+              <FormField
+                control={form.control}
+                name="admissionFeeApplicable"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg font-semibold text-orange-900">Admission Fee Applicability *</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="h-12 text-lg border-2 border-orange-300 bg-white">
+                          <SelectValue placeholder="Select admission fee policy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="applicable" className="text-lg py-3">
+                            <div className="flex items-center">
+                              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                              <div>
+                                <div className="font-semibold">Applicable</div>
+                                <div className="text-sm text-gray-600">Students will be charged admission fee</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="not_applicable" className="text-lg py-3">
+                            <div className="flex items-center">
+                              <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                              <div>
+                                <div className="font-semibold">Not Applicable</div>
+                                <div className="text-sm text-gray-600">NO admission fee charged (Zero fees)</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                    <div className="mt-3 p-3 bg-white rounded border border-orange-200">
+                      <p className="text-sm text-gray-700">
+                        <strong>Impact:</strong> {form.watch('admissionFeeApplicable') === 'not_applicable' 
+                          ? '🔴 Students will have ZERO admission fee and NO SO wallet charges' 
+                          : '🟢 Normal admission fee logic applies with SO wallet transactions'}
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Basic Center Information */}

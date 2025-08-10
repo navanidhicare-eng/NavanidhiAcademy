@@ -107,6 +107,7 @@ export const soCenters = pgTable("so_centers", {
   capacity: integer("capacity"),
   facilities: text("facilities").array(),
   walletBalance: decimal("wallet_balance", { precision: 10, scale: 2 }).default("0"),
+  admissionFeeApplicable: boolean("admission_fee_applicable").notNull().default(true),
   isActive: boolean("is_active").notNull().default(true),
   isPasswordChanged: boolean("is_password_changed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
