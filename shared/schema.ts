@@ -824,7 +824,7 @@ export const announcements = pgTable("announcements", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   content: text("content"), // Rich text content
-  targetAudience: announcementTargetAudienceEnum("target_audience").notNull(),
+  targetAudience: text("target_audience").array().notNull(), // Multi-select support
   priority: announcementPriorityEnum("priority").default("normal"),
   imageUrl: text("image_url"), // Optional banner/image
   fromDate: date("from_date").notNull(), // When to start showing

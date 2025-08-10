@@ -40,9 +40,7 @@ const announcementSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().min(1, 'Description is required'),
   content: z.string().optional(),
-  targetAudience: z.enum(['students', 'teachers', 'so_centers', 'admin', 'all'], {
-    required_error: 'Target audience is required'
-  }),
+  targetAudience: z.array(z.enum(['students', 'teachers', 'so_centers', 'admin', 'all'])).min(1, 'At least one target audience is required'),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   imageUrl: z.string().url().optional().or(z.literal('')),
   fromDate: z.string().min(1, 'From date is required'),
@@ -84,7 +82,7 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
       title: '',
       description: '',
       content: '',
-      targetAudience: 'students',
+      targetAudience: ['students'],
       priority: 'normal',
       imageUrl: '',
       fromDate: new Date().toISOString().split('T')[0],
@@ -101,7 +99,7 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
         title: editingAnnouncement.title || '',
         description: editingAnnouncement.description || '',
         content: editingAnnouncement.content || '',
-        targetAudience: editingAnnouncement.targetAudience || 'students',
+        targetAudience: editingAnnouncement.targetAudience || ['students'],
         priority: editingAnnouncement.priority || 'normal',
         imageUrl: editingAnnouncement.imageUrl || '',
         fromDate: editingAnnouncement.fromDate || new Date().toISOString().split('T')[0],
@@ -224,23 +222,28 @@ function AddAnnouncementModal({ isOpen, onClose, editingAnnouncement }: AddAnnou
               name="targetAudience"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Target Audience</FormLabel>
+                  <FormLabel>Target Audience (Multi-Select)</FormLabel>
                   <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select target audience" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {targetAudienceOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            <div>
-                              <div className="font-medium">{option.name}</div>
-                              <div className="text-sm text-gray-600">{option.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-3">
+                      {targetAudienceOptions.map((option) => (
+                        <div key={option.id} className="flex items-start space-x-3">
+                          <Checkbox
+                            checked={field.value.includes(option.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                field.onChange([...field.value, option.id]);
+                              } else {
+                                field.onChange(field.value.filter((item: string) => item !== option.id));
+                              }
+                            }}
+                          />
+                          <div className="space-y-1 leading-none">
+                            <div className="font-medium">{option.name}</div>
+                            <div className="text-sm text-gray-600">{option.description}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -539,9 +542,17 @@ export default function Announcements() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-2">
-                        <Badge variant="outline">
-                          {targetAudienceOptions.find(opt => opt.id === announcement.targetAudience)?.name || announcement.targetAudience}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {Array.isArray(announcement.targetAudience) ? announcement.targetAudience.map((audience: string) => (
+                            <Badge key={audience} variant="outline" className="text-xs">
+                              {targetAudienceOptions.find(opt => opt.id === audience)?.name || audience}
+                            </Badge>
+                          )) : (
+                            <Badge variant="outline">
+                              {targetAudienceOptions.find(opt => opt.id === announcement.targetAudience)?.name || announcement.targetAudience}
+                            </Badge>
+                          )}
+                        </div>
                         <div>
                           <span className={`px-2 py-1 rounded text-xs ${getPriorityColor(announcement.priority)}`}>
                             {announcement.priority.charAt(0).toUpperCase() + announcement.priority.slice(1)}

@@ -5165,7 +5165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const studentAnnouncements = await db.select()
         .from(schema.announcements)
         .where(sql`
-          ${schema.announcements.targetAudience} IN ('students', 'all') 
+          (${schema.announcements.targetAudience} && ARRAY['students', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
           AND ${schema.announcements.isActive} = true
           AND ${schema.announcements.fromDate} <= ${currentDate}
           AND ${schema.announcements.toDate} >= ${currentDate}
