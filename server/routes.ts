@@ -2036,7 +2036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user_id, transaction_id, type, amount, description, status
         ) VALUES (
           ${userId}, ${transactionId + '_COURSE'}, 'course_purchase', ${coursePrice}, 
-          'Course purchase: ${productData.name} for student ${studentName}', 'completed'
+          ${`Course purchase: ${productData.name} for student ${studentName}`}, 'completed'
         )
       `;
 
@@ -2045,7 +2045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user_id, transaction_id, type, amount, description, status
         ) VALUES (
           ${userId}, ${transactionId + '_COMM'}, 'commission_earned', ${commissionAmount}, 
-          'Commission earned from ${productData.name} sale', 'completed'
+          ${`Commission earned from ${productData.name} sale`}, 'completed'
         )
       `;
 
@@ -2055,7 +2055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type, title, message, data, created_at
         ) VALUES (
           'course_purchase', 'New Course Purchase', 
-          'Agent ${req.user?.email} purchased ${productData.name} for student ${studentName}',
+          ${`Agent ${req.user?.email} purchased ${productData.name} for student ${studentName}`},
           ${JSON.stringify({
             agentId: userId,
             agentEmail: req.user?.email,
