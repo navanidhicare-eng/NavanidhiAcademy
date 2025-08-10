@@ -326,6 +326,108 @@ export default function Addresses() {
     setEditingItem(null);
   };
 
+  // Delete mutations for each address type
+  const deleteStateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/addresses/states/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "State deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/addresses/states'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete state",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteDistrictMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/addresses/districts/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "District deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/addresses/districts'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete district",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMandalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/addresses/mandals/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Mandal deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/addresses/mandals'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete mandal",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteVillageMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/addresses/villages/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Village deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/addresses/villages'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete village",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDelete = (type: 'state' | 'district' | 'mandal' | 'village', id: string) => {
+    if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
+      return;
+    }
+
+    switch (type) {
+      case 'state':
+        deleteStateMutation.mutate(id);
+        break;
+      case 'district':
+        deleteDistrictMutation.mutate(id);
+        break;
+      case 'mandal':
+        deleteMandalMutation.mutate(id);
+        break;
+      case 'village':
+        deleteVillageMutation.mutate(id);
+        break;
+    }
+  };
+
   return (
     <DashboardLayout
       title="Address Management"
@@ -367,7 +469,7 @@ export default function Addresses() {
                       <Button variant="ghost" size="sm" onClick={() => handleEdit('state', state)}>
                         <Edit className="text-primary" size={16} />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete('state', state.id)}>
                         <Trash2 className="text-destructive" size={16} />
                       </Button>
                     </div>
@@ -406,7 +508,7 @@ export default function Addresses() {
                       <Button variant="ghost" size="sm" onClick={() => handleEdit('district', district)}>
                         <Edit className="text-primary" size={16} />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete('district', district.id)}>
                         <Trash2 className="text-destructive" size={16} />
                       </Button>
                     </div>
@@ -445,7 +547,7 @@ export default function Addresses() {
                       <Button variant="ghost" size="sm" onClick={() => handleEdit('mandal', mandal)}>
                         <Edit className="text-primary" size={16} />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete('mandal', mandal.id)}>
                         <Trash2 className="text-destructive" size={16} />
                       </Button>
                     </div>
@@ -485,7 +587,7 @@ export default function Addresses() {
                       <Button variant="ghost" size="sm" onClick={() => handleEdit('village', village)}>
                         <Edit className="text-primary" size={16} />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete('village', village.id)}>
                         <Trash2 className="text-destructive" size={16} />
                       </Button>
                     </div>
