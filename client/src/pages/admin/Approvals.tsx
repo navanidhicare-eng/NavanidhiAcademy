@@ -341,7 +341,8 @@ export default function Approvals() {
   const { data: withdrawalRequests = [], isLoading } = useQuery({
     queryKey: ['/api/admin/withdrawal-requests'],
     queryFn: async () => {
-      const result = await apiRequest('GET', '/api/admin/withdrawal-requests');
+      const response = await apiRequest('GET', '/api/admin/withdrawal-requests');
+      const result = await response.json();
       console.log('📋 Withdrawal requests data:', result);
       return result;
     },
