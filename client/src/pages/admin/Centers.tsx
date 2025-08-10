@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { SimpleSoCenterModal } from '@/components/admin/SimpleSoCenterModal';
+import { AddSoCenterModal } from '@/components/admin/AddSoCenterModal';
 import { EditSoCenterModal } from '@/components/admin/EditSoCenterModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
@@ -243,7 +243,7 @@ export default function AdminCenters() {
         )}
       </div>
       
-      <SimpleSoCenterModal 
+      <AddSoCenterModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={() => {

@@ -229,9 +229,14 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add New SO Center</DialogTitle>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+        <DialogHeader className="border-b border-green-200 pb-4">
+          <DialogTitle className="text-xl font-bold text-green-800 flex items-center gap-2">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CreditCard className="h-5 w-5 text-green-600" />
+            </div>
+            Add New SO Center - Complete Registration
+          </DialogTitle>
         </DialogHeader>
         
         <Form {...form}>
