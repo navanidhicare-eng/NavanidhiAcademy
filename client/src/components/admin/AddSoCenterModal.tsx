@@ -663,11 +663,11 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 name="managerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Center Manager (Optional)</FormLabel>
+                    <FormLabel>SO Study Organizer</FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select manager or assign later" />
+                          <SelectValue placeholder="Select SO Study Organizer or assign later" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Assign Later</SelectItem>
@@ -680,7 +680,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                       </Select>
                     </FormControl>
                     <FormMessage />
-                    <p className="text-sm text-gray-600">Manager can be reassigned later if needed</p>
+                    <p className="text-sm text-gray-600">SO Study Organizer can be reassigned later if needed</p>
                   </FormItem>
                 )}
               />

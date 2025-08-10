@@ -306,11 +306,11 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
                 name="managerId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Manager</FormLabel>
+                    <FormLabel>SO Study Organizer</FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select manager" />
+                          <SelectValue placeholder="Select SO Study Organizer" />
                         </SelectTrigger>
                         <SelectContent>
                           {managers.map((manager: any) => (
