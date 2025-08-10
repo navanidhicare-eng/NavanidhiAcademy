@@ -724,40 +724,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      const { soCenterId } = req.query;
+
+      console.log('🔐 PRIVACY CHECK: User role:', req.user.role, 'User ID:', req.user.userId);
       
-      if (req.user.role === 'so_center' && soCenterId) {
-        const students = await storage.getStudentsBySoCenter(soCenterId as string);
+      if (req.user.role === 'so_center') {
+        // CRITICAL PRIVACY: SO Center can ONLY see their own students
+        console.log('🏢 SO Center requesting students - enforcing strict privacy');
         
-        // Debug: Check database values before processing
-        const testStudent = students.find(s => s.studentId === 'NNAS250000015');
-        if (testStudent) {
-          console.log('RAW Database Values for NNAS250000015:', {
-            totalFeeAmount: testStudent.totalFeeAmount,
-            paidAmount: testStudent.paidAmount,  
-            pendingAmount: testStudent.pendingAmount
-          });
+        // Get SO Center associated with this user
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          console.log('❌ No SO Center found for user email:', req.user.email);
+          return res.status(403).json({ message: "SO Center not found for user" });
         }
+
+        console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their students');
+        
+        // Get ONLY students registered by THIS SO Center
+        const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
+        
+        console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
         
         // Preserve database values and only add progress info
-        const studentsWithStatus = await Promise.all(students.map(async (student: any) => {
+        const studentsWithStatus = await Promise.all(studentsFromDb.map(async (student: any) => {
           return {
             ...student,
-            // Preserve existing payment status or determine from pendingAmount
             paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
-            progress: 0 // Initial progress is 0
+            progress: 0
           };
         }));
-        
-        // Debug: Check final values being sent to UI
-        const finalTestStudent = studentsWithStatus.find(s => s.studentId === 'NNAS250000015');
-        if (finalTestStudent) {
-          console.log('FINAL API Values for NNAS250000015:', {
-            totalFeeAmount: finalTestStudent.totalFeeAmount,
-            paidAmount: finalTestStudent.paidAmount,  
-            pendingAmount: finalTestStudent.pendingAmount
-          });
-        }
         
         res.json(studentsWithStatus);
       } else if (req.user.role === 'admin') {
@@ -4777,87 +4772,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get students for logged-in SO Center user
   app.get('/api/so-center/students', authenticateToken, async (req, res) => {
     try {
-      const userId = req.user?.userId;
-      console.log('👥 Fetching students for SO Center user:', userId);
-      
-      // Find the user's SO Center ID
-      const user = await storage.getUser(userId);
-      let soCenterId = user?.soCenterId;
-      
-      if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
-        console.log('🔍 Searching SO Centers for students by managerId:', userId);
-        
-        // First try to find by managerId
-        const soCentersByManager = await db.select({
-          id: schema.soCenters.id,
-          name: schema.soCenters.name,
-          centerId: schema.soCenters.centerId,
-          email: schema.soCenters.email,
-          managerId: schema.soCenters.managerId
-        })
-        .from(schema.soCenters)
-        .where(eq(schema.soCenters.managerId, userId));
-        
-        console.log('🔍 Found SO Centers by managerId for students:', soCentersByManager);
-        
-        if (soCentersByManager.length > 0) {
-          soCenterId = soCentersByManager[0].id;
-        } else {
-          console.log('🔍 Searching SO Centers for students by email:', user?.email);
-          
-          // If not found by managerId, try to find by email match
-          const soCentersByEmail = await db.select({
-            id: schema.soCenters.id,
-            name: schema.soCenters.name,
-            centerId: schema.soCenters.centerId,
-            email: schema.soCenters.email,
-            managerId: schema.soCenters.managerId
-          })
-          .from(schema.soCenters)
-          .where(eq(schema.soCenters.email, user?.email || ''));
-          
-          console.log('🔍 Found SO Centers by email for students:', soCentersByEmail);
-          
-          if (soCentersByEmail.length > 0) {
-            soCenterId = soCentersByEmail[0].id;
-          } else {
-            // Last resort - for demo purposes, use first SO Center if user email contains 'nnasoc'
-            if (user?.email?.includes('nnasoc')) {
-              const allSoCenters = await db.select({
-                id: schema.soCenters.id
-              })
-              .from(schema.soCenters)
-              .limit(1);
-              
-              if (allSoCenters.length > 0) {
-                soCenterId = allSoCenters[0].id;
-                console.log('🔍 Using first SO Center for demo user (students):', soCenterId);
-              }
-            }
-          }
-        }
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
       }
+
+      console.log('🔐 CRITICAL PRIVACY: SO Center students endpoint - enforcing strict filtering');
+      console.log('👥 SO Center user requesting students:', req.user.userId, req.user.email);
       
-      if (!soCenterId) {
-        return res.status(404).json({ message: 'SO Center not found for this user' });
+      // Get SO Center associated with this user's email
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        console.log('❌ PRIVACY VIOLATION PREVENTED: No SO Center found for user email:', req.user.email);
+        return res.status(403).json({ message: "SO Center not found for authenticated user" });
       }
+
+      console.log('✅ SO Center identified:', soCenter.centerId, '- Fetching ONLY their students');
       
-      const students = await db.select({
-        id: schema.students.id,
-        name: schema.students.name,
-        regId: schema.students.regId,
-        classId: schema.students.classId,
-      })
-      .from(schema.students)
-      .where(eq(schema.students.soCenterId, soCenterId));
+      // Get ONLY students registered by THIS specific SO Center
+      const students = await storage.getStudentsBySoCenter(soCenter.id);
       
-      console.log('✅ Found students for SO Center:', students.length);
+      console.log(`🔒 PRIVACY ENFORCED: Retrieved ${students.length} students exclusively for SO Center ${soCenter.centerId}`);
+      
+      if (!students || students.length === 0) {
+        console.log('📭 No students found for this SO Center');
+        return res.json([]);
+      }
+
       res.json(students);
     } catch (error: any) {
       console.error('❌ Error fetching SO Center students:', error);
       res.status(500).json({ message: 'Failed to fetch students' });
     }
   });
+
+
 
 
 

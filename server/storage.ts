@@ -1294,7 +1294,7 @@ export class DrizzleStorage implements IStorage {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     // Get students count for this SO Center this month
-    const newStudentsThisMonth = await db.select({ count: sqlQuery`count(*)` })
+    const newStudentsThisMonth = await db.select({ count: sql`count(*)::integer` })
       .from(schema.students)
       .where(
         and(
@@ -1323,8 +1323,8 @@ export class DrizzleStorage implements IStorage {
 
     // Get today's attendance percentage
     const todayAttendanceQuery = await db.select({
-      present: sqlQuery`count(case when present = true then 1 end)`,
-      total: sqlQuery`count(*)`
+      present: sql`count(case when present = true then 1 end)::integer`,
+      total: sql`count(*)::integer`
     }).from(schema.attendance)
       .innerJoin(schema.students, eq(schema.attendance.studentId, schema.students.id))
       .where(
