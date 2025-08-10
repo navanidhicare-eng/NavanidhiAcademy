@@ -19,7 +19,7 @@ import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import { supabaseAdmin } from './supabaseClient';
 import { createAdminUser } from './createAdminUser';
 import { AuthService } from './authService';
-import { sql as sqlQuery } from "drizzle-orm";
+import { sql as sqlQuery, eq, desc } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -3479,33 +3479,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📋 Fetching all exams for admin...');
       
-      const examsList = await db
-        .select({
-          id: schema.exams.id,
-          title: schema.exams.title,
-          description: schema.exams.description,
-          classId: schema.exams.classId,
-          className: schema.classes.name,
-          subjectId: schema.exams.subjectId,
-          subjectName: schema.subjects.name,
-          chapterIds: schema.exams.chapterIds,
-          soCenterIds: schema.exams.soCenterIds,
-          examDate: schema.exams.examDate,
-          duration: schema.exams.duration,
-          totalMarks: schema.exams.totalMarks,
-          passingMarks: schema.exams.passingMarks,
-          status: schema.exams.status,
-          createdAt: schema.exams.createdAt,
-        })
-        .from(schema.exams)
-        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
-        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-        .orderBy(desc(schema.exams.createdAt));
-
+      // Simple query first to check if exams exist
+      const examsList = await db.select().from(schema.exams);
+      
       console.log('✅ Exams fetched successfully:', examsList.length);
+      console.log('📊 Exams data:', examsList);
       res.json(examsList);
     } catch (error: any) {
       console.error('❌ Error fetching exams:', error);
+      console.error('❌ Full error details:', error.message, error.stack);
       res.status(500).json({ message: 'Failed to fetch exams' });
     }
   });
