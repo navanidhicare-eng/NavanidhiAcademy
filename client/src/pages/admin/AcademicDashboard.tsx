@@ -243,6 +243,7 @@ function ExamManagementTab({
 }: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<any>(null);
+  const [selectedSoCenterIds, setSelectedSoCenterIds] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -269,6 +270,7 @@ function ExamManagementTab({
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/exams'] });
       setIsCreateModalOpen(false);
+      setSelectedSoCenterIds([]);
     },
     onError: (error: any) => {
       toast({
@@ -301,14 +303,16 @@ function ExamManagementTab({
 
   const handleCreateExam = (formData: FormData) => {
     const examData = {
-      name: formData.get('name'),
+      title: formData.get('name'),
       description: formData.get('description'),
       classId: formData.get('classId'),
       subjectId: formData.get('subjectId'),
       examDate: formData.get('examDate'),
       duration: parseInt(formData.get('duration') as string),
-      maxMarks: parseInt(formData.get('maxMarks') as string),
+      totalMarks: parseInt(formData.get('maxMarks') as string),
       passingMarks: parseInt(formData.get('passingMarks') as string),
+      soCenterIds: selectedSoCenterIds,
+      chapterIds: [], // Default empty, can be enhanced later
     };
     createExamMutation.mutate(examData);
   };
@@ -433,11 +437,71 @@ function ExamManagementTab({
                 <Input id="passingMarks" name="passingMarks" type="number" placeholder="35" required />
               </div>
             </div>
+            
+            {/* SO Centers Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <Label>SO Centers (Select Multiple)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (selectedSoCenterIds.length === filteredSoCenters.length) {
+                      // If all are selected, unselect all
+                      setSelectedSoCenterIds([]);
+                    } else {
+                      // Select all
+                      setSelectedSoCenterIds(filteredSoCenters.map((center: any) => center.id));
+                    }
+                  }}
+                  className="text-xs"
+                >
+                  {selectedSoCenterIds.length === filteredSoCenters.length ? 'Unselect All' : 'Select All'}
+                </Button>
+              </div>
+              <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2">
+                {filteredSoCenters.map((center: any) => (
+                  <div key={center.id} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`center-${center.id}`}
+                      checked={selectedSoCenterIds.includes(center.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSoCenterIds([...selectedSoCenterIds, center.id]);
+                        } else {
+                          setSelectedSoCenterIds(selectedSoCenterIds.filter(id => id !== center.id));
+                        }
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <label htmlFor={`center-${center.id}`} className="text-sm cursor-pointer">
+                      {center.name}
+                    </label>
+                  </div>
+                ))}
+                {filteredSoCenters.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    {selectedSoCenter ? 'Use the universal location filter above to see SO Centers' : 'No SO Centers available. Please apply location filters above.'}
+                  </p>
+                )}
+              </div>
+              {selectedSoCenterIds.length > 0 && (
+                <p className="text-xs text-gray-600 mt-2">
+                  {selectedSoCenterIds.length} SO Center(s) selected
+                </p>
+              )}
+            </div>
+            
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => {
+                setIsCreateModalOpen(false);
+                setSelectedSoCenterIds([]);
+              }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createExamMutation.isPending}>
+              <Button type="submit" disabled={createExamMutation.isPending || selectedSoCenterIds.length === 0}>
                 {createExamMutation.isPending ? 'Creating...' : 'Create Exam'}
               </Button>
             </div>
