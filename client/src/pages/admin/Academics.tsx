@@ -54,6 +54,7 @@ const examSchema = z.object({
   soCenterIds: z.array(z.string()).min(1, 'At least one SO Center must be selected'),
   examDate: z.string().min(1, 'Exam date is required'),
   duration: z.string().min(1, 'Duration is required'),
+  totalQuestions: z.string().min(1, 'Total questions is required'),
   totalMarks: z.string().min(1, 'Total marks is required'),
   passingMarks: z.string().min(1, 'Passing marks is required'),
   status: z.string().default('scheduled'),
@@ -103,6 +104,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
       soCenterIds: editingExam?.soCenterIds || [],
       examDate: editingExam?.examDate || '',
       duration: editingExam?.duration?.toString() || '',
+      totalQuestions: editingExam?.totalQuestions?.toString() || '',
       totalMarks: editingExam?.totalMarks?.toString() || '',
       passingMarks: editingExam?.passingMarks?.toString() || '',
       status: editingExam?.status || 'scheduled',
@@ -130,6 +132,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
       const submitData = {
         ...data,
         duration: parseInt(data.duration),
+        totalQuestions: parseInt(data.totalQuestions),
         totalMarks: parseInt(data.totalMarks),
         passingMarks: parseInt(data.passingMarks),
       };
@@ -237,7 +240,21 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="totalQuestions"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Questions</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="50" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="totalMarks"
