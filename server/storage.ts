@@ -1154,8 +1154,10 @@ export class DrizzleStorage implements IStorage {
 
   // Enhanced SO Center methods
   async getNextSoCenterId(): Promise<string> {
-    // Get all existing center IDs
-    const centers = await db.select().from(schema.soCenters);
+    // Get all existing center IDs - only select needed columns to avoid column errors
+    const centers = await db.select({
+      centerId: schema.soCenters.centerId
+    }).from(schema.soCenters);
     console.log('Existing centers:', centers.map(c => c.centerId));
     
     // Extract numeric parts and find maximum

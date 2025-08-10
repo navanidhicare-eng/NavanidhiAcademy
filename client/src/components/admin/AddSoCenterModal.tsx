@@ -236,75 +236,48 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Center ID Display */}
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-blue-900">Center ID</h3>
-                  <p className="text-2xl font-bold text-blue-700">{(nextCenterId as string) || 'Generating...'}</p>
-                  <p className="text-sm text-blue-600">Default Password: 12345678</p>
-                </div>
-                <div className="text-sm text-blue-700">
-                  <p>📧 Center can login with:</p>
-                  <p>• Center ID: <strong>{(nextCenterId as string) || 'Generating...'}</strong></p>
-                  <p>• Password: <strong>12345678</strong></p>
-                </div>
+            {/* Center ID Display - Compact */}
+            <div className="bg-gradient-to-r from-green-100 to-emerald-100 p-4 rounded-xl border border-green-200">
+              <div className="text-center">
+                <h3 className="text-sm font-medium text-green-700 mb-1">Generated Center ID</h3>
+                <p className="text-xl font-bold text-green-800">{(nextCenterId as string) || 'Loading...'}</p>
+                <p className="text-xs text-green-600 mt-1">Login Password: 12345678</p>
               </div>
             </div>
 
-            {/* ADMISSION FEE APPLICABILITY - CRITICAL FIELD */}
-            <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 p-6 rounded-lg">
-              <div className="flex items-center mb-4">
-                <div className="bg-orange-100 p-2 rounded-full mr-3">
-                  <CreditCard className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-orange-900">⚠️ Admission Fee Policy</h3>
-                  <p className="text-sm text-orange-700">This setting controls admission fee charging for all students in this center</p>
-                </div>
-              </div>
-              
+            {/* ADMISSION FEE POLICY - Compact */}
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-green-200 p-4 rounded-xl">
               <FormField
                 control={form.control}
                 name="admissionFeeApplicable"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg font-semibold text-orange-900">Admission Fee Applicability *</FormLabel>
+                    <FormLabel className="text-sm font-semibold text-green-800 flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Admission Fee Policy
+                    </FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="h-12 text-lg border-2 border-orange-300 bg-white">
-                          <SelectValue placeholder="Select admission fee policy" />
+                        <SelectTrigger className="h-10 border-green-300 bg-white">
+                          <SelectValue placeholder="Select policy" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="applicable" className="text-lg py-3">
-                            <div className="flex items-center">
-                              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                              <div>
-                                <div className="font-semibold">Applicable</div>
-                                <div className="text-sm text-gray-600">Students will be charged admission fee</div>
-                              </div>
+                          <SelectItem value="applicable">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span>Applicable</span>
                             </div>
                           </SelectItem>
-                          <SelectItem value="not_applicable" className="text-lg py-3">
-                            <div className="flex items-center">
-                              <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
-                              <div>
-                                <div className="font-semibold">Not Applicable</div>
-                                <div className="text-sm text-gray-600">NO admission fee charged (Zero fees)</div>
-                              </div>
+                          <SelectItem value="not_applicable">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span>Not Applicable</span>
                             </div>
                           </SelectItem>
                         </SelectContent>
                       </Select>
                     </FormControl>
                     <FormMessage />
-                    <div className="mt-3 p-3 bg-white rounded border border-orange-200">
-                      <p className="text-sm text-gray-700">
-                        <strong>Impact:</strong> {form.watch('admissionFeeApplicable') === 'not_applicable' 
-                          ? '🔴 Students will have ZERO admission fee and NO SO wallet charges' 
-                          : '🟢 Normal admission fee logic applies with SO wallet transactions'}
-                      </p>
-                    </div>
                   </FormItem>
                 )}
               />
@@ -312,51 +285,39 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
             {/* Basic Center Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
+              <h3 className="text-sm font-semibold text-green-800 border-b border-green-200 pb-2">Basic Information</h3>
               
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Center Name</FormLabel>
+                    <FormLabel className="text-sm text-green-700">Center Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter center name (e.g., Navanidhi SO Center - Kukatpally)" {...field} />
+                      <Input 
+                        placeholder="Enter center name (e.g., Navanidhi SO Center - Kukatpally)" 
+                        className="border-green-200 focus:border-green-400"
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Center Email (Auto-Generated)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="email" 
-                          placeholder="Will be auto-filled based on Center ID"
-                          value={nextCenterId ? `${(nextCenterId as string).toLowerCase()}@navanidhi.org` : ''}
-                          readOnly
-                          className="bg-gray-50"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Center Phone</FormLabel>
+                      <FormLabel className="text-sm text-green-700">Center Phone</FormLabel>
                       <FormControl>
-                        <Input placeholder="+91 87654 32109" {...field} />
+                        <Input 
+                          placeholder="+91 87654 32109" 
+                          className="border-green-200 focus:border-green-400"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -368,9 +329,14 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   name="capacity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Student Capacity</FormLabel>
+                      <FormLabel className="text-sm text-green-700">Student Capacity</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="50" {...field} />
+                        <Input 
+                          type="number" 
+                          placeholder="50" 
+                          className="border-green-200 focus:border-green-400"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -383,9 +349,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 name="roomSize"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Room Size</FormLabel>
+                    <FormLabel className="text-sm text-green-700">Room Size</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., 20x15 feet" {...field} />
+                      <Input 
+                        placeholder="e.g., 20x15 feet" 
+                        className="border-green-200 focus:border-green-400"
+                        {...field} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -395,13 +365,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
             {/* Address Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Location Details</h3>
+              <h3 className="text-sm font-semibold text-green-800 border-b border-green-200 pb-2">Location Details</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="state">State</Label>
+                  <Label htmlFor="state" className="text-sm text-green-700">State</Label>
                   <Select onValueChange={handleStateChange} value={selectedState}>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-green-200 focus:border-green-400">
                       <SelectValue placeholder="Select state" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1028,16 +998,30 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
               </p>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex justify-end space-x-4 pt-6 border-t border-green-100">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onClose}
+                className="border-green-200 text-green-700 hover:bg-green-50"
+              >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 disabled={createSoCenterMutation.isPending}
-                className="bg-primary text-white hover:bg-blue-700"
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md"
               >
-                {createSoCenterMutation.isPending ? 'Creating...' : 'Create SO Center'}
+                {createSoCenterMutation.isPending ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                    Creating...
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Create SO Center</span>
+                  </div>
+                )}
               </Button>
             </div>
           </form>
