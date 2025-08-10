@@ -1547,6 +1547,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SUPABASE AUTH ENFORCED - SO Center update
+  app.put("/api/admin/so-centers/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user!.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const centerId = req.params.id;
+      const updateData = req.body;
+
+      // Remove restricted fields that cannot be updated
+      delete updateData.id;
+      delete updateData.centerId;
+      delete updateData.email;
+      delete updateData.walletBalance;
+      delete updateData.createdAt;
+      delete updateData.password;
+
+      console.log('🔄 Updating SO Center:', centerId, 'with data:', updateData);
+
+      // Update SO Center
+      const updatedCenter = await storage.updateSoCenter(centerId, updateData);
+      
+      if (!updatedCenter) {
+        return res.status(404).json({ message: 'SO Center not found' });
+      }
+
+      console.log('✅ SO Center updated successfully:', updatedCenter.id);
+      res.json(updatedCenter);
+    } catch (error) {
+      console.error('❌ Error updating SO Center:', error);
+      res.status(500).json({ message: 'Failed to update SO center', error: error.message });
+    }
+  });
+
   // SUPABASE AUTH ENFORCED - SO Center creation
   app.post("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {

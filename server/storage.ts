@@ -388,7 +388,19 @@ export class DrizzleStorage implements IStorage {
         managerId: schema.soCenters.managerId,
         ownerName: schema.soCenters.ownerName,
         ownerLastName: schema.soCenters.ownerLastName,
+        ownerFatherName: schema.soCenters.ownerFatherName,
+        ownerMotherName: schema.soCenters.ownerMotherName,
         ownerPhone: schema.soCenters.ownerPhone,
+        landmarks: schema.soCenters.landmarks,
+        roomSize: schema.soCenters.roomSize,
+        rentAmount: schema.soCenters.rentAmount,
+        rentalAdvance: schema.soCenters.rentalAdvance,
+        dateOfHouseTaken: schema.soCenters.dateOfHouseTaken,
+        monthlyRentDate: schema.soCenters.monthlyRentDate,
+        electricBillAccountNumber: schema.soCenters.electricBillAccountNumber,
+        internetBillAccountNumber: schema.soCenters.internetBillAccountNumber,
+        capacity: schema.soCenters.capacity,
+        facilities: schema.soCenters.facilities,
         walletBalance: schema.soCenters.walletBalance,
         isActive: schema.soCenters.isActive,
         createdAt: schema.soCenters.createdAt,
@@ -430,6 +442,36 @@ export class DrizzleStorage implements IStorage {
       ...center,
       studentCount: studentCounts.find(sc => sc.centerId === center.id)?.count || 0
     }));
+  }
+
+  async updateSoCenter(centerId: string, updateData: any): Promise<any> {
+    try {
+      console.log('🔄 Storage: Updating SO Center with ID:', centerId);
+      
+      // Convert string numbers to proper types where needed
+      if (updateData.capacity) {
+        updateData.capacity = parseInt(updateData.capacity);
+      }
+      if (updateData.monthlyRentDate) {
+        updateData.monthlyRentDate = parseInt(updateData.monthlyRentDate);
+      }
+
+      const [updatedCenter] = await db
+        .update(schema.soCenters)
+        .set(updateData)
+        .where(eq(schema.soCenters.id, centerId))
+        .returning();
+
+      if (!updatedCenter) {
+        throw new Error('SO Center not found or update failed');
+      }
+
+      console.log('✅ Storage: SO Center updated successfully:', updatedCenter.id);
+      return updatedCenter;
+    } catch (error) {
+      console.error('❌ Storage: Failed to update SO Center:', error);
+      throw error;
+    }
   }
 
   // SO Center Equipment Management

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { AddSoCenterModal } from '@/components/admin/AddSoCenterModal';
+import { EditSoCenterModal } from '@/components/admin/EditSoCenterModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { 
   Search, 
@@ -71,11 +72,6 @@ export default function AdminCenters() {
 
   const handleEditCenter = (center: any) => {
     setEditingCenter(center);
-    // TODO: Open edit modal
-    toast({
-      title: 'Edit Feature',
-      description: `Edit functionality for ${center.name} will be implemented soon.`,
-    });
   };
 
   const handleDeleteCenter = (center: any) => {
@@ -250,6 +246,12 @@ export default function AdminCenters() {
       <AddSoCenterModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
+      />
+
+      <EditSoCenterModal
+        isOpen={!!editingCenter}
+        onClose={() => setEditingCenter(null)}
+        center={editingCenter}
       />
 
       {/* View Details Dialog */}
