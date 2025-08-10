@@ -6,7 +6,13 @@ This is a comprehensive educational management system designed for Navanidhi Aca
 
 ## Recent Changes (August 2025)
 
-✓ **SO CENTER CREATION FORM OPTIMIZED (Latest)** - Enhanced SO Center creation with automated email generation and usage-based billing:
+✓ **ACADEMIC ADMIN DASHBOARD STREAMLINED (Latest)** - Simplified Academic Admin interface with focused functionality:
+  - Removed Academic Content page from Academic Admin sidebar (content management not needed for academic admin role)
+  - Academic Admin dashboard now has 3 tabs: Student Progress, Exam Management, Attendance Reports
+  - Removed /students and /progress page access for academic_admin role as requested
+  - Fixed SO Centers API access for academic_admin role to resolve 403 authorization errors
+  - Academic Admin role restricted from student management and progress tracking capabilities
+✓ **SO CENTER CREATION FORM OPTIMIZED** - Enhanced SO Center creation with automated email generation and usage-based billing:
   - Auto-generated email format: {centerid}@navanidhi.org (read-only field with visual indicator)
   - Removed monthly electricity and internet bill amount fields for usage-based billing approach
   - Email field automatically fills based on Center ID (e.g., NNASOC00003 → nnasoc00003@navanidhi.org)
