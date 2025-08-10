@@ -2203,6 +2203,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API endpoint for All Payments - Student Fee Histories
+  app.get("/api/admin/payments/student-fees", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('📊 Fetching student fee payment histories...');
+      
+      // Get all student fee payments with student and SO center details
+      const studentPayments = await db
+        .select({
+          id: schema.payments.id,
+          amount: schema.payments.amount,
+          paymentMethod: schema.payments.paymentMethod,
+          description: schema.payments.description,
+          month: schema.payments.month,
+          year: schema.payments.year,
+          receiptNumber: schema.payments.receiptNumber,
+          transactionId: schema.payments.transactionId,
+          createdAt: schema.payments.createdAt,
+          studentName: schema.students.name,
+          studentId: schema.students.studentId,
+          studentClass: schema.classes.name,
+          soCenterName: schema.soCenters.name,
+          recordedByName: schema.users.fullName,
+        })
+        .from(schema.payments)
+        .leftJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.users, eq(schema.payments.recordedBy, schema.users.id))
+        .orderBy(desc(schema.payments.createdAt));
+      
+      console.log('✅ Student payments fetched successfully:', studentPayments.length);
+      res.json(studentPayments);
+    } catch (error: any) {
+      console.error('❌ Error fetching student payments:', error);
+      res.status(500).json({ message: 'Failed to fetch student payments' });
+    }
+  });
+
+  // API endpoint for All Payments - SO Center Wallet Histories
+  app.get("/api/admin/payments/so-wallet-histories", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('💰 Fetching SO Center wallet transaction histories...');
+      
+      // Get all SO Center wallet transactions with SO center details
+      const soWalletTransactions = await db
+        .select({
+          id: schema.walletTransactions.id,
+          amount: schema.walletTransactions.amount,
+          type: schema.walletTransactions.type,
+          description: schema.walletTransactions.description,
+          createdAt: schema.walletTransactions.createdAt,
+          soCenterName: schema.soCenters.name,
+          soCenterId: schema.soCenters.id,
+          collectionAgentName: schema.users.fullName,
+        })
+        .from(schema.walletTransactions)
+        .leftJoin(schema.soCenters, eq(schema.walletTransactions.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.users, eq(schema.walletTransactions.collectionAgentId, schema.users.id))
+        .orderBy(desc(schema.walletTransactions.createdAt));
+      
+      console.log('✅ SO wallet transactions fetched successfully:', soWalletTransactions.length);
+      res.json(soWalletTransactions);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO wallet transactions:', error);
+      res.status(500).json({ message: 'Failed to fetch SO wallet transactions' });
+    }
+  });
+
+  // API endpoint for All Payments - Agent Wallet Histories
+  app.get("/api/admin/payments/agent-wallet-histories", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      console.log('🎯 Fetching Agent wallet transaction histories...');
+      
+      // Get all commission transactions for agents with wallet and SO center details
+      const agentWalletTransactions = await db
+        .select({
+          id: schema.commissionTransactions.id,
+          amount: schema.commissionTransactions.amount,
+          type: schema.commissionTransactions.type,
+          description: schema.commissionTransactions.description,
+          createdAt: schema.commissionTransactions.createdAt,
+          soCenterName: schema.soCenters.name,
+          soCenterId: schema.commissionWallets.soCenterId,
+          walletTotalEarned: schema.commissionWallets.totalEarned,
+          walletAvailableBalance: schema.commissionWallets.availableBalance,
+          walletTotalWithdrawn: schema.commissionWallets.totalWithdrawn,
+        })
+        .from(schema.commissionTransactions)
+        .leftJoin(schema.commissionWallets, eq(schema.commissionTransactions.commissionWalletId, schema.commissionWallets.id))
+        .leftJoin(schema.soCenters, eq(schema.commissionWallets.soCenterId, schema.soCenters.id))
+        .orderBy(desc(schema.commissionTransactions.createdAt));
+      
+      console.log('✅ Agent wallet transactions fetched successfully:', agentWalletTransactions.length);
+      res.json(agentWalletTransactions);
+    } catch (error: any) {
+      console.error('❌ Error fetching agent wallet transactions:', error);
+      res.status(500).json({ message: 'Failed to fetch agent wallet transactions' });
+    }
+  });
+
   // Students CRUD for admin
   app.get("/api/admin/students", authenticateToken, async (req, res) => {
     try {

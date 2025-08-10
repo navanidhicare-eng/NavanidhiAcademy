@@ -151,6 +151,11 @@ function Router() {
           <AdminAllPayments />
         </ProtectedRoute>
       </Route>
+      <Route path="/admin/all-payments">
+        <ProtectedRoute>
+          <AdminAllPayments />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/roles">
         <ProtectedRoute>
           <AdminRoles />
