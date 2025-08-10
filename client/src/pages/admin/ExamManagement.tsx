@@ -68,12 +68,25 @@ export default function ExamManagement() {
 
   // Filter SO Centers based on location selection
   const filteredSoCenters = soCenters.filter((center: any) => {
+    // If no filters are applied, show all SO Centers
+    if (selectedState === 'all-states' || !selectedState) {
+      return true;
+    }
+    
+    // Apply location-based filtering only when specific locations are selected
     if (selectedVillage && selectedVillage !== 'all-villages' && center.villageId !== selectedVillage) return false;
     if (selectedMandal && selectedMandal !== 'all-mandals' && !villages.some((v: any) => v.id === center.villageId && v.mandalId === selectedMandal)) return false;
     if (selectedDistrict && selectedDistrict !== 'all-districts' && !mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === selectedDistrict)) return false;
     if (selectedState && selectedState !== 'all-states' && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
     return true;
   });
+
+  // Debug logging for SO Centers
+  console.log('📊 SO Centers Data Debug:');
+  console.log('Total SO Centers:', soCenters.length);
+  console.log('Filtered SO Centers:', filteredSoCenters.length);
+  console.log('Selected Filters:', { selectedState, selectedDistrict, selectedMandal, selectedVillage });
+  console.log('SO Centers sample:', soCenters.slice(0, 3));
 
   const createExamMutation = useMutation({
     mutationFn: async (examData: any) => {

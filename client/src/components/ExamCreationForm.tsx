@@ -136,28 +136,35 @@ export function ExamCreationForm({
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-lg p-3">
-              {filteredSoCenters.map((center: any) => (
-                <div key={center.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`center-${center.id}`}
-                    checked={selectedSoCenterIds.includes(center.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedSoCenterIds([...selectedSoCenterIds, center.id]);
-                      } else {
-                        setSelectedSoCenterIds(selectedSoCenterIds.filter(id => id !== center.id));
-                      }
-                    }}
-                  />
-                  <Label htmlFor={`center-${center.id}`} className="text-xs">
-                    <div className="flex items-center space-x-1">
-                      <MapPin size={12} />
-                      <span>{center.name}</span>
-                      <span className="text-gray-500">({center.code})</span>
-                    </div>
-                  </Label>
+              {filteredSoCenters.length === 0 ? (
+                <div className="col-span-2 text-center text-gray-500 py-4">
+                  <p>No SO Centers available</p>
+                  <p className="text-xs">Try adjusting the location filters</p>
                 </div>
-              ))}
+              ) : (
+                filteredSoCenters.map((center: any) => (
+                  <div key={center.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`center-${center.id}`}
+                      checked={selectedSoCenterIds.includes(center.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedSoCenterIds([...selectedSoCenterIds, center.id]);
+                        } else {
+                          setSelectedSoCenterIds(selectedSoCenterIds.filter(id => id !== center.id));
+                        }
+                      }}
+                    />
+                    <Label htmlFor={`center-${center.id}`} className="text-xs">
+                      <div className="flex items-center space-x-1">
+                        <MapPin size={12} />
+                        <span>{center.name || center.centerName || 'Unnamed Center'}</span>
+                        <span className="text-gray-500">({center.code || center.id.slice(0, 8)})</span>
+                      </div>
+                    </Label>
+                  </div>
+                ))
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-2">
               Selected: {selectedSoCenterIds.length} of {filteredSoCenters.length} centers
