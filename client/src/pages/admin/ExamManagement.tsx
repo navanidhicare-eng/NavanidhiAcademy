@@ -7,10 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExamCreationForm } from '@/components/ExamCreationForm';
 import { 
   GraduationCap, 
   PlusCircle, 
@@ -75,33 +74,6 @@ export default function ExamManagement() {
     if (selectedState && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
     return true;
   });
-
-  // Reset dependent filters when parent changes
-  const handleStateChange = (value: string) => {
-    setSelectedState(value === 'all' ? '' : value);
-    setSelectedDistrict('');
-    setSelectedMandal('');
-    setSelectedVillage('');
-    setSelectedSoCenter('');
-  };
-
-  const handleDistrictChange = (value: string) => {
-    setSelectedDistrict(value === 'all' ? '' : value);
-    setSelectedMandal('');
-    setSelectedVillage('');
-    setSelectedSoCenter('');
-  };
-
-  const handleMandalChange = (value: string) => {
-    setSelectedMandal(value === 'all' ? '' : value);
-    setSelectedVillage('');
-    setSelectedSoCenter('');
-  };
-
-  const handleVillageChange = (value: string) => {
-    setSelectedVillage(value === 'all' ? '' : value);
-    setSelectedSoCenter('');
-  };
 
   const createExamMutation = useMutation({
     mutationFn: async (examData: any) => {
@@ -206,21 +178,21 @@ export default function ExamManagement() {
                 setSelectedSoCenter('');
               }}
             >
-              <RotateCcw size={16} className="mr-2" />
+              <RotateCcw size={16} className="mr-1" />
               Reset Filters
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             <div>
               <Label htmlFor="state">State</Label>
-              <Select value={selectedState || 'all'} onValueChange={handleStateChange}>
+              <Select value={selectedState} onValueChange={setSelectedState}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All States</SelectItem>
+                  <SelectItem value="">All States</SelectItem>
                   {states.map((state: any) => (
                     <SelectItem key={state.id} value={state.id}>
                       {state.name}
@@ -232,69 +204,51 @@ export default function ExamManagement() {
 
             <div>
               <Label htmlFor="district">District</Label>
-              <Select 
-                value={selectedDistrict || 'all'} 
-                onValueChange={handleDistrictChange}
-                disabled={!selectedState}
-              >
+              <Select value={selectedDistrict} onValueChange={setSelectedDistrict} disabled={!selectedState}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select District" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Districts</SelectItem>
-                  {districts
-                    .filter((district: any) => district.stateId === selectedState)
-                    .map((district: any) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.name}
-                      </SelectItem>
-                    ))}
+                  <SelectItem value="">All Districts</SelectItem>
+                  {districts.filter((d: any) => !selectedState || d.stateId === selectedState).map((district: any) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <Label htmlFor="mandal">Mandal</Label>
-              <Select 
-                value={selectedMandal || 'all'} 
-                onValueChange={handleMandalChange}
-                disabled={!selectedDistrict}
-              >
+              <Select value={selectedMandal} onValueChange={setSelectedMandal} disabled={!selectedDistrict}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Mandal" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Mandals</SelectItem>
-                  {mandals
-                    .filter((mandal: any) => mandal.districtId === selectedDistrict)
-                    .map((mandal: any) => (
-                      <SelectItem key={mandal.id} value={mandal.id}>
-                        {mandal.name}
-                      </SelectItem>
-                    ))}
+                  <SelectItem value="">All Mandals</SelectItem>
+                  {mandals.filter((m: any) => !selectedDistrict || m.districtId === selectedDistrict).map((mandal: any) => (
+                    <SelectItem key={mandal.id} value={mandal.id}>
+                      {mandal.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <Label htmlFor="village">Village</Label>
-              <Select 
-                value={selectedVillage || 'all'} 
-                onValueChange={handleVillageChange}
-                disabled={!selectedMandal}
-              >
+              <Select value={selectedVillage} onValueChange={setSelectedVillage} disabled={!selectedMandal}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Village" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Villages</SelectItem>
-                  {villages
-                    .filter((village: any) => village.mandalId === selectedMandal)
-                    .map((village: any) => (
-                      <SelectItem key={village.id} value={village.id}>
-                        {village.name}
-                      </SelectItem>
-                    ))}
+                  <SelectItem value="">All Villages</SelectItem>
+                  {villages.filter((v: any) => !selectedMandal || v.mandalId === selectedMandal).map((village: any) => (
+                    <SelectItem key={village.id} value={village.id}>
+                      {village.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -362,151 +316,16 @@ export default function ExamManagement() {
       </Card>
 
       {/* Create Exam Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Exam</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            handleCreateExam(formData);
-          }} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Exam Name</Label>
-              <Input id="name" name="name" placeholder="Enter exam name" required />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" placeholder="Enter exam description" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="classId">Class</Label>
-                <Select name="classId" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes.map((cls: any) => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="subjectId">Subject</Label>
-                <Select name="subjectId" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select subject" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjects.map((subject: any) => (
-                      <SelectItem key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="examDate">Exam Date</Label>
-                <Input id="examDate" name="examDate" type="date" required />
-              </div>
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input id="duration" name="duration" type="number" placeholder="120" required />
-              </div>
-              <div>
-                <Label htmlFor="totalQuestions">Total Questions</Label>
-                <Input id="totalQuestions" name="totalQuestions" type="number" placeholder="50" required />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="maxMarks">Maximum Marks</Label>
-                <Input id="maxMarks" name="maxMarks" type="number" placeholder="100" required />
-              </div>
-              <div>
-                <Label htmlFor="passingMarks">Passing Marks</Label>
-                <Input id="passingMarks" name="passingMarks" type="number" placeholder="35" required />
-              </div>
-            </div>
-            
-            {/* SO Centers Selection */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <Label>SO Centers (Select Multiple)</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (selectedSoCenterIds.length === filteredSoCenters.length) {
-                      // If all are selected, unselect all
-                      setSelectedSoCenterIds([]);
-                    } else {
-                      // Select all
-                      setSelectedSoCenterIds(filteredSoCenters.map((center: any) => center.id));
-                    }
-                  }}
-                  className="text-xs"
-                >
-                  {selectedSoCenterIds.length === filteredSoCenters.length ? 'Unselect All' : 'Select All'}
-                </Button>
-              </div>
-              <div className="max-h-40 overflow-y-auto border rounded-md p-3 space-y-2">
-                {filteredSoCenters.map((center: any) => (
-                  <div key={center.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`center-${center.id}`}
-                      checked={selectedSoCenterIds.includes(center.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedSoCenterIds([...selectedSoCenterIds, center.id]);
-                        } else {
-                          setSelectedSoCenterIds(selectedSoCenterIds.filter(id => id !== center.id));
-                        }
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <label htmlFor={`center-${center.id}`} className="text-sm cursor-pointer">
-                      {center.name}
-                    </label>
-                  </div>
-                ))}
-                {filteredSoCenters.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    No SO Centers available. Please apply location filters above.
-                  </p>
-                )}
-              </div>
-              {selectedSoCenterIds.length > 0 && (
-                <p className="text-xs text-gray-600 mt-2">
-                  {selectedSoCenterIds.length} SO Center(s) selected
-                </p>
-              )}
-            </div>
-            
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={() => {
-                setIsCreateModalOpen(false);
-                setSelectedSoCenterIds([]);
-              }}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createExamMutation.isPending || selectedSoCenterIds.length === 0}>
-                {createExamMutation.isPending ? 'Creating...' : 'Create Exam'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <ExamCreationForm
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={handleCreateExam}
+        classes={classes}
+        subjects={subjects}
+        filteredSoCenters={filteredSoCenters}
+        selectedSoCenterIds={selectedSoCenterIds}
+        setSelectedSoCenterIds={setSelectedSoCenterIds}
+      />
     </DashboardLayout>
   );
 }
