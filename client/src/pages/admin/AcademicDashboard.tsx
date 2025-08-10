@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { CardDescription } from '@/components/ui/card';
 import { 
   BookOpen, 
   Users, 
@@ -36,29 +37,29 @@ import {
   Trash2,
   BarChart3,
   Target,
-  Award
+  Award,
+  RotateCcw,
+  Filter,
+  Eye,
+  User,
+  Phone,
+  MapPin as MapPinIcon,
+  Building
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 // Student Progress with SO Center and Location Filters
-function StudentProgressTab() {
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+function StudentProgressTab({ 
+  selectedState, 
+  selectedDistrict, 
+  selectedMandal, 
+  selectedVillage, 
+  selectedSoCenter, 
+  filteredSoCenters 
+}: any) {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
-  const { data: states = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/states'],
-  });
-
-  const { data: districts = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/districts'],
-    enabled: !!selectedState,
-  });
-
-  const { data: soCenters = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/so-centers'],
-  });
+  // Use filtered SO Centers from parent component
 
   const { data: students = [] } = useQuery<any[]>({
     queryKey: ['/api/students'],
@@ -133,19 +134,10 @@ function StudentProgressTab() {
             </div>
 
             <div>
-              <Label>SO Center</Label>
-              <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select SO center" />
-                </SelectTrigger>
-                <SelectContent>
-                  {soCenters.map((center: any) => (
-                    <SelectItem key={center.id} value={center.id}>
-                      {center.name} ({center.centerId})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>SO Center (Filtered)</Label>
+              <div className="text-sm text-gray-600 mb-2">
+                {selectedSoCenter ? filteredSoCenters.find((c: any) => c.id === selectedSoCenter)?.name || 'Selected center from universal filter' : 'Use universal location filter above to select SO center'}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -259,7 +251,14 @@ function StudentProgressTab() {
 }
 
 // Exam Management Tab
-function ExamManagementTab() {
+function ExamManagementTab({ 
+  selectedState, 
+  selectedDistrict, 
+  selectedMandal, 
+  selectedVillage, 
+  selectedSoCenter, 
+  filteredSoCenters 
+}: any) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState<any>(null);
   const queryClient = useQueryClient();
@@ -468,13 +467,15 @@ function ExamManagementTab() {
 }
 
 // Attendance Reports Tab
-function AttendanceReportsTab() {
+function AttendanceReportsTab({ 
+  selectedState, 
+  selectedDistrict, 
+  selectedMandal, 
+  selectedVillage, 
+  selectedSoCenter, 
+  filteredSoCenters 
+}: any) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedSoCenter, setSelectedSoCenter] = useState('');
-
-  const { data: soCenters = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/so-centers'],
-  });
 
   const { data: attendanceStats } = useQuery({
     queryKey: ['/api/attendance/stats', selectedSoCenter, selectedMonth],
@@ -521,16 +522,12 @@ function AttendanceReportsTab() {
             </div>
             <div>
               <Label>SO Center</Label>
-              <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
+              <Select value={selectedSoCenter} onValueChange={() => {}}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select SO center" />
+                  <SelectValue placeholder={selectedSoCenter ? filteredSoCenters.find((c: any) => c.id === selectedSoCenter)?.name : "Use location filter above"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {soCenters.map((center: any) => (
-                    <SelectItem key={center.id} value={center.id}>
-                      {center.name} ({center.centerId})
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="" disabled>Use universal location filter above</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -583,31 +580,257 @@ function AttendanceReportsTab() {
 
 export default function AcademicDashboard() {
   const [activeTab, setActiveTab] = useState('progress');
+  
+  // Universal location filters
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedMandal, setSelectedMandal] = useState('');
+  const [selectedVillage, setSelectedVillage] = useState('');
+  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+
+  // Location data queries
+  const { data: states = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/states'],
+  });
+
+  const { data: districts = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/districts'],
+    enabled: !!selectedState,
+  });
+
+  const { data: mandals = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/mandals'],
+    enabled: !!selectedDistrict,
+  });
+
+  const { data: villages = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/villages'],
+    enabled: !!selectedMandal,
+  });
+
+  const { data: soCenters = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/so-centers'],
+  });
+
+  // Filter SO Centers based on selected location
+  const filteredSoCenters = soCenters.filter((center: any) => {
+    if (selectedVillage && center.villageId !== selectedVillage) return false;
+    if (selectedMandal && !villages.some((v: any) => v.id === center.villageId && v.mandalId === selectedMandal)) return false;
+    if (selectedDistrict && !mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === selectedDistrict)) return false;
+    if (selectedState && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
+    return true;
+  });
+
+  // Reset dependent filters when parent changes
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
+    setSelectedDistrict('');
+    setSelectedMandal('');
+    setSelectedVillage('');
+    setSelectedSoCenter('');
+  };
+
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    setSelectedMandal('');
+    setSelectedVillage('');
+    setSelectedSoCenter('');
+  };
+
+  const handleMandalChange = (value: string) => {
+    setSelectedMandal(value);
+    setSelectedVillage('');
+    setSelectedSoCenter('');
+  };
+
+  const handleVillageChange = (value: string) => {
+    setSelectedVillage(value);
+    setSelectedSoCenter('');
+  };
 
   return (
     <DashboardLayout
       title="Academic Admin Dashboard"
       subtitle="Comprehensive academic management and student progress tracking"
     >
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="progress">Student Progress</TabsTrigger>
-          <TabsTrigger value="exams">Exam Management</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance Reports</TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        {/* Universal Location Filter */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <MapPin size={20} />
+              <span>Location Filter</span>
+            </CardTitle>
+            <CardDescription>
+              Filter all dashboard data by geographic location. Changes apply to all tabs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div>
+                <Label htmlFor="state">State</Label>
+                <Select value={selectedState} onValueChange={handleStateChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All States</SelectItem>
+                    {states.map((state: any) => (
+                      <SelectItem key={state.id} value={state.id}>
+                        {state.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <TabsContent value="progress">
-          <StudentProgressTab />
-        </TabsContent>
+              <div>
+                <Label htmlFor="district">District</Label>
+                <Select 
+                  value={selectedDistrict} 
+                  onValueChange={handleDistrictChange}
+                  disabled={!selectedState}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select District" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Districts</SelectItem>
+                    {districts
+                      .filter((district: any) => district.stateId === selectedState)
+                      .map((district: any) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <TabsContent value="exams">
-          <ExamManagementTab />
-        </TabsContent>
+              <div>
+                <Label htmlFor="mandal">Mandal</Label>
+                <Select 
+                  value={selectedMandal} 
+                  onValueChange={handleMandalChange}
+                  disabled={!selectedDistrict}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Mandal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Mandals</SelectItem>
+                    {mandals
+                      .filter((mandal: any) => mandal.districtId === selectedDistrict)
+                      .map((mandal: any) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>
+                          {mandal.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <TabsContent value="attendance">
-          <AttendanceReportsTab />
-        </TabsContent>
-      </Tabs>
+              <div>
+                <Label htmlFor="village">Village</Label>
+                <Select 
+                  value={selectedVillage} 
+                  onValueChange={handleVillageChange}
+                  disabled={!selectedMandal}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Village" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Villages</SelectItem>
+                    {villages
+                      .filter((village: any) => village.mandalId === selectedMandal)
+                      .map((village: any) => (
+                        <SelectItem key={village.id} value={village.id}>
+                          {village.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="soCenter">SO Center</Label>
+                <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select SO Center" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All SO Centers</SelectItem>
+                    {filteredSoCenters.map((center: any) => (
+                      <SelectItem key={center.id} value={center.id}>
+                        {center.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSelectedState('');
+                    setSelectedDistrict('');
+                    setSelectedMandal('');
+                    setSelectedVillage('');
+                    setSelectedSoCenter('');
+                  }}
+                  className="w-full"
+                >
+                  <RotateCcw size={16} className="mr-2" />
+                  Reset
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="progress">Student Progress</TabsTrigger>
+            <TabsTrigger value="exams">Exam Management</TabsTrigger>
+            <TabsTrigger value="attendance">Attendance Reports</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="progress">
+            <StudentProgressTab 
+              selectedState={selectedState}
+              selectedDistrict={selectedDistrict}
+              selectedMandal={selectedMandal}
+              selectedVillage={selectedVillage}
+              selectedSoCenter={selectedSoCenter}
+              filteredSoCenters={filteredSoCenters}
+            />
+          </TabsContent>
+
+          <TabsContent value="exams">
+            <ExamManagementTab 
+              selectedState={selectedState}
+              selectedDistrict={selectedDistrict}
+              selectedMandal={selectedMandal}
+              selectedVillage={selectedVillage}
+              selectedSoCenter={selectedSoCenter}
+              filteredSoCenters={filteredSoCenters}
+            />
+          </TabsContent>
+
+          <TabsContent value="attendance">
+            <AttendanceReportsTab 
+              selectedState={selectedState}
+              selectedDistrict={selectedDistrict}
+              selectedMandal={selectedMandal}
+              selectedVillage={selectedVillage}
+              selectedSoCenter={selectedSoCenter}
+              filteredSoCenters={filteredSoCenters}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </DashboardLayout>
   );
 }
