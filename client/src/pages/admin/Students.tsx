@@ -86,20 +86,15 @@ export default function Students() {
       return true;
     }
     
-    // Filter centers based on location hierarchy
-    const village = center.villageId;
-    const mandal = (mandals as any[]).find((m: any) => m.villages?.includes(village));
-    const district = (districts as any[]).find((d: any) => d.id === mandal?.districtId);
-    const state = (states as any[]).find((s: any) => s.id === district?.stateId);
-
-    const stateMatch = selectedState === 'all' || state?.id === selectedState;
-    const districtMatch = selectedDistrict === 'all' || district?.id === selectedDistrict;
-    const mandalMatch = selectedMandal === 'all' || mandal?.id === selectedMandal;
+    // Use the joined location data from the center
+    const stateMatch = selectedState === 'all' || center.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
+    const districtMatch = selectedDistrict === 'all' || center.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
+    const mandalMatch = selectedMandal === 'all' || center.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
 
     return stateMatch && districtMatch && mandalMatch;
   });
 
-  // Filter students based on all criteria
+  // Filter students based on all criteria including location
   const filteredStudents = (students as any[]).filter((student: any) => {
     const matchesSearch = !searchTerm || 
       student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,7 +107,21 @@ export default function Students() {
     const matchesCenter = selectedCenter === 'all' || student.soCenterId === selectedCenter;
     const matchesClass = selectedClass === 'all' || student.classId === selectedClass;
 
-    return matchesSearch && matchesCenter && matchesClass;
+    // Location-based filtering through student's SO center
+    let matchesLocation = true;
+    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all') {
+      const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
+      if (studentCenter) {
+        const stateMatch = selectedState === 'all' || studentCenter.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
+        const districtMatch = selectedDistrict === 'all' || studentCenter.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
+        const mandalMatch = selectedMandal === 'all' || studentCenter.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
+        matchesLocation = stateMatch && districtMatch && mandalMatch;
+      } else {
+        matchesLocation = false;
+      }
+    }
+
+    return matchesSearch && matchesCenter && matchesClass && matchesLocation;
   });
 
   const handleStateChange = (stateId: string) => {
@@ -168,104 +177,106 @@ export default function Students() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Student Management</h1>
-              <p className="text-gray-600 mt-2">Advanced filtering and detailed student information</p>
+              <p className="text-gray-600 mt-2">Manage all students across the system</p>
             </div>
             <Badge variant="outline" className="text-lg px-4 py-2">
               {filteredStudents.length} Students
             </Badge>
           </div>
+
+          {/* Top Location Filters */}
+          <div className="border-t pt-6">
+            <h2 className="text-lg font-semibold mb-4 text-gray-900">Location Filters</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* State Filter */}
+              <Select onValueChange={handleStateChange} value={selectedState}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {(states as any[]).map((state: any) => (
+                    <SelectItem key={state.id} value={state.id}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* District Filter */}
+              <Select 
+                onValueChange={handleDistrictChange} 
+                value={selectedDistrict}
+                disabled={selectedState === 'all'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  {filteredDistricts.map((district: any) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Mandal Filter */}
+              <Select 
+                onValueChange={handleMandalChange} 
+                value={selectedMandal}
+                disabled={selectedDistrict === 'all'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Mandal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Mandals</SelectItem>
+                  {filteredMandals.map((mandal: any) => (
+                    <SelectItem key={mandal.id} value={mandal.id}>
+                      {mandal.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters Button */}
+              <Button variant="outline" onClick={clearFilters} className="w-full">
+                <Filter className="h-4 w-4 mr-2" />
+                Clear All Filters
+              </Button>
+            </div>
+          </div>
         </div>
 
-        {/* Advanced Filters */}
+        {/* Search and Filters */}
         <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <h2 className="text-lg font-semibold">Advanced Filters</h2>
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Clear All
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search students, ID, parent..."
+                placeholder="Search by name, student ID, phone, or father's name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            {/* State Filter */}
-            <Select onValueChange={handleStateChange} value={selectedState}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select State" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All States</SelectItem>
-                {(states as any[]).map((state: any) => (
-                  <SelectItem key={state.id} value={state.id}>
-                    {state.name} ({state.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* District Filter */}
-            <Select 
-              onValueChange={handleDistrictChange} 
-              value={selectedDistrict}
-              disabled={selectedState === 'all'}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select District" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Districts</SelectItem>
-                {filteredDistricts.map((district: any) => (
-                  <SelectItem key={district.id} value={district.id}>
-                    {district.name} ({district.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Mandal Filter */}
-            <Select 
-              onValueChange={handleMandalChange} 
-              value={selectedMandal}
-              disabled={selectedDistrict === 'all'}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Mandal" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Mandals</SelectItem>
-                {filteredMandals.map((mandal: any) => (
-                  <SelectItem key={mandal.id} value={mandal.id}>
-                    {mandal.name} ({mandal.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* SO Center Filter */}
             <Select onValueChange={setSelectedCenter} value={selectedCenter}>
               <SelectTrigger>
-                <SelectValue placeholder="Select SO Center" />
+                <SelectValue placeholder="All SO Centers" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All SO Centers</SelectItem>
                 {filteredSoCenters.map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>
-                    {center.name} ({center.centerId})
+                    {center.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -274,7 +285,7 @@ export default function Students() {
             {/* Class Filter */}
             <Select onValueChange={setSelectedClass} value={selectedClass}>
               <SelectTrigger>
-                <SelectValue placeholder="Select Class" />
+                <SelectValue placeholder="All Classes" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Classes</SelectItem>
