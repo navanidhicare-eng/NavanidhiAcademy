@@ -543,6 +543,8 @@ export const exams = pgTable("exams", {
   chapterIds: text("chapter_ids").array().notNull(), // Array of chapter IDs
   soCenterIds: text("so_center_ids").array().notNull(), // Array of SO Center IDs for visibility
   examDate: date("exam_date").notNull(),
+  startTime: text("start_time"), // Feature 6: Time limit for exams
+  endTime: text("end_time"), // Feature 6: Time limit for exams
   duration: integer("duration").notNull(), // Duration in minutes
   totalQuestions: integer("total_questions").notNull(), // Total number of questions
   totalMarks: integer("total_marks").notNull(),
@@ -570,6 +572,22 @@ export const examResults = pgTable("exam_results", {
 }, (table) => ({
   uniqueExamStudent: unique().on(table.examId, table.studentId),
 }));
+
+// Feature 7: Student Dropout Requests
+export const studentDropoutRequests = pgTable("student_dropout_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").references(() => students.id).notNull(),
+  soCenterId: varchar("so_center_id").references(() => soCenters.id).notNull(),
+  reason: text("reason").notNull(),
+  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
+  status: text("status").default("pending"), // pending, approved, rejected
+  approvedBy: varchar("approved_by").references(() => users.id),
+  adminNotes: text("admin_notes"),
+  requestDate: date("request_date").notNull(),
+  processedDate: date("processed_date"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
@@ -836,6 +854,16 @@ export const insertSoCenterExpenseSchema = createInsertSchema(soCenterExpenses).
 
 export type InsertSoCenterExpense = z.infer<typeof insertSoCenterExpenseSchema>;
 export type SoCenterExpense = typeof soCenterExpenses.$inferSelect;
+
+// Student Dropout Request schemas
+export const insertStudentDropoutRequestSchema = createInsertSchema(studentDropoutRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertStudentDropoutRequest = z.infer<typeof insertStudentDropoutRequestSchema>;
+export type StudentDropoutRequest = typeof studentDropoutRequests.$inferSelect;
 
 // SO Center Expense Wallet schemas  
 export const insertSoCenterExpenseWalletSchema = createInsertSchema(soCenterExpenseWallet).omit({

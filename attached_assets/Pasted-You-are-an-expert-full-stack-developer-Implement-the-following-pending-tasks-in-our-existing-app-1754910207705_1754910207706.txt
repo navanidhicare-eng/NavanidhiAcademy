@@ -1,0 +1,57 @@
+You are an expert full-stack developer.  
+Implement the following pending tasks in our existing app using the current database structure and APIs without creating new tables unless absolutely necessary.  
+Make all changes on the dev branch first to avoid breaking production.
+
+### Step-by-step Implementation Plan:
+
+1. **SO Dashboard Cards Fix**
+   - Locate API endpoints or database queries for:
+     - New Students
+     - This Month Collection
+     - Total Collection
+     - Today Attendance
+   - Ensure each card pulls fresh, live data.
+   - Add auto-refresh or refresh-on-page-load functionality.
+
+2. **Progress Tracking Page Topics Split**
+   - Topics have "Important" and "Moderate" tags added by Admin/Academic Admin.
+   - In SO Dashboard, show two separate dropdowns for Important and Moderate topics instead of a single merged dropdown.
+   - Make sure filtering works without affecting other dashboard parts.
+
+3. **SO Login - Product Sales Wallet Transactions**
+   - Debug why wallet transaction history is not showing.
+   - Link the correct API to display product sales wallet transactions in SO login.
+
+4. **SO Add Expense Automation**
+   - Auto-fill SO salary and house rent values from admin registration data.
+   - Ensure payment requests for these appear only once per month, triggered by the date set by admin.
+   - Prevent duplicate requests within the same month.
+
+5. **Exam Results Update Flow**
+   - When "Update Results" is clicked, open a page listing all students of that class who took the exam.
+   - For each student, add a button to enter marks.
+   - Display question numbers created for that exam.
+   - Allow SO to enter marks for each question and select:
+       1. Not Written
+       2. Poorly Written
+       3. Well Written
+   - Calculate total marks automatically and save results.
+   - Make results visible in Admin and Academic Admin login.
+
+6. **Exam Creation Time Limit**
+   - Add time selection in exam creation page.
+   - Exams should open for SO centers only during the set time.
+   - Outside that time, show exam paper as PDF only.
+
+7. **Student Drop-out Request**
+   - If a student stops tuition, allow SO to submit a Drop-out request.
+   - Send the request to Admin and Academic Admin for approval.
+
+### Rules:
+- Use the existing database and APIs.
+- Maintain current UI/UX style.
+- Avoid unnecessary new libraries.
+- Test each change before committing.
+- Commit all features in a single checkpoint after verification.
+
+Deliver the updated code, ensuring all 7 features are working as intended.

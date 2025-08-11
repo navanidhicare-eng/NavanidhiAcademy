@@ -29,6 +29,7 @@ import {
   Settings,
   Package,
   ShoppingCart,
+  UserMinus,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -74,6 +75,8 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },
           { icon: ShoppingCart, label: 'Course Purchases', href: '/admin/course-purchases' },
           { icon: FileCheck, label: 'Approvals', href: '/admin/approvals' },
+          { icon: BookOpen, label: 'Topics Management', href: '/admin/topics-management' },
+          { icon: UserMinus, label: 'Dropout Requests', href: '/admin/dropout-requests' },
         ];
       
       case 'so_center':
@@ -88,6 +91,7 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
           { icon: DollarSign, label: 'Expenses', href: '/expenses' },
           { icon: GraduationCap, label: 'Exam Management', href: '/so-center/exam-management' },
+          { icon: UserMinus, label: 'Dropout Requests', href: '/so-center/dropout-requests' },
         ];
       
       case 'teacher':

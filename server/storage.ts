@@ -1443,13 +1443,13 @@ export class DrizzleStorage implements IStorage {
     // Get payments for this month and today
     const paymentsQuery = await db.select({
       amount: schema.payments.amount,
-      date: schema.payments.paymentDate
+      date: schema.payments.createdAt
     }).from(schema.payments)
       .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
       .where(
         and(
           eq(schema.students.soCenterId, soCenterId),
-          gte(schema.payments.paymentDate, thisMonth)
+          gte(schema.payments.createdAt, thisMonth)
         )
       );
 
@@ -1460,14 +1460,14 @@ export class DrizzleStorage implements IStorage {
 
     // Get today's attendance percentage
     const todayAttendanceQuery = await db.select({
-      present: sql`count(case when present = true then 1 end)::integer`,
+      present: sql`count(case when status = 'present' then 1 end)::integer`,
       total: sql`count(*)::integer`
     }).from(schema.attendance)
       .innerJoin(schema.students, eq(schema.attendance.studentId, schema.students.id))
       .where(
         and(
           eq(schema.students.soCenterId, soCenterId),
-          gte(schema.attendance.date, today)
+          eq(schema.attendance.date, today.toISOString().split('T')[0])
         )
       );
 
@@ -1478,7 +1478,7 @@ export class DrizzleStorage implements IStorage {
 
     // Get product sales for this month
     const productSalesQuery = await db.select({
-      amount: schema.productOrders.totalAmount
+      amount: schema.productOrders.amount
     }).from(schema.productOrders)
       .where(
         and(
@@ -2879,6 +2879,176 @@ export class DrizzleStorage implements IStorage {
       console.error('❌ Error deleting exam:', error);
       throw error;
     }
+  }
+
+  // Feature 1: Topics Management with Moderate/Important flags
+  async getAllTopicsWithChapters(): Promise<any[]> {
+    const result = await db.select({
+      topicId: schema.topics.id,
+      topicName: schema.topics.name,
+      description: schema.topics.description,
+      orderIndex: schema.topics.orderIndex,
+      isModerate: schema.topics.isModerate,
+      isImportant: schema.topics.isImportant,
+      isActive: schema.topics.isActive,
+      chapterId: schema.chapters.id,
+      chapterName: schema.chapters.name,
+      subjectId: schema.subjects.id,
+      subjectName: schema.subjects.name,
+      classId: schema.classes.id,
+      className: schema.classes.name
+    })
+    .from(schema.topics)
+    .leftJoin(schema.chapters, eq(schema.topics.chapterId, schema.chapters.id))
+    .leftJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
+    .leftJoin(schema.classes, eq(schema.subjects.classId, schema.classes.id))
+    .orderBy(asc(schema.classes.name), asc(schema.subjects.name), asc(schema.chapters.name), asc(schema.topics.orderIndex));
+    
+    return result;
+  }
+
+  async updateTopicFlags(topicId: string, updates: { isModerate?: boolean; isImportant?: boolean }): Promise<Topic> {
+    const [updated] = await db.update(schema.topics)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.topics.id, topicId))
+      .returning();
+    return updated;
+  }
+
+  // Feature 7: Student Dropout Requests Management
+  async createDropoutRequest(data: any): Promise<any> {
+    const [created] = await db.insert(schema.studentDropoutRequests)
+      .values({
+        ...data,
+        requestDate: new Date().toISOString().split('T')[0]
+      })
+      .returning();
+    return created;
+  }
+
+  async getDropoutRequests(soCenterId?: string): Promise<any[]> {
+    let query = db.select({
+      id: schema.studentDropoutRequests.id,
+      studentId: schema.studentDropoutRequests.studentId,
+      studentName: schema.students.name,
+      studentStudentId: schema.students.studentId,
+      reason: schema.studentDropoutRequests.reason,
+      status: schema.studentDropoutRequests.status,
+      requestDate: schema.studentDropoutRequests.requestDate,
+      processedDate: schema.studentDropoutRequests.processedDate,
+      adminNotes: schema.studentDropoutRequests.adminNotes,
+      soCenterName: schema.soCenters.name
+    })
+    .from(schema.studentDropoutRequests)
+    .leftJoin(schema.students, eq(schema.studentDropoutRequests.studentId, schema.students.id))
+    .leftJoin(schema.soCenters, eq(schema.studentDropoutRequests.soCenterId, schema.soCenters.id));
+
+    if (soCenterId) {
+      query = query.where(eq(schema.studentDropoutRequests.soCenterId, soCenterId));
+    }
+
+    return await query.orderBy(desc(schema.studentDropoutRequests.createdAt));
+  }
+
+  async processDropoutRequest(requestId: string, status: 'approved' | 'rejected', approvedBy: string, adminNotes?: string): Promise<any> {
+    return await db.transaction(async (tx) => {
+      const [request] = await tx.select()
+        .from(schema.studentDropoutRequests)
+        .where(eq(schema.studentDropoutRequests.id, requestId));
+
+      if (!request) {
+        throw new Error('Dropout request not found');
+      }
+
+      if (request.status !== 'pending') {
+        throw new Error('Request has already been processed');
+      }
+
+      const [updatedRequest] = await tx.update(schema.studentDropoutRequests)
+        .set({
+          status,
+          approvedBy,
+          adminNotes,
+          processedDate: new Date().toISOString().split('T')[0]
+        })
+        .where(eq(schema.studentDropoutRequests.id, requestId))
+        .returning();
+
+      if (status === 'approved') {
+        // Deactivate the student
+        await tx.update(schema.students)
+          .set({ isActive: false })
+          .where(eq(schema.students.id, request.studentId));
+      }
+
+      return updatedRequest;
+    });
+  }
+
+  // Feature 2, 3, 4, 5: Enhanced Dashboard and Academic Features
+  async getStudentsBySOCenterDetailed(soCenterId: string): Promise<any[]> {
+    return await db.select({
+      id: schema.students.id,
+      name: schema.students.name,
+      studentId: schema.students.studentId,
+      className: schema.classes.name,
+      totalFeeAmount: schema.students.totalFeeAmount,
+      paidAmount: schema.students.paidAmount,
+      pendingAmount: schema.students.pendingAmount,
+      paymentStatus: schema.students.paymentStatus,
+      enrollmentDate: schema.students.enrollmentDate,
+      isActive: schema.students.isActive
+    })
+    .from(schema.students)
+    .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+    .where(and(
+      eq(schema.students.soCenterId, soCenterId),
+      eq(schema.students.isActive, true)
+    ))
+    .orderBy(desc(schema.students.createdAt));
+  }
+
+  // Feature 6: Exam Time Restrictions
+  async updateExamTimeSettings(examId: string, startTime: string, endTime: string): Promise<any> {
+    const [updated] = await db.update(schema.exams)
+      .set({
+        startTime,
+        endTime,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.exams.id, examId))
+      .returning();
+    return updated;
+  }
+
+  async checkExamTimeAccess(examId: string): Promise<{ canAccess: boolean; message?: string }> {
+    const [exam] = await db.select()
+      .from(schema.exams)
+      .where(eq(schema.exams.id, examId));
+
+    if (!exam) {
+      return { canAccess: false, message: 'Exam not found' };
+    }
+
+    if (!exam.startTime || !exam.endTime) {
+      return { canAccess: true }; // No time restrictions
+    }
+
+    const now = new Date();
+    const currentTime = now.toTimeString().split(' ')[0];
+    
+    if (currentTime < exam.startTime) {
+      return { canAccess: false, message: `Exam starts at ${exam.startTime}` };
+    }
+    
+    if (currentTime > exam.endTime) {
+      return { canAccess: false, message: `Exam ended at ${exam.endTime}` };
+    }
+
+    return { canAccess: true };
   }
 }
 

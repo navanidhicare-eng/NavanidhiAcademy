@@ -6171,6 +6171,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ======================== ALL 7 NEW FEATURES API ROUTES ========================
+  
+  // Feature 1: Topics Management with Moderate/Important flags
+  app.get("/api/topics-management", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const topics = await storage.getAllTopicsWithChapters();
+      res.json(topics);
+    } catch (error) {
+      console.error('Error fetching topics for management:', error);
+      res.status(500).json({ message: "Failed to fetch topics" });
+    }
+  });
+
+  app.patch("/api/topics/:topicId/flags", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { topicId } = req.params;
+      const { isModerate, isImportant } = req.body;
+
+      const updates: any = {};
+      if (typeof isModerate === 'boolean') updates.isModerate = isModerate;
+      if (typeof isImportant === 'boolean') updates.isImportant = isImportant;
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid updates provided" });
+      }
+
+      const updatedTopic = await storage.updateTopicFlags(topicId, updates);
+      res.json(updatedTopic);
+    } catch (error) {
+      console.error('Error updating topic flags:', error);
+      res.status(500).json({ message: "Failed to update topic flags" });
+    }
+  });
+
+  // Feature 6: Exam Time Management
+  app.patch("/api/exams/:examId/time-settings", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'academic_admin') {
+        return res.status(403).json({ message: "Academic admin access required" });
+      }
+
+      const { examId } = req.params;
+      const { startTime, endTime } = req.body;
+
+      if (!startTime || !endTime) {
+        return res.status(400).json({ message: "Both startTime and endTime are required" });
+      }
+
+      const updatedExam = await storage.updateExamTimeSettings(examId, startTime, endTime);
+      res.json(updatedExam);
+    } catch (error) {
+      console.error('Error updating exam time settings:', error);
+      res.status(500).json({ message: "Failed to update exam time settings" });
+    }
+  });
+
+  app.get("/api/exams/:examId/access-check", authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const accessCheck = await storage.checkExamTimeAccess(examId);
+      res.json(accessCheck);
+    } catch (error) {
+      console.error('Error checking exam access:', error);
+      res.status(500).json({ message: "Failed to check exam access" });
+    }
+  });
+
+  // Feature 7: Student Dropout Management
+  app.post("/api/dropout-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const dropoutData = {
+        ...req.body,
+        soCenterId: soCenter.id,
+        requestedBy: req.user.userId,
+        status: 'pending'
+      };
+
+      const request = await storage.createDropoutRequest(dropoutData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating dropout request:', error);
+      res.status(500).json({ message: "Failed to create dropout request" });
+    }
+  });
+
+  app.get("/api/dropout-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { status, adminNotes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+
+      const updatedRequest = await storage.processDropoutRequest(
+        requestId, 
+        status, 
+        req.user.userId, 
+        adminNotes
+      );
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error('Error processing dropout request:', error);
+      res.status(500).json({ message: error.message || "Failed to process dropout request" });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

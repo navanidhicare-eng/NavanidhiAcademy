@@ -44,6 +44,9 @@ import SoCenterExamManagement from "@/pages/so-center/ExamManagement";
 import PostExamResult from "@/pages/so-center/PostExamResult";
 import Products from "@/pages/Products";
 import CoursePurchases from "@/pages/admin/CoursePurchases";
+import TopicsManagement from "@/pages/admin/TopicsManagement";
+import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
+import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -257,6 +260,23 @@ function Router() {
       <Route path="/admin/progress-tracking">
         <ProtectedRoute>
           <AdminProgressTracking />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* New Features: Topics Management & Dropout Requests */}
+      <Route path="/admin/topics-management">
+        <ProtectedRoute>
+          <TopicsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/dropout-requests">
+        <ProtectedRoute>
+          <DropoutRequestsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/so-center/dropout-requests">
+        <ProtectedRoute>
+          <StudentDropoutRequests />
         </ProtectedRoute>
       </Route>
       
