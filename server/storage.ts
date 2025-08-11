@@ -1286,16 +1286,59 @@ export class DrizzleStorage implements IStorage {
   async getSoCenterByEmail(email: string): Promise<SoCenter | undefined> {
     try {
       console.log('🔍 Storage: Starting getSoCenterByEmail lookup for:', email);
-      const result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
-      console.log('🔍 Storage: Database query completed, found', result.length, 'SO Center(s)');
       
-      if (result[0]) {
-        console.log('✅ Found SO Center:', result[0].centerId, 'Name:', result[0].name);
+      // First try direct email match
+      let result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
+      console.log('🔍 Storage: Direct email lookup found', result.length, 'SO Center(s)');
+      
+      if (result.length > 0) {
+        console.log('✅ Found SO Center via direct email match:', result[0].centerId, 'Name:', result[0].name);
         return result[0];
-      } else {
-        console.log('❌ No SO Center found for user email:', email);
-        return undefined;
       }
+      
+      // If direct email doesn't work, try looking up by user table and join with SO Center
+      console.log('🔄 Storage: Trying user table lookup for SO Center...');
+      const userBasedResult = await db.select({
+        id: schema.soCenters.id,
+        centerId: schema.soCenters.centerId,
+        name: schema.soCenters.name,
+        email: schema.soCenters.email,
+        phone: schema.soCenters.phone,
+        isActive: schema.soCenters.isActive,
+        managerId: schema.soCenters.managerId,
+        villageId: schema.soCenters.villageId,
+        walletBalance: schema.soCenters.walletBalance,
+        createdAt: schema.soCenters.createdAt
+      })
+      .from(schema.soCenters)
+      .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+      .where(eq(schema.users.email, email));
+      
+      console.log('🔍 Storage: User-based lookup found', userBasedResult.length, 'SO Center(s)');
+      
+      if (userBasedResult.length > 0) {
+        console.log('✅ Found SO Center via user table:', userBasedResult[0].centerId, 'Name:', userBasedResult[0].name);
+        return userBasedResult[0] as SoCenter;
+      }
+      
+      // Last resort: if email follows pattern nnasoc00XXX@navanidhi.org, extract center ID
+      const emailPattern = /nnasoc(\d+)@navanidhi\.org/;
+      const match = email.match(emailPattern);
+      if (match) {
+        const centerIdPattern = `NNASOC${match[1].padStart(5, '0')}`;
+        console.log('🔄 Storage: Trying pattern-based lookup for centerId:', centerIdPattern);
+        
+        const patternResult = await db.select().from(schema.soCenters).where(eq(schema.soCenters.centerId, centerIdPattern));
+        console.log('🔍 Storage: Pattern-based lookup found', patternResult.length, 'SO Center(s)');
+        
+        if (patternResult.length > 0) {
+          console.log('✅ Found SO Center via pattern match:', patternResult[0].centerId, 'Name:', patternResult[0].name);
+          return patternResult[0];
+        }
+      }
+      
+      console.log('❌ No SO Center found for user email:', email);
+      return undefined;
     } catch (error: any) {
       console.error('❌ Error in getSoCenterByEmail:', error);
       console.error('❌ Error details:', {
