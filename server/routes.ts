@@ -4862,9 +4862,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .from(schema.exams)
       .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
       .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-      .where(sql`${soCenterId} = ANY(${schema.exams.soCenterIds})`)
+      .where(sql`${schema.exams.soCenterIds} @> ARRAY[${soCenterId}]::text[]`)
       .orderBy(schema.exams.examDate);
+      
       console.log('✅ Found exams for SO Center:', exams.length);
+      if (exams.length > 0) {
+        console.log('📋 Exam titles:', exams.map(e => e.title));
+      }
       res.json(exams);
     } catch (error: any) {
       console.error('❌ Error fetching SO Center exams:', error);
