@@ -219,6 +219,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
         totalQuestions: parseInt(data.totalQuestions),
         totalMarks: parseInt(data.totalMarks),
         passingMarks: parseInt(data.passingMarks),
+        questions: JSON.stringify(data.questions || []), // Convert questions array to JSON string
       };
       const endpoint = editingExam ? `/api/admin/exams/${editingExam.id}` : '/api/admin/exams';
       const method = editingExam ? 'PUT' : 'POST';

@@ -691,6 +691,11 @@ export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  questions: z.union([
+    z.string(), // Allow JSON string
+    z.array(z.any()).transform((arr) => JSON.stringify(arr)) // Transform array to JSON string
+  ]).optional(),
 });
 
 export const insertExamResultSchema = createInsertSchema(examResults).omit({
