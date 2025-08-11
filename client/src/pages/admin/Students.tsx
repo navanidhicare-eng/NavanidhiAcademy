@@ -106,7 +106,7 @@ export default function Students() {
     return stateMatch && districtMatch && mandalMatch && villageMatch;
   });
 
-  // Filter students based on search and class
+  // Filter students based on search, class, and location
   const filteredStudents = (students as any[]).filter((student: any) => {
     // Enhanced search including SO Center and location information
     const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
@@ -125,8 +125,23 @@ export default function Students() {
       studentCenter?.stateName?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesClass = selectedClass === 'all' || student.classId === selectedClass;
+    const matchesCenter = selectedCenter === 'all' || student.soCenterId === selectedCenter;
 
-    return matchesSearch && matchesClass;
+    // Location-based filtering through student's SO center
+    let matchesLocation = true;
+    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all' || selectedVillage !== 'all') {
+      if (studentCenter) {
+        const stateMatch = selectedState === 'all' || studentCenter.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
+        const districtMatch = selectedDistrict === 'all' || studentCenter.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
+        const mandalMatch = selectedMandal === 'all' || studentCenter.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
+        const villageMatch = selectedVillage === 'all' || studentCenter.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
+        matchesLocation = stateMatch && districtMatch && mandalMatch && villageMatch;
+      } else {
+        matchesLocation = false;
+      }
+    }
+
+    return matchesSearch && matchesClass && matchesCenter && matchesLocation;
   });
 
   const handleStateChange = (stateId: string) => {
@@ -313,6 +328,21 @@ export default function Students() {
 
             {/* Right side - Filters and Actions */}
             <div className="flex gap-3 items-center">
+              {/* SO Center Filter */}
+              <Select onValueChange={setSelectedCenter} value={selectedCenter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All SO Centers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All SO Centers</SelectItem>
+                  {filteredSoCenters.map((center: any) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {/* Class Filter */}
               <Select onValueChange={setSelectedClass} value={selectedClass}>
                 <SelectTrigger className="w-[150px]">
