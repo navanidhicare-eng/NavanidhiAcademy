@@ -52,6 +52,8 @@ interface Student {
   name: string;
   studentId: string;
   className: string;
+  totalAmount?: string;
+  paidAmount?: string;
 }
 
 export default function StudentDropoutRequests() {
@@ -61,15 +63,21 @@ export default function StudentDropoutRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: requests = [], isLoading: isLoadingRequests } = useQuery({
+  const { data: requestsResponse = [], isLoading: isLoadingRequests } = useQuery({
     queryKey: ["/api/dropout-requests"],
     queryFn: () => apiRequest("GET", "/api/dropout-requests"),
   });
+  
+  // Ensure requests is always an array
+  const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
-  const { data: students = [], isLoading: isLoadingStudents } = useQuery({
+  const { data: studentsResponse = [], isLoading: isLoadingStudents } = useQuery({
     queryKey: ["/api/so-center/detailed-students"],
     queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
   });
+  
+  // Ensure students is always an array
+  const students = Array.isArray(studentsResponse) ? studentsResponse : [];
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -190,7 +198,9 @@ export default function StudentDropoutRequests() {
                       </SelectItem>
                     ) : (
                       students.map((student: Student) => {
-                        const pendingAmount = parseFloat(student.totalAmount || '0') - parseFloat(student.paidAmount || '0');
+                        const totalAmount = parseFloat(student.totalAmount || '0');
+                        const paidAmount = parseFloat(student.paidAmount || '0');
+                        const pendingAmount = totalAmount - paidAmount;
                         const hasBalance = pendingAmount > 0;
                         return (
                           <SelectItem 
@@ -210,10 +220,13 @@ export default function StudentDropoutRequests() {
                     )}
                   </SelectContent>
                 </Select>
-                {selectedStudentId && (() => {
+                {selectedStudentId && students.length > 0 && (() => {
                   const selectedStudent = students.find((s: Student) => s.id === selectedStudentId);
                   if (selectedStudent) {
-                    const pendingAmount = parseFloat(selectedStudent.totalAmount || '0') - parseFloat(selectedStudent.paidAmount || '0');
+                    const totalAmount = parseFloat(selectedStudent.totalAmount || '0');
+                    const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
+                    const pendingAmount = totalAmount - paidAmount;
+                    
                     if (pendingAmount > 0) {
                       return (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-md">
