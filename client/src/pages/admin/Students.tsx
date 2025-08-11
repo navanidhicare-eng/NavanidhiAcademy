@@ -106,13 +106,21 @@ export default function Students() {
 
   // Filter students based on all criteria including location
   const filteredStudents = (students as any[]).filter((student: any) => {
+    // Enhanced search including SO Center and location information
+    const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
     const matchesSearch = !searchTerm || 
       student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.studentId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.fatherMobile?.includes(searchTerm) ||
       student.motherMobile?.includes(searchTerm) ||
       student.fatherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.motherName?.toLowerCase().includes(searchTerm.toLowerCase());
+      student.motherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.centerId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.villageName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.mandalName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.districtName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      studentCenter?.stateName?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCenter = selectedCenter === 'all' || student.soCenterId === selectedCenter;
     const matchesClass = selectedClass === 'all' || student.classId === selectedClass;
@@ -210,6 +218,9 @@ export default function Students() {
           {/* Top Location Filters */}
           <div className="border-t pt-6">
             <h2 className="text-lg font-semibold mb-4 text-gray-900">Location Filters</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Filter by location hierarchy: State → District → Mandal → Village. Search includes all student details and location names.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* State Filter */}
               <Select onValueChange={handleStateChange} value={selectedState}>
@@ -299,7 +310,7 @@ export default function Students() {
             <div className="relative md:col-span-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search by name, student ID, phone, or father's name..."
+                placeholder="Search by name, student ID, phone, parent name, SO center, or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -315,7 +326,12 @@ export default function Students() {
                 <SelectItem value="all">All SO Centers</SelectItem>
                 {filteredSoCenters.map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>
-                    {center.name}
+                    <div className="flex flex-col">
+                      <span className="font-medium">{center.name}</span>
+                      <span className="text-xs text-gray-500">
+                        {center.villageName}, {center.mandalName}, {center.districtName}, {center.stateName}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
