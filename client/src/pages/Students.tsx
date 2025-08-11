@@ -12,10 +12,8 @@ export default function Students() {
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['/api/students', user?.id],
     queryFn: async () => {
-      // For SO center users, get their actual SO center ID
-      const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
-      console.log('Fetching students for SO Center:', soCenterId);
-      const response = await fetch('/api/students?soCenterId=' + soCenterId, {
+      console.log('Fetching students for user:', user?.id, 'role:', user?.role);
+      const response = await fetch('/api/students', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },

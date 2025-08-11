@@ -372,7 +372,9 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
         }, 200);
         
         setShowSuccessScreen(true);
+        // Invalidate and refetch students data immediately
         queryClient.invalidateQueries({ queryKey: ['/api/students'] });
+        queryClient.refetchQueries({ queryKey: ['/api/students'] });
       } catch (error) {
         console.error('Error processing success response:', error);
         toast({
