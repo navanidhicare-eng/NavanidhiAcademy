@@ -1820,7 +1820,8 @@ export class DrizzleStorage implements IStorage {
 
   // Class Fees Management
   async getClassFees(classId: string, courseType: string): Promise<ClassFee | undefined> {
-    const result = await db.select()
+    // First try to get the exact match with courseType
+    let result = await db.select()
       .from(schema.classFees)
       .where(and(
         eq(schema.classFees.classId, classId),
@@ -1828,6 +1829,33 @@ export class DrizzleStorage implements IStorage {
         eq(schema.classFees.isActive, true)
       ))
       .limit(1);
+    
+    // If no exact match found, get any fee record for this class and return the appropriate fee
+    if (result.length === 0) {
+      console.log(`🔍 No exact match for classId: ${classId}, courseType: ${courseType}. Trying flexible approach...`);
+      result = await db.select()
+        .from(schema.classFees)
+        .where(and(
+          eq(schema.classFees.classId, classId),
+          eq(schema.classFees.isActive, true)
+        ))
+        .limit(1);
+      
+      if (result.length > 0) {
+        console.log(`✅ Found flexible fee record for class ${classId}`);
+        const feeRecord = result[0];
+        
+        // Check if the requested fee type exists in the record
+        if (courseType === 'yearly' && !feeRecord.yearlyFee) {
+          console.log(`⚠️ No yearly fee available for class ${classId}`);
+          return undefined;
+        }
+        if (courseType === 'monthly' && !feeRecord.monthlyFee) {
+          console.log(`⚠️ No monthly fee available for class ${classId}`);
+          return undefined;
+        }
+      }
+    }
     
     return result[0];
   }
