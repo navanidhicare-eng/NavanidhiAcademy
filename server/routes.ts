@@ -6057,7 +6057,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.role === 'so_center') {
         const exam = await sql`
           SELECT * FROM exams 
-          WHERE id = ${examId} AND so_center_id = ${userId}
+          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
         `;
         
         if (exam.length === 0) {
@@ -6072,7 +6072,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY id
       `;
       
-      res.json(questions.map(q => ({
+      res.json(Array.from(questions).map(q => ({
         id: q.id,
         questionText: q.question_text,
         marks: parseFloat(q.marks),
@@ -6094,7 +6094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.role === 'so_center') {
         const exam = await sql`
           SELECT * FROM exams 
-          WHERE id = ${examId} AND so_center_id = ${userId}
+          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
         `;
         
         if (exam.length === 0) {
@@ -6107,7 +6107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE exam_id = ${examId}
       `;
       
-      res.json(results.map(r => ({
+      res.json(Array.from(results).map(r => ({
         id: r.id,
         examId: r.exam_id,
         studentId: r.student_id,
@@ -6137,7 +6137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user?.role === 'so_center') {
         const exam = await sql`
           SELECT * FROM exams 
-          WHERE id = ${examId} AND so_center_id = ${userId}
+          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
         `;
         
         if (exam.length === 0) {
