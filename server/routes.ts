@@ -733,8 +733,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🔍 SO Center user email:', req.user.email);
         
         try {
-          // Get SO Center associated with this user
-          const soCenter = await storage.getSoCenterByEmail(req.user.email);
+          // Get SO Center associated with this user using improved lookup
+          let soCenter = await storage.getSoCenterByEmail(req.user.email);
+          
+          // Fallback: try to find by center ID pattern if email doesn't work
+          if (!soCenter) {
+            const emailPrefix = req.user.email.split('@')[0];
+            if (emailPrefix && emailPrefix.toLowerCase().startsWith('nnasoc')) {
+              console.log('🔄 Trying fallback SO Center lookup by center ID pattern...');
+              const results = await sql`
+                SELECT * FROM so_centers 
+                WHERE center_id = ${emailPrefix.toUpperCase()}
+                LIMIT 1
+              `;
+              
+              if (results.length > 0) {
+                soCenter = {
+                  id: results[0].id,
+                  centerId: results[0].center_id,
+                  name: results[0].name,
+                  email: results[0].email
+                };
+                console.log('✅ Found SO Center via fallback:', soCenter.centerId);
+              }
+            }
+          }
+          
           if (!soCenter) {
             console.log('❌ No SO Center found for user email:', req.user.email);
             return res.status(403).json({ message: "SO Center not found for user" });
@@ -748,12 +772,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
           
           // Preserve database values and only add progress info
-          const studentsWithStatus = await Promise.all(studentsFromDb.map(async (student: any) => {
-            return {
-              ...student,
-              paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
-              progress: 0
-            };
+          const studentsWithStatus = studentsFromDb.map((student: any) => ({
+            ...student,
+            paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
+            progress: 0
           }));
           
           res.json(studentsWithStatus);
@@ -1436,8 +1458,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         whereClause = `WHERE s.so_center_id = '${userData.soCenterId}'`;
       }
       
-      // Get real dashboard statistics using raw queries
-      const statsQuery = `
+      // Get real dashboard statistics using tagged template literals
+      const results = await sql`
         SELECT 
           COUNT(s.id) as total_students,
           COUNT(DISTINCT s.so_center_id) as total_so_centers,
@@ -1445,10 +1467,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COUNT(CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_students_this_month
         FROM students s
         LEFT JOIN payments p ON p.student_id = s.id
-        ${whereClause}
+        ${whereClause ? sql.unsafe(whereClause) : sql``}
       `;
       
-      const results = await executeRawQuery(statsQuery, []);
       const statsData = results[0] || {};
       
       const stats = {

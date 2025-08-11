@@ -43,6 +43,10 @@ import type {
   InsertWithdrawalRequest,
   SystemSetting,
   InsertSystemSetting,
+  HomeworkActivity,
+  InsertHomeworkActivity,
+  TuitionProgress,
+  InsertTuitionProgress,
 } from "@shared/schema";
 
 // MANDATORY SUPABASE DATABASE CONNECTION - NEON COMPLETELY DISABLED  
@@ -90,10 +94,10 @@ async function initializeDatabase() {
   try {
     // Check if states exist
     const existingStates = await db.select().from(schema.states);
-    
+
     if (existingStates.length === 0) {
       console.log('Initializing database with default states...');
-      
+
       // Add default states
       const defaultStates = [
         { name: 'Andhra Pradesh', code: 'AP' },
@@ -102,20 +106,20 @@ async function initializeDatabase() {
         { name: 'Tamil Nadu', code: 'TN' },
         { name: 'Kerala', code: 'KL' }
       ];
-      
+
       for (const state of defaultStates) {
         await db.insert(schema.states).values(state);
       }
-      
+
       console.log('Database initialized with default states');
     }
-    
+
     // Check if classes exist
     const existingClasses = await db.select().from(schema.classes);
-    
+
     if (existingClasses.length === 0) {
       console.log('Initializing database with default classes...');
-      
+
       // Add default classes
       const defaultClasses = [
         { name: '1st Class', description: 'First standard' },
@@ -129,11 +133,11 @@ async function initializeDatabase() {
         { name: '9th Class', description: 'Ninth standard' },
         { name: '10th Class', description: 'Tenth standard' }
       ];
-      
+
       for (const classData of defaultClasses) {
         await db.insert(schema.classes).values(classData);
       }
-      
+
       console.log('Database initialized with default classes');
     }
   } catch (error) {
@@ -185,7 +189,7 @@ export interface IStorage {
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsBySoCenter(soCenterId: string): Promise<Payment[]>;
   getPaymentsByDateRange(soCenterId: string, startDate: Date, endDate: Date): Promise<Payment[]>;
-  
+
   // Payment processing and history
   getPaymentsByStudent(studentId: string): Promise<Payment[]>;
   processStudentPayment(paymentData: {
@@ -198,6 +202,17 @@ export interface IStorage {
     payment: Payment;
     transactionId: string;
     walletUpdated: boolean;
+    studentName: string;
+    studentId: string;
+    className: string;
+    amount: number;
+    receiptNumber: string;
+    feeType: string;
+    parentPhone: string;
+    fatherMobile: string;
+    newPaidAmount: number;
+    newPendingAmount: number;
+    totalFeeAmount: number;
   }>;
 
   // Attendance methods
@@ -227,7 +242,7 @@ export interface IStorage {
       }>;
     }>;
   }>;
-  
+
   getAttendanceStats(params: {
     soCenterId: string;
     month: string;
@@ -244,7 +259,7 @@ export interface IStorage {
       percentage: number;
     }>;
   }>;
-  
+
   getStudentAttendanceReport(studentId: string, month: string): Promise<{
     studentId: string;
     studentName: string;
@@ -324,7 +339,7 @@ export interface IStorage {
   createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student>;
   validateAadharNumber(aadharNumber: string): Promise<boolean>;
   getStudentSiblings(studentId: string): Promise<StudentSibling[]>;
-  
+
   // Homework Activity methods
   createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]>;
   getHomeworkActivities(params: {
@@ -371,13 +386,13 @@ export class DrizzleStorage implements IStorage {
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('getUserByEmail query timeout')), 5000);
       });
-      
+
       const result = await Promise.race([queryPromise, timeoutPromise]);
       console.log(`🔍 Storage: Database query completed, found ${result.length} user(s)`);
       return result[0];
     } catch (error) {
       console.error(`❌ Storage: Error in getUserByEmail:`, error);
-      
+
       // Try a simpler query as fallback
       try {
         console.log(`🔄 Storage: Attempting fallback query...`);
@@ -478,7 +493,7 @@ export class DrizzleStorage implements IStorage {
   async updateSoCenter(centerId: string, updateData: any): Promise<any> {
     try {
       console.log('🔄 Storage: Updating SO Center with ID:', centerId);
-      
+
       // Convert string numbers to proper types where needed
       if (updateData.capacity) {
         updateData.capacity = parseInt(updateData.capacity);
@@ -536,7 +551,7 @@ export class DrizzleStorage implements IStorage {
     if (data.purchaseDate && data.warrantyYears) {
       data.warrantyEndDate = this.calculateWarrantyEndDate(data.purchaseDate, parseInt(data.warrantyYears));
     }
-    
+
     return await db.update(schema.soCenterEquipment)
       .set(data)
       .where(eq(schema.soCenterEquipment.id, equipmentId))
@@ -553,12 +568,12 @@ export class DrizzleStorage implements IStorage {
     const purchase = new Date(purchaseDate);
     const warrantyEnd = new Date(purchase);
     warrantyEnd.setFullYear(warrantyEnd.getFullYear() + warrantyYears);
-    
+
     // Format as DD/MM/YYYY as required
     const day = warrantyEnd.getDate().toString().padStart(2, '0');
     const month = (warrantyEnd.getMonth() + 1).toString().padStart(2, '0');
     const year = warrantyEnd.getFullYear();
-    
+
     return `${day}/${month}/${year}`;
   }
 
@@ -568,13 +583,13 @@ export class DrizzleStorage implements IStorage {
       email: center.email,
       centerId: center.centerId
     });
-    
+
     return await db.transaction(async (tx) => {
       // Create the SO Center record
       console.log('📝 Inserting SO Center record...');
       const [newCenter] = await tx.insert(schema.soCenters).values(center).returning();
       console.log('✅ SO Center created with ID:', newCenter.id);
-      
+
       // Create nearby schools if provided
       if (nearbySchools && nearbySchools.length > 0) {
         const schoolsData = nearbySchools.map(school => ({
@@ -612,13 +627,13 @@ export class DrizzleStorage implements IStorage {
         await tx.insert(schema.soCenterEquipment).values(equipmentData);
         console.log('✅ Equipment inventory created');
       }
-      
+
       // Check if user with this email already exists
       const existingUser = await tx.select()
         .from(schema.users)
         .where(eq(schema.users.email, center.email!))
         .limit(1);
-      
+
       if (existingUser.length > 0) {
         console.log('⚠️  User with email already exists, updating user role to so_center');
         // Update existing user to have so_center role and link to this center
@@ -644,11 +659,11 @@ export class DrizzleStorage implements IStorage {
           villageId: center.villageId,
           isActive: true
         };
-        
+
         await tx.insert(schema.users).values(userData);
         console.log('✅ New user authentication created');
       }
-      
+
       console.log('🎉 SO Center creation completed successfully');
       return newCenter;
     });
@@ -658,11 +673,11 @@ export class DrizzleStorage implements IStorage {
     // Add the amount to existing wallet balance, don't replace it
     const numericAmount = Number(amount);
     console.log('💰 Wallet update - ID:', id, 'Amount:', amount, 'Parsed:', numericAmount);
-    
+
     if (isNaN(numericAmount) || numericAmount <= 0) {
       throw new Error(`Invalid amount for wallet update: ${amount} (parsed: ${numericAmount})`);
     }
-    
+
     // Use direct SQL update with proper numeric conversion
     const [updatedCenter] = await db.update(schema.soCenters)
       .set({ 
@@ -765,7 +780,7 @@ export class DrizzleStorage implements IStorage {
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
     .where(and(eq(schema.students.soCenterId, soCenterId), eq(schema.students.isActive, true)))
     .orderBy(desc(schema.students.createdAt));
-    
+
     return results;
   }
 
@@ -806,14 +821,14 @@ export class DrizzleStorage implements IStorage {
     .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
     .where(eq(schema.students.isActive, true))
     .orderBy(desc(schema.students.createdAt));
-    
+
     return results;
   }
 
   async getAllStudentsWithDetails(): Promise<any[]> {
     try {
       console.log('🔍 Storage: Fetching all students with comprehensive details...');
-      
+
       // Main students query with joins for comprehensive data
       const students = await db
         .select({
@@ -829,7 +844,7 @@ export class DrizzleStorage implements IStorage {
           address: schema.students.address,
           isActive: schema.students.isActive,
           createdAt: schema.students.createdAt,
-          
+
           // Parent information
           fatherName: schema.students.fatherName,
           fatherMobile: schema.students.fatherMobile,
@@ -837,17 +852,17 @@ export class DrizzleStorage implements IStorage {
           motherName: schema.students.motherName,
           motherMobile: schema.students.motherMobile,
           motherOccupation: schema.students.motherOccupation,
-          
+
           // Fee information
           totalFeeAmount: schema.students.totalFeeAmount,
           paidAmount: schema.students.paidAmount,
           pendingAmount: schema.students.pendingAmount,
-          
+
           // Foreign keys
           classId: schema.students.classId,
           soCenterId: schema.students.soCenterId,
           villageId: schema.students.villageId,
-          
+
           // Joined data
           className: schema.classes.name,
           soCenterName: schema.soCenters.name,
@@ -877,7 +892,7 @@ export class DrizzleStorage implements IStorage {
       // Combine student data with siblings
       const studentsWithDetails = students.map(student => {
         const studentSiblings = siblings.filter(s => s.studentId === student.id);
-        
+
         return {
           ...student,
           paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
@@ -916,7 +931,7 @@ export class DrizzleStorage implements IStorage {
 
   async updateTopicProgress(progress: InsertTopicProgress): Promise<TopicProgress> {
     const existing = await this.getProgressByTopic(progress.topicId!, progress.studentId!);
-    
+
     if (existing) {
       const result = await db.update(schema.topicProgress)
         .set({ ...progress, updatedAt: new Date() })
@@ -958,7 +973,7 @@ export class DrizzleStorage implements IStorage {
     .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
     .where(eq(schema.students.soCenterId, soCenterId))
     .orderBy(desc(schema.payments.createdAt));
-    
+
     return results.map(result => result.payments);
   }
 
@@ -974,7 +989,7 @@ export class DrizzleStorage implements IStorage {
       )
     )
     .orderBy(desc(schema.payments.createdAt));
-    
+
     return results.map(result => result.payments);
   }
 
@@ -1053,12 +1068,12 @@ export class DrizzleStorage implements IStorage {
       const numericAmount = Number(amount);
       const currentPaidAmount = Number(student.paidAmount || 0);
       let totalFeeAmount = Number(student.totalFeeAmount || 0);
-      
+
       // Set total fee amount if not set
       if (totalFeeAmount === 0) {
         totalFeeAmount = expectedFeeAmount;
       }
-      
+
       const newPaidAmount = currentPaidAmount + numericAmount;
       const newPendingAmount = Math.max(0, totalFeeAmount - newPaidAmount);
 
@@ -1072,14 +1087,14 @@ export class DrizzleStorage implements IStorage {
         .where(eq(schema.students.id, studentId));
 
       // Update SO Center wallet - using proper numeric addition
-      
+
       // Get current wallet balance first
       const [currentBalance] = await tx.select({ balance: schema.soCenters.walletBalance })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.id, student.soCenterId));
-      
+
       const newBalance = Number(currentBalance.balance) + numericAmount;
-      
+
       await tx.update(schema.soCenters)
         .set({ 
           walletBalance: newBalance.toString()
@@ -1215,17 +1230,17 @@ export class DrizzleStorage implements IStorage {
     const centers = await db.select({
       centerId: schema.soCenters.centerId
     }).from(schema.soCenters);
-    
+
     const users = await db.select({
       email: schema.users.email
     }).from(schema.users).where(like(schema.users.email, 'nnasoc%@navanidhi.org'));
-    
+
     console.log('Existing center IDs:', centers.map(c => c.centerId));
     console.log('Existing SO Center emails:', users.map(u => u.email));
-    
+
     // Extract numeric parts from both center IDs and emails
     const existingNumbers = new Set<number>();
-    
+
     // From center IDs
     centers.forEach(center => {
       if (center.centerId) {
@@ -1235,7 +1250,7 @@ export class DrizzleStorage implements IStorage {
         }
       }
     });
-    
+
     // From emails
     users.forEach(user => {
       if (user.email) {
@@ -1245,25 +1260,25 @@ export class DrizzleStorage implements IStorage {
         }
       }
     });
-    
+
     console.log('Existing SO Center numbers:', Array.from(existingNumbers).sort((a, b) => a - b));
-    
+
     // Find the first available number starting from 1
     let nextNumber = 1;
     while (existingNumbers.has(nextNumber)) {
       nextNumber++;
     }
-    
+
     const centerId = `NNASOC${String(nextNumber).padStart(5, '0')}`;
     const email = `nnasoc${String(nextNumber).padStart(5, '0')}@navanidhi.org`;
-    
+
     console.log(`Next available SO Center number: ${nextNumber}`);
     console.log(`Generated center ID: ${centerId}`);
     console.log(`Generated email: ${email}`);
-    
+
     return { centerId, email };
   }
-  
+
   async getNextSoCenterId(): Promise<string> {
     const result = await this.getNextAvailableSoCenterNumber();
     return result.centerId;
@@ -1286,142 +1301,36 @@ export class DrizzleStorage implements IStorage {
   async getSoCenterByEmail(email: string): Promise<SoCenter | undefined> {
     try {
       console.log('🔍 Storage: Starting getSoCenterByEmail lookup for:', email);
-      
-      // First try direct email match
-      let result = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, email));
-      console.log('🔍 Storage: Direct email lookup found', result.length, 'SO Center(s)');
-      
+
+      // Use raw SQL to avoid potential Drizzle recursion issues
+      const result = await sql`
+        SELECT * FROM so_centers 
+        WHERE email = ${email} 
+        OR center_id = ${email.split('@')[0].toUpperCase()}
+        LIMIT 1
+      `;
+
       if (result.length > 0) {
-        console.log('✅ Found SO Center via direct email match:', result[0].centerId, 'Name:', result[0].name);
-        return result[0];
+        console.log('✅ Found SO Center:', result[0].center_id, '-', result[0].name);
+        return {
+          id: result[0].id,
+          centerId: result[0].center_id,
+          name: result[0].name,
+          email: result[0].email,
+          phone: result[0].phone,
+          address: result[0].address,
+          walletBalance: result[0].wallet_balance,
+          isActive: result[0].is_active,
+          createdAt: result[0].created_at,
+          villageId: result[0].village_id
+        };
       }
-      
-      // If direct email doesn't work, try looking up by user table and join with SO Center
-      console.log('🔄 Storage: Trying user table lookup for SO Center...');
-      const userBasedResult = await db.select({
-        id: schema.soCenters.id,
-        centerId: schema.soCenters.centerId,
-        name: schema.soCenters.name,
-        email: schema.soCenters.email,
-        phone: schema.soCenters.phone,
-        isActive: schema.soCenters.isActive,
-        managerId: schema.soCenters.managerId,
-        villageId: schema.soCenters.villageId,
-        walletBalance: schema.soCenters.walletBalance,
-        createdAt: schema.soCenters.createdAt
-      })
-      .from(schema.soCenters)
-      .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
-      .where(eq(schema.users.email, email));
-      
-      console.log('🔍 Storage: User-based lookup found', userBasedResult.length, 'SO Center(s)');
-      
-      if (userBasedResult.length > 0) {
-        console.log('✅ Found SO Center via user table:', userBasedResult[0].centerId, 'Name:', userBasedResult[0].name);
-        return userBasedResult[0] as SoCenter;
-      }
-      
-      // Last resort: if email follows pattern nnasoc00XXX@navanidhi.org, extract center ID
-      const emailPattern = /nnasoc(\d+)@navanidhi\.org/;
-      const match = email.match(emailPattern);
-      if (match) {
-        const centerIdPattern = `NNASOC${match[1].padStart(5, '0')}`;
-        console.log('🔄 Storage: Trying pattern-based lookup for centerId:', centerIdPattern);
-        
-        const patternResult = await db.select().from(schema.soCenters).where(eq(schema.soCenters.centerId, centerIdPattern));
-        console.log('🔍 Storage: Pattern-based lookup found', patternResult.length, 'SO Center(s)');
-        
-        if (patternResult.length > 0) {
-          console.log('✅ Found SO Center via pattern match:', patternResult[0].centerId, 'Name:', patternResult[0].name);
-          return patternResult[0];
-        }
-      }
-      
-      console.log('❌ No SO Center found for user email:', email);
-      
-      // CRITICAL FIX: Auto-create SO Center if none found but user exists
-      console.log('🔧 CRITICAL FIX: Attempting to auto-link user to SO Center...');
-      try {
-        const user = await this.getUserByEmail(email);
-        if (user && user.role === 'so_center') {
-          console.log('👤 Found SO Center user without linked center, attempting auto-fix...');
-          
-          // Check if any SO Center exists without proper email linkage
-          const allCenters = await db.select().from(schema.soCenters).where(eq(schema.soCenters.isActive, true));
-          console.log(`🔍 Found ${allCenters.length} active SO Centers for potential linking`);
-          
-          // Try to find a center that matches the user's pattern or has the user as manager
-          for (const center of allCenters) {
-            console.log(`🔍 Checking center: ${center.centerId} (ID: ${center.id}) - Manager: ${center.managerId}`);
-            
-            // Check if this center's managerId matches the user ID
-            if (center.managerId === user.id) {
-              console.log('✅ FOUND MATCH: SO Center managed by this user:', center.centerId);
-              return center;
-            }
-            
-            // Check if center ID pattern matches the email pattern
-            const emailPattern = /nnasoc(\d+)@navanidhi\.org/;
-            const emailMatch = email.match(emailPattern);
-            if (emailMatch && center.centerId) {
-              const expectedCenterId = `NNASOC${emailMatch[1].padStart(5, '0')}`;
-              console.log(`🔍 Pattern matching: ${expectedCenterId} vs ${center.centerId}`);
-              if (center.centerId === expectedCenterId) {
-                console.log('✅ FOUND PATTERN MATCH: SO Center with matching ID:', center.centerId);
-                
-                // Update the center to have the correct email and managerId
-                const [updatedCenter] = await db
-                  .update(schema.soCenters)
-                  .set({ 
-                    email: email,
-                    managerId: user.id
-                  })
-                  .where(eq(schema.soCenters.id, center.id))
-                  .returning();
-                
-                console.log('🔧 AUTO-FIXED: Updated SO Center with email and manager linkage');
-                return updatedCenter;
-              }
-            }
-            
-            // CRITICAL FIX: Check if this is the center where students are being registered
-            // Look for the specific hardcoded center ID that appears in logs
-            if (center.id === '84bf6d19-8830-4abd-8374-2c29faecaa24') {
-              console.log('✅ FOUND TARGET CENTER: The center where students are being registered!');
-              console.log('🔧 LINKING user to this center for immediate access...');
-              
-              // Update this center to be managed by the current user
-              const [updatedCenter] = await db
-                .update(schema.soCenters)
-                .set({ 
-                  email: email,
-                  managerId: user.id
-                })
-                .where(eq(schema.soCenters.id, center.id))
-                .returning();
-              
-              console.log('🎉 SUCCESS: User now linked to their SO Center!');
-              return updatedCenter;
-            }
-          }
-          
-          console.log('❌ No matching SO Center found for auto-linking');
-        }
-      } catch (autoFixError) {
-        console.error('❌ Auto-fix attempt failed:', autoFixError);
-      }
-      
-      return undefined;
-    } catch (error: any) {
+
+      console.log('❌ No SO Center found for email:', email);
+      return null;
+    } catch (error) {
       console.error('❌ Error in getSoCenterByEmail:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        code: error.code,
-        detail: error.detail,
-        column: error.column,
-        position: error.position
-      });
-      return undefined;
+      return null;
     }
   }
 
@@ -1712,14 +1621,14 @@ export class DrizzleStorage implements IStorage {
   async generateStudentId(): Promise<string> {
     const currentYear = new Date().getFullYear();
     const yearSuffix = currentYear.toString().slice(-2); // Get last 2 digits (e.g., 25 for 2025)
-    
+
     return await db.transaction(async (tx) => {
       // Get or create counter for current year
       let counter = await tx.select()
         .from(schema.studentCounter)
         .where(eq(schema.studentCounter.year, currentYear))
         .limit(1);
-      
+
       if (counter.length === 0) {
         // Create new counter for the year
         const [newCounter] = await tx.insert(schema.studentCounter)
@@ -1728,7 +1637,7 @@ export class DrizzleStorage implements IStorage {
             currentNumber: 1
           })
           .returning();
-        
+
         const paddedNumber = String(1).padStart(7, '0');
         return `NNAS${yearSuffix}${paddedNumber}`;
       } else {
@@ -1740,7 +1649,7 @@ export class DrizzleStorage implements IStorage {
             updatedAt: new Date()
           })
           .where(eq(schema.studentCounter.year, currentYear));
-        
+
         const paddedNumber = String(nextNumber).padStart(7, '0');
         return `NNAS${yearSuffix}${paddedNumber}`;
       }
@@ -1750,21 +1659,21 @@ export class DrizzleStorage implements IStorage {
   // Validate Aadhar Number uniqueness
   async validateAadharNumber(aadharNumber: string): Promise<boolean> {
     console.log('🔍 CRITICAL: Checking Aadhar number globally across entire database:', aadharNumber);
-    
+
     // Check ENTIRE database for existing Aadhar number - NOT just SO Center specific
     const existing = await db.select()
       .from(schema.students)
       .where(eq(schema.students.aadharNumber, aadharNumber))
       .limit(1);
-    
+
     const isUnique = existing.length === 0;
-    
+
     if (existing.length > 0) {
       console.log('❌ DUPLICATE AADHAR FOUND: Aadhar number', aadharNumber, 'already exists for student:', existing[0].name, 'ID:', existing[0].studentId);
     } else {
       console.log('✅ AADHAR UNIQUE: Aadhar number', aadharNumber, 'is available globally');
     }
-    
+
     return isUnique; // Returns true if Aadhar is unique across entire database
   }
 
@@ -1773,10 +1682,10 @@ export class DrizzleStorage implements IStorage {
     try {
       // Generate unique student ID first (outside transaction)
       const studentId = await this.generateStudentId();
-      
+
       return await db.transaction(async (tx) => {
         console.log('Starting database transaction for student creation...');
-        
+
         // Create the student record
         const [newStudent] = await tx.insert(schema.students)
           .values({
@@ -1785,22 +1694,22 @@ export class DrizzleStorage implements IStorage {
             qrCode: `QR_${studentId}_${Date.now()}`
           })
           .returning();
-        
+
         console.log('Student record created, ID:', newStudent.id);
-        
+
         // Create sibling records if provided
         if (siblings && siblings.length > 0) {
           const siblingsWithStudentId = siblings.map(sibling => ({
             ...sibling,
             studentId: newStudent.id
           }));
-          
+
           await tx.insert(schema.studentSiblings)
             .values(siblingsWithStudentId);
-          
+
           console.log('Sibling records created:', siblings.length);
         }
-        
+
         console.log('Transaction completed successfully');
         return newStudent;
       });
@@ -1829,7 +1738,7 @@ export class DrizzleStorage implements IStorage {
         eq(schema.classFees.isActive, true)
       ))
       .limit(1);
-    
+
     // If no exact match found, get any fee record for this class and return the appropriate fee
     if (result.length === 0) {
       console.log(`🔍 No exact match for classId: ${classId}, courseType: ${courseType}. Trying flexible approach...`);
@@ -1840,11 +1749,11 @@ export class DrizzleStorage implements IStorage {
           eq(schema.classFees.isActive, true)
         ))
         .limit(1);
-      
+
       if (result.length > 0) {
         console.log(`✅ Found flexible fee record for class ${classId}`);
         const feeRecord = result[0];
-        
+
         // Check if the requested fee type exists in the record
         if (courseType === 'yearly' && !feeRecord.yearlyFee) {
           console.log(`⚠️ No yearly fee available for class ${classId}`);
@@ -1856,7 +1765,7 @@ export class DrizzleStorage implements IStorage {
         }
       }
     }
-    
+
     return result[0];
   }
 
@@ -1903,7 +1812,7 @@ export class DrizzleStorage implements IStorage {
         .from(schema.payments)
         .where(eq(schema.payments.studentId, studentId))
         .orderBy(desc(schema.payments.createdAt));
-      
+
       return payments;
     } catch (error) {
       console.error('Error getting student payment history:', error);
@@ -1938,7 +1847,7 @@ export class DrizzleStorage implements IStorage {
           target: [schema.attendance.studentId, schema.attendance.date, schema.attendance.classId],
           set: {
             status: record.status,
-            markedBy: attendanceData.markedBy,
+            markedBy: record.markedBy,
             updatedAt: new Date(),
           },
         })
@@ -1979,7 +1888,7 @@ export class DrizzleStorage implements IStorage {
         id: record.id
       });
     });
-    
+
     return attendanceMap;
   }
 
@@ -2058,7 +1967,7 @@ export class DrizzleStorage implements IStorage {
 
     // Process class-wise data
     const classWiseMap: Record<string, { present: number; absent: number; holiday: number }> = {};
-    
+
     classStats.forEach(stat => {
       if (!classWiseMap[stat.className]) {
         classWiseMap[stat.className] = { present: 0, absent: 0, holiday: 0 };
@@ -2080,7 +1989,7 @@ export class DrizzleStorage implements IStorage {
     const classWiseStats = Object.entries(classWiseMap).map(([className, data]) => {
       const total = data.present + data.absent; // Exclude holidays from percentage calculation
       const percentage = total > 0 ? (data.present / total) * 100 : 0;
-      
+
       return {
         className,
         present: data.present,
@@ -2194,7 +2103,7 @@ export class DrizzleStorage implements IStorage {
     }>;
   }> {
     console.log('📊 Monthly Report Request:', params);
-    
+
     const startDate = `${params.month}-01`;
     // Calculate the last day of the month to avoid invalid dates like 2025-09-31
     const year = parseInt(params.month.split('-')[0]);
@@ -2257,7 +2166,7 @@ export class DrizzleStorage implements IStorage {
     });
 
     console.log('✅ Returning Monthly Report:', { studentCount: studentsWithAttendance.length });
-    
+
     return {
       students: studentsWithAttendance
     };
@@ -2360,23 +2269,23 @@ export class DrizzleStorage implements IStorage {
   // Advanced Fee Management System
   async calculateMonthlyFee(studentId: string, enrollmentDate: Date, classId: string): Promise<{ amount: number; reason: string }> {
     console.log('🧮 Calculating monthly fee for student:', studentId, 'enrollment:', enrollmentDate);
-    
+
     // Get the class fee structure
     const classFee = await db.select()
       .from(schema.classFees)
       .where(eq(schema.classFees.classId, classId))
       .limit(1);
-    
+
     if (!classFee[0]) {
       throw new Error('Class fee structure not found');
     }
-    
+
     const monthlyFee = parseFloat(classFee[0].monthlyFee || '0');
     const enrollmentDay = enrollmentDate.getDate();
-    
+
     let feeAmount = 0;
     let reason = '';
-    
+
     if (enrollmentDay >= 1 && enrollmentDay <= 10) {
       feeAmount = monthlyFee;
       reason = `Full monthly fee - enrolled on ${enrollmentDay}th (1st-10th: full fee)`;
@@ -2387,14 +2296,14 @@ export class DrizzleStorage implements IStorage {
       feeAmount = 0;
       reason = `No fee for first month - enrolled on ${enrollmentDay}th (21st+: no first month fee)`;
     }
-    
+
     console.log('💰 Calculated fee:', feeAmount, 'Reason:', reason);
     return { amount: feeAmount, reason };
   }
 
   async createFeeCalculationHistory(studentId: string, calculationData: any): Promise<any> {
     console.log('📊 Creating fee calculation history for student:', studentId);
-    
+
     const historyRecord = {
       studentId,
       calculationDate: new Date(),
@@ -2404,7 +2313,7 @@ export class DrizzleStorage implements IStorage {
       enrollmentDay: calculationData.enrollmentDay,
       reason: calculationData.reason,
     };
-    
+
     const result = await db.insert(schema.feeCalculationHistory).values(historyRecord).returning();
     console.log('✅ Fee calculation history created');
     return result[0];
@@ -2412,20 +2321,20 @@ export class DrizzleStorage implements IStorage {
 
   async scheduleMonthlyFees(studentId: string, enrollmentDate: Date, classId: string): Promise<void> {
     console.log('📅 Scheduling monthly fees for student:', studentId);
-    
+
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    
+
     // Schedule fees for the next 12 months starting from enrollment month
     for (let i = 0; i < 12; i++) {
       const scheduleDate = new Date(currentYear, currentMonth + i, 1);
       const monthYear = `${scheduleDate.getFullYear()}-${String(scheduleDate.getMonth() + 1).padStart(2, '0')}`;
-      
+
       // Calculate fee for this month
       const isFirstMonth = i === 0;
       let feeCalculation;
-      
+
       if (isFirstMonth) {
         // Use enrollment-based calculation for first month
         feeCalculation = await this.calculateMonthlyFee(studentId, enrollmentDate, classId);
@@ -2435,13 +2344,13 @@ export class DrizzleStorage implements IStorage {
           .from(schema.classFees)
           .where(eq(schema.classFees.classId, classId))
           .limit(1);
-        
+
         feeCalculation = {
           amount: parseFloat(classFee[0]?.monthlyFee || '0'),
           reason: 'Regular monthly fee'
         };
       }
-      
+
       // Check if schedule already exists
       const existingSchedule = await db.select()
         .from(schema.monthlyFeeSchedule)
@@ -2450,7 +2359,7 @@ export class DrizzleStorage implements IStorage {
           eq(schema.monthlyFeeSchedule.monthYear, monthYear)
         ))
         .limit(1);
-      
+
       if (!existingSchedule[0]) {
         await db.insert(schema.monthlyFeeSchedule).values({
           studentId,
@@ -2459,7 +2368,7 @@ export class DrizzleStorage implements IStorage {
           feeAmount: feeCalculation.amount,
           isProcessed: false,
         });
-        
+
         // Create fee calculation history
         await this.createFeeCalculationHistory(studentId, {
           monthYear,
@@ -2470,32 +2379,32 @@ export class DrizzleStorage implements IStorage {
         });
       }
     }
-    
+
     console.log('✅ Monthly fees scheduled for next 12 months');
   }
 
   async updateStudentBalances(studentId: string): Promise<void> {
     console.log('🔄 Updating student balances for:', studentId);
-    
+
     // Get all scheduled fees for this student
     const scheduledFees = await db.select()
       .from(schema.monthlyFeeSchedule)
       .where(eq(schema.monthlyFeeSchedule.studentId, studentId));
-    
+
     // Get all payments for this student
     const payments = await db.select()
       .from(schema.payments)
       .where(eq(schema.payments.studentId, studentId));
-    
+
     // Calculate total fees due
     const totalScheduledAmount = scheduledFees.reduce((sum, fee) => sum + parseFloat(String(fee.feeAmount)), 0);
-    
+
     // Calculate total paid
     const totalPaidAmount = payments.reduce((sum, payment) => sum + parseFloat(String(payment.amount)), 0);
-    
+
     // Calculate pending amount
     const pendingAmount = Math.max(0, totalScheduledAmount - totalPaidAmount);
-    
+
     // Update student record
     await db.update(schema.students)
       .set({
@@ -2505,7 +2414,7 @@ export class DrizzleStorage implements IStorage {
         paymentStatus: pendingAmount > 0 ? 'pending' : 'paid'
       })
       .where(eq(schema.students.id, studentId));
-    
+
     console.log('✅ Student balances updated - Total:', totalScheduledAmount, 'Paid:', totalPaidAmount, 'Pending:', pendingAmount);
   }
 
@@ -2525,29 +2434,29 @@ export class DrizzleStorage implements IStorage {
 
   async processMonthlyFeeAutomation(): Promise<void> {
     console.log('🤖 Running monthly fee automation...');
-    
+
     const currentDate = new Date();
     const isLastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() === currentDate.getDate();
-    
+
     if (!isLastDayOfMonth) {
       console.log('⏭️ Not the last day of month, skipping automation');
       return;
     }
-    
+
     // Get all active students
     const activeStudents = await db.select()
       .from(schema.students)
       .where(eq(schema.students.isActive, true));
-    
+
     for (const student of activeStudents) {
       try {
         // Update balances and schedule next month's fees if needed
         await this.updateStudentBalances(student.id);
-        
+
         // Schedule next month's fee if not already scheduled
         const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
         const nextMonthYear = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
-        
+
         const existingSchedule = await db.select()
           .from(schema.monthlyFeeSchedule)
           .where(and(
@@ -2555,14 +2464,14 @@ export class DrizzleStorage implements IStorage {
             eq(schema.monthlyFeeSchedule.monthYear, nextMonthYear)
           ))
           .limit(1);
-        
+
         if (!existingSchedule[0]) {
           // Get student class fee
           const classFee = await db.select()
             .from(schema.classFees)
             .where(eq(schema.classFees.classId, student.classId))
             .limit(1);
-          
+
           if (classFee[0]) {
             await db.insert(schema.monthlyFeeSchedule).values({
               studentId: student.id,
@@ -2571,7 +2480,7 @@ export class DrizzleStorage implements IStorage {
               feeAmount: parseFloat(classFee[0].monthlyFee || '0'),
               isProcessed: false,
             });
-            
+
             await this.createFeeCalculationHistory(student.id, {
               monthYear: nextMonthYear,
               calculationType: 'automated_monthly',
@@ -2585,7 +2494,7 @@ export class DrizzleStorage implements IStorage {
         console.error('❌ Error processing student fees:', student.id, error);
       }
     }
-    
+
     console.log('✅ Monthly fee automation completed');
   }
 
@@ -2595,13 +2504,13 @@ export class DrizzleStorage implements IStorage {
     paymentStatus?: 'paid' | 'pending' | 'overdue';
   }): Promise<void> {
     console.log('💰 Updating student fees with total due:', studentId, updates);
-    
+
     await db.update(schema.students)
       .set({
         ...updates,
       })
       .where(eq(schema.students.id, studentId));
-    
+
     console.log('✅ Student fees updated successfully');
   }
 
@@ -2903,7 +2812,7 @@ export class DrizzleStorage implements IStorage {
     .leftJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
     .leftJoin(schema.classes, eq(schema.subjects.classId, schema.classes.id))
     .orderBy(asc(schema.classes.name), asc(schema.subjects.name), asc(schema.chapters.name), asc(schema.topics.orderIndex));
-    
+
     return result;
   }
 
@@ -3039,11 +2948,11 @@ export class DrizzleStorage implements IStorage {
 
     const now = new Date();
     const currentTime = now.toTimeString().split(' ')[0];
-    
+
     if (currentTime < exam.startTime) {
       return { canAccess: false, message: `Exam starts at ${exam.startTime}` };
     }
-    
+
     if (currentTime > exam.endTime) {
       return { canAccess: false, message: `Exam ended at ${exam.endTime}` };
     }
