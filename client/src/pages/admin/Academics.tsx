@@ -44,7 +44,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Eye, FileText, Award, TrendingUp, Users, Calendar, BookOpen, School, Building, Trash2, Clock, Target, CheckCircle } from 'lucide-react';
 
-// Updated schema removing examType and adding multi-selection support
+// Question schema for individual questions
+const questionSchema = z.object({
+  questionNumber: z.number(),
+  marks: z.number().min(1, 'Marks must be at least 1'),
+  questionText: z.string().min(1, 'Question text is required'),
+});
+
+// Updated schema with questions support
 const examSchema = z.object({
   title: z.string().min(1, 'Exam title is required'),
   description: z.string().min(1, 'Description is required'),
@@ -58,6 +65,7 @@ const examSchema = z.object({
   totalMarks: z.string().min(1, 'Total marks is required'),
   passingMarks: z.string().min(1, 'Passing marks is required'),
   status: z.string().default('scheduled'),
+  questions: z.array(questionSchema).optional().default([]),
 });
 
 type ExamFormData = z.infer<typeof examSchema>;
@@ -71,6 +79,31 @@ interface AddExamModalProps {
 function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [questions, setQuestions] = useState<Array<{questionNumber: number, marks: number, questionText: string}>>([]);
+
+  // Helper functions for questions management
+  const addQuestion = () => {
+    const newQuestion = {
+      questionNumber: questions.length + 1,
+      marks: 1,
+      questionText: '',
+    };
+    setQuestions([...questions, newQuestion]);
+  };
+
+  const removeQuestion = (index: number) => {
+    const updatedQuestions = questions.filter((_, i) => i !== index)
+      .map((q, i) => ({ ...q, questionNumber: i + 1 }));
+    setQuestions(updatedQuestions);
+  };
+
+  const updateQuestion = (index: number, field: keyof typeof questions[0], value: string | number) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[index] = { ...updatedQuestions[index], [field]: value };
+    setQuestions(updatedQuestions);
+  };
+
+
 
   // Fetch real data from Supabase
   const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -108,6 +141,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
       totalMarks: '',
       passingMarks: '',
       status: 'scheduled',
+      questions: [],
     },
   });
 
@@ -128,6 +162,10 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
         passingMarks: editingExam.passingMarks?.toString() || '',
         status: editingExam.status || 'scheduled',
       });
+      // Load existing questions if editing
+      if (editingExam.questions) {
+        setQuestions(editingExam.questions);
+      }
     } else {
       form.reset({
         title: '',
@@ -142,9 +180,20 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
         totalMarks: '',
         passingMarks: '',
         status: 'scheduled',
+        questions: [],
       });
+      setQuestions([]);
     }
   }, [editingExam, form]);
+
+  // Auto-calculate total marks from questions
+  React.useEffect(() => {
+    const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
+    if (totalMarks > 0) {
+      form.setValue('totalMarks', totalMarks.toString());
+      form.setValue('totalQuestions', questions.length.toString());
+    }
+  }, [questions, form]);
 
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
@@ -182,6 +231,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/exams'] });
       form.reset();
+      setQuestions([]);
       onClose();
     },
     onError: (error: any) => {
@@ -194,7 +244,11 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
   });
 
   const onSubmit = (data: ExamFormData) => {
-    mutation.mutate(data);
+    const submitData = {
+      ...data,
+      questions: questions,
+    };
+    mutation.mutate(submitData);
   };
 
   return (
@@ -524,6 +578,78 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
                   )}
                 />
               </div>
+            </div>
+
+            {/* Questions Section */}
+            <div className="space-y-4 pt-6 border-t">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800">Exam Questions</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addQuestion}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Question
+                </Button>
+              </div>
+
+              {questions.length > 0 && (
+                <div className="space-y-3 max-h-60 overflow-y-auto border rounded-md p-4">
+                  {questions.map((question, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                          Q{question.questionNumber}:
+                        </span>
+                        <Input
+                          placeholder="Enter question text"
+                          value={question.questionText}
+                          onChange={(e) => updateQuestion(index, 'questionText', e.target.value)}
+                          className="flex-1"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Marks:</span>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={question.marks}
+                          onChange={(e) => updateQuestion(index, 'marks', parseInt(e.target.value) || 1)}
+                          className="w-20"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeQuestion(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {questions.length === 0 && (
+                <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-md">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                  <p>No questions added yet. Click "Add Question" to start.</p>
+                </div>
+              )}
+
+              {questions.length > 0 && (
+                <div className="flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded-md">
+                  <div className="text-sm text-green-700">
+                    <strong>Total Questions:</strong> {questions.length} | 
+                    <strong> Total Marks:</strong> {questions.reduce((sum, q) => sum + q.marks, 0)}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-4 pt-6 border-t">
