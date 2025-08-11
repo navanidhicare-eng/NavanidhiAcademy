@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 
 interface Student {
   id: string;
@@ -42,6 +43,23 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const { toast } = useToast();
 
+  // Fetch all classes dynamically
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+    queryFn: async () => {
+      const response = await fetch('/api/classes', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch classes');
+      }
+      return response.json();
+    },
+    refetchOnWindowFocus: false,
+  });
+
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
@@ -51,27 +69,8 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
     const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.parentPhone?.includes(searchTerm);
     
-    // Class filtering logic - handle the real class names from the API
-    let matchesClass = true;
-    if (classFilter !== 'all') {
-      const className = student.className?.toLowerCase() || '';
-      switch (classFilter) {
-        case 'class-10':
-          matchesClass = className.includes('10th') || className.includes('10');
-          break;
-        case 'class-12':
-          matchesClass = className.includes('12th') || className.includes('12');
-          break;
-        case 'navodaya':
-          matchesClass = className.includes('navodaya');
-          break;
-        case 'polycet':
-          matchesClass = className.includes('polycet');
-          break;
-        default:
-          matchesClass = true;
-      }
-    }
+    // Class filtering logic - use actual class IDs from database
+    const matchesClass = classFilter === 'all' || student.classId === classFilter;
     
     return matchesSearch && matchesClass;
   });
@@ -159,10 +158,11 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Classes</SelectItem>
-                  <SelectItem value="class-10">Class 10</SelectItem>
-                  <SelectItem value="class-12">Class 12</SelectItem>
-                  <SelectItem value="navodaya">Navodaya</SelectItem>
-                  <SelectItem value="polycet">POLYCET</SelectItem>
+                  {classes.map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
