@@ -80,8 +80,12 @@ export default function StudentDropoutRequests() {
     queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
   });
   
-  // Ensure students is always an array
+  // Ensure students is always an array and log for debugging
   const students = Array.isArray(studentsResponse) ? studentsResponse : [];
+  
+  // Debug logging
+  console.log("Students received:", studentsResponse);
+  console.log("Filtered students:", students);
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -306,27 +310,35 @@ export default function StudentDropoutRequests() {
                       <SelectItem value="loading" disabled>
                         Loading students...
                       </SelectItem>
+                    ) : students.length === 0 ? (
+                      <SelectItem value="no-students" disabled>
+                        No students found
+                      </SelectItem>
                     ) : (
-                      students.map((student: Student) => {
-                        const totalAmount = parseFloat(student.totalFeeAmount || '0');
-                        const paidAmount = parseFloat(student.paidAmount || '0');
-                        const pendingAmount = totalAmount - paidAmount;
-                        const hasBalance = pendingAmount > 0;
-                        return (
-                          <SelectItem 
-                            key={student.id} 
-                            value={student.id}
-                            disabled={hasBalance}
-                          >
-                            {student.name} ({student.studentId}) - {student.className}
-                            {hasBalance && (
-                              <span className="text-red-500 text-xs ml-2">
-                                (₹{pendingAmount.toFixed(2)} pending)
-                              </span>
-                            )}
-                          </SelectItem>
-                        );
-                      })
+                      students
+                        .filter((student: Student) => student && student.id && student.name)
+                        .map((student: Student) => {
+                          const totalAmount = parseFloat(student.totalFeeAmount || '0');
+                          const paidAmount = parseFloat(student.paidAmount || '0');
+                          const pendingAmount = totalAmount - paidAmount;
+                          const hasBalance = pendingAmount > 0;
+                          return (
+                            <SelectItem 
+                              key={student.id} 
+                              value={student.id}
+                              disabled={hasBalance}
+                            >
+                              <div className="flex flex-col">
+                                <span>{student.name} ({student.studentId}) - {student.className}</span>
+                                {hasBalance && (
+                                  <span className="text-red-500 text-xs">
+                                    ₹{pendingAmount.toFixed(2)} pending
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          );
+                        })
                     )}
                   </SelectContent>
                 </Select>
