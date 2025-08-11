@@ -54,8 +54,10 @@ interface Student {
   name: string;
   studentId: string;
   className: string;
-  totalAmount?: string;
+  totalFeeAmount?: string;
   paidAmount?: string;
+  pendingAmount?: string;
+  isActive?: boolean;
 }
 
 export default function StudentDropoutRequests() {
@@ -306,7 +308,7 @@ export default function StudentDropoutRequests() {
                       </SelectItem>
                     ) : (
                       students.map((student: Student) => {
-                        const totalAmount = parseFloat(student.totalAmount || '0');
+                        const totalAmount = parseFloat(student.totalFeeAmount || '0');
                         const paidAmount = parseFloat(student.paidAmount || '0');
                         const pendingAmount = totalAmount - paidAmount;
                         const hasBalance = pendingAmount > 0;
@@ -331,7 +333,7 @@ export default function StudentDropoutRequests() {
                 {selectedStudentId && students.length > 0 && (() => {
                   const selectedStudent = students.find((s: Student) => s.id === selectedStudentId);
                   if (selectedStudent) {
-                    const totalAmount = parseFloat(selectedStudent.totalAmount || '0');
+                    const totalAmount = parseFloat(selectedStudent.totalFeeAmount || '0');
                     const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
                     const pendingAmount = totalAmount - paidAmount;
                     
