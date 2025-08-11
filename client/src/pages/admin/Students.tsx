@@ -41,6 +41,7 @@ export default function Students() {
   const [selectedState, setSelectedState] = useState('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedMandal, setSelectedMandal] = useState('all');
+  const [selectedVillage, setSelectedVillage] = useState('all');
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -64,6 +65,10 @@ export default function Students() {
     queryKey: ['/api/admin/addresses/mandals'],
   });
 
+  const { data: villages = [] } = useQuery({
+    queryKey: ['/api/admin/addresses/villages'],
+  });
+
   const { data: soCenters = [] } = useQuery({
     queryKey: ['/api/admin/so-centers'],
   });
@@ -81,8 +86,12 @@ export default function Students() {
     selectedDistrict === 'all' || mandal.districtId === selectedDistrict
   );
 
+  const filteredVillages = (villages as any[]).filter((village: any) => 
+    selectedMandal === 'all' || village.mandalId === selectedMandal
+  );
+
   const filteredSoCenters = (soCenters as any[]).filter((center: any) => {
-    if (selectedState === 'all' && selectedDistrict === 'all' && selectedMandal === 'all') {
+    if (selectedState === 'all' && selectedDistrict === 'all' && selectedMandal === 'all' && selectedVillage === 'all') {
       return true;
     }
     
@@ -90,8 +99,9 @@ export default function Students() {
     const stateMatch = selectedState === 'all' || center.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
     const districtMatch = selectedDistrict === 'all' || center.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
     const mandalMatch = selectedMandal === 'all' || center.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
+    const villageMatch = selectedVillage === 'all' || center.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
 
-    return stateMatch && districtMatch && mandalMatch;
+    return stateMatch && districtMatch && mandalMatch && villageMatch;
   });
 
   // Filter students based on all criteria including location
@@ -109,13 +119,14 @@ export default function Students() {
 
     // Location-based filtering through student's SO center
     let matchesLocation = true;
-    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all') {
+    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all' || selectedVillage !== 'all') {
       const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
       if (studentCenter) {
         const stateMatch = selectedState === 'all' || studentCenter.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
         const districtMatch = selectedDistrict === 'all' || studentCenter.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
         const mandalMatch = selectedMandal === 'all' || studentCenter.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
-        matchesLocation = stateMatch && districtMatch && mandalMatch;
+        const villageMatch = selectedVillage === 'all' || studentCenter.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
+        matchesLocation = stateMatch && districtMatch && mandalMatch && villageMatch;
       } else {
         matchesLocation = false;
       }
@@ -128,17 +139,25 @@ export default function Students() {
     setSelectedState(stateId);
     setSelectedDistrict('all');
     setSelectedMandal('all');
+    setSelectedVillage('all');
     setSelectedCenter('all');
   };
 
   const handleDistrictChange = (districtId: string) => {
     setSelectedDistrict(districtId);
     setSelectedMandal('all');
+    setSelectedVillage('all');
     setSelectedCenter('all');
   };
 
   const handleMandalChange = (mandalId: string) => {
     setSelectedMandal(mandalId);
+    setSelectedVillage('all');
+    setSelectedCenter('all');
+  };
+
+  const handleVillageChange = (villageId: string) => {
+    setSelectedVillage(villageId);
     setSelectedCenter('all');
   };
 
@@ -151,6 +170,7 @@ export default function Students() {
     setSelectedState('all');
     setSelectedDistrict('all');
     setSelectedMandal('all');
+    setSelectedVillage('all');
     setSelectedCenter('all');
     setSelectedClass('all');
   };
@@ -190,7 +210,7 @@ export default function Students() {
           {/* Top Location Filters */}
           <div className="border-t pt-6">
             <h2 className="text-lg font-semibold mb-4 text-gray-900">Location Filters</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* State Filter */}
               <Select onValueChange={handleStateChange} value={selectedState}>
                 <SelectTrigger>
@@ -239,6 +259,25 @@ export default function Students() {
                   {filteredMandals.map((mandal: any) => (
                     <SelectItem key={mandal.id} value={mandal.id}>
                       {mandal.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Village Filter */}
+              <Select 
+                onValueChange={handleVillageChange} 
+                value={selectedVillage}
+                disabled={selectedMandal === 'all'}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  {filteredVillages.map((village: any) => (
+                    <SelectItem key={village.id} value={village.id}>
+                      {village.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
