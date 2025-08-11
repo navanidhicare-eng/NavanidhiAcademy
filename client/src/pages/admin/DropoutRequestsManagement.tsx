@@ -49,10 +49,13 @@ export default function DropoutRequestsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requestsResponse = [], isLoading } = useQuery({
     queryKey: ["/api/dropout-requests"],
     queryFn: () => apiRequest("GET", "/api/dropout-requests"),
   });
+  
+  // Ensure requests is always an array
+  const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
   const processRequestMutation = useMutation({
     mutationFn: async ({ requestId, status, adminNotes }: { 
@@ -126,7 +129,7 @@ export default function DropoutRequestsManagement() {
     }
   };
 
-  const filteredRequests = requests.filter((request: DropoutRequest) => {
+  const filteredRequests = requests.length > 0 ? requests.filter((request: DropoutRequest) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       request.studentName.toLowerCase().includes(searchLower) ||
@@ -134,11 +137,11 @@ export default function DropoutRequestsManagement() {
       request.soCenterName.toLowerCase().includes(searchLower) ||
       request.reason.toLowerCase().includes(searchLower)
     );
-  });
+  }) : [];
 
-  const pendingCount = requests.filter((r: DropoutRequest) => r.status === 'pending').length;
-  const approvedCount = requests.filter((r: DropoutRequest) => r.status === 'approved').length;
-  const rejectedCount = requests.filter((r: DropoutRequest) => r.status === 'rejected').length;
+  const pendingCount = requests.length > 0 ? requests.filter((r: DropoutRequest) => r.status === 'pending').length : 0;
+  const approvedCount = requests.length > 0 ? requests.filter((r: DropoutRequest) => r.status === 'approved').length : 0;
+  const rejectedCount = requests.length > 0 ? requests.filter((r: DropoutRequest) => r.status === 'rejected').length : 0;
 
   if (isLoading) {
     return (
