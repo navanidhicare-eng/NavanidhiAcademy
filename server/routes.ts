@@ -4975,7 +4975,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
     try {
       const examId = req.params.examId;
-      const userId = req.user?.userId;
       console.log('📋 Fetching questions for exam:', examId);
       
       // Get exam details with questions
@@ -4987,8 +4986,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user has access to this exam (SO Center only sees their own exams)
       if (req.user?.role === 'so_center') {
+        // Get SO Center ID from the user's email
+        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
+        if (!soCenter.length) {
+          return res.status(404).json({ message: 'SO Center not found' });
+        }
+        
         const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(userId)) {
+        if (!soCenterIds.includes(soCenter[0].id)) {
           return res.status(404).json({ message: 'Exam not found or access denied' });
         }
       }
@@ -6071,8 +6076,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if user has access to this exam (SO Center only sees their own exams)
       if (req.user?.role === 'so_center') {
+        // Get SO Center ID from the user's email
+        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
+        if (!soCenter.length) {
+          return res.status(404).json({ message: 'SO Center not found' });
+        }
+        
         const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(userId)) {
+        if (!soCenterIds.includes(soCenter[0].id)) {
           return res.status(404).json({ message: 'Exam not found or access denied' });
         }
       }
