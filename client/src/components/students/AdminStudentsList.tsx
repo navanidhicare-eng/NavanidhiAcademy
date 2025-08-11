@@ -15,7 +15,8 @@ import {
   UserPlus,
   Download,
   Filter,
-  MoreVertical
+  MoreVertical,
+  MapPin
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,6 +63,34 @@ export function AdminStudentsList() {
     queryKey: ['/api/classes'],
   });
 
+  // Location filter states
+  const [selectedState, setSelectedState] = useState('all');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [selectedMandal, setSelectedMandal] = useState('all');
+  const [selectedVillage, setSelectedVillage] = useState('all');
+  const [selectedCenter, setSelectedCenter] = useState('all');
+
+  // Fetch location data for filters
+  const { data: states = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/states'],
+  });
+
+  const { data: districts = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/districts'],
+  });
+
+  const { data: mandals = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/mandals'],
+  });
+
+  const { data: villages = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/villages'],
+  });
+
+  const { data: soCenters = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/so-centers'],
+  });
+
   // Delete student mutation
   const deleteStudentMutation = useMutation({
     mutationFn: (studentId: string) => {
@@ -85,6 +114,33 @@ export function AdminStudentsList() {
     },
   });
 
+  // Filter location data based on selections
+  const filteredDistricts = (districts as any[]).filter((district: any) => 
+    selectedState === 'all' || district.stateId === selectedState
+  );
+
+  const filteredMandals = (mandals as any[]).filter((mandal: any) => 
+    selectedDistrict === 'all' || mandal.districtId === selectedDistrict
+  );
+
+  const filteredVillages = (villages as any[]).filter((village: any) => 
+    selectedMandal === 'all' || village.mandalId === selectedMandal
+  );
+
+  const filteredSoCenters = (soCenters as any[]).filter((center: any) => {
+    if (selectedState === 'all' && selectedDistrict === 'all' && selectedMandal === 'all' && selectedVillage === 'all') {
+      return true;
+    }
+    
+    // Use the joined location data from the center
+    const stateMatch = selectedState === 'all' || center.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
+    const districtMatch = selectedDistrict === 'all' || center.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
+    const mandalMatch = selectedMandal === 'all' || center.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
+    const villageMatch = selectedVillage === 'all' || center.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
+
+    return stateMatch && districtMatch && mandalMatch && villageMatch;
+  });
+
   // Filter students
   const filteredStudents = students.filter((student: Student) => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -92,7 +148,24 @@ export function AdminStudentsList() {
                          student.parentPhone.includes(searchTerm) ||
                          student.fatherName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = classFilter === 'all' || student.classId === classFilter;
-    return matchesSearch && matchesClass;
+    const matchesCenter = selectedCenter === 'all' || student.soCenterId === selectedCenter;
+
+    // Location-based filtering through student's SO center
+    let matchesLocation = true;
+    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all' || selectedVillage !== 'all') {
+      const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
+      if (studentCenter) {
+        const stateMatch = selectedState === 'all' || studentCenter.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
+        const districtMatch = selectedDistrict === 'all' || studentCenter.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
+        const mandalMatch = selectedMandal === 'all' || studentCenter.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
+        const villageMatch = selectedVillage === 'all' || studentCenter.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
+        matchesLocation = stateMatch && districtMatch && mandalMatch && villageMatch;
+      } else {
+        matchesLocation = false;
+      }
+    }
+
+    return matchesSearch && matchesClass && matchesCenter && matchesLocation;
   });
 
   // Pagination
@@ -121,6 +194,42 @@ export function AdminStudentsList() {
     if (studentToDelete) {
       deleteStudentMutation.mutate(studentToDelete.id);
     }
+  };
+
+  const handleStateChange = (stateId: string) => {
+    setSelectedState(stateId);
+    setSelectedDistrict('all');
+    setSelectedMandal('all');
+    setSelectedVillage('all');
+    setSelectedCenter('all');
+  };
+
+  const handleDistrictChange = (districtId: string) => {
+    setSelectedDistrict(districtId);
+    setSelectedMandal('all');
+    setSelectedVillage('all');
+    setSelectedCenter('all');
+  };
+
+  const handleMandalChange = (mandalId: string) => {
+    setSelectedMandal(mandalId);
+    setSelectedVillage('all');
+    setSelectedCenter('all');
+  };
+
+  const handleVillageChange = (villageId: string) => {
+    setSelectedVillage(villageId);
+    setSelectedCenter('all');
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setClassFilter('all');
+    setSelectedState('all');
+    setSelectedDistrict('all');
+    setSelectedMandal('all');
+    setSelectedVillage('all');
+    setSelectedCenter('all');
   };
 
   const handleExport = () => {
@@ -196,7 +305,112 @@ export function AdminStudentsList() {
         </CardHeader>
 
         <CardContent>
-          {/* Filters */}
+          {/* Location Filters Section */}
+          <div className="bg-gray-50 p-4 rounded-lg border-b pb-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+                Location Filters
+              </h3>
+              <Button variant="outline" onClick={clearAllFilters} size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Clear All
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {/* State Filter */}
+              <Select onValueChange={handleStateChange} value={selectedState}>
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏛️ Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {(states as any[]).map((state: any) => (
+                    <SelectItem key={state.id} value={state.id}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* District Filter */}
+              <Select 
+                onValueChange={handleDistrictChange} 
+                value={selectedDistrict}
+                disabled={selectedState === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏘️ Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  {filteredDistricts.map((district: any) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Mandal Filter */}
+              <Select 
+                onValueChange={handleMandalChange} 
+                value={selectedMandal}
+                disabled={selectedDistrict === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏛️ Select Mandal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Mandals</SelectItem>
+                  {filteredMandals.map((mandal: any) => (
+                    <SelectItem key={mandal.id} value={mandal.id}>
+                      {mandal.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Village Filter */}
+              <Select 
+                onValueChange={handleVillageChange} 
+                value={selectedVillage}
+                disabled={selectedMandal === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏘️ Select Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  {filteredVillages.map((village: any) => (
+                    <SelectItem key={village.id} value={village.id}>
+                      {village.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* SO Center Filter */}
+              <Select 
+                onValueChange={setSelectedCenter} 
+                value={selectedCenter}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏢 Select SO Center" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All SO Centers</SelectItem>
+                  {filteredSoCenters.map((center: any) => (
+                    <SelectItem key={center.id} value={center.id}>
+                      {center.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Basic Filters */}
           <div className="flex items-center space-x-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 text-gray-400" size={16} />

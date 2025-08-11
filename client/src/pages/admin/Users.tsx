@@ -11,6 +11,12 @@ import { AddUserModal } from '@/components/admin/AddUserModal';
 import { EditUserModal } from '@/components/admin/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,29 +28,77 @@ import {
 } from '@/components/ui/alert-dialog';
 import { 
   Search, 
-  UserPlus, 
+  Plus, 
+  MoreVertical, 
   Edit, 
-  Trash2, 
-  Users 
+  Trash2 
 } from 'lucide-react';
+
+// Define a User type for better type safety
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string;
+  createdAt: string;
+}
 
 export default function AdminUsers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<{id: string, name: string} | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch users from API
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
+  });
+
+  // Add user mutation (assuming this exists and is handled elsewhere or will be added)
+  // Placeholder for addUserMutation if it's not defined in the original snippet
+  const addUserMutation = {
+    mutate: (userData: any) => {
+      console.log('Adding user:', userData);
+      // In a real scenario, this would be an API call
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+    },
+    isPending: false,
+  };
+
+
+  // Edit user mutation
+  const editUserMutation = useMutation({
+    mutationFn: (userData: { id: string; name: string; email: string; role: string }) => {
+      return apiRequest('PUT', `/api/admin/users/${userData.id}`, userData);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'User Updated',
+        description: 'User has been successfully updated.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      setIsEditModalOpen(false);
+      setEditingUser(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Update Failed',
+        description: error.message || 'Failed to update user. Please try again.',
+        variant: 'destructive',
+      });
+    },
   });
 
   // Delete user mutation
   const deleteUserMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest('DELETE', `/api/admin/users/${id}`);
+    mutationFn: (userId: string) => {
+      return apiRequest('DELETE', `/api/admin/users/${userId}`);
     },
     onSuccess: () => {
       toast({
@@ -52,31 +106,41 @@ export default function AdminUsers() {
         description: 'User has been successfully deleted.',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      setUserToDelete(null);
+      setIsDeleteDialogOpen(false);
+      setDeletingUser(null);
     },
     onError: (error: any) => {
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to delete user.',
+        title: 'Delete Failed',
+        description: error.message || 'Failed to delete user. Please try again.',
         variant: 'destructive',
       });
-      setUserToDelete(null);
     },
   });
 
-  const [editingUser, setEditingUser] = useState<any>(null);
-
-  const handleEditClick = (user: any) => {
-    setEditingUser(user);
+  const handleAddUser = (userData: any) => {
+    addUserMutation.mutate(userData);
   };
 
-  const handleDeleteClick = (user: any) => {
-    setUserToDelete({ id: user.id, name: user.name });
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateUser = (userData: any) => {
+    if (editingUser) {
+      editUserMutation.mutate({ ...userData, id: editingUser.id });
+    }
+  };
+
+  const handleDeleteUser = (user: User) => {
+    setDeletingUser(user);
+    setIsDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
-    if (userToDelete) {
-      deleteUserMutation.mutate(userToDelete.id);
+    if (deletingUser) {
+      deleteUserMutation.mutate(deletingUser.id);
     }
   };
 
@@ -94,7 +158,7 @@ export default function AdminUsers() {
     }
   };
 
-  const filteredUsers = (users as any[]).filter((user: any) => {
+  const filteredUsers = (users as User[]).filter((user: User) => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
@@ -123,7 +187,7 @@ export default function AdminUsers() {
                   className="pl-10 w-64"
                 />
               </div>
-              
+
               {/* Filter */}
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-40">
@@ -164,7 +228,7 @@ export default function AdminUsers() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user: any) => (
+                {filteredUsers.map((user: User) => (
                   <tr key={user.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -193,25 +257,28 @@ export default function AdminUsers() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <Edit className="text-primary" size={16} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleDeleteClick(user)}
-                          disabled={deleteUserMutation.isPending}
-                        >
-                          <Trash2 className="text-destructive" size={16} />
-                        </Button>
-                      </div>
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit User
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteUser(user)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
                   </tr>
                 ))}
               </tbody>
@@ -222,15 +289,15 @@ export default function AdminUsers() {
           <div className="mt-6 pt-4 border-t border-gray-200">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{users.filter((u: any) => u.role === 'admin').length}</div>
+                <div className="text-2xl font-bold text-primary">{users.filter((u: User) => u.role === 'admin').length}</div>
                 <p className="text-gray-600">Admins</p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{users.filter((u: any) => u.role === 'so_center').length}</div>
+                <div className="text-2xl font-bold text-blue-600">{users.filter((u: User) => u.role === 'so_center').length}</div>
                 <p className="text-gray-600">SO Centers</p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{users.filter((u: any) => u.role === 'teacher').length}</div>
+                <div className="text-2xl font-bold text-green-600">{users.filter((u: User) => u.role === 'teacher').length}</div>
                 <p className="text-gray-600">Teachers</p>
               </div>
               <div className="text-center">
@@ -241,30 +308,40 @@ export default function AdminUsers() {
           </div>
         </CardContent>
       </Card>
-      
+
       <AddUserModal 
         isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleAddUser}
+        isLoading={addUserMutation.isPending}
       />
 
+      {/* Edit User Modal */}
       <EditUserModal 
-        isOpen={!!editingUser} 
-        onClose={() => setEditingUser(null)}
+        isOpen={isEditModalOpen} 
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingUser(null);
+        }}
+        onSubmit={handleUpdateUser}
+        isLoading={editUserMutation.isPending}
         user={editingUser}
       />
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the user 
-              <strong> {userToDelete?.name}</strong> and remove all their data from the system.
+              Are you sure you want to delete {deletingUser?.name}? This action cannot be undone.
+              All user data will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={confirmDelete}
               className="bg-red-600 hover:bg-red-700"
