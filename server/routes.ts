@@ -4971,6 +4971,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get exam questions for individual marks entry
+  app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
+    try {
+      const examId = req.params.examId;
+      console.log('📋 Fetching questions for exam:', examId);
+      
+      // Get exam details with questions
+      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+      
+      if (!exam.length) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // Parse questions from exam data
+      const questions = exam[0].questions || [];
+      const formattedQuestions = questions.map((q: any, index: number) => ({
+        id: q.id || `q_${index + 1}`,
+        questionNumber: index + 1,
+        text: q.text || q.question || 'Question text not available',
+        marks: q.marks || 1,
+        type: q.type || 'text'
+      }));
+
+      console.log('✅ Found', formattedQuestions.length, 'questions for exam');
+      res.json(formattedQuestions);
+    } catch (error: any) {
+      console.error('❌ Error fetching exam questions:', error);
+      res.status(500).json({ message: 'Failed to fetch exam questions' });
+    }
+  });
+
+  // Get individual student results for an exam
+  app.get('/api/exams/:examId/student-results/:studentId', authenticateToken, async (req, res) => {
+    try {
+      const { examId, studentId } = req.params;
+      console.log('📊 Fetching individual student results:', { examId, studentId });
+      
+      // Get existing detailed results if any
+      const existingResult = await db.select()
+        .from(schema.examResults)
+        .where(
+          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+        );
+
+      if (existingResult.length > 0 && existingResult[0].detailedResults) {
+        const detailedResults = JSON.parse(existingResult[0].detailedResults);
+        res.json({
+          totalMarks: existingResult[0].marksObtained,
+          status: existingResult[0].answeredQuestions,
+          questions: detailedResults.questions || []
+        });
+      } else {
+        // Return empty results structure
+        res.json({
+          totalMarks: 0,
+          status: 'not_answered',
+          questions: []
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching student results:', error);
+      res.status(500).json({ message: 'Failed to fetch student results' });
+    }
+  });
+
+  // Save individual student results with question-level details
+  app.post('/api/exams/:examId/student-results', authenticateToken, async (req, res) => {
+    try {
+      const examId = req.params.examId;
+      const { studentId, totalMarks, questions } = req.body;
+      
+      console.log('💾 Saving detailed student results:', { examId, studentId, totalMarks });
+      
+      // Validate input
+      if (!studentId || !questions || !Array.isArray(questions)) {
+        return res.status(400).json({ message: 'Invalid request data' });
+      }
+
+      // Calculate overall answer status based on question statuses
+      const statusCounts = questions.reduce((acc: any, q: any) => {
+        acc[q.answerStatus] = (acc[q.answerStatus] || 0) + 1;
+        return acc;
+      }, {});
+
+      let overallStatus = 'not_answered';
+      if (statusCounts.full_answer > statusCounts.partial_answered && statusCounts.full_answer > statusCounts.wrong_answer) {
+        overallStatus = 'fully_answered';
+      } else if (statusCounts.partial_answered > 0 || statusCounts.wrong_answer > 0) {
+        overallStatus = 'partially_answered';
+      }
+
+      // Update or create exam result record
+      const existingResult = await db.select()
+        .from(schema.examResults)
+        .where(
+          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+        );
+
+      if (existingResult.length > 0) {
+        // Update existing result
+        await db
+          .update(schema.examResults)
+          .set({
+            marksObtained: totalMarks,
+            answeredQuestions: overallStatus,
+            detailedResults: JSON.stringify({ questions }),
+            updatedAt: new Date()
+          })
+          .where(
+            sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+          );
+      } else {
+        // Create new result
+        await db
+          .insert(schema.examResults)
+          .values({
+            examId,
+            studentId,
+            marksObtained: totalMarks,
+            answeredQuestions: overallStatus,
+            detailedResults: JSON.stringify({ questions })
+          });
+      }
+
+      console.log('✅ Student results saved successfully');
+      res.json({ 
+        message: 'Results saved successfully',
+        totalMarks,
+        status: overallStatus 
+      });
+    } catch (error: any) {
+      console.error('❌ Error saving student results:', error);
+      res.status(500).json({ message: 'Failed to save student results' });
+    }
+  });
+
   // Submit exam results
   app.post('/api/so-center/exams/:examId/results', authenticateToken, async (req, res) => {
     try {

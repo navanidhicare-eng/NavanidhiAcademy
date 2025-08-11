@@ -548,10 +548,28 @@ export const exams = pgTable("exams", {
   totalMarks: integer("total_marks").notNull(),
   passingMarks: integer("passing_marks").notNull(),
   status: text("status").default("scheduled"), // scheduled, active, completed, cancelled
+  questions: text("questions"), // JSON string containing exam questions
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Exam Results - Store student exam results
+export const examResults = pgTable("exam_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  examId: varchar("exam_id").references(() => exams.id).notNull(),
+  studentId: varchar("student_id").references(() => students.id).notNull(),
+  marksObtained: integer("marks_obtained").notNull().default(0),
+  answeredQuestions: varchar("answered_questions", { 
+    enum: ["not_answered", "partially_answered", "fully_answered"] 
+  }).notNull().default("not_answered"),
+  detailedResults: text("detailed_results"), // JSON string for question-level results
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  uniqueExamStudent: unique().on(table.examId, table.studentId),
+}));
 
 // Insert schemas
 export const insertStateSchema = createInsertSchema(states).omit({
@@ -675,6 +693,13 @@ export const insertExamSchema = createInsertSchema(exams).omit({
   updatedAt: true,
 });
 
+export const insertExamResultSchema = createInsertSchema(examResults).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  submittedAt: true,
+});
+
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
@@ -781,6 +806,8 @@ export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
 
 export type Exam = typeof exams.$inferSelect;
 export type InsertExam = z.infer<typeof insertExamSchema>;
+export type ExamResult = typeof examResults.$inferSelect;
+export type InsertExamResult = z.infer<typeof insertExamResultSchema>;
 
 export type FeeCalculationHistory = typeof feeCalculationHistory.$inferSelect;
 export type InsertFeeCalculationHistory = z.infer<typeof insertFeeCalculationHistorySchema>;

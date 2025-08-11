@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import IndividualStudentMarksModal from '@/components/exam/IndividualStudentMarksModal';
 import { 
   GraduationCap, 
   Clock, 
@@ -19,7 +21,9 @@ import {
   AlertCircle,
   Users,
   Plus,
-  Minus
+  Minus,
+  Edit3,
+  FileEdit
 } from 'lucide-react';
 
 interface ExamResultStudent {
@@ -35,6 +39,11 @@ export default function SoCenterExamManagement() {
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
   const [examResults, setExamResults] = useState<ExamResultStudent[]>([]);
   const [activeTab, setActiveTab] = useState('progress-tracking');
+  
+  // Individual student marks modal state
+  const [isIndividualMarksModalOpen, setIsIndividualMarksModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [selectedExam, setSelectedExam] = useState<any>(null);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -102,6 +111,7 @@ export default function SoCenterExamManagement() {
 
   const openResultsModal = (exam: any) => {
     setSelectedExamId(exam.id);
+    setSelectedExam(exam);
     // Initialize results with class students
     const classStudents = students.filter((student: any) => student.classId === exam.classId);
     const initialResults = classStudents.map((student: any) => ({
@@ -113,6 +123,18 @@ export default function SoCenterExamManagement() {
     }));
     setExamResults(initialResults);
     setIsResultsModalOpen(true);
+  };
+
+  const openIndividualMarksModal = (student: any, exam: any) => {
+    setSelectedStudent(student);
+    setSelectedExam(exam);
+    setIsIndividualMarksModalOpen(true);
+  };
+
+  const closeIndividualMarksModal = () => {
+    setIsIndividualMarksModalOpen(false);
+    setSelectedStudent(null);
+    setSelectedExam(null);
   };
 
   const updateStudentResult = (studentId: string, field: string, value: any) => {
@@ -183,8 +205,6 @@ export default function SoCenterExamManagement() {
     partially_answered: examResults.filter(r => r.answeredQuestions === 'partially_answered'),
     fully_answered: examResults.filter(r => r.answeredQuestions === 'fully_answered'),
   };
-
-  const selectedExam = exams.find(exam => exam.id === selectedExamId);
 
   return (
     <DashboardLayout title="Exam Management">
@@ -370,16 +390,23 @@ export default function SoCenterExamManagement() {
           </TabsContent>
         </Tabs>
 
-        {/* Results Modal */}
+        {/* Enhanced Results Modal - Students Table with Individual Update Buttons */}
         <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
           <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Post Exam Results - {selectedExam?.title}</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <FileEdit className="h-5 w-5" />
+                Post Exam Results - {selectedExam?.title}
+              </DialogTitle>
             </DialogHeader>
             
             <div className="space-y-6">
+              {/* Exam Information */}
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-800 mb-2">Exam Information</h4>
+                <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4" />
+                  Exam Information
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-blue-600">Class:</span>
@@ -400,162 +427,177 @@ export default function SoCenterExamManagement() {
                 </div>
               </div>
 
-              {/* Dynamic Sections */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Not Answered */}
-                <div className="border border-red-200 rounded-lg">
-                  <div className="bg-red-50 p-4 rounded-t-lg flex items-center justify-between">
-                    <h4 className="font-semibold text-red-800">Not Answered ({categorizedResults.not_answered.length})</h4>
-                    <Button
-                      size="sm"
-                      onClick={() => addStudentToCategory('not_answered')}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    {categorizedResults.not_answered.map((student) => (
-                      <div key={student.id} className="border border-gray-200 rounded p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="font-medium">{student.name}</p>
-                            <p className="text-xs text-gray-500">{student.regId}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeStudentFromResults(student.id)}
-                          >
-                            <Minus size={16} />
-                          </Button>
-                        </div>
-                        <div>
-                          <Label>Marks Obtained</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={selectedExam?.totalMarks}
-                            value={student.marksObtained}
-                            onChange={(e) => updateStudentResult(student.id, 'marksObtained', parseInt(e.target.value) || 0)}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {/* Students Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Students in {selectedExam?.className}
+                    <Badge variant="secondary" className="ml-2">
+                      {students.filter((s: any) => s.classId === selectedExam?.classId).length} Students
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {students.filter((s: any) => s.classId === selectedExam?.classId).length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                      <p className="text-gray-500">No students found in this class.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Student Name</TableHead>
+                            <TableHead>Student ID</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>Current Status</TableHead>
+                            <TableHead>Quick Marks Entry</TableHead>
+                            <TableHead className="text-center">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {students
+                            .filter((student: any) => student.classId === selectedExam?.classId)
+                            .map((student: any) => {
+                              const existingResult = examResults.find(r => r.id === student.id);
+                              return (
+                                <TableRow key={student.id}>
+                                  <TableCell className="font-medium">{student.name}</TableCell>
+                                  <TableCell className="text-sm text-gray-600">{student.studentId}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{student.className}</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    {existingResult ? (
+                                      <Badge 
+                                        className={
+                                          existingResult.answeredQuestions === 'fully_answered' ? 'bg-green-100 text-green-800' :
+                                          existingResult.answeredQuestions === 'partially_answered' ? 'bg-yellow-100 text-yellow-800' :
+                                          'bg-red-100 text-red-800'
+                                        }
+                                      >
+                                        {existingResult.answeredQuestions === 'fully_answered' ? 'Fully Answered' :
+                                         existingResult.answeredQuestions === 'partially_answered' ? 'Partial' :
+                                         'Not Answered'}
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="secondary">Not Entered</Badge>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {existingResult ? (
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max={selectedExam?.totalMarks}
+                                          value={existingResult.marksObtained}
+                                          onChange={(e) => updateStudentResult(
+                                            student.id, 
+                                            'marksObtained', 
+                                            parseInt(e.target.value) || 0
+                                          )}
+                                          className="w-20"
+                                        />
+                                        <span className="text-sm text-gray-500">/ {selectedExam?.totalMarks}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-sm text-gray-400">Add to enter marks</span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        onClick={() => openIndividualMarksModal(student, selectedExam)}
+                                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                                      >
+                                        <Edit3 className="h-4 w-4 mr-1" />
+                                        Update
+                                      </Button>
+                                      {!existingResult && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            const newResult = {
+                                              id: student.id,
+                                              name: student.name,
+                                              regId: student.studentId,
+                                              marksObtained: 0,
+                                              answeredQuestions: 'not_answered' as const,
+                                            };
+                                            setExamResults(prev => [...prev, newResult]);
+                                          }}
+                                        >
+                                          <Plus className="h-4 w-4 mr-1" />
+                                          Add
+                                        </Button>
+                                      )}
+                                      {existingResult && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => removeStudentFromResults(student.id)}
+                                          className="text-red-500 hover:text-red-700"
+                                        >
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                {/* Partially Answered */}
-                <div className="border border-yellow-200 rounded-lg">
-                  <div className="bg-yellow-50 p-4 rounded-t-lg flex items-center justify-between">
-                    <h4 className="font-semibold text-yellow-800">Partially Answered ({categorizedResults.partially_answered.length})</h4>
-                    <Button
-                      size="sm"
-                      onClick={() => addStudentToCategory('partially_answered')}
-                      className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    {categorizedResults.partially_answered.map((student) => (
-                      <div key={student.id} className="border border-gray-200 rounded p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="font-medium">{student.name}</p>
-                            <p className="text-xs text-gray-500">{student.regId}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeStudentFromResults(student.id)}
-                          >
-                            <Minus size={16} />
-                          </Button>
-                        </div>
-                        <div>
-                          <Label>Marks Obtained</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={selectedExam?.totalMarks}
-                            value={student.marksObtained}
-                            onChange={(e) => updateStudentResult(student.id, 'marksObtained', parseInt(e.target.value) || 0)}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              {/* Action Buttons */}
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="text-sm text-gray-600">
+                  {examResults.length} student(s) have results entered
                 </div>
-
-                {/* Fully Answered */}
-                <div className="border border-green-200 rounded-lg">
-                  <div className="bg-green-50 p-4 rounded-t-lg flex items-center justify-between">
-                    <h4 className="font-semibold text-green-800">Fully Answered ({categorizedResults.fully_answered.length})</h4>
-                    <Button
-                      size="sm"
-                      onClick={() => addStudentToCategory('fully_answered')}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus size={16} />
-                    </Button>
-                  </div>
-                  <div className="p-4 space-y-3">
-                    {categorizedResults.fully_answered.map((student) => (
-                      <div key={student.id} className="border border-gray-200 rounded p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div>
-                            <p className="font-medium">{student.name}</p>
-                            <p className="text-xs text-gray-500">{student.regId}</p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeStudentFromResults(student.id)}
-                          >
-                            <Minus size={16} />
-                          </Button>
-                        </div>
-                        <div>
-                          <Label>Marks Obtained</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={selectedExam?.totalMarks}
-                            value={student.marksObtained}
-                            onChange={(e) => updateStudentResult(student.id, 'marksObtained', parseInt(e.target.value) || 0)}
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex gap-3">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setIsResultsModalOpen(false);
+                      setExamResults([]);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={() => submitResultsMutation.mutate({ 
+                      examId: selectedExamId, 
+                      results: examResults 
+                    })}
+                    disabled={submitResultsMutation.isPending || examResults.length === 0}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {submitResultsMutation.isPending ? 'Submitting...' : 'Submit Results'}
+                  </Button>
                 </div>
-              </div>
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => {
-                  setIsResultsModalOpen(false);
-                  setExamResults([]);
-                }}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={() => submitResultsMutation.mutate({ 
-                    examId: selectedExamId, 
-                    results: examResults 
-                  })}
-                  disabled={submitResultsMutation.isPending || examResults.length === 0}
-                  className="bg-primary text-white"
-                >
-                  {submitResultsMutation.isPending ? 'Submitting...' : 'Submit Results'}
-                </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Individual Student Marks Modal */}
+        <IndividualStudentMarksModal
+          isOpen={isIndividualMarksModalOpen}
+          onClose={closeIndividualMarksModal}
+          student={selectedStudent}
+          exam={selectedExam}
+        />
       </div>
     </DashboardLayout>
   );
