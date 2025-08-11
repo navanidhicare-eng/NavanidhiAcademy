@@ -257,13 +257,16 @@ export default function AdminAllStudents() {
           </CardHeader>
           <CardContent>
             {/* Location Filters Section */}
-            <div className="border-b pb-6 mb-6">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">Location Filters</h3>
+            <div className="bg-gray-50 p-4 rounded-lg border-b pb-6 mb-6">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+                Location Filters
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* State Filter */}
                 <Select onValueChange={handleStateChange} value={selectedState}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select State" />
+                  <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                    <SelectValue placeholder="🏛️ Select State" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
@@ -281,8 +284,8 @@ export default function AdminAllStudents() {
                   value={selectedDistrict}
                   disabled={selectedState === 'all'}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select District" />
+                  <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500 disabled:bg-gray-100">
+                    <SelectValue placeholder="🏙️ Select District" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Districts</SelectItem>
@@ -300,8 +303,8 @@ export default function AdminAllStudents() {
                   value={selectedMandal}
                   disabled={selectedDistrict === 'all'}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Mandal" />
+                  <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500 disabled:bg-gray-100">
+                    <SelectValue placeholder="🏘️ Select Mandal" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Mandals</SelectItem>
@@ -319,8 +322,8 @@ export default function AdminAllStudents() {
                   value={selectedVillage}
                   disabled={selectedMandal === 'all'}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Village" />
+                  <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500 disabled:bg-gray-100">
+                    <SelectValue placeholder="🏡 Select Village" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Villages</SelectItem>
@@ -333,7 +336,11 @@ export default function AdminAllStudents() {
                 </Select>
 
                 {/* Clear Filters Button */}
-                <Button variant="outline" onClick={clearAllFilters} className="w-full">
+                <Button 
+                  variant="outline" 
+                  onClick={clearAllFilters} 
+                  className="w-full bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                >
                   <Filter className="h-4 w-4 mr-2" />
                   Clear All Filters
                 </Button>
