@@ -251,6 +251,16 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     enabled: !!selectedMandal && isOpen,
   });
 
+  // Fetch current user's SO Center information
+  const { data: currentSoCenter } = useQuery({
+    queryKey: ['/api/so-centers/current'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/so-centers/current');
+      return await response.json();
+    },
+    enabled: !!user && user.role === 'so_center' && isOpen,
+  });
+
   // Fetch class fees when class and course type are selected
   const { data: classFees, isLoading: isLoadingFees } = useQuery({
     queryKey: ['/api/class-fees', selectedClass, selectedCourseType],
@@ -288,7 +298,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       landmark: '',
       classId: '',
       courseType: 'monthly' as const,
-      soCenterId: user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : '',
+      soCenterId: currentSoCenter?.id || '',
       parentPhone: '',
       parentName: '',
       enrollmentDate: new Date().toISOString().split('T')[0], // Default to today
@@ -302,6 +312,14 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     control: form.control,
     name: 'siblings'
   });
+
+  // Update SO Center ID in form when currentSoCenter loads
+  useEffect(() => {
+    if (currentSoCenter?.id) {
+      console.log('🏢 Setting SO Center ID in form:', currentSoCenter.id);
+      form.setValue('soCenterId', currentSoCenter.id);
+    }
+  }, [currentSoCenter, form]);
 
   // Aadhar validation mutation
   const validateAadharMutation = useMutation({

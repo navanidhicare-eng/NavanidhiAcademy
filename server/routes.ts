@@ -1395,6 +1395,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's SO Center
+  app.get("/api/so-centers/current", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      if (req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "Only SO Center users can access this endpoint" });
+      }
+      
+      console.log('🔍 Getting SO Center for user email:', req.user.email);
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found for current user" });
+      }
+      
+      console.log('✅ Found SO Center:', soCenter.centerId, '-', soCenter.name);
+      res.json(soCenter);
+    } catch (error) {
+      console.error('Error fetching current SO Center:', error);
+      res.status(500).json({ message: "Failed to fetch current SO Center" });
+    }
+  });
+
   // Dashboard stats endpoint - REAL SUPABASE DATA ONLY
   app.get("/api/dashboard/stats", authenticateToken, async (req, res) => {
     try {
