@@ -80,12 +80,20 @@ export default function StudentDropoutRequests() {
     queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
   });
   
-  // Ensure students is always an array and log for debugging
-  const students = Array.isArray(studentsResponse) ? studentsResponse : [];
+  // Handle different response structures
+  let students = [];
+  if (Array.isArray(studentsResponse)) {
+    students = studentsResponse;
+  } else if (studentsResponse && Array.isArray(studentsResponse.data)) {
+    students = studentsResponse.data;
+  } else if (studentsResponse && studentsResponse.students && Array.isArray(studentsResponse.students)) {
+    students = studentsResponse.students;
+  }
   
   // Debug logging
-  console.log("Students received:", studentsResponse);
-  console.log("Filtered students:", students);
+  console.log("Raw API response:", studentsResponse);
+  console.log("Parsed students array:", students);
+  console.log("Students count:", students.length);
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
