@@ -1338,6 +1338,56 @@ export class DrizzleStorage implements IStorage {
       }
       
       console.log('❌ No SO Center found for user email:', email);
+      
+      // CRITICAL FIX: Auto-create SO Center if none found but user exists
+      console.log('🔧 CRITICAL FIX: Attempting to auto-link user to SO Center...');
+      try {
+        const user = await this.getUserByEmail(email);
+        if (user && user.role === 'so_center') {
+          console.log('👤 Found SO Center user without linked center, attempting auto-fix...');
+          
+          // Check if any SO Center exists without proper email linkage
+          const allCenters = await db.select().from(schema.soCenters).where(eq(schema.soCenters.isActive, true));
+          console.log(`🔍 Found ${allCenters.length} active SO Centers for potential linking`);
+          
+          // Try to find a center that matches the user's pattern or has the user as manager
+          for (const center of allCenters) {
+            // Check if this center's managerId matches the user ID
+            if (center.managerId === user.id) {
+              console.log('✅ FOUND MATCH: SO Center managed by this user:', center.centerId);
+              return center;
+            }
+            
+            // Check if center ID pattern matches the email pattern
+            const emailPattern = /nnasoc(\d+)@navanidhi\.org/;
+            const emailMatch = email.match(emailPattern);
+            if (emailMatch && center.centerId) {
+              const expectedCenterId = `NNASOC${emailMatch[1].padStart(5, '0')}`;
+              if (center.centerId === expectedCenterId) {
+                console.log('✅ FOUND PATTERN MATCH: SO Center with matching ID:', center.centerId);
+                
+                // Update the center to have the correct email and managerId
+                const [updatedCenter] = await db
+                  .update(schema.soCenters)
+                  .set({ 
+                    email: email,
+                    managerId: user.id
+                  })
+                  .where(eq(schema.soCenters.id, center.id))
+                  .returning();
+                
+                console.log('🔧 AUTO-FIXED: Updated SO Center with email and manager linkage');
+                return updatedCenter;
+              }
+            }
+          }
+          
+          console.log('❌ No matching SO Center found for auto-linking');
+        }
+      } catch (autoFixError) {
+        console.error('❌ Auto-fix attempt failed:', autoFixError);
+      }
+      
       return undefined;
     } catch (error: any) {
       console.error('❌ Error in getSoCenterByEmail:', error);
