@@ -96,7 +96,7 @@ export default function Students() {
     if (selectedState === 'all' && selectedDistrict === 'all' && selectedMandal === 'all' && selectedVillage === 'all') {
       return true;
     }
-    
+
     // Use the joined location data from the center
     const stateMatch = selectedState === 'all' || center.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
     const districtMatch = selectedDistrict === 'all' || center.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
@@ -200,9 +200,102 @@ export default function Students() {
               {filteredStudents.length} Students
             </Badge>
           </div>
-
-
         </div>
+
+        {/* Location Filters Section */}
+        <Card className="p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 flex items-center">
+              <MapPin className="h-5 w-5 mr-2 text-blue-600" />
+              Location Filters
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* State Filter */}
+              <Select onValueChange={handleStateChange} value={selectedState}>
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏛️ Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {(states as any[]).map((state: any) => (
+                    <SelectItem key={state.id} value={state.id}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* District Filter */}
+              <Select 
+                onValueChange={handleDistrictChange} 
+                value={selectedDistrict}
+                disabled={selectedState === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏘️ Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Districts</SelectItem>
+                  {filteredDistricts.map((district: any) => (
+                    <SelectItem key={district.id} value={district.id}>
+                      {district.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Mandal Filter */}
+              <Select 
+                onValueChange={handleMandalChange} 
+                value={selectedMandal}
+                disabled={selectedDistrict === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏛️ Select Mandal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Mandals</SelectItem>
+                  {filteredMandals.map((mandal: any) => (
+                    <SelectItem key={mandal.id} value={mandal.id}>
+                      {mandal.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Village Filter */}
+              <Select 
+                onValueChange={handleVillageChange} 
+                value={selectedVillage}
+                disabled={selectedMandal === 'all'}
+              >
+                <SelectTrigger className="bg-white border-2 border-gray-300 focus:border-blue-500">
+                  <SelectValue placeholder="🏘️ Select Village" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Villages</SelectItem>
+                  {filteredVillages.map((village: any) => (
+                    <SelectItem key={village.id} value={village.id}>
+                      {village.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters Button */}
+            <div className="mt-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={clearFilters}
+                className="flex items-center gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Clear All Filters
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         {/* Search and Actions Bar */}
         <Card className="p-6">
@@ -267,7 +360,7 @@ export default function Students() {
                 {filteredStudents.map((student: any) => {
                   const studentClass = (classes as any[]).find(c => c.id === student.classId);
                   const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
-                  
+
                   return (
                     <tr key={student.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
