@@ -4975,6 +4975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
     try {
       const examId = req.params.examId;
+      const userId = req.user?.userId;
       console.log('📋 Fetching questions for exam:', examId);
       
       // Get exam details with questions
@@ -4982,6 +4983,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!exam.length) {
         return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // Check if user has access to this exam (SO Center only sees their own exams)
+      if (req.user?.role === 'so_center') {
+        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
+        if (!soCenterIds.includes(userId)) {
+          return res.status(404).json({ message: 'Exam not found or access denied' });
+        }
       }
 
       // Parse questions from exam data
@@ -6047,75 +6056,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Exam Results API Endpoints for SO Centers
   
-  // Get exam questions for a specific exam
-  app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const userId = req.user?.userId;
-      
-      // Check if user has access to this exam (SO Center only sees their own exams)
-      if (req.user?.role === 'so_center') {
-        const exam = await sql`
-          SELECT * FROM exams 
-          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
-        `;
-        
-        if (exam.length === 0) {
-          return res.status(404).json({ message: 'Exam not found or access denied' });
-        }
-      }
-      
-      const questions = await sql`
-        SELECT id, question_text, marks, created_at
-        FROM exam_questions 
-        WHERE exam_id = ${examId}
-        ORDER BY id
-      `;
-      
-      res.json(Array.from(questions).map(q => ({
-        id: q.id,
-        questionText: q.question_text,
-        marks: parseFloat(q.marks),
-        createdAt: q.created_at
-      })));
-    } catch (error) {
-      console.error('Error fetching exam questions:', error);
-      res.status(500).json({ message: 'Failed to fetch exam questions' });
-    }
-  });
-  
   // Get existing exam results for a specific exam
   app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
     try {
       const { examId } = req.params;
       const userId = req.user?.userId;
       
+      // Get exam details first
+      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+      
+      if (!exam.length) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
       // Check if user has access to this exam (SO Center only sees their own exams)
       if (req.user?.role === 'so_center') {
-        const exam = await sql`
-          SELECT * FROM exams 
-          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
-        `;
-        
-        if (exam.length === 0) {
+        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
+        if (!soCenterIds.includes(userId)) {
           return res.status(404).json({ message: 'Exam not found or access denied' });
         }
       }
       
-      const results = await sql`
-        SELECT * FROM exam_results 
-        WHERE exam_id = ${examId}
-      `;
-      
-      res.json(Array.from(results).map(r => ({
-        id: r.id,
-        examId: r.exam_id,
-        studentId: r.student_id,
-        marksObtained: parseFloat(r.marks_obtained),
-        questionResults: JSON.parse(r.question_results || '[]'),
-        createdAt: r.created_at,
-        updatedAt: r.updated_at
-      })));
+      // Get results from exam_results table (if it exists) or return empty array
+      try {
+        const results = await sql`
+          SELECT * FROM exam_results 
+          WHERE exam_id = ${examId}
+        `;
+        
+        res.json(Array.from(results).map(r => ({
+          id: r.id,
+          examId: r.exam_id,
+          studentId: r.student_id,
+          marksObtained: parseFloat(r.marks_obtained),
+          questionResults: JSON.parse(r.question_results || '[]'),
+          createdAt: r.created_at,
+          updatedAt: r.updated_at
+        })));
+      } catch (dbError) {
+        // If exam_results table doesn't exist, return empty results
+        console.log('No exam_results table found, returning empty results');
+        res.json([]);
+      }
     } catch (error) {
       console.error('Error fetching exam results:', error);
       res.status(500).json({ message: 'Failed to fetch exam results' });
