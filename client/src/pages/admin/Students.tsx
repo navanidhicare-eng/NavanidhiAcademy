@@ -33,7 +33,9 @@ import {
   CreditCard,
   GraduationCap,
   Home,
-  FileText
+  FileText,
+  Plus,
+  Download
 } from 'lucide-react';
 
 export default function Students() {
@@ -104,7 +106,7 @@ export default function Students() {
     return stateMatch && districtMatch && mandalMatch && villageMatch;
   });
 
-  // Filter students based on all criteria including location
+  // Filter students based on search and class
   const filteredStudents = (students as any[]).filter((student: any) => {
     // Enhanced search including SO Center and location information
     const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
@@ -122,25 +124,9 @@ export default function Students() {
       studentCenter?.districtName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       studentCenter?.stateName?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCenter = selectedCenter === 'all' || student.soCenterId === selectedCenter;
     const matchesClass = selectedClass === 'all' || student.classId === selectedClass;
 
-    // Location-based filtering through student's SO center
-    let matchesLocation = true;
-    if (selectedState !== 'all' || selectedDistrict !== 'all' || selectedMandal !== 'all' || selectedVillage !== 'all') {
-      const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
-      if (studentCenter) {
-        const stateMatch = selectedState === 'all' || studentCenter.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
-        const districtMatch = selectedDistrict === 'all' || studentCenter.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
-        const mandalMatch = selectedMandal === 'all' || studentCenter.mandalName === (mandals as any[]).find(m => m.id === selectedMandal)?.name;
-        const villageMatch = selectedVillage === 'all' || studentCenter.villageName === (villages as any[]).find(v => v.id === selectedVillage)?.name;
-        matchesLocation = stateMatch && districtMatch && mandalMatch && villageMatch;
-      } else {
-        matchesLocation = false;
-      }
-    }
-
-    return matchesSearch && matchesCenter && matchesClass && matchesLocation;
+    return matchesSearch && matchesClass;
   });
 
   const handleStateChange = (stateId: string) => {
@@ -215,201 +201,118 @@ export default function Students() {
             </Badge>
           </div>
 
-          {/* Top Location Filters */}
-          <div className="border-t pt-6">
-            <h2 className="text-lg font-semibold mb-4 text-gray-900">Location Filters</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Filter by location hierarchy: State → District → Mandal → Village. Search includes all student details and location names.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {/* State Filter */}
-              <Select onValueChange={handleStateChange} value={selectedState}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select State" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All States</SelectItem>
-                  {(states as any[]).map((state: any) => (
-                    <SelectItem key={state.id} value={state.id}>
-                      {state.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
 
-              {/* District Filter */}
-              <Select 
-                onValueChange={handleDistrictChange} 
-                value={selectedDistrict}
-                disabled={selectedState === 'all'}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select District" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Districts</SelectItem>
-                  {filteredDistricts.map((district: any) => (
-                    <SelectItem key={district.id} value={district.id}>
-                      {district.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Mandal Filter */}
-              <Select 
-                onValueChange={handleMandalChange} 
-                value={selectedMandal}
-                disabled={selectedDistrict === 'all'}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Mandal" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Mandals</SelectItem>
-                  {filteredMandals.map((mandal: any) => (
-                    <SelectItem key={mandal.id} value={mandal.id}>
-                      {mandal.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Village Filter */}
-              <Select 
-                onValueChange={handleVillageChange} 
-                value={selectedVillage}
-                disabled={selectedMandal === 'all'}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Village" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Villages</SelectItem>
-                  {filteredVillages.map((village: any) => (
-                    <SelectItem key={village.id} value={village.id}>
-                      {village.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Clear Filters Button */}
-              <Button variant="outline" onClick={clearFilters} className="w-full">
-                <Filter className="h-4 w-4 mr-2" />
-                Clear All Filters
-              </Button>
-            </div>
-          </div>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search and Actions Bar */}
         <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative md:col-span-1">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            {/* Left side - Search */}
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search by name, student ID, phone, parent name, SO center, or location..."
+                placeholder="Search by name, student ID, phone, or father's name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            {/* SO Center Filter */}
-            <Select onValueChange={setSelectedCenter} value={selectedCenter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All SO Centers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All SO Centers</SelectItem>
-                {filteredSoCenters.map((center: any) => (
-                  <SelectItem key={center.id} value={center.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{center.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {center.villageName}, {center.mandalName}, {center.districtName}, {center.stateName}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Right side - Filters and Actions */}
+            <div className="flex gap-3 items-center">
+              {/* Class Filter */}
+              <Select onValueChange={setSelectedClass} value={selectedClass}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {(classes as any[]).map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {/* Class Filter */}
-            <Select onValueChange={setSelectedClass} value={selectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Classes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {(classes as any[]).map((cls: any) => (
-                  <SelectItem key={cls.id} value={cls.id}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {/* Add Student Button */}
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Student
+              </Button>
+
+              {/* Export CSV Button */}
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
           </div>
         </Card>
 
-        {/* Students Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredStudents.map((student: any) => (
-            <Card key={student.id} className="p-6 hover:shadow-lg transition-shadow">
-              <div className="space-y-4">
-                {/* Student Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                      {student.name?.charAt(0)?.toUpperCase() || 'S'}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{student.name}</h3>
-                      <p className="text-sm text-gray-600">ID: {student.studentId}</p>
-                    </div>
-                  </div>
-                  <Badge 
-                    className={student.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}
-                  >
-                    {student.paymentStatus === 'paid' ? 'PAID' : 'PENDING'}
-                  </Badge>
-                </div>
-
-                {/* Quick Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center text-gray-600">
-                    <School className="h-4 w-4 mr-2" />
-                    <span>{(classes as any[]).find((c: any) => c.id === student.classId)?.name || 'Unknown Class'}</span>
-                  </div>
-                  <div className="flex items-center text-gray-600">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>{(soCenters as any[]).find((c: any) => c.id === student.soCenterId)?.name || 'Unknown Center'}</span>
-                  </div>
-                  <div className="flex items-center text-gray-600">
-                    <Phone className="h-4 w-4 mr-2" />
-                    <span>{student.fatherMobile || student.motherMobile || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center text-gray-600">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    <span>Enrolled: {formatDate(student.enrollmentDate)}</span>
-                  </div>
-                </div>
-
-                {/* Action Button */}
-                <Button 
-                  onClick={() => handleViewStudent(student)}
-                  className="w-full"
-                  variant="outline"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  View Complete Details
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        {/* Students Table */}
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredStudents.map((student: any) => {
+                  const studentClass = (classes as any[]).find(c => c.id === student.classId);
+                  const studentCenter = (soCenters as any[]).find(c => c.id === student.soCenterId);
+                  
+                  return (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
+                            {student.name?.charAt(0)?.toUpperCase() || 'S'}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                            <div className="text-sm text-gray-500">ID: {student.studentId}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{student.fatherName || student.motherName || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{student.fatherMobile || student.motherMobile || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{studentClass?.name || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">
+                          {student.feeType === 'monthly' ? 'monthly' : 'yearly'} •
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          Active
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button 
+                          onClick={() => handleViewStudent(student)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zM12 13a1 1 0 110-2 1 1 0 010 2zM12 20a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
         {filteredStudents.length === 0 && (
           <Card className="p-12 text-center">
