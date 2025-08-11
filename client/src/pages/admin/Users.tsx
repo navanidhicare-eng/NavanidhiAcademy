@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { AddUserModal } from '@/components/admin/AddUserModal';
+import { EditUserModal } from '@/components/admin/EditUserModal';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -62,6 +63,12 @@ export default function AdminUsers() {
       setUserToDelete(null);
     },
   });
+
+  const [editingUser, setEditingUser] = useState<any>(null);
+
+  const handleEditClick = (user: any) => {
+    setEditingUser(user);
+  };
 
   const handleDeleteClick = (user: any) => {
     setUserToDelete({ id: user.id, name: user.name });
@@ -188,7 +195,11 @@ export default function AdminUsers() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <Button variant="ghost" size="sm">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditClick(user)}
+                        >
                           <Edit className="text-primary" size={16} />
                         </Button>
                         <Button 
@@ -234,6 +245,12 @@ export default function AdminUsers() {
       <AddUserModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
+      />
+
+      <EditUserModal 
+        isOpen={!!editingUser} 
+        onClose={() => setEditingUser(null)}
+        user={editingUser}
       />
 
       {/* Delete Confirmation Dialog */}
