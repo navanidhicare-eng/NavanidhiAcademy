@@ -1825,20 +1825,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // FIXED: Get users with 'so_center' role for manager dropdown (NOT all users)
+  // FIXED: Get users with 'so_center' role for manager dropdown (NOT all users) - ONLY UNASSIGNED
   app.get("/api/admin/users/unassigned-managers", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
       
-      console.log('🔧 Fetching SO Center role users for manager dropdown');
-      const unassignedManagers = await storage.getUnassignedManagers();
-      console.log(`✅ Found ${unassignedManagers.length} SO Center users available as managers`);
+      console.log('🔧 Fetching UNASSIGNED SO Center role users for manager dropdown');
+      
+      // Get users with SO Center role only
+      const soCenterUsers = await storage.getUsersByRole('so_center');
+      
+      // Get all SO Centers to find which managers are already assigned
+      const allSoCenters = await storage.getAllSoCenters();
+      const assignedManagerIds = allSoCenters
+        .filter(center => center.managerId)
+        .map(center => center.managerId);
+      
+      // Filter out users who are already assigned as managers
+      const unassignedManagers = soCenterUsers.filter(user => 
+        !assignedManagerIds.includes(user.id)
+      );
+      
+      console.log(`✅ Found ${soCenterUsers.length} total SO Center users, ${unassignedManagers.length} unassigned managers available`);
       res.json(unassignedManagers);
     } catch (error) {
       console.error('Error fetching unassigned managers:', error);
       res.status(500).json({ message: 'Failed to fetch unassigned managers' });
+    }
+  });
+
+  // SUPABASE AUTH ENFORCED - Get available managers for editing SO Center (includes current manager)
+  app.get("/api/admin/users/available-managers/:centerId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      
+      const centerId = req.params.centerId;
+      console.log(`🔧 Fetching available managers for editing SO Center ${centerId}`);
+      
+      // Get users with SO Center role only
+      const soCenterUsers = await storage.getUsersByRole('so_center');
+      
+      // Get all SO Centers to find which managers are already assigned
+      const allSoCenters = await storage.getAllSoCenters();
+      const assignedManagerIds = allSoCenters
+        .filter(center => center.managerId && center.id !== centerId) // Exclude current center
+        .map(center => center.managerId);
+      
+      // Get current center's manager
+      const currentCenter = allSoCenters.find(center => center.id === centerId);
+      const currentManagerId = currentCenter?.managerId;
+      
+      // Filter out users who are already assigned as managers (except current manager)
+      const availableManagers = soCenterUsers.filter(user => 
+        !assignedManagerIds.includes(user.id)
+      );
+      
+      console.log(`✅ Found ${soCenterUsers.length} total SO Center users, ${availableManagers.length} available managers for editing (including current: ${currentManagerId ? 'yes' : 'no'})`);
+      res.json(availableManagers);
+    } catch (error) {
+      console.error('Error fetching available managers for editing:', error);
+      res.status(500).json({ message: 'Failed to fetch available managers' });
     }
   });
 

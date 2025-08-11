@@ -123,10 +123,10 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
     queryKey: ['/api/admin/addresses/villages'],
   });
 
-  // FIXED: Use dedicated endpoint that fetches SO Center role users only
+  // FIXED: Use dedicated endpoint that fetches available managers for editing (includes current manager)
   const { data: managers = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/users/unassigned-managers'],
-    enabled: isOpen,
+    queryKey: [`/api/admin/users/available-managers/${center?.id}`],
+    enabled: isOpen && !!center?.id,
   });
 
   // Filter location data based on selections
