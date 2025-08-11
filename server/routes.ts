@@ -718,6 +718,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SO Center detailed students endpoint
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      console.log('🏢 SO Center requesting detailed students - enforcing strict privacy');
+      console.log('🔍 SO Center user email:', req.user.email);
+      
+      try {
+        // Get SO Center associated with this user
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        
+        if (!soCenter) {
+          console.log('❌ No SO Center found for user email:', req.user.email);
+          return res.status(403).json({ message: "SO Center not found for user" });
+        }
+
+        console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their detailed students');
+        
+        // Get detailed students for this SO Center
+        const studentsFromDb = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+        
+        console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} detailed students for SO Center ${soCenter.centerId}`);
+        
+        res.json(studentsFromDb);
+      } catch (error) {
+        console.error('❌ Error in SO Center detailed students endpoint:', error);
+        return res.status(500).json({ message: "Failed to fetch detailed students" });
+      }
+    } catch (error) {
+      console.error('❌ Error fetching SO Center detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
   // Student routes
   app.get("/api/students", authenticateToken, async (req, res) => {
     try {
