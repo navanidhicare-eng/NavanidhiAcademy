@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,6 +49,7 @@ export default function SoCenterExamManagement() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
 
   // Get SO Center ID from logged-in user (assuming user has soCenterId or similar field)
   const soCenterId = user?.id; // Using user ID for now, will be mapped server-side
@@ -362,7 +364,7 @@ export default function SoCenterExamManagement() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => openResultsModal(exam)}
+                                    onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
                                   >
                                     Post Results
                                   </Button>
@@ -373,7 +375,7 @@ export default function SoCenterExamManagement() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => openResultsModal(exam)}
+                                  onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
                                 >
                                   Update Results
                                 </Button>

@@ -6045,6 +6045,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Exam Results API Endpoints for SO Centers
+  
+  // Get exam questions for a specific exam
+  app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const userId = req.user?.userId;
+      
+      // Check if user has access to this exam (SO Center only sees their own exams)
+      if (req.user?.role === 'so_center') {
+        const exam = await sql`
+          SELECT * FROM exams 
+          WHERE id = ${examId} AND so_center_id = ${userId}
+        `;
+        
+        if (exam.length === 0) {
+          return res.status(404).json({ message: 'Exam not found or access denied' });
+        }
+      }
+      
+      const questions = await sql`
+        SELECT id, question_text, marks, created_at
+        FROM exam_questions 
+        WHERE exam_id = ${examId}
+        ORDER BY id
+      `;
+      
+      res.json(questions.map(q => ({
+        id: q.id,
+        questionText: q.question_text,
+        marks: parseFloat(q.marks),
+        createdAt: q.created_at
+      })));
+    } catch (error) {
+      console.error('Error fetching exam questions:', error);
+      res.status(500).json({ message: 'Failed to fetch exam questions' });
+    }
+  });
+  
+  // Get existing exam results for a specific exam
+  app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const userId = req.user?.userId;
+      
+      // Check if user has access to this exam (SO Center only sees their own exams)
+      if (req.user?.role === 'so_center') {
+        const exam = await sql`
+          SELECT * FROM exams 
+          WHERE id = ${examId} AND so_center_id = ${userId}
+        `;
+        
+        if (exam.length === 0) {
+          return res.status(404).json({ message: 'Exam not found or access denied' });
+        }
+      }
+      
+      const results = await sql`
+        SELECT * FROM exam_results 
+        WHERE exam_id = ${examId}
+      `;
+      
+      res.json(results.map(r => ({
+        id: r.id,
+        examId: r.exam_id,
+        studentId: r.student_id,
+        marksObtained: parseFloat(r.marks_obtained),
+        questionResults: JSON.parse(r.question_results || '[]'),
+        createdAt: r.created_at,
+        updatedAt: r.updated_at
+      })));
+    } catch (error) {
+      console.error('Error fetching exam results:', error);
+      res.status(500).json({ message: 'Failed to fetch exam results' });
+    }
+  });
+  
+  // Save or update exam result for a specific student
+  app.post('/api/exams/results', authenticateToken, async (req, res) => {
+    try {
+      const { examId, studentId, marksObtained, questionResults } = req.body;
+      const userId = req.user?.userId;
+      
+      // Validate required fields
+      if (!examId || !studentId || marksObtained === undefined || !questionResults) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+      
+      // Check if user has access to this exam (SO Center only sees their own exams)
+      if (req.user?.role === 'so_center') {
+        const exam = await sql`
+          SELECT * FROM exams 
+          WHERE id = ${examId} AND so_center_id = ${userId}
+        `;
+        
+        if (exam.length === 0) {
+          return res.status(404).json({ message: 'Exam not found or access denied' });
+        }
+      }
+      
+      // Check if result already exists
+      const existingResult = await sql`
+        SELECT * FROM exam_results 
+        WHERE exam_id = ${examId} AND student_id = ${studentId}
+      `;
+      
+      if (existingResult.length > 0) {
+        // Update existing result
+        await sql`
+          UPDATE exam_results 
+          SET 
+            marks_obtained = ${marksObtained},
+            question_results = ${JSON.stringify(questionResults)},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE exam_id = ${examId} AND student_id = ${studentId}
+        `;
+        
+        res.json({ message: 'Exam result updated successfully' });
+      } else {
+        // Create new result
+        await sql`
+          INSERT INTO exam_results (exam_id, student_id, marks_obtained, question_results)
+          VALUES (${examId}, ${studentId}, ${marksObtained}, ${JSON.stringify(questionResults)})
+        `;
+        
+        res.json({ message: 'Exam result saved successfully' });
+      }
+    } catch (error) {
+      console.error('Error saving exam result:', error);
+      res.status(500).json({ message: 'Failed to save exam result' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
