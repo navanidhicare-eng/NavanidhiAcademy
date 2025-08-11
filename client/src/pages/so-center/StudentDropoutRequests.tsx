@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, UserMinus, FileText, Clock, CheckCircle, XCircle } from "lucide-react";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Dialog,
   DialogContent,
@@ -152,30 +154,136 @@ export default function StudentDropoutRequests() {
 
   if (isLoadingRequests) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading dropout requests...</span>
-      </div>
+      <DashboardLayout title="Student Dropout Requests" subtitle="Manage student dropout requests and track their status">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading dropout requests...</span>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Student Dropout Requests</h1>
-          <p className="text-muted-foreground">
-            Manage student dropout requests and track their status
-          </p>
+    <DashboardLayout 
+      title="Student Dropout Requests" 
+      subtitle="Manage student dropout requests and track their status"
+      showAddButton={true}
+      onAddClick={() => setIsCreateDialogOpen(true)}
+    >
+      <div className="space-y-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{requests.length}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+              <XCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
+            </CardContent>
+          </Card>
         </div>
-        
+
+        {/* Requests Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Dropout Requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Student ID</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Request Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Processed Date</TableHead>
+                    <TableHead>Admin Notes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((request: DropoutRequest) => (
+                    <TableRow key={request.id}>
+                      <TableCell className="font-medium">
+                        {request.studentName}
+                      </TableCell>
+                      <TableCell>{request.studentStudentId}</TableCell>
+                      <TableCell className="max-w-xs">
+                        <div className="truncate" title={request.reason}>
+                          {request.reason}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(request.requestDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(request.status)}
+                      </TableCell>
+                      <TableCell>
+                        {request.processedDate 
+                          ? new Date(request.processedDate).toLocaleDateString()
+                          : '-'
+                        }
+                      </TableCell>
+                      <TableCell>
+                        {request.adminNotes ? (
+                          <div className="max-w-xs truncate" title={request.adminNotes}>
+                            {request.adminNotes}
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            
+            {requests.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <UserMinus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No dropout requests found.</p>
+                <p className="text-sm">Submit your first dropout request to get started.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Create Request Dialog */}
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Dropout Request
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Submit Dropout Request</DialogTitle>
@@ -284,117 +392,6 @@ export default function StudentDropoutRequests() {
           </DialogContent>
         </Dialog>
       </div>
-
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Requests</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{requests.length}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-            <XCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Requests Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Dropout Requests</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Student ID</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead>Request Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Processed Date</TableHead>
-                  <TableHead>Admin Notes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((request: DropoutRequest) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">
-                      {request.studentName}
-                    </TableCell>
-                    <TableCell>{request.studentStudentId}</TableCell>
-                    <TableCell className="max-w-xs">
-                      <div className="truncate" title={request.reason}>
-                        {request.reason}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(request.requestDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(request.status)}
-                    </TableCell>
-                    <TableCell>
-                      {request.processedDate 
-                        ? new Date(request.processedDate).toLocaleDateString()
-                        : '-'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      {request.adminNotes ? (
-                        <div className="max-w-xs truncate" title={request.adminNotes}>
-                          {request.adminNotes}
-                        </div>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          
-          {requests.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <UserMinus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No dropout requests found.</p>
-              <p className="text-sm">Submit your first dropout request to get started.</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    </DashboardLayout>
   );
 }
