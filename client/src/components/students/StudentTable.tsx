@@ -50,9 +50,29 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   const filteredStudents = (students || []).filter((student: any) => {
     const matchesSearch = student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.parentPhone?.includes(searchTerm);
-    const matchesClass = classFilter === 'all' || 
-                        student.classId?.toLowerCase().includes(classFilter.replace('-', ' ')) ||
-                        student.className?.toLowerCase().includes(classFilter.replace('-', ' '));
+    
+    // Class filtering logic - handle the real class names from the API
+    let matchesClass = true;
+    if (classFilter !== 'all') {
+      const className = student.className?.toLowerCase() || '';
+      switch (classFilter) {
+        case 'class-10':
+          matchesClass = className.includes('10th') || className.includes('10');
+          break;
+        case 'class-12':
+          matchesClass = className.includes('12th') || className.includes('12');
+          break;
+        case 'navodaya':
+          matchesClass = className.includes('navodaya');
+          break;
+        case 'polycet':
+          matchesClass = className.includes('polycet');
+          break;
+        default:
+          matchesClass = true;
+      }
+    }
+    
     return matchesSearch && matchesClass;
   });
 
