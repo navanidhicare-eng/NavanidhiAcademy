@@ -80,7 +80,7 @@ export default function StudentDropoutRequests() {
     queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
   });
   
-  // Handle different response structures
+  // Handle different response structures with proper validation
   let students = [];
   if (Array.isArray(studentsResponse)) {
     students = studentsResponse;
@@ -88,12 +88,17 @@ export default function StudentDropoutRequests() {
     students = studentsResponse.data;
   } else if (studentsResponse && studentsResponse.students && Array.isArray(studentsResponse.students)) {
     students = studentsResponse.students;
+  } else {
+    console.warn("Unexpected studentsResponse structure:", studentsResponse);
+    students = [];
   }
   
-  // Debug logging
-  console.log("Raw API response:", studentsResponse);
-  console.log("Parsed students array:", students);
-  console.log("Students count:", students.length);
+  // Debug logging - only show structure in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log("📊 Response status:", studentsResponse?.status || 'unknown');
+    console.log("📋 Students found for this SO Center:", students.length);
+    console.log("📋 Raw API response:", studentsResponse);
+  }
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {

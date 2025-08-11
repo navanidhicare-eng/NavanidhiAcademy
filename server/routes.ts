@@ -743,12 +743,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their detailed students');
         
-        // Get detailed students for this SO Center
-        const studentsFromDb = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+        // Get detailed students for this SO Center using the same working method as regular students endpoint
+        const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
         
-        console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} detailed students for SO Center ${soCenter.centerId}`);
+        console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb ? studentsFromDb.length : 0} detailed students for SO Center ${soCenter.centerId}`);
         
-        res.json(studentsFromDb);
+        // Ensure we always return an array
+        const students = studentsFromDb || [];
+        res.json(students);
       } catch (error) {
         console.error('❌ Error in SO Center detailed students endpoint:', error);
         return res.status(500).json({ message: "Failed to fetch detailed students" });
