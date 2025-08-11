@@ -6262,6 +6262,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "SO Center not found" });
       }
 
+      // CRITICAL: Check if student has zero pending balance before allowing dropout request
+      const { studentId } = req.body;
+      if (!studentId) {
+        return res.status(400).json({ message: "Student ID is required" });
+      }
+
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Verify student belongs to this SO Center
+      if (student.soCenterId !== soCenter.id) {
+        return res.status(403).json({ message: "Student does not belong to your SO Center" });
+      }
+
+      // Check if student has pending balance
+      const pendingAmount = parseFloat(student.totalAmount || '0') - parseFloat(student.paidAmount || '0');
+      if (pendingAmount > 0) {
+        return res.status(400).json({ 
+          message: `Cannot create dropout request. Student has pending balance of ₹${pendingAmount.toFixed(2)}. Please clear all dues before submitting dropout request.`,
+          pendingBalance: pendingAmount
+        });
+      }
+
       const dropoutData = {
         ...req.body,
         soCenterId: soCenter.id,
@@ -6273,7 +6298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(request);
     } catch (error) {
       console.error('Error creating dropout request:', error);
-      res.status(500).json({ message: "Failed to create dropout request" });
+      res.status(500).json({ message: error.message || "Failed to create dropout request" });
     }
   });
 

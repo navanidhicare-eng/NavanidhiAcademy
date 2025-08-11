@@ -189,14 +189,54 @@ export default function StudentDropoutRequests() {
                         Loading students...
                       </SelectItem>
                     ) : (
-                      students.map((student: Student) => (
-                        <SelectItem key={student.id} value={student.id}>
-                          {student.name} ({student.studentId}) - {student.className}
-                        </SelectItem>
-                      ))
+                      students.map((student: Student) => {
+                        const pendingAmount = parseFloat(student.totalAmount || '0') - parseFloat(student.paidAmount || '0');
+                        const hasBalance = pendingAmount > 0;
+                        return (
+                          <SelectItem 
+                            key={student.id} 
+                            value={student.id}
+                            disabled={hasBalance}
+                          >
+                            {student.name} ({student.studentId}) - {student.className}
+                            {hasBalance && (
+                              <span className="text-red-500 text-xs ml-2">
+                                (₹{pendingAmount.toFixed(2)} pending)
+                              </span>
+                            )}
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>
+                {selectedStudentId && (() => {
+                  const selectedStudent = students.find((s: Student) => s.id === selectedStudentId);
+                  if (selectedStudent) {
+                    const pendingAmount = parseFloat(selectedStudent.totalAmount || '0') - parseFloat(selectedStudent.paidAmount || '0');
+                    if (pendingAmount > 0) {
+                      return (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                          <p className="text-red-700 text-sm font-medium">
+                            ⚠️ This student has a pending balance of ₹{pendingAmount.toFixed(2)}
+                          </p>
+                          <p className="text-red-600 text-xs mt-1">
+                            Please clear all dues before submitting a dropout request.
+                          </p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                          <p className="text-green-700 text-sm font-medium">
+                            ✅ This student has no pending balance and is eligible for dropout.
+                          </p>
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })()}
               </div>
               
               <div className="space-y-2">
