@@ -75,9 +75,11 @@ export default function StudentDropoutRequests() {
   // Ensure requests is always an array
   const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
-  const { data: studentsResponse = [], isLoading: isLoadingStudents } = useQuery({
+  const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
     queryKey: ["/api/so-center/detailed-students"],
     queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    retry: 3,
+    refetchOnWindowFocus: false,
   });
   
   // Handle different response structures with proper validation
@@ -89,15 +91,23 @@ export default function StudentDropoutRequests() {
   } else if (studentsResponse && studentsResponse.students && Array.isArray(studentsResponse.students)) {
     students = studentsResponse.students;
   } else {
-    console.warn("Unexpected studentsResponse structure:", studentsResponse);
+    console.warn("⚠️ Unexpected studentsResponse structure:", studentsResponse);
+    console.warn("⚠️ Response type:", typeof studentsResponse);
+    console.warn("⚠️ Response keys:", studentsResponse ? Object.keys(studentsResponse) : 'no keys');
     students = [];
   }
   
-  // Debug logging - only show structure in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log("📊 Response status:", studentsResponse?.status || 'unknown');
-    console.log("📋 Students found for this SO Center:", students.length);
-    console.log("📋 Raw API response:", studentsResponse);
+  // Debug logging - always show for debugging this issue
+  console.log("📊 Students API Response Debug:");
+  console.log("  - Response type:", typeof studentsResponse);
+  console.log("  - Is array:", Array.isArray(studentsResponse));
+  console.log("  - Students found:", students.length);
+  console.log("  - Raw response:", studentsResponse);
+  console.log("  - Error:", studentsError);
+  
+  // If we have an error, log it
+  if (studentsError) {
+    console.error("❌ Students API Error:", studentsError);
   }
 
   const createRequestMutation = useMutation({

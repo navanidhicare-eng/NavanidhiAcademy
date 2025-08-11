@@ -748,8 +748,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb ? studentsFromDb.length : 0} detailed students for SO Center ${soCenter.centerId}`);
         
-        // Ensure we always return an array
-        const students = studentsFromDb || [];
+        // Ensure we always return an array, never an object
+        const students = Array.isArray(studentsFromDb) ? studentsFromDb : [];
+        
+        // Set proper headers to prevent caching issues
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        
+        console.log(`📤 Sending ${students.length} students to frontend`);
         res.json(students);
       } catch (error) {
         console.error('❌ Error in SO Center detailed students endpoint:', error);
