@@ -1037,12 +1037,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Create payment record
             const feeAmount = parseFloat(classFee.admissionFee);
             console.log('Creating payment with amount:', feeAmount);
+            // Validate user exists before creating payment
+            let recordedByUserId = req.user.userId;
+            try {
+              const userExists = await storage.getUser(req.user.userId);
+              if (!userExists) {
+                recordedByUserId = null;
+              }
+            } catch (error) {
+              recordedByUserId = null;
+            }
+
             await storage.createPayment({
               studentId: student.id,
               amount: feeAmount.toString(),
               paymentMethod: 'cash',
               description: `Admission fee payment - Receipt: ${receiptNumber}`,
-              recordedBy: req.user.userId
+              recordedBy: recordedByUserId
             });
 
             // Add amount to SO Center wallet - ensure it's a number
@@ -1368,9 +1379,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
+      // Validate user exists before creating payment
+      let recordedByUserId = req.user.userId;
+      try {
+        const userExists = await storage.getUser(req.user.userId);
+        if (!userExists) {
+          recordedByUserId = null;
+        }
+      } catch (error) {
+        recordedByUserId = null;
+      }
+
       const paymentData = insertPaymentSchema.parse({
         ...req.body,
-        recordedBy: req.user.userId,
+        recordedBy: recordedByUserId,
       });
 
       const payment = await storage.createPayment(paymentData);
@@ -3565,14 +3587,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      // Process the payment with authenticated user ID
+      // Validate user exists in database before processing payment
+      let recordedByUserId = req.user.userId;
+      try {
+        const userExists = await storage.getUser(req.user.userId);
+        if (!userExists) {
+          console.warn(`⚠️ User ${req.user.userId} not found in users table, using null for recordedBy`);
+          recordedByUserId = null;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error validating user ${req.user.userId}, using null for recordedBy:`, error);
+        recordedByUserId = null;
+      }
+
+      // Process the payment with validated user ID
       const result = await storage.processStudentPayment({
         studentId,
         amount: parseFloat(amount),
         feeType,
         receiptNumber,
         expectedFeeAmount: parseFloat(expectedFeeAmount || '0'),
-        recordedBy: req.user.userId // Use the authenticated user's ID
+        recordedBy: recordedByUserId
       });
 
       // Use the complete data from storage result which includes all invoice details

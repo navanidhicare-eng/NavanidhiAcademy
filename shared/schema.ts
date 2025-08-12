@@ -271,7 +271,7 @@ export const payments = pgTable("payments", {
   year: integer("year"), // For monthly payments
   receiptNumber: text("receipt_number"),
   transactionId: text("transaction_id"),
-  recordedBy: varchar("recorded_by").references(() => users.id),
+  recordedBy: varchar("recorded_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
