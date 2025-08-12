@@ -108,13 +108,16 @@ export function QRModal({ isOpen, onClose, student }: QRModalProps) {
             {/* Header with Navanidhi Branding */}
             <div className="text-center mb-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <img 
                     src={navanidhiLogoPath} 
                     alt="Navanidhi Academy" 
-                    className="h-8 w-8 object-contain"
+                    className="h-12 w-12 object-contain"
                   />
-                  <h3 className="text-xl font-bold text-green-800">Student Progress QR Code</h3>
+                  <div className="text-left">
+                    <h3 className="text-xl font-bold text-green-800">Navanidhi Academy</h3>
+                    <p className="text-sm text-green-600">Student Progress QR Code</p>
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
@@ -146,24 +149,16 @@ export function QRModal({ isOpen, onClose, student }: QRModalProps) {
                     size={200}
                     bgColor="#ffffff"
                     fgColor="#16a34a"
-                    level="M"
+                    level="H"
                     includeMargin={true}
-                    imageSettings={{
-                      src: navanidhiLogoPath,
-                      x: undefined,
-                      y: undefined,
-                      height: 40,
-                      width: 40,
-                      excavate: true,
-                    }}
                   />
                 </div>
               </div>
               
-              {/* Navanidhi Academy Branding Footer */}
+              {/* QR Code Info Footer */}
               <div className="text-center mb-4">
-                <p className="text-green-700 font-medium text-sm">Navanidhi Academy</p>
-                <p className="text-green-600 text-xs">Real-time Progress Tracking</p>
+                <p className="text-green-700 font-medium text-sm">Scan for Real-time Progress</p>
+                <p className="text-green-600 text-xs">High Quality QR Code</p>
               </div>
             </div>
 
