@@ -69,6 +69,9 @@ export function EnhancedProgressTracker() {
   const [selectedClassHomework, setSelectedClassHomework] = useState('');
   const [selectedStudentHomework, setSelectedStudentHomework] = useState('');
   const [homeworkDate, setHomeworkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [homeworkStatus, setHomeworkStatus] = useState(''); // 'completed', 'not_completed', 'not_given'
+  const [completionMethod, setCompletionMethod] = useState(''); // 'alone', 'so_help'
+  const [notCompletedReason, setNotCompletedReason] = useState('');
   const [homeworkActivities, setHomeworkActivities] = useState<any[]>([]);
 
   // Topic Completion States
@@ -270,10 +273,29 @@ export function EnhancedProgressTracker() {
   });
 
   const handleAddHomeworkActivity = () => {
-    if (!selectedStudentHomework) {
+    if (!selectedStudentHomework || !homeworkStatus) {
       toast({
         title: "Error",
-        description: "Please select a student first",
+        description: "Please select a student and homework status",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate required fields based on status
+    if (homeworkStatus === 'completed' && !completionMethod) {
+      toast({
+        title: "Error",
+        description: "Please specify how the student completed the homework",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (homeworkStatus === 'not_completed' && !notCompletedReason.trim()) {
+      toast({
+        title: "Error", 
+        description: "Please provide a reason for not completing homework",
         variant: "destructive",
       });
       return;
@@ -282,12 +304,18 @@ export function EnhancedProgressTracker() {
     const newActivity = {
       studentId: selectedStudentHomework,
       date: homeworkDate,
-      status: 'not_completed',
-      completionType: 'full',
-      reason: '',
+      status: homeworkStatus,
+      completionMethod: homeworkStatus === 'completed' ? completionMethod : undefined,
+      reason: homeworkStatus === 'not_completed' ? notCompletedReason.trim() : undefined,
     };
 
     setHomeworkActivities([...homeworkActivities, newActivity]);
+    
+    // Reset form after adding
+    setSelectedStudentHomework('');
+    setHomeworkStatus('');
+    setCompletionMethod('');
+    setNotCompletedReason('');
   };
 
   const handleSubmitHomework = () => {
@@ -354,136 +382,269 @@ export function EnhancedProgressTracker() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Class and Student Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Class *</Label>
-                  <Select value={selectedClassHomework} onValueChange={setSelectedClassHomework}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "Select class"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingClasses ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading classes...
-                        </SelectItem>
-                      ) : classes.length === 0 ? (
-                        <SelectItem value="no-classes" disabled>
-                          No classes available
-                        </SelectItem>
-                      ) : (
-                        classes.map((classItem: Class) => (
-                          <SelectItem key={classItem.id} value={classItem.id}>
-                            <div className="flex items-center gap-2">
-                              <GraduationCap className="h-4 w-4" />
-                              {classItem.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Student *</Label>
-                  <Select 
-                    value={selectedStudentHomework} 
-                    onValueChange={setSelectedStudentHomework}
-                    disabled={!selectedClassHomework}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedClassHomework 
-                          ? "Select class first" 
-                          : isLoadingStudentsHomework 
-                          ? "Loading students..." 
-                          : "Select student"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingStudentsHomework ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading students...
-                        </SelectItem>
-                      ) : !selectedClassHomework ? (
-                        <SelectItem value="no-class" disabled>
-                          Please select a class first
-                        </SelectItem>
-                      ) : filteredStudentsHomework.length === 0 ? (
-                        <SelectItem value="no-students" disabled>
-                          No students found in this class
-                        </SelectItem>
-                      ) : (
-                        filteredStudentsHomework.map((student: Student) => (
-                          <SelectItem key={student.id} value={student.id}>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {student.name} ({student.studentId})
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={homeworkDate}
-                    onChange={(e) => setHomeworkDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <Button 
-                  onClick={handleAddHomeworkActivity}
-                  disabled={!selectedStudentHomework}
-                  variant="outline"
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Activity
-                </Button>
-
-                <Button 
-                  onClick={handleSubmitHomework}
-                  disabled={homeworkActivities.length === 0 || homeworkMutation.isPending}
-                >
-                  {homeworkMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Save Activities ({homeworkActivities.length})
-                </Button>
-              </div>
-
-              {homeworkActivities.length > 0 && (
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-medium mb-3">Pending Activities</h3>
+              {/* Step 1: Class Selection */}
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg bg-blue-50/50">
+                  <h3 className="font-medium text-blue-900 mb-3">Step 1: Select Class</h3>
                   <div className="space-y-2">
-                    {homeworkActivities.map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          <span>{filteredStudentsHomework.find(s => s.id === activity.studentId)?.name}</span>
-                          <Badge variant="outline">{activity.date}</Badge>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setHomeworkActivities(activities => 
-                            activities.filter((_, i) => i !== index)
-                          )}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
+                    <Label>Class *</Label>
+                    <Select 
+                      value={selectedClassHomework} 
+                      onValueChange={(value) => {
+                        setSelectedClassHomework(value);
+                        setSelectedStudentHomework(''); // Reset student when class changes
+                        setHomeworkStatus(''); // Reset status
+                        setCompletionMethod('');
+                        setNotCompletedReason('');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "First, select the class"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingClasses ? (
+                          <SelectItem value="loading" disabled>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading classes...
+                          </SelectItem>
+                        ) : classes.length === 0 ? (
+                          <SelectItem value="no-classes" disabled>
+                            No classes available
+                          </SelectItem>
+                        ) : (
+                          classes.map((classItem: Class) => (
+                            <SelectItem key={classItem.id} value={classItem.id}>
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="h-4 w-4" />
+                                {classItem.name}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              )}
+
+                {/* Step 2: Student Selection */}
+                {selectedClassHomework && (
+                  <div className="p-4 border rounded-lg bg-green-50/50">
+                    <h3 className="font-medium text-green-900 mb-3">Step 2: Select Student from that Class</h3>
+                    <div className="space-y-2">
+                      <Label>Student *</Label>
+                      <Select 
+                        value={selectedStudentHomework} 
+                        onValueChange={(value) => {
+                          setSelectedStudentHomework(value);
+                          setHomeworkStatus(''); // Reset status when student changes
+                          setCompletionMethod('');
+                          setNotCompletedReason('');
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingStudentsHomework 
+                              ? "Loading students..." 
+                              : "Then, select the student from that class"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingStudentsHomework ? (
+                            <SelectItem value="loading" disabled>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading students...
+                            </SelectItem>
+                          ) : filteredStudentsHomework.length === 0 ? (
+                            <SelectItem value="no-students" disabled>
+                              No students found in this class
+                            </SelectItem>
+                          ) : (
+                            filteredStudentsHomework.map((student: Student) => (
+                              <SelectItem key={student.id} value={student.id}>
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  {student.name} ({student.studentId})
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Homework Status Selection */}
+                {selectedStudentHomework && (
+                  <div className="p-4 border rounded-lg bg-purple-50/50">
+                    <h3 className="font-medium text-purple-900 mb-3">Step 3: Select Homework Status</h3>
+                    <div className="space-y-3">
+                      <Label>Homework Status *</Label>
+                      <Select 
+                        value={homeworkStatus} 
+                        onValueChange={(value) => {
+                          setHomeworkStatus(value);
+                          setCompletionMethod(''); // Reset completion method
+                          setNotCompletedReason(''); // Reset reason
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select the homework status with these 3 options" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="completed">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              Completed
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="not_completed">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-red-600" />
+                              Not Completed
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="not_given">
+                            <div className="flex items-center gap-2">
+                              <FileText className="h-4 w-4 text-gray-600" />
+                              Not Given (by school)
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4a: If Completed - Ask completion method */}
+                {homeworkStatus === 'completed' && (
+                  <div className="p-4 border rounded-lg bg-yellow-50/50">
+                    <h3 className="font-medium text-yellow-900 mb-3">Step 4: How did the student complete it?</h3>
+                    <div className="space-y-3">
+                      <Label>Completion Method *</Label>
+                      <Select value={completionMethod} onValueChange={setCompletionMethod}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Did the student complete it on their own?" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="alone">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-blue-600" />
+                              Did the student complete it on their own?
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="so_help">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-orange-600" />
+                              Did SO help the student to complete it?
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4b: If Not Completed - Ask for reason */}
+                {homeworkStatus === 'not_completed' && (
+                  <div className="p-4 border rounded-lg bg-red-50/50">
+                    <h3 className="font-medium text-red-900 mb-3">Step 4: Provide a reason</h3>
+                    <div className="space-y-3">
+                      <Label>Reason for not completing homework *</Label>
+                      <Textarea
+                        placeholder="Please provide a reason for not completing homework..."
+                        value={notCompletedReason}
+                        onChange={(e) => setNotCompletedReason(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4c: If Not Given - No further input needed */}
+                {homeworkStatus === 'not_given' && (
+                  <div className="p-4 border rounded-lg bg-gray-50/50">
+                    <h3 className="font-medium text-gray-900 mb-3">Step 4: No further input needed</h3>
+                    <p className="text-gray-600">Since homework was not given by school, no additional information is required.</p>
+                  </div>
+                )}
+
+                {/* Date Selection */}
+                <div className="flex items-center gap-4">
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={homeworkDate}
+                      onChange={(e) => setHomeworkDate(e.target.value)}
+                      className="w-auto"
+                    />
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-4 pt-4">
+                  <Button 
+                    onClick={handleAddHomeworkActivity}
+                    disabled={
+                      !selectedStudentHomework || 
+                      !homeworkStatus || 
+                      (homeworkStatus === 'completed' && !completionMethod) ||
+                      (homeworkStatus === 'not_completed' && !notCompletedReason.trim())
+                    }
+                    variant="outline"
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Homework Activity
+                  </Button>
+
+                  <Button 
+                    onClick={handleSubmitHomework}
+                    disabled={homeworkActivities.length === 0 || homeworkMutation.isPending}
+                  >
+                    {homeworkMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Save Activities ({homeworkActivities.length})
+                  </Button>
+                </div>
+
+                {/* Pending Activities */}
+                {homeworkActivities.length > 0 && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Pending Activities</h3>
+                    <div className="space-y-2">
+                      {homeworkActivities.map((activity, index) => {
+                        const student = filteredStudentsHomework.find(s => s.id === activity.studentId);
+                        
+                        return (
+                          <div key={index} className="flex items-center justify-between p-3 bg-muted rounded border">
+                            <div className="flex items-center gap-3">
+                              <User className="h-4 w-4" />
+                              <div>
+                                <div className="font-medium">{student?.name} ({student?.studentId})</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Status: {activity.status === 'completed' ? 'Completed' : activity.status === 'not_completed' ? 'Not Completed' : 'Not Given'}
+                                  {activity.completionMethod && ` - ${activity.completionMethod === 'alone' ? 'On their own' : 'With SO help'}`}
+                                  {activity.reason && ` - Reason: ${activity.reason}`}
+                                </div>
+                              </div>
+                              <Badge variant="outline">{activity.date}</Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setHomeworkActivities(activities => 
+                                activities.filter((_, i) => i !== index)
+                              )}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
