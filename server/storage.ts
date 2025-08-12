@@ -1101,8 +1101,8 @@ export class DrizzleStorage implements IStorage {
         })
         .where(eq(schema.soCenters.id, student.soCenterId));
 
-      // Create wallet transaction record
-      await tx.insert(schema.walletTransactions).values({
+      // Create wallet transaction record using correct column name
+      await this.createWalletTransaction({
         soCenterId: student.soCenterId,
         amount: amount.toString(),
         type: 'credit',

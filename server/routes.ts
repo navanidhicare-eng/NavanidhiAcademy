@@ -1102,6 +1102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Handle admission fee if paid (separate from student creation)
       let feeProcessed = false;
+      let feeAmount: number | null = null; // Initialize feeAmount here
       if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
         try {
           console.log('Processing admission fee...');
@@ -1110,8 +1111,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (classFee) {
             // Create payment record
-            const feeAmount = parseFloat(classFee.admissionFee);
-            console.log('Creating payment with amount:', feeAmount);
+            const feeAmountValue = parseFloat(classFee.admissionFee);
+            feeAmount = feeAmountValue; // Assign to feeAmount for response
+            console.log('Creating payment with amount:', feeAmountValue);
             // Validate user exists before creating payment
             let recordedByUserId = req.user.userId;
             try {
@@ -1125,14 +1127,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             await storage.createPayment({
               studentId: student.id,
-              amount: feeAmount.toString(),
+              amount: feeAmountValue.toString(),
               paymentMethod: 'cash',
               description: `Admission fee payment - Receipt: ${receiptNumber}`,
               recordedBy: recordedByUserId
             });
 
             // Add amount to SO Center wallet - ensure it's a number
-            const walletAmount = Number(feeAmount);
+            const walletAmount = Number(feeAmountValue);
             console.log('Updating wallet with amount:', walletAmount, 'Type:', typeof walletAmount);
             await storage.updateSoCenterWallet(studentData.soCenterId, walletAmount);
 
@@ -1146,19 +1148,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get fee amount for response
-      let feeAmount: number | null = null;
-      if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount) {
-        try {
-          const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
-          if (classFee && classFee.admissionFee) {
-            feeAmount = parseFloat(classFee.admissionFee);
-          }
-        } catch (error) {
-          console.error('Error getting class fee for response:', error);
-        }
-      }
-
       const response = {
         student: {
           ...student,
@@ -1167,12 +1156,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         message: feeProcessed ? 'Student registered successfully with admission fee processed!' : 'Student registered successfully!',
         admissionFeePaid: feeProcessed,
-        transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
+        transactionId: feeProcessed ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
         amount: feeAmount
       };
 
       // Create wallet transaction record for fee payment
-      if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount) {
+      if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount !== null) {
         try {
           await storage.createWalletTransaction({
             soCenterId: studentData.soCenterId,
@@ -5384,7 +5373,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               set: {
                 marksObtained: totalScore || 0,
                 percentage: calculatedPercentage,
-                answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
                 detailedResults,
                 submittedBy: req.user?.userId,
                 updatedAt: new Date(),
@@ -5853,9 +5841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
+  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res?.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
