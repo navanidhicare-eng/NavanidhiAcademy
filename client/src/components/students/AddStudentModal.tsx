@@ -524,10 +524,10 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5" />
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto animate-scale-in">
+        <DialogHeader className="bg-gradient-to-r from-green-50 to-emerald-50 -mx-6 -mt-6 px-6 py-4 rounded-t-lg">
+          <DialogTitle className="flex items-center gap-2 text-green-800">
+            <GraduationCap className="h-5 w-5 text-green-600" />
             Comprehensive Student Registration
           </DialogTitle>
         </DialogHeader>
@@ -543,10 +543,10 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
           })} className="space-y-6">
             
             {/* Student Personal Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
+            <Card className="animate-fade-in border-green-100 hover-lift">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                <CardTitle className="flex items-center gap-2 text-green-800">
+                  <User className="h-4 w-4 text-green-600" />
                   Student Personal Information
                 </CardTitle>
               </CardHeader>

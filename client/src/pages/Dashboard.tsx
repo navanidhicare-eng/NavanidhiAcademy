@@ -67,7 +67,7 @@ function SOCenterDashboard() {
     trend?: string;
     color?: string;
   }) => (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover-lift card-hover animate-fade-in border-green-100 hover:border-green-200">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
@@ -78,11 +78,11 @@ function SOCenterDashboard() {
                 : value}
             </p>
             {trend && (
-              <p className="text-xs text-green-600 mt-1">{trend}</p>
+              <p className="text-xs text-green-600 mt-1 font-medium">{trend}</p>
             )}
           </div>
-          <div className={`w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center`}>
-            <Icon className="text-blue-600" size={24} />
+          <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center green-pulse">
+            <Icon className="text-green-600" size={24} />
           </div>
         </div>
       </CardContent>
@@ -92,7 +92,7 @@ function SOCenterDashboard() {
   return (
     <div className="space-y-6">
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
         <SOStatCard
           title="New Students This Month"
           value={stats.newStudentsThisMonth}
@@ -129,10 +129,10 @@ function SOCenterDashboard() {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Collection Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp size={20} />
+        <Card className="animate-scale-in hover-lift border-green-100">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <TrendingUp size={20} className="text-green-600" />
               Monthly Collection Trend
             </CardTitle>
           </CardHeader>
@@ -147,9 +147,9 @@ function SOCenterDashboard() {
                   <Line 
                     type="monotone" 
                     dataKey="collection" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    dot={{ fill: '#3b82f6' }}
+                    stroke="#22c55e" 
+                    strokeWidth={3}
+                    dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -158,10 +158,10 @@ function SOCenterDashboard() {
         </Card>
 
         {/* Attendance Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck size={20} />
+        <Card className="animate-scale-in hover-lift border-green-100">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <UserCheck size={20} className="text-green-600" />
               Weekly Attendance
             </CardTitle>
           </CardHeader>
@@ -184,14 +184,14 @@ function SOCenterDashboard() {
       {/* Product Sales and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Sales */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="lg:col-span-2 animate-bounce-in hover-lift border-green-100">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
             <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Package size={20} />
+              <div className="flex items-center gap-2 text-green-800">
+                <Package size={20} className="text-green-600" />
                 This Month Product Sales
               </div>
-              <span className="text-2xl font-bold text-green-600">
+              <span className="text-2xl font-bold text-green-600 green-pulse">
                 ₹{stats.thisMonthProductSales.toLocaleString()}
               </span>
             </CardTitle>
@@ -204,7 +204,7 @@ function SOCenterDashboard() {
                   <XAxis dataKey="product" />
                   <YAxis />
                   <Tooltip formatter={(value) => [`₹${value}`, 'Sales']} />
-                  <Bar dataKey="sales" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="sales" fill="#22c55e" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
