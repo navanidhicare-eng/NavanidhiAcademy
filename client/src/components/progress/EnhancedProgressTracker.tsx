@@ -1,49 +1,52 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 import { 
   BookOpen, 
-  School, 
-  Users, 
-  CheckCircle, 
-  XCircle, 
+  CheckCircle2, 
   Clock, 
-  Loader2,
-  Save,
+  Users, 
+  Target, 
+  Award,
   Calendar,
-  Filter
+  PlusCircle,
+  Loader2,
+  User,
+  GraduationCap,
+  Book,
+  FileText,
+  Brain
 } from 'lucide-react';
+
+interface Class {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface Student {
   id: string;
   name: string;
   studentId: string;
   classId: string;
-  className: string;
-  isPresent?: boolean;
-}
-
-interface Class {
-  id: string;
-  name: string;
+  className?: string;
 }
 
 interface Subject {
   id: string;
   name: string;
-  classId: string;
+  classId?: string;
 }
 
 interface Chapter {
@@ -56,776 +59,671 @@ interface Topic {
   id: string;
   name: string;
   chapterId: string;
-  isCompleted?: boolean;
-}
-
-interface TopicCounts {
-  completed: number;
-  remaining: number;
-}
-
-interface HomeworkActivity {
-  studentId: string;
-  status: 'completed' | 'not_completed' | 'not_given';
-  completionType?: 'self' | 'helped_by_so';
-  reason?: string;
-  date: string;
 }
 
 export function EnhancedProgressTracker() {
   const { toast } = useToast();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState('school-homework');
-
-  // School Homework states
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState('');
+  // Homework Activity States
+  const [selectedClassHomework, setSelectedClassHomework] = useState('');
+  const [selectedStudentHomework, setSelectedStudentHomework] = useState('');
   const [homeworkDate, setHomeworkDate] = useState(new Date().toISOString().split('T')[0]);
-  const [homeworkActivities, setHomeworkActivities] = useState<Record<string, HomeworkActivity>>({});
+  const [homeworkActivities, setHomeworkActivities] = useState<any[]>([]);
 
-  // Topic Completion states
-  const [topicSelectedClass, setTopicSelectedClass] = useState('');
-  const [topicSelectedStudent, setTopicSelectedStudent] = useState('');
+  // Topic Completion States
+  const [selectedClassTopic, setSelectedClassTopic] = useState('');
+  const [selectedStudentTopic, setSelectedStudentTopic] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
-  const [topicFilter, setTopicFilter] = useState('all'); // 'all' | 'completed' | 'not_completed'
-  const [topicCounts, setTopicCounts] = useState<Record<string, TopicCounts>>({});
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [completedTopics, setCompletedTopics] = useState<string[]>([]);
 
-  // Fetch classes for SO Center
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
-    queryKey: ['/api/classes'],
-    queryFn: async () => {
-      try {
-        const response = await apiRequest('GET', '/api/classes');
-        console.log('Classes API response:', response);
-        return Array.isArray(response) ? response : [];
-      } catch (error) {
-        console.error('Error fetching classes:', error);
-        return [];
-      }
-    },
+  // Fetch classes - only classes with students in this SO Center
+  const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
+    queryKey: ["/api/classes"],
+    queryFn: () => apiRequest("GET", "/api/classes"),
   });
 
-  // Fetch students for homework (only present students)
-  const { data: homeworkStudents = [], isLoading: homeworkStudentsLoading } = useQuery({
-    queryKey: ['/api/students', selectedClass, 'present', homeworkDate],
-    queryFn: async () => {
-      if (!selectedClass) return [];
-      try {
-        // Get all students for the selected class (already filtered by SO Center on backend)
-        const students = await apiRequest('GET', `/api/students?classId=${selectedClass}`);
-        console.log('Students API response:', students);
-        
-        // Filter only present students from today's attendance
-        const attendance = await apiRequest('GET', `/api/attendance/existing?date=${homeworkDate}`);
-        console.log('Attendance API response:', attendance);
-        
-        if (!Array.isArray(students)) return [];
-        
-        const presentStudents = students.filter((student: Student) => 
-          attendance && (attendance as any)[student.id]?.status === 'present'
-        );
-        
-        console.log('Filtered students:', presentStudents);
-        return presentStudents;
-      } catch (error) {
-        console.error('Error fetching homework students:', error);
-        return [];
-      }
-    },
-    enabled: !!selectedClass,
+  const classes = Array.isArray(classesResponse) ? classesResponse : [];
+
+  // Fetch students for homework activity
+  const { data: studentsHomeworkResponse = [], isLoading: isLoadingStudentsHomework } = useQuery({
+    queryKey: ["/api/so-center/detailed-students"],
+    queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    enabled: true,
   });
+
+  const allStudentsHomework = Array.isArray(studentsHomeworkResponse) ? studentsHomeworkResponse : [];
+
+  // Filter students by selected class for homework
+  const filteredStudentsHomework = useMemo(() => {
+    if (!selectedClassHomework || !allStudentsHomework.length) return [];
+    return allStudentsHomework.filter((student: Student) => student.classId === selectedClassHomework);
+  }, [allStudentsHomework, selectedClassHomework]);
 
   // Fetch students for topic completion
-  const { data: topicStudents = [], isLoading: topicStudentsLoading } = useQuery({
-    queryKey: ['/api/students', topicSelectedClass],
-    queryFn: async () => {
-      if (!topicSelectedClass) return [];
-      try {
-        const response = await apiRequest('GET', `/api/students?classId=${topicSelectedClass}`);
-        return Array.isArray(response) ? response : [];
-      } catch (error) {
-        console.error('Error fetching topic students:', error);
-        return [];
-      }
-    },
-    enabled: !!topicSelectedClass,
+  const { data: studentsTopicResponse = [], isLoading: isLoadingStudentsTopic } = useQuery({
+    queryKey: ["/api/so-center/detailed-students"],
+    queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    enabled: true,
   });
 
-  // Fetch subjects
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
-    queryKey: ['/api/subjects', topicSelectedClass],
-    queryFn: async () => {
-      if (!topicSelectedClass) return [];
-      try {
-        const response = await apiRequest('GET', `/api/subjects/${topicSelectedClass}`);
-        return Array.isArray(response) ? response : [];
-      } catch (error) {
-        console.error('Error fetching subjects:', error);
-        return [];
-      }
-    },
-    enabled: !!topicSelectedClass,
+  const allStudentsTopic = Array.isArray(studentsTopicResponse) ? studentsTopicResponse : [];
+
+  // Filter students by selected class for topics
+  const filteredStudentsTopic = useMemo(() => {
+    if (!selectedClassTopic || !allStudentsTopic.length) return [];
+    return allStudentsTopic.filter((student: Student) => student.classId === selectedClassTopic);
+  }, [allStudentsTopic, selectedClassTopic]);
+
+  // Fetch subjects based on selected class for topics
+  const { data: subjectsResponse = [], isLoading: isLoadingSubjects } = useQuery({
+    queryKey: ["/api/subjects", selectedClassTopic],
+    queryFn: () => apiRequest("GET", `/api/subjects/${selectedClassTopic}`),
+    enabled: !!selectedClassTopic,
   });
 
-  // Fetch chapters
-  const { data: chapters = [], isLoading: chaptersLoading } = useQuery({
-    queryKey: ['/api/chapters', selectedSubject],
-    queryFn: async () => {
-      if (!selectedSubject) return [];
-      try {
-        const response = await apiRequest('GET', `/api/chapters/${selectedSubject}`);
-        return Array.isArray(response) ? response : [];
-      } catch (error) {
-        console.error('Error fetching chapters:', error);
-        return [];
-      }
-    },
+  const subjects = Array.isArray(subjectsResponse) ? subjectsResponse : [];
+
+  // Fetch chapters based on selected subject
+  const { data: chaptersResponse = [], isLoading: isLoadingChapters } = useQuery({
+    queryKey: ["/api/chapters", selectedSubject],
+    queryFn: () => apiRequest("GET", `/api/chapters/${selectedSubject}`),
     enabled: !!selectedSubject,
   });
 
-  // Fetch topics with completion status
-  const { data: topics = [], isLoading: topicsLoading } = useQuery({
-    queryKey: ['/api/topics', selectedChapter, topicSelectedStudent, topicFilter],
-    queryFn: async () => {
-      if (!selectedChapter) return [];
-      try {
-        const allTopics = await apiRequest('GET', `/api/topics/${selectedChapter}`);
-        
-        if (!Array.isArray(allTopics)) return [];
-        if (!topicSelectedStudent) return allTopics;
-        
-        // Get completion status for student
-        try {
-          const completionStatus = await apiRequest('GET', `/api/progress-tracking/topics/status?studentId=${topicSelectedStudent}&chapterId=${selectedChapter}`);
-          
-          const topicsWithStatus = allTopics.map((topic: Topic) => ({
-            ...topic,
-            isCompleted: completionStatus && (completionStatus as any).completed && (completionStatus as any).completed.includes(topic.id)
-          }));
+  const chapters = Array.isArray(chaptersResponse) ? chaptersResponse : [];
 
-          // Apply filter
-          if (topicFilter === 'completed') {
-            return topicsWithStatus.filter((t: Topic) => t.isCompleted);
-          } else if (topicFilter === 'not_completed') {
-            return topicsWithStatus.filter((t: Topic) => !t.isCompleted);
-          }
-          
-          return topicsWithStatus;
-        } catch (statusError) {
-          console.error('Error fetching completion status:', statusError);
-          return allTopics;
-        }
-      } catch (error) {
-        console.error('Error fetching topics:', error);
-        return [];
-      }
-    },
+  // Fetch topics based on selected chapter
+  const { data: topicsResponse = [], isLoading: isLoadingTopics } = useQuery({
+    queryKey: ["/api/topics", selectedChapter],
+    queryFn: () => apiRequest("GET", `/api/topics/${selectedChapter}`),
     enabled: !!selectedChapter,
   });
 
-  // Fetch topic counts for each student
-  useEffect(() => {
-    if (topicStudents.length > 0 && selectedChapter) {
-      topicStudents.forEach(async (student: Student) => {
-        try {
-          const counts = await apiRequest('GET', `/api/progress-tracking/topics/status?studentId=${student.id}&chapterId=${selectedChapter}`);
-          setTopicCounts(prev => ({
-            ...prev,
-            [student.id]: {
-              completed: counts && (counts as any).completed ? (counts as any).completed.length : 0,
-              remaining: counts && (counts as any).remaining ? (counts as any).remaining.length : 0
-            }
-          }));
-        } catch (error) {
-          console.error('Error fetching topic counts:', error);
-        }
-      });
-    }
-  }, [topicStudents, selectedChapter]);
+  const topics = Array.isArray(topicsResponse) ? topicsResponse : [];
 
-  // Homework submission mutation
+  // Reset dependent dropdowns when parent changes
+  useEffect(() => {
+    setSelectedStudentHomework('');
+  }, [selectedClassHomework]);
+
+  useEffect(() => {
+    setSelectedStudentTopic('');
+    setSelectedSubject('');
+    setSelectedChapter('');
+    setSelectedTopic('');
+    setCompletedTopics([]);
+  }, [selectedClassTopic]);
+
+  useEffect(() => {
+    setSelectedChapter('');
+    setSelectedTopic('');
+    setCompletedTopics([]);
+  }, [selectedSubject]);
+
+  useEffect(() => {
+    setSelectedTopic('');
+    setCompletedTopics([]);
+  }, [selectedChapter]);
+
+  // Fetch topic completion status when student and chapter are selected
+  const { data: topicStatusResponse } = useQuery({
+    queryKey: ["/api/progress-tracking/topics/status", selectedStudentTopic, selectedChapter],
+    queryFn: () => apiRequest("GET", `/api/progress-tracking/topics/status?studentId=${selectedStudentTopic}&chapterId=${selectedChapter}`),
+    enabled: !!selectedStudentTopic && !!selectedChapter,
+  });
+
+  useEffect(() => {
+    if (topicStatusResponse?.completed) {
+      setCompletedTopics(topicStatusResponse.completed);
+    }
+  }, [topicStatusResponse]);
+
+  // Homework Activity Submission
   const homeworkMutation = useMutation({
-    mutationFn: (data: HomeworkActivity[]) => 
-      apiRequest('POST', '/api/progress-tracking/homework', { activities: data }),
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/progress-tracking/homework", data);
+    },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Homework activities saved successfully",
       });
-      setHomeworkActivities({});
-      queryClient.invalidateQueries({ queryKey: ['/api/homework-activities'] });
+      setHomeworkActivities([]);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to save homework activities",
+        description: error.message || "Failed to save homework activities",
         variant: "destructive",
       });
-    }
+    },
   });
 
-  // Topic completion mutation
+  // Topic Completion Submission
   const topicCompletionMutation = useMutation({
-    mutationFn: (data: { studentId: string; topicId: string; chapterId: string }) =>
-      apiRequest('POST', '/api/progress-tracking/topics/complete', data),
+    mutationFn: async (data: any) => {
+      return apiRequest("POST", "/api/progress-tracking/topics/complete", data);
+    },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Topic marked as completed",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/progress-tracking'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/progress-tracking/topics/status"] });
     },
-    onError: () => {
-      toast({
-        title: "Error", 
-        description: "Failed to mark topic as completed",
-        variant: "destructive",
-      });
-    }
-  });
-
-  // Handle homework activity change
-  const handleHomeworkActivityChange = (studentId: string, field: keyof HomeworkActivity, value: any) => {
-    setHomeworkActivities(prev => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        studentId,
-        date: homeworkDate,
-        [field]: value
-      }
-    }));
-  };
-
-  // Handle homework status change
-  const handleHomeworkStatusChange = (studentId: string, status: HomeworkActivity['status']) => {
-    setHomeworkActivities(prev => ({
-      ...prev,
-      [studentId]: {
-        studentId,
-        status,
-        date: homeworkDate,
-        // Reset conditional fields
-        completionType: undefined,
-        reason: undefined
-      }
-    }));
-  };
-
-  // Submit homework activities
-  const handleHomeworkSubmit = () => {
-    const activities = Object.values(homeworkActivities).filter(activity => activity.status);
-    if (activities.length === 0) {
-      toast({
-        title: "No Data",
-        description: "Please select homework status for at least one student",
-        variant: "destructive",
-      });
-      return;
-    }
-    homeworkMutation.mutate(activities);
-  };
-
-  // Mark topic as completed
-  const handleTopicComplete = (topicId: string) => {
-    if (!topicSelectedStudent || !selectedChapter) {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Please select a student and chapter first",
+        description: error.message || "Failed to mark topic as completed",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddHomeworkActivity = () => {
+    if (!selectedStudentHomework) {
+      toast({
+        title: "Error",
+        description: "Please select a student first",
         variant: "destructive",
       });
       return;
     }
-    
+
+    const newActivity = {
+      studentId: selectedStudentHomework,
+      date: homeworkDate,
+      status: 'not_completed',
+      completionType: 'full',
+      reason: '',
+    };
+
+    setHomeworkActivities([...homeworkActivities, newActivity]);
+  };
+
+  const handleSubmitHomework = () => {
+    if (homeworkActivities.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one homework activity",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    homeworkMutation.mutate({ activities: homeworkActivities });
+  };
+
+  const handleCompleteTopics = () => {
+    if (!selectedStudentTopic || !selectedTopic) {
+      toast({
+        title: "Error",
+        description: "Please select student and topic",
+        variant: "destructive",
+      });
+      return;
+    }
+
     topicCompletionMutation.mutate({
-      studentId: topicSelectedStudent,
-      topicId,
-      chapterId: selectedChapter
+      studentId: selectedStudentTopic,
+      topicId: selectedTopic,
+      chapterId: selectedChapter,
     });
   };
 
-  // Reset dependent dropdowns
-  const handleClassChange = (classId: string) => {
-    setSelectedClass(classId);
-    setSelectedStudent('');
-    setHomeworkActivities({});
-  };
-
-  const handleTopicClassChange = (classId: string) => {
-    setTopicSelectedClass(classId);
-    setTopicSelectedStudent('');
-    setSelectedSubject('');
-    setSelectedChapter('');
-    setTopicCounts({});
-  };
-
-  const handleSubjectChange = (subjectId: string) => {
-    setSelectedSubject(subjectId);
-    setSelectedChapter('');
-  };
-
-  const handleChapterChange = (chapterId: string) => {
-    setSelectedChapter(chapterId);
-    setTopicCounts({});
-  };
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Progress Tracking</h1>
-          <p className="text-muted-foreground">
-            Track homework activities and topic completion for students
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Progress Tracking</h1>
+          <p className="text-muted-foreground">Track homework activities and topic completion for your students</p>
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs defaultValue="homework" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="school-homework" className="flex items-center gap-2">
-            <School className="h-4 w-4" />
-            School Homework
+          <TabsTrigger value="homework" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            School Homework Activity
           </TabsTrigger>
-          <TabsTrigger value="topic-completion" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
+          <TabsTrigger value="topics" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
             Topic Completion Tracking
           </TabsTrigger>
         </TabsList>
 
-        {/* School Homework Tab */}
-        <TabsContent value="school-homework" className="space-y-6">
+        {/* School Homework Activity */}
+        <TabsContent value="homework">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <School className="h-5 w-5" />
-                School Homework Activity
+                <FileText className="h-5 w-5 text-blue-600" />
+                School Homework Activity Tracking
               </CardTitle>
+              <CardDescription>
+                Track daily homework completion status for students
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Filters */}
+              {/* Class and Student Selection */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Class *</Label>
+                  <Select value={selectedClassHomework} onValueChange={setSelectedClassHomework}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "Select class"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingClasses ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading classes...
+                        </SelectItem>
+                      ) : classes.length === 0 ? (
+                        <SelectItem value="no-classes" disabled>
+                          No classes available
+                        </SelectItem>
+                      ) : (
+                        classes.map((classItem: Class) => (
+                          <SelectItem key={classItem.id} value={classItem.id}>
+                            <div className="flex items-center gap-2">
+                              <GraduationCap className="h-4 w-4" />
+                              {classItem.name}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Student *</Label>
+                  <Select 
+                    value={selectedStudentHomework} 
+                    onValueChange={setSelectedStudentHomework}
+                    disabled={!selectedClassHomework}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        !selectedClassHomework 
+                          ? "Select class first" 
+                          : isLoadingStudentsHomework 
+                          ? "Loading students..." 
+                          : "Select student"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingStudentsHomework ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading students...
+                        </SelectItem>
+                      ) : !selectedClassHomework ? (
+                        <SelectItem value="no-class" disabled>
+                          Please select a class first
+                        </SelectItem>
+                      ) : filteredStudentsHomework.length === 0 ? (
+                        <SelectItem value="no-students" disabled>
+                          No students found in this class
+                        </SelectItem>
+                      ) : (
+                        filteredStudentsHomework.map((student: Student) => (
+                          <SelectItem key={student.id} value={student.id}>
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              {student.name} ({student.studentId})
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Date</Label>
                   <Input
                     type="date"
                     value={homeworkDate}
-                    readOnly
-                    className="bg-muted"
+                    onChange={(e) => setHomeworkDate(e.target.value)}
                   />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Class</Label>
-                  <Select value={selectedClass} onValueChange={handleClassChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classesLoading ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      ) : Array.isArray(classes) && classes.length > 0 ? (
-                        classes.map((cls: Class) => (
-                          <SelectItem key={cls.id} value={cls.id}>
-                            {cls.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <div className="flex items-center justify-center p-2 text-muted-foreground">
-                          No classes available
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
-              {/* Students List */}
-              {selectedClass && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Present Students</h3>
-                    <Badge variant="secondary">
-                      {homeworkStudents.length} students present
-                    </Badge>
-                  </div>
+              <div className="flex items-center gap-4">
+                <Button 
+                  onClick={handleAddHomeworkActivity}
+                  disabled={!selectedStudentHomework}
+                  variant="outline"
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Activity
+                </Button>
 
-                  {homeworkStudentsLoading ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="ml-2">Loading students...</span>
-                    </div>
-                  ) : homeworkStudents.length === 0 ? (
-                    <div className="text-center p-8 text-muted-foreground">
-                      No students present for this class on {homeworkDate}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {Array.isArray(homeworkStudents) ? homeworkStudents.map((student: Student) => (
-                        <Card key={student.id} className="p-4">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <h4 className="font-semibold">{student.name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  ID: {student.studentId}
-                                </p>
-                              </div>
-                            </div>
+                <Button 
+                  onClick={handleSubmitHomework}
+                  disabled={homeworkActivities.length === 0 || homeworkMutation.isPending}
+                >
+                  {homeworkMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Save Activities ({homeworkActivities.length})
+                </Button>
+              </div>
 
-                            {/* Homework Status Checkboxes */}
-                            <div className="space-y-3">
-                              <Label className="text-sm font-medium">Homework Status</Label>
-                              <div className="flex flex-col space-y-2">
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${student.id}-completed`}
-                                    checked={homeworkActivities[student.id]?.status === 'completed'}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        handleHomeworkStatusChange(student.id, 'completed');
-                                      }
-                                    }}
-                                  />
-                                  <label 
-                                    htmlFor={`${student.id}-completed`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                                  >
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    Homework Completed
-                                  </label>
-                                </div>
-
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${student.id}-not-completed`}
-                                    checked={homeworkActivities[student.id]?.status === 'not_completed'}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        handleHomeworkStatusChange(student.id, 'not_completed');
-                                      }
-                                    }}
-                                  />
-                                  <label 
-                                    htmlFor={`${student.id}-not-completed`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                                  >
-                                    <XCircle className="h-4 w-4 text-red-600" />
-                                    Homework Not Completed
-                                  </label>
-                                </div>
-
-                                <div className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`${student.id}-not-given`}
-                                    checked={homeworkActivities[student.id]?.status === 'not_given'}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        handleHomeworkStatusChange(student.id, 'not_given');
-                                      }
-                                    }}
-                                  />
-                                  <label 
-                                    htmlFor={`${student.id}-not-given`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
-                                  >
-                                    <Clock className="h-4 w-4 text-orange-600" />
-                                    Homework Not Given
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Conditional Fields */}
-                            {homeworkActivities[student.id]?.status === 'completed' && (
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">How was it completed?</Label>
-                                <RadioGroup
-                                  value={homeworkActivities[student.id]?.completionType || ''}
-                                  onValueChange={(value) => 
-                                    handleHomeworkActivityChange(student.id, 'completionType', value as 'self' | 'helped_by_so')
-                                  }
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="self" id={`${student.id}-self`} />
-                                    <label htmlFor={`${student.id}-self`} className="text-sm">
-                                      Completed Independently
-                                    </label>
-                                  </div>
-                                  <div className="flex items-center space-x-2">
-                                    <RadioGroupItem value="helped_by_so" id={`${student.id}-helped`} />
-                                    <label htmlFor={`${student.id}-helped`} className="text-sm">
-                                      SO Help to Complete
-                                    </label>
-                                  </div>
-                                </RadioGroup>
-                              </div>
-                            )}
-
-                            {homeworkActivities[student.id]?.status === 'not_completed' && (
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Reason for Not Completed</Label>
-                                <Textarea
-                                  placeholder="Enter reason why homework was not completed..."
-                                  value={homeworkActivities[student.id]?.reason || ''}
-                                  onChange={(e) => 
-                                    handleHomeworkActivityChange(student.id, 'reason', e.target.value)
-                                  }
-                                  rows={2}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </Card>
-                      )) : null}
-
-                      {/* Submit Button */}
-                      <div className="flex justify-end pt-4">
-                        <Button 
-                          onClick={handleHomeworkSubmit}
-                          disabled={homeworkMutation.isPending || Object.keys(homeworkActivities).length === 0}
-                          className="flex items-center gap-2"
-                        >
-                          {homeworkMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Save className="h-4 w-4" />
+              {homeworkActivities.length > 0 && (
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-medium mb-3">Pending Activities</h3>
+                  <div className="space-y-2">
+                    {homeworkActivities.map((activity, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span>{filteredStudentsHomework.find(s => s.id === activity.studentId)?.name}</span>
+                          <Badge variant="outline">{activity.date}</Badge>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setHomeworkActivities(activities => 
+                            activities.filter((_, i) => i !== index)
                           )}
-                          Save Homework Activities
+                        >
+                          Remove
                         </Button>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Topic Completion Tab */}
-        <TabsContent value="topic-completion" className="space-y-6">
+        {/* Topic Completion Tracking */}
+        <TabsContent value="topics">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
+                <Brain className="h-5 w-5 text-purple-600" />
                 Topic Completion Tracking
               </CardTitle>
+              <CardDescription>
+                Mark topics as completed for individual students
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Dependent Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Selection Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Class</Label>
-                  <Select value={topicSelectedClass} onValueChange={handleTopicClassChange}>
+                  <Label>Class *</Label>
+                  <Select value={selectedClassTopic} onValueChange={setSelectedClassTopic}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Class" />
+                      <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "Select class"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {classesLoading ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      ) : Array.isArray(classes) && classes.length > 0 ? (
-                        classes.map((cls: Class) => (
-                          <SelectItem key={cls.id} value={cls.id}>
-                            {cls.name}
+                      {isLoadingClasses ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading classes...
+                        </SelectItem>
+                      ) : classes.length === 0 ? (
+                        <SelectItem value="no-classes" disabled>
+                          No classes available
+                        </SelectItem>
+                      ) : (
+                        classes.map((classItem: Class) => (
+                          <SelectItem key={classItem.id} value={classItem.id}>
+                            <div className="flex items-center gap-2">
+                              <GraduationCap className="h-4 w-4" />
+                              {classItem.name}
+                            </div>
                           </SelectItem>
                         ))
-                      ) : (
-                        <div className="flex items-center justify-center p-2 text-muted-foreground">
-                          No classes available
-                        </div>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Student</Label>
+                  <Label>Student *</Label>
                   <Select 
-                    value={topicSelectedStudent} 
-                    onValueChange={setTopicSelectedStudent}
-                    disabled={!topicSelectedClass}
+                    value={selectedStudentTopic} 
+                    onValueChange={setSelectedStudentTopic}
+                    disabled={!selectedClassTopic}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Student" />
+                      <SelectValue placeholder={
+                        !selectedClassTopic 
+                          ? "Select class first" 
+                          : isLoadingStudentsTopic 
+                          ? "Loading students..." 
+                          : "Select student"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {topicStudentsLoading ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      ) : Array.isArray(topicStudents) && topicStudents.length > 0 ? (
-                        topicStudents.map((student: Student) => (
+                      {isLoadingStudentsTopic ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading students...
+                        </SelectItem>
+                      ) : !selectedClassTopic ? (
+                        <SelectItem value="no-class" disabled>
+                          Please select a class first
+                        </SelectItem>
+                      ) : filteredStudentsTopic.length === 0 ? (
+                        <SelectItem value="no-students" disabled>
+                          No students found in this class
+                        </SelectItem>
+                      ) : (
+                        filteredStudentsTopic.map((student: Student) => (
                           <SelectItem key={student.id} value={student.id}>
-                            {student.name} ({student.studentId})
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              {student.name} ({student.studentId})
+                            </div>
                           </SelectItem>
                         ))
-                      ) : (
-                        <div className="flex items-center justify-center p-2 text-muted-foreground">
-                          No students available
-                        </div>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Subject</Label>
+                  <Label>Subject *</Label>
                   <Select 
                     value={selectedSubject} 
-                    onValueChange={handleSubjectChange}
-                    disabled={!topicSelectedClass}
+                    onValueChange={setSelectedSubject}
+                    disabled={!selectedClassTopic}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Subject" />
+                      <SelectValue placeholder={
+                        !selectedClassTopic 
+                          ? "Select class first" 
+                          : isLoadingSubjects 
+                          ? "Loading subjects..." 
+                          : "Select subject"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjectsLoading ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      ) : Array.isArray(subjects) && subjects.length > 0 ? (
+                      {isLoadingSubjects ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading subjects...
+                        </SelectItem>
+                      ) : !selectedClassTopic ? (
+                        <SelectItem value="no-class" disabled>
+                          Please select a class first
+                        </SelectItem>
+                      ) : subjects.length === 0 ? (
+                        <SelectItem value="no-subjects" disabled>
+                          No subjects found
+                        </SelectItem>
+                      ) : (
                         subjects.map((subject: Subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
-                            {subject.name}
+                            <div className="flex items-center gap-2">
+                              <Book className="h-4 w-4" />
+                              {subject.name}
+                            </div>
                           </SelectItem>
                         ))
-                      ) : (
-                        <div className="flex items-center justify-center p-2 text-muted-foreground">
-                          No subjects available
-                        </div>
                       )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Chapter</Label>
+                  <Label>Chapter *</Label>
                   <Select 
                     value={selectedChapter} 
-                    onValueChange={handleChapterChange}
+                    onValueChange={setSelectedChapter}
                     disabled={!selectedSubject}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select Chapter" />
+                      <SelectValue placeholder={
+                        !selectedSubject 
+                          ? "Select subject first" 
+                          : isLoadingChapters 
+                          ? "Loading chapters..." 
+                          : "Select chapter"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {chaptersLoading ? (
-                        <div className="flex items-center justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        </div>
-                      ) : Array.isArray(chapters) && chapters.length > 0 ? (
+                      {isLoadingChapters ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading chapters...
+                        </SelectItem>
+                      ) : !selectedSubject ? (
+                        <SelectItem value="no-subject" disabled>
+                          Please select a subject first
+                        </SelectItem>
+                      ) : chapters.length === 0 ? (
+                        <SelectItem value="no-chapters" disabled>
+                          No chapters found
+                        </SelectItem>
+                      ) : (
                         chapters.map((chapter: Chapter) => (
                           <SelectItem key={chapter.id} value={chapter.id}>
-                            {chapter.name}
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="h-4 w-4" />
+                              {chapter.name}
+                            </div>
                           </SelectItem>
                         ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Topic *</Label>
+                  <Select 
+                    value={selectedTopic} 
+                    onValueChange={setSelectedTopic}
+                    disabled={!selectedChapter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        !selectedChapter 
+                          ? "Select chapter first" 
+                          : isLoadingTopics 
+                          ? "Loading topics..." 
+                          : "Select topic"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isLoadingTopics ? (
+                        <SelectItem value="loading" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading topics...
+                        </SelectItem>
+                      ) : !selectedChapter ? (
+                        <SelectItem value="no-chapter" disabled>
+                          Please select a chapter first
+                        </SelectItem>
+                      ) : topics.length === 0 ? (
+                        <SelectItem value="no-topics" disabled>
+                          No topics found
+                        </SelectItem>
                       ) : (
-                        <div className="flex items-center justify-center p-2 text-muted-foreground">
-                          No chapters available
-                        </div>
+                        topics.map((topic: Topic) => {
+                          const isCompleted = completedTopics.includes(topic.id);
+                          return (
+                            <SelectItem key={topic.id} value={topic.id}>
+                              <div className="flex items-center gap-2">
+                                {isCompleted ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Clock className="h-4 w-4 text-gray-400" />
+                                )}
+                                <span className={isCompleted ? "text-green-600" : ""}>
+                                  {topic.name}
+                                </span>
+                                {isCompleted && (
+                                  <Badge variant="secondary" className="ml-2 text-xs">
+                                    Completed
+                                  </Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          );
+                        })
                       )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              {/* Topic Filter */}
-              {selectedChapter && (
-                <div className="flex items-center gap-4">
-                  <Label>Filter Topics:</Label>
-                  <Select value={topicFilter} onValueChange={setTopicFilter}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Topics</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="not_completed">Not Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                <Button 
+                  onClick={handleCompleteTopics}
+                  disabled={
+                    !selectedStudentTopic || 
+                    !selectedTopic || 
+                    completedTopics.includes(selectedTopic) ||
+                    topicCompletionMutation.isPending
+                  }
+                >
+                  {topicCompletionMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Mark Topic as Completed
+                </Button>
 
-              {/* Student Progress Summary */}
-              {topicSelectedStudent && topicCounts[topicSelectedStudent] && (
-                <div className="flex gap-4">
-                  <Badge variant="default" className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Completed: {topicCounts[topicSelectedStudent].completed}
+                {completedTopics.includes(selectedTopic) && selectedTopic && (
+                  <Badge variant="secondary" className="bg-green-100 text-green-700">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Already Completed
                   </Badge>
-                  <Badge variant="secondary" className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Remaining: {topicCounts[topicSelectedStudent].remaining}
-                  </Badge>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Topics List */}
-              {selectedChapter && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Topics</h3>
-                    <Badge variant="outline">
-                      {topics.length} topics
-                    </Badge>
-                  </div>
-
-                  {topicsLoading ? (
-                    <div className="flex items-center justify-center p-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      <span className="ml-2">Loading topics...</span>
+              {/* Progress Summary */}
+              {selectedStudentTopic && selectedChapter && topicStatusResponse && (
+                <Card className="bg-muted/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Progress Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        <span>Completed: {topicStatusResponse.completed?.length || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span>Remaining: {topicStatusResponse.remaining?.length || 0}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4 text-blue-600" />
+                        <span>Total: {topicStatusResponse.total || 0}</span>
+                      </div>
                     </div>
-                  ) : topics.length === 0 ? (
-                    <div className="text-center p-8 text-muted-foreground">
-                      No topics found for the selected filters
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Array.isArray(topics) ? topics.map((topic: Topic) => (
-                        <Card key={topic.id} className={`p-4 ${topic.isCompleted ? 'bg-green-50 border-green-200' : ''}`}>
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <h4 className="font-medium text-sm">{topic.name}</h4>
-                              {topic.isCompleted ? (
-                                <Badge variant="default" className="ml-2">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Done
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="ml-2">
-                                  Pending
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            {!topic.isCompleted && topicSelectedStudent && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleTopicComplete(topic.id)}
-                                disabled={topicCompletionMutation.isPending}
-                                className="w-full"
-                              >
-                                {topicCompletionMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  'Mark Complete'
-                                )}
-                              </Button>
-                            )}
-                          </div>
-                        </Card>
-                      )) : null}
-                    </div>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
               )}
             </CardContent>
           </Card>

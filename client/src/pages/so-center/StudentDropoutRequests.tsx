@@ -88,9 +88,10 @@ export default function StudentDropoutRequests() {
   // Ensure requests is always an array
   const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
-  // Fetch classes for dropdown
+  // Fetch classes for dropdown - only classes with students in this SO Center
   const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
     queryKey: ["/api/classes"],
+    queryFn: () => apiRequest("GET", "/api/classes"),
   });
 
   // Ensure classes is always an array
