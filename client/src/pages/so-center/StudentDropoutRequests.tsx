@@ -76,34 +76,18 @@ export default function StudentDropoutRequests() {
   const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
   const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
-    queryKey: ["/api/so-center/detailed-students"],
-    queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    queryKey: ["/api/students"],
+    queryFn: () => apiRequest("GET", "/api/students"),
     retry: 3,
     refetchOnWindowFocus: false,
   });
   
-  // Handle different response structures with proper validation
-  let students = [];
-  if (Array.isArray(studentsResponse)) {
-    students = studentsResponse;
-  } else if (studentsResponse && Array.isArray(studentsResponse.data)) {
-    students = studentsResponse.data;
-  } else if (studentsResponse && studentsResponse.students && Array.isArray(studentsResponse.students)) {
-    students = studentsResponse.students;
-  } else {
-    console.warn("⚠️ Unexpected studentsResponse structure:", studentsResponse);
-    console.warn("⚠️ Response type:", typeof studentsResponse);
-    console.warn("⚠️ Response keys:", studentsResponse ? Object.keys(studentsResponse) : 'no keys');
-    students = [];
-  }
+  // Ensure students is always an array
+  const students = Array.isArray(studentsResponse) ? studentsResponse : [];
   
-  // Debug logging - always show for debugging this issue
-  console.log("📊 Students API Response Debug:");
-  console.log("  - Response type:", typeof studentsResponse);
-  console.log("  - Is array:", Array.isArray(studentsResponse));
-  console.log("  - Students found:", students.length);
-  console.log("  - Raw response:", studentsResponse);
-  console.log("  - Error:", studentsError);
+  // Debug logging
+  console.log("Students received:", studentsResponse);
+  console.log("Filtered students:", students);
   
   // If we have an error, log it
   if (studentsError) {
