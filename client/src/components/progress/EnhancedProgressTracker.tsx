@@ -167,10 +167,19 @@ export function EnhancedProgressTracker() {
   }, [allStudentsTopic, selectedClassTopic]);
 
   // Fetch subjects based on selected class for topics
-  const { data: subjectsResponse = [], isLoading: isLoadingSubjects } = useQuery({
+  const { data: subjectsResponse = [], isLoading: isLoadingSubjects, error: subjectsError } = useQuery({
     queryKey: ["/api/subjects", selectedClassTopic],
-    queryFn: () => apiRequest("GET", `/api/subjects/${selectedClassTopic}`),
+    queryFn: async () => {
+      if (!selectedClassTopic) return [];
+      console.log('🔍 Fetching subjects for class:', selectedClassTopic);
+      const response = await apiRequest("GET", `/api/subjects/${selectedClassTopic}`);
+      const data = await response.json();
+      console.log('📚 Subjects response:', data);
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!selectedClassTopic,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   const subjects = Array.isArray(subjectsResponse) ? subjectsResponse : [];
@@ -211,6 +220,14 @@ export function EnhancedProgressTracker() {
     setSelectedTopic('');
     setCompletedTopics([]);
   }, [selectedSubject]);
+
+  // Debug logging for class selection
+  useEffect(() => {
+    if (selectedClassTopic) {
+      console.log('🏫 Class selected for topics:', selectedClassTopic);
+      console.log('📚 Will fetch subjects for class:', selectedClassTopic);
+    }
+  }, [selectedClassTopic]);
 
   useEffect(() => {
     setSelectedTopic('');
@@ -794,7 +811,7 @@ export function EnhancedProgressTracker() {
                             </SelectItem>
                           ) : subjects.length === 0 ? (
                             <SelectItem value="no-subjects" disabled>
-                              No subjects found for this class
+                              {subjectsError ? 'Error loading subjects' : 'No subjects found for this class'}
                             </SelectItem>
                           ) : (
                             subjects.map((subject: Subject) => (
