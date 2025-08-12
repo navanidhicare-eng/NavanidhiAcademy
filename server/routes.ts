@@ -6092,31 +6092,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
       let result;
-      const resultData = {
+      // Base result data without percentage - will add it conditionally
+      const baseResultData = {
         examId,
         studentId,
         marksObtained: numericTotalMarks,
-        percentage: calculatedPercentage,
         answeredQuestions: answeredQuestions || (numericTotalMarks > 0 ? 'fully_answered' : 'not_answered'),
         detailedResults: detailedResults ? JSON.stringify(detailedResults) : null,
         submittedBy: req.user.userId,
         submittedAt: new Date()
       };
 
-      if (existingResult.length > 0) {
-        // Update existing result
-        [result] = await db.update(schema.examResults)
-          .set({
-            ...resultData,
-            updatedAt: new Date()
-          })
-          .where(eq(schema.examResults.id, existingResult[0].id))
-          .returning();
-      } else {
-        // Create new result
-        [result] = await db.insert(schema.examResults)
-          .values(resultData)
-          .returning();
+      try {
+        if (existingResult.length > 0) {
+          // Update existing result - try with percentage first, fallback without it
+          try {
+            [result] = await db.update(schema.examResults)
+              .set({
+                ...baseResultData,
+                percentage: calculatedPercentage,
+                updatedAt: new Date()
+              })
+              .where(eq(schema.examResults.id, existingResult[0].id))
+              .returning();
+          } catch (percentageError: any) {
+            if (percentageError.message?.includes('percentage') && percentageError.message?.includes('does not exist')) {
+              console.log('⚠️ Percentage column not found, updating without it');
+              [result] = await db.update(schema.examResults)
+                .set({
+                  ...baseResultData,
+                  updatedAt: new Date()
+                })
+                .where(eq(schema.examResults.id, existingResult[0].id))
+                .returning();
+              // Add calculated percentage to result object for response
+              result.percentage = calculatedPercentage;
+            } else {
+              throw percentageError;
+            }
+          }
+        } else {
+          // Create new result - try with percentage first, fallback without it
+          try {
+            [result] = await db.insert(schema.examResults)
+              .values({
+                ...baseResultData,
+                percentage: calculatedPercentage
+              })
+              .returning();
+          } catch (percentageError: any) {
+            if (percentageError.message?.includes('percentage') && percentageError.message?.includes('does not exist')) {
+              console.log('⚠️ Percentage column not found, inserting without it');
+              [result] = await db.insert(schema.examResults)
+                .values(baseResultData)
+                .returning();
+              // Add calculated percentage to result object for response
+              result.percentage = calculatedPercentage;
+            } else {
+              throw percentageError;
+            }
+          }
+        }
+      } catch (dbError: any) {
+        console.error('❌ Database operation failed:', dbError);
+        throw dbError;
       }
 
       console.log('✅ Student exam result saved successfully:', result.id);
@@ -6198,28 +6237,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Upsert exam result using the schema
         try {
-          const [result] = await db.insert(schema.examResults)
-            .values({
-              examId,
-              studentId,
-              marksObtained: totalScore || 0,
-              percentage: calculatedPercentage,
-              answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
-              detailedResults,
-              submittedBy: req.user?.userId,
-              submittedAt: new Date()
-            })
-            .onConflictDoUpdate({
-              target: [schema.examResults.examId, schema.examResults.studentId],
-              set: {
-                marksObtained: totalScore || 0,
-                percentage: calculatedPercentage,
-                detailedResults,
-                submittedBy: req.user?.userId,
-                updatedAt: new Date(),
-              }
-            })
-            .returning();
+          // Base data without percentage
+          const baseData = {
+            examId,
+            studentId,
+            marksObtained: totalScore || 0,
+            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
+            detailedResults,
+            submittedBy: req.user?.userId,
+            submittedAt: new Date()
+          };
+
+          const updateData = {
+            marksObtained: totalScore || 0,
+            detailedResults,
+            submittedBy: req.user?.userId,
+            updatedAt: new Date()
+          };
+
+          let result;
+          try {
+            // Try with percentage column first
+            [result] = await db.insert(schema.examResults)
+              .values({
+                ...baseData,
+                percentage: calculatedPercentage
+              })
+              .onConflictDoUpdate({
+                target: [schema.examResults.examId, schema.examResults.studentId],
+                set: {
+                  ...updateData,
+                  percentage: calculatedPercentage
+                }
+              })
+              .returning();
+          } catch (percentageError: any) {
+            if (percentageError.message?.includes('percentage') && percentageError.message?.includes('does not exist')) {
+              console.log('⚠️ Percentage column not found, using fallback approach');
+              // Fallback: upsert without percentage
+              [result] = await db.insert(schema.examResults)
+                .values(baseData)
+                .onConflictDoUpdate({
+                  target: [schema.examResults.examId, schema.examResults.studentId],
+                  set: updateData
+                })
+                .returning();
+              // Add calculated percentage to result for response
+              result.percentage = calculatedPercentage;
+            } else {
+              throw percentageError;
+            }
+          }
 
           savedResults.push({
             studentId,
