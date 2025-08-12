@@ -4544,7 +4544,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const activity of activities) {
         // Get student details to determine classId
-        const student = await storage.getStudentById(activity.studentId);
+        const student = await storage.getStudent(activity.studentId);
         if (!student) {
           return res.status(400).json({ message: `Student not found: ${activity.studentId}` });
         }
