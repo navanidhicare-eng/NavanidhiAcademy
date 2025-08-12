@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { eq, and, desc, asc, sql as sqlQuery, sql, inArray, gte, lte, like, notInArray, isNotNull } from "drizzle-orm";
+import { eq, and, or, desc, asc, sql as sqlQuery, sql, inArray, gte, lte, like, notInArray, isNotNull } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import type {
   User,
@@ -81,8 +81,12 @@ async function getUsersByRole(role: string) {
 // Add method to execute raw queries
 async function executeRawQuery(query: string, params: any[] = []) {
   try {
-    const result = await sql(query, params);
-    return result;
+    // Use the sql tagged template literal with parameters
+    if (params && params.length > 0) {
+      return await sql.unsafe(query, params);
+    } else {
+      return await sql.unsafe(query);
+    }
   } catch (error) {
     console.error('Error executing raw query:', error);
     throw error;
@@ -1339,35 +1343,30 @@ export class DrizzleStorage implements IStorage {
     try {
       console.log('🔍 Storage: Starting getSoCenterByEmail lookup for:', email);
 
-      // Use raw SQL to avoid potential Drizzle recursion issues
-      const result = await sql`
-        SELECT * FROM so_centers 
-        WHERE email = ${email} 
-        OR center_id = ${email.split('@')[0].toUpperCase()}
-        LIMIT 1
-      `;
+      // Extract center ID from email (e.g., nnasoc00018@navanidhi.org -> NNASOC00018)
+      const centerId = email.split('@')[0].toUpperCase();
+
+      // Use Drizzle ORM query to find SO Center by email or center ID
+      const result = await db.select()
+        .from(schema.soCenters)
+        .where(
+          or(
+            eq(schema.soCenters.email, email),
+            eq(schema.soCenters.centerId, centerId)
+          )
+        )
+        .limit(1);
 
       if (result.length > 0) {
-        console.log('✅ Found SO Center:', result[0].center_id, '-', result[0].name);
-        return {
-          id: result[0].id,
-          centerId: result[0].center_id,
-          name: result[0].name,
-          email: result[0].email,
-          phone: result[0].phone,
-          address: result[0].address,
-          walletBalance: result[0].wallet_balance,
-          isActive: result[0].is_active,
-          createdAt: result[0].created_at,
-          villageId: result[0].village_id
-        };
+        console.log('✅ Found SO Center:', result[0].centerId, '-', result[0].name);
+        return result[0];
       }
 
       console.log('❌ No SO Center found for email:', email);
-      return null;
+      return undefined;
     } catch (error) {
       console.error('❌ Error in getSoCenterByEmail:', error);
-      return null;
+      return undefined;
     }
   }
 
