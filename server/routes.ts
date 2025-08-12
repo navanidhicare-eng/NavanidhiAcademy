@@ -4595,21 +4595,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const progressData = {
-        student_id: studentId,
-        topic_id: topicId,
+        studentId: studentId,
+        topicId: topicId,
         status: 'learned' as const,
-        completed_date: new Date().toISOString(),
-        updated_by: req.user.userId
+        completedDate: new Date().toISOString().split('T')[0], // Use date format
+        updatedBy: req.user.userId
       };
 
       // Insert or update tuition progress
       const result = await db.insert(schema.tuitionProgress).values(progressData)
         .onConflictDoUpdate({
-          target: [schema.tuitionProgress.student_id, schema.tuitionProgress.topic_id],
+          target: [schema.tuitionProgress.studentId, schema.tuitionProgress.topicId],
           set: {
             status: progressData.status,
-            completed_date: progressData.completed_date,
-            updated_by: progressData.updated_by
+            completedDate: progressData.completedDate,
+            updatedBy: progressData.updatedBy
           }
         })
         .returning();
