@@ -3565,13 +3565,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      // Process the payment
+      // Process the payment with authenticated user ID
       const result = await storage.processStudentPayment({
         studentId,
         amount: parseFloat(amount),
         feeType,
         receiptNumber,
-        expectedFeeAmount: parseFloat(expectedFeeAmount || '0')
+        expectedFeeAmount: parseFloat(expectedFeeAmount || '0'),
+        recordedBy: req.user.userId // Use the authenticated user's ID
       });
 
       // Use the complete data from storage result which includes all invoice details

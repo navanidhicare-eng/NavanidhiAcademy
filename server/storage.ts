@@ -198,6 +198,7 @@ export interface IStorage {
     feeType: 'monthly' | 'yearly';
     receiptNumber: string;
     expectedFeeAmount: number;
+    recordedBy: string; // Added parameter
   }): Promise<{
     payment: Payment;
     transactionId: string;
@@ -1019,6 +1020,7 @@ export class DrizzleStorage implements IStorage {
     feeType: 'monthly' | 'yearly';
     receiptNumber: string;
     expectedFeeAmount: number;
+    recordedBy: string; // Added parameter
   }): Promise<{
     payment: Payment;
     transactionId: string;
@@ -1035,7 +1037,7 @@ export class DrizzleStorage implements IStorage {
     newPendingAmount: number;
     totalFeeAmount: number;
   }> {
-    const { studentId, amount, feeType, receiptNumber, expectedFeeAmount } = paymentData;
+    const { studentId, amount, feeType, receiptNumber, expectedFeeAmount, recordedBy } = paymentData;
     const transactionId = `TXN-${Date.now()}-${studentId.slice(0, 8)}`;
 
     return await db.transaction(async (tx) => {
@@ -1048,21 +1050,19 @@ export class DrizzleStorage implements IStorage {
         throw new Error('Student not found');
       }
 
-      // Create payment record
-      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'long' });
-      const currentYear = new Date().getFullYear();
-
-      const [payment] = await tx.insert(schema.payments).values({
+      // Create payment record with proper invoice data
+      const currentDate = new Date();
+      const paymentRecord = await this.createPayment({
         studentId,
         amount: amount.toString(),
         paymentMethod: 'cash',
         description: `${feeType} fee payment - Receipt: ${receiptNumber}`,
-        month: feeType === 'monthly' ? currentMonth : null,
-        year: feeType === 'monthly' ? currentYear : currentYear,
         receiptNumber,
-        transactionId,
-        recordedBy: student.soCenterId // Using SO center as recorder for now
-      }).returning();
+        recordedBy: recordedBy, // Use the authenticated user ID
+        month: currentDate.toLocaleString('default', { month: 'long' }),
+        year: currentDate.getFullYear(),
+        transactionId: transactionId
+      });
 
       // Update student payment tracking
       const numericAmount = Number(amount);
@@ -1116,7 +1116,7 @@ export class DrizzleStorage implements IStorage {
         .where(eq(schema.students.id, studentId));
 
       return {
-        payment,
+        payment: paymentRecord,
         transactionId,
         walletUpdated: true,
         studentName: updatedStudent.students.name,
