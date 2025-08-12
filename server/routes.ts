@@ -1156,7 +1156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get fee amount for response
       let feeAmount: number | null = null;
-      if (feeProcessed && admissionFeePaid && receiptNumber) {
+      if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount) {
         try {
           const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
           if (classFee && classFee.admissionFee) {
@@ -4560,7 +4560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json(emailMatch[0]);
         }
 
-        console.error('SO Center not found for email:', req.user.email);
+        console.log('SO Center not found for email:', req.user.email);
         return res.status(404).json({ message: "SO Center not found" });
       }
 
@@ -5264,11 +5264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if result already exists
       const existingResult = await db.select()
         .from(schema.examResults)
-        .where(and(
-          eq(schema.examResults.examId, examId),
-          eq(schema.examResults.studentId, studentId)
-        ))
-        .limit(1);
+        .where(
+          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+        );
 
       let result;
       const resultData = {
@@ -5760,6 +5758,688 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       console.error('Error saving exam results:', error);
+      res.status(500).json({ message: "Failed to save exam results" });
+    }
+  });
+
+  app.get("/api/dropout-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { requestId } = req.params;
+      const { status, adminNotes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+
+      const updatedRequest = await storage.processDropoutRequest(
+        requestId, 
+        status, 
+        req.user.userId, 
+        adminNotes
+      );
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error('Error processing dropout request:', error);
+      res.status(500).json({ message: error.message || "Failed to process dropout request" });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select().from(schema.exams);
+
+      // Filter exams that include this SO Center
+      const availableExams = exams.filter(exam => {
+        const soCenterIds = Array.isArray(exam.soCenterIds) ? exam.soCenterIds : [];
+        return soCenterIds.includes(soCenter.id);
+      }).map(exam => ({
+        id: exam.id,
+        name: exam.title,
+        title: exam.title,
+        className: '', // Would need to join with classes table
+        date: exam.examDate,
+        totalQuestions: exam.totalQuestions,
+        totalMarks: exam.totalMarks,
+        status: exam.status || 'scheduled',
+        description: exam.description
+      }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: "Failed to fetch exams" });
+    }
+   });
+
+  app.get("/api/admin/student-attendance-report", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+      const { studentId, month } = req.query;
+      if (!studentId || !month) {
+        return res.status(400).json({ message: 'studentId and month are required' });
+      }
+      const report = await storage.getStudentAttendanceReport(studentId as string, month as string);
+      res.json(report);
+    } catch (error) {
+      console.error('Error fetching student attendance report:', error);
+      res.status(500).json({ message: 'Failed to fetch student attendance report' });
+    }
+  });
+
+  // Get all exam results for a specific exam ID
+  app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      console.log('📊 Fetching results for exam:', examId);
+
+      // Fetch all students belonging to the SO Centers associated with this exam
+      const exam = await db.select({
+        soCenterIds: schema.exams.soCenterIds
+      }).from(schema.exams).where(eq(schema.exams.id, examId)).limit(1);
+
+      if (!exam.length || !exam[0].soCenterIds || !Array.isArray(exam[0].soCenterIds)) {
+        console.log('❌ Exam not found or SO Center IDs not properly configured:', examId);
+        return res.status(404).json({ message: "Exam not found or SO Center configuration is missing" });
+      }
+
+      const soCenterIds = exam[0].soCenterIds;
+
+      // Get students from these SO Centers
+      const students = await db.select()
+        .from(schema.students)
+        .where(
+          and(
+            sqlQuery`${schema.students.soCenterId} = ANY(${soCenterIds})`,
+            eq(schema.students.isActive, true)
+          )
+        )
+        .orderBy(schema.students.name);
+
+      // Fetch results for these students and this exam
+      const examResults = await db.select()
+        .from(schema.examResults)
+        .where(
+          and(
+            eq(schema.examResults.examId, examId),
+            sqlQuery`${schema.examResults.studentId} = ANY(${students.map(s => s.id)})`
+          )
+        );
+
+      // Map results to students
+      const studentResultsMap = new Map(examResults.map(result => [result.studentId, result]));
+
+      const formattedResults = students.map(student => {
+        const result = studentResultsMap.get(student.id);
+        let formattedResult = {
+          studentId: student.id,
+          studentName: student.name,
+          studentUniqueId: student.studentId,
+          fatherName: student.fatherName,
+          parentPhone: student.parentPhone,
+          soCenterName: student.soCenterName,
+          className: student.className,
+          soCenterId: student.soCenterId,
+          // Default values if no result is found
+          totalMarks: 0,
+          percentage: 0,
+          answeredQuestions: 'not_answered',
+          detailedResults: [],
+          // You can add other student details as needed
+        };
+
+        if (result) {
+          formattedResult = {
+            ...formattedResult,
+            totalMarks: result.marksObtained || 0,
+            percentage: result.percentage || 0,
+            answeredQuestions: result.answeredQuestions || 'not_answered',
+            detailedResults: result.detailedResults ? JSON.parse(result.detailedResults) : [],
+          };
+        }
+        return formattedResult;
+      });
+
+      console.log('✅ Returning', formattedResults.length, 'results for exam');
+      res.json(formattedResults);
+    } catch (error: any) {
+      console.error('❌ Error fetching exam results:', error);
+      res.status(500).json({ message: 'Failed to fetch exam results' });
+    }
+  });
+
+  // Get exam results for a specific student and exam (used for display)
+  app.get('/api/exams/:examId/results/:studentId', authenticateToken, async (req, res) => {
+    try {
+      const { examId, studentId } = req.params;
+      console.log('📊 Fetching results for student:', studentId, 'in exam:', examId);
+
+      // Get the exam information
+      const exam = await db.select()
+        .from(schema.exams)
+        .where(eq(schema.exams.id, examId))
+        .limit(1);
+
+      if (!exam.length) {
+        console.log('❌ Exam not found:', examId);
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      const examData = exam[0];
+
+      // Get the specific student's result
+      const result = await db.select()
+        .from(schema.examResults)
+        .where(and(
+          eq(schema.examResults.examId, examId),
+          eq(schema.examResults.studentId, studentId)
+        ))
+        .limit(1);
+
+      let formattedResult = {
+        studentId: studentId,
+        examId: examId,
+        totalMarks: 0,
+        percentage: 0,
+        answeredQuestions: 'not_answered',
+        detailedResults: [],
+        examTitle: examData.title,
+        examTotalMarks: examData.totalMarks,
+        examTotalQuestions: examData.totalQuestions
+      };
+
+      if (result.length > 0) {
+        const studentResult = result[0];
+        formattedResult = {
+          ...formattedResult,
+          totalMarks: studentResult.marksObtained || 0,
+          percentage: studentResult.percentage || 0,
+          answeredQuestions: studentResult.answeredQuestions || 'not_answered',
+          detailedResults: studentResult.detailedResults ? JSON.parse(studentResult.detailedResults) : []
+        };
+      }
+
+      console.log('✅ Returning result for student', studentId);
+      res.json(formattedResult);
+    } catch (error: any) {
+      console.error('❌ Error fetching student results:', error);
+      res.status(500).json({ message: "Failed to fetch student results" });
+    }
+  });
+
+  // Submit exam results (for SO Centers)
+  app.post('/api/so-center/exams/:examId/results', authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const { examId } = req.params;
+      const { results } = req.body;
+
+      if (!examId || !results || !Array.isArray(results)) {
+        return res.status(400).json({ message: "examId and results array are required" });
+      }
+
+      console.log('📝 Saving exam results for exam:', examId, 'from SO Center:', soCenter.centerId);
+
+      // Save exam results in bulk
+      const savedResults = [];
+      for (const result of results) {
+        const { studentId, questionResults, totalMarks, percentage, remarks } = result;
+
+        // Basic validation
+        if (!studentId || totalMarks === undefined || percentage === undefined) {
+          console.warn('⚠️ Skipping invalid result data:', result);
+          continue;
+        }
+
+        // Create or update exam result
+        const examResult = await sql`
+          INSERT INTO exam_results (
+            exam_id, 
+            student_id, 
+            total_marks, 
+            percentage, 
+            remarks,
+            question_results,
+            submitted_by,
+            submitted_at,
+            so_center_id 
+          ) VALUES (
+            ${examId},
+            ${studentId},
+            ${totalMarks},
+            ${percentage},
+            ${remarks || null},
+            ${JSON.stringify(questionResults)},
+            ${req.user.userId},
+            NOW(),
+            ${soCenter.id}
+          )
+          ON CONFLICT (exam_id, student_id) 
+          DO UPDATE SET 
+            total_marks = EXCLUDED.total_marks,
+            percentage = EXCLUDED.percentage,
+            remarks = EXCLUDED.remarks,
+            question_results = EXCLUDED.question_results,
+            submitted_by = EXCLUDED.submitted_by,
+            submitted_at = EXCLUDED.submitted_at,
+            updated_at = NOW()
+          RETURNING *
+        `;
+        savedResults.push(examResult[0]);
+      }
+
+      console.log('✅ Saved', savedResults.length, 'exam results');
+      res.json({ 
+        message: 'Exam results submitted successfully',
+        savedCount: savedResults.length
+      });
+    } catch (error: any) {
+      console.error('❌ Error submitting exam results:', error);
+      res.status(500).json({ message: "Failed to save exam results" });
+    }
+  });
+
+  // Delete exam endpoint  
+  app.delete("/api/admin/exams/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+
+      const examId = req.params.id;
+      await storage.deleteExam(examId);
+
+      res.json({ message: "Exam deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+      res.status(500).json({ message: "Failed to delete exam" });
+    }
+  });
+
+  // ======================== ALL 7 NEW FEATURES API ROUTES ========================
+
+  // Feature 1: Topics Management with Moderate/Important flags
+  app.get("/api/topics-management", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const topics = await storage.getAllTopicsWithChapters();
+      res.json(topics);
+    } catch (error) {
+      console.error('Error fetching topics for management:', error);
+      res.status(500).json({ message: "Failed to fetch topics" });
+    }
+  });
+
+  app.patch("/api/topics/:topicId/flags", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { topicId } = req.params;
+      const { isModerate, isImportant } = req.body;
+
+      const updates: any = {};
+      if (typeof isModerate === 'boolean') updates.isModerate = isModerate;
+      if (typeof isImportant === 'boolean') updates.isImportant = isImportant;
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ message: "No valid updates provided" });
+      }
+
+      const updatedTopic = await storage.updateTopicFlags(topicId, updates);
+      res.json(updatedTopic);
+    } catch (error) {
+      console.error('Error updating topic flags:', error);
+      res.status(500).json({ message: "Failed to update topic flags" });
+    }
+  });
+
+  // Feature 6: Exam Time Management
+  app.patch("/api/exams/:examId/time-settings", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'academic_admin') {
+        return res.status(403).json({ message: "Academic admin access required" });
+      }
+
+      const { examId } = req.params;
+      const { startTime, endTime } = req.body;
+
+      if (!startTime || !endTime) {
+        return res.status(400).json({ message: "Both startTime and endTime are required" });
+      }
+
+      const updatedExam = await storage.updateExamTimeSettings(examId, startTime, endTime);
+      res.json(updatedExam);
+    } catch (error) {
+      console.error('Error updating exam time settings:', error);
+      res.status(500).json({ message: "Failed to update exam time settings" });
+    }
+  });
+
+  app.get("/api/exams/:examId/access-check", authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const accessCheck = await storage.checkExamTimeAccess(examId);
+      res.json(accessCheck);
+    } catch (error) {
+      console.error('Error checking exam access:', error);
+      res.status(500).json({ message: "Failed to check exam access" });
+    }
+  });
+
+  // Feature 7: Student Dropout Management
+  app.post("/api/dropout-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      // CRITICAL: Check if student has zero pending balance before allowing dropout request
+      const { studentId } = req.body;
+      if (!studentId) {
+        return res.status(400).json({ message: "Student ID is required" });
+      }
+
+      const student = await storage.getStudent(studentId);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Verify student belongs to this SO Center
+      if (student.soCenterId !== soCenter.id) {
+        return res.status(403).json({ message: "Student does not belong to your SO Center" });
+      }
+
+      // Check if student has pending balance
+      const pendingAmount = parseFloat(student.totalAmount || '0') - parseFloat(student.paidAmount || '0');
+      if (pendingAmount > 0) {
+        return res.status(400).json({ 
+          message: `Cannot create dropout request. Student has pending balance of ₹${pendingAmount.toFixed(2)}. Please clear all dues before submitting dropout request.`,
+          pendingBalance: pendingAmount
+        });
+      }
+
+      const dropoutData = {
+        ...req.body,
+        soCenterId: soCenter.id,
+        requestedBy: req.user.userId,
+        status: 'pending'
+      };
+
+      const request = await storage.createDropoutRequest(dropoutData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating dropout request:', error);
+      res.status(500).json({ message: error.message || "Failed to create dropout request" });
+    }
+  });
+
+  // SO Center Exam Results Management
+  app.get("/api/so-center/exams/:examId/students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const examId = req.params.examId;
+
+      // Get students for this exam who belong to this SO Center
+      const students = await sql`
+        SELECT DISTINCT 
+          s.id,
+          s.name,
+          s.student_id,
+          s.father_name,
+          s.parent_phone
+        FROM students s
+        INNER JOIN exams e ON e.id = ${examId}
+        WHERE s.so_center_id = ${soCenter.id}
+        AND s.is_active = true
+        ORDER BY s.name ASC
+      `;
+
+      res.json(students.map(s => ({
+        id: s.id,
+        name: s.name,
+        studentId: s.student_id,
+        fatherName: s.father_name,
+        parentPhone: s.parent_phone
+      })));
+    } catch (error: any) {
+      console.error('Error fetching exam students:', error);
+      res.status(500).json({ message: "Failed to fetch exam students" });
+    }
+  });
+
+  app.get("/api/so-center/exams/:examId/questions", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const examId = req.params.examId;
+      console.log('📋 Fetching questions for exam:', examId);
+
+      // Get the exam with questions
+      const [exam] = await db.select({
+        id: schema.exams.id,
+        title: schema.exams.title,
+        questions: schema.exams.questions,
+        totalQuestions: schema.exams.totalQuestions,
+        totalMarks: schema.exams.totalMarks
+      }).from(schema.exams)
+        .where(eq(schema.exams.id, examId));
+
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // Parse questions from JSON string
+      let questions = [];
+      if (exam.questions) {
+        try {
+          questions = JSON.parse(exam.questions);
+        } catch (e) {
+          console.error('Error parsing exam questions JSON:', e);
+          questions = [];
+        }
+      }
+
+      // Format questions for the exam results component
+      const formattedQuestions = questions.map((q: any, index: number) => ({
+        questionNumber: q.questionNumber || index + 1,
+        marks: q.marks || 2, // Default to 2 marks per question
+        questionText: q.questionText || q.question || '',
+        questionType: q.questionType || q.type || 'descriptive'
+      }));
+
+      res.json({
+        examInfo: {
+          id: exam.id,
+          title: exam.title,
+          totalQuestions: exam.totalQuestions,
+          totalMarks: exam.totalMarks
+        },
+        questions: formattedQuestions
+      });
+    } catch (error: any) {
+      console.error('Error fetching exam questions:', error);
+      res.status(500).json({ message: "Failed to fetch exam questions" });
+    }
+  });
+
+  app.post("/api/so-center/exam-results", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const { examId, results } = req.body;
+
+      if (!examId || !results || !Array.isArray(results)) {
+        return res.status(400).json({ message: "examId and results array are required" });
+      }
+
+      console.log('📝 Saving exam results for exam:', examId, 'from SO Center:', soCenter.centerId);
+
+      // Save exam results in bulk
+      const savedResults = [];
+      for (const result of results) {
+        const { studentId, questionResults, totalMarks, percentage, remarks } = result;
+
+        // Basic validation
+        if (!studentId || totalMarks === undefined || percentage === undefined) {
+          console.warn('⚠️ Skipping invalid result data:', result);
+          continue;
+        }
+
+        // Create or update exam result
+        const examResult = await sql`
+          INSERT INTO exam_results (
+            exam_id, 
+            student_id, 
+            total_marks, 
+            percentage, 
+            remarks,
+            question_results,
+            submitted_by,
+            submitted_at,
+            so_center_id 
+          ) VALUES (
+            ${examId},
+            ${studentId},
+            ${totalMarks},
+            ${percentage},
+            ${remarks || null},
+            ${JSON.stringify(questionResults)},
+            ${req.user.userId},
+            NOW(),
+            ${soCenter.id}
+          )
+          ON CONFLICT (exam_id, student_id) 
+          DO UPDATE SET 
+            total_marks = EXCLUDED.total_marks,
+            percentage = EXCLUDED.percentage,
+            remarks = EXCLUDED.remarks,
+            question_results = EXCLUDED.question_results,
+            submitted_by = EXCLUDED.submitted_by,
+            submitted_at = EXCLUDED.submitted_at,
+            updated_at = NOW()
+          RETURNING *
+        `;
+        savedResults.push(examResult[0]);
+      }
+
+      console.log('✅ Saved', savedResults.length, 'exam results');
+      res.json({ 
+        message: 'Exam results saved successfully',
+        savedCount: savedResults.length
+      });
+    } catch (error: any) {
+      console.error('❌ Error saving exam results:', error);
       res.status(500).json({ message: "Failed to save exam results" });
     }
   });

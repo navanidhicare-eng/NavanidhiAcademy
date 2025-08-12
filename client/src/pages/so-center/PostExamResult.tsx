@@ -158,6 +158,11 @@ export default function PostExamResult() {
       queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
       queryClient.refetchQueries({ queryKey: ['/api/exams', examId, 'results'] });
       
+      // Force a refresh of the existing results
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      }, 100);
+      
       // Reset the selected student
       setSelectedStudent(null);
       setQuestionResults([]);
@@ -273,6 +278,22 @@ export default function PostExamResult() {
       return null;
     }
     return existingResults.find((result: any) => result.studentId === studentId);
+  };
+
+  const getStudentStatus = (studentId: string) => {
+    const result = getStudentResult(studentId);
+    if (result && result.totalMarks !== undefined && result.totalMarks !== null) {
+      return 'Result Entered';
+    }
+    return 'Pending';
+  };
+
+  const getStudentMarks = (studentId: string) => {
+    const result = getStudentResult(studentId);
+    if (result && result.totalMarks !== undefined && result.totalMarks !== null) {
+      return `${result.totalMarks}/${(exam as any)?.totalMarks}`;
+    }
+    return 'Not entered';
   };
 
   if (isLoading) {
@@ -434,7 +455,7 @@ export default function PostExamResult() {
                         <TableCell className="font-medium">{student.name}</TableCell>
                         <TableCell>{student.regId}</TableCell>
                         <TableCell>
-                          {result ? (
+                          {getStudentStatus(student.id) === 'Result Entered' ? (
                             <Badge className="bg-green-100 text-green-800">
                               Result Entered
                             </Badge>
@@ -445,7 +466,7 @@ export default function PostExamResult() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {result ? `${result.marksObtained}/${(exam as any)?.totalMarks}` : 'Not entered'}
+                          {getStudentMarks(student.id)}
                         </TableCell>
                         <TableCell>
                           <Button
