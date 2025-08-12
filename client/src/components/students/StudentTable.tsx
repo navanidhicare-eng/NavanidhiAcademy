@@ -55,7 +55,8 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
       if (!response.ok) {
         throw new Error('Failed to fetch classes');
       }
-      return response.json();
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
     },
     refetchOnWindowFocus: false,
   });
@@ -158,7 +159,7 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Classes</SelectItem>
-                  {classes.map((cls: any) => (
+                  {Array.isArray(classes) && classes.map((cls: any) => (
                     <SelectItem key={cls.id} value={cls.id}>
                       {cls.name}
                     </SelectItem>
