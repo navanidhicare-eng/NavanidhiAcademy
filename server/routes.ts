@@ -4598,7 +4598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId: studentId,
         topicId: topicId,
         status: 'learned' as const,
-        completedDate: new Date().toISOString().split('T')[0], // Use date format
+        completedDate: new Date(), // Use Date object instead of string
         updatedBy: req.user.userId
       };
 
