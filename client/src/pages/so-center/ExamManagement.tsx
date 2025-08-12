@@ -109,7 +109,7 @@ export default function SoCenterExamManagement() {
     },
   });
 
-  // Get SO Center exams with error handling and caching
+  // Get SO Center exams with better caching and reduced API calls
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/exams'],
     queryFn: async () => {
@@ -121,14 +121,15 @@ export default function SoCenterExamManagement() {
       console.log('✅ SO Center exams fetched successfully:', examsData.length);
       return Array.isArray(examsData) ? examsData : [];
     },
-    retry: 2,
-    staleTime: 3 * 60 * 1000, // 3 minutes cache
-    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    retry: 1,
+    staleTime: 10 * 60 * 1000, // 10 minutes cache - longer for better performance
+    cacheTime: 15 * 60 * 1000, // 15 minutes cache
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchInterval: false, // Disable automatic refetching
   });
 
-  // Get SO Center students with error handling and caching
+  // Get SO Center students with better caching and reduced API calls
   const { data: students = [], isLoading: isLoadingStudents, error: studentsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/students'],
     queryFn: async () => {
@@ -140,11 +141,12 @@ export default function SoCenterExamManagement() {
       console.log('✅ SO Center students fetched successfully:', studentsData.length);
       return Array.isArray(studentsData) ? studentsData : [];
     },
-    retry: 2,
-    staleTime: 3 * 60 * 1000, // 3 minutes cache
-    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchInterval: false, // Disable automatic refetching
   });
 
   // Handle loading and error states for exams and students
@@ -342,6 +344,24 @@ export default function SoCenterExamManagement() {
             <h1 className="text-3xl font-bold text-green-800">Exam Management</h1>
             <p className="text-green-600 mt-1">Manage exams and post results for your center</p>
           </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/so-center/students'] });
+              }}
+              variant="outline"
+              size="sm"
+              disabled={isLoadingExams || isLoadingStudents}
+            >
+              {isLoadingExams || isLoadingStudents ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <GraduationCap className="h-4 w-4 mr-2" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -416,9 +436,16 @@ export default function SoCenterExamManagement() {
               </CardHeader>
               <CardContent>
                 {exams.length === 0 ? (
-                  <div className="text-center py-8">
-                    <GraduationCap size={48} className="mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">No exams assigned to your center yet.</p>
+                  <div className="text-center py-12">
+                    <GraduationCap size={64} className="mx-auto text-gray-300 mb-6" />
+                    <h3 className="text-xl font-semibold text-gray-700 mb-2">No Exams Available</h3>
+                    <p className="text-gray-500 mb-4">No exams have been assigned to your SO Center yet.</p>
+                    <div className="bg-blue-50 p-4 rounded-lg max-w-md mx-auto">
+                      <p className="text-sm text-blue-700">
+                        <strong>Note:</strong> Exams are created and assigned by the admin. 
+                        Contact your administrator if you expect to see exams here.
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="grid gap-4">

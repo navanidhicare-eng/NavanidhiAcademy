@@ -4997,29 +4997,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'SO Center not found for this user' });
       }
 
-      // Optimized exam query - get only necessary fields and use single query with joins
-      const exams = await db.select({
-        id: schema.exams.id,
-        title: schema.exams.title,
-        description: schema.exams.description,
-        classId: schema.exams.classId,
-        subjectId: schema.exams.subjectId,
-        soCenterIds: schema.exams.soCenterIds,
-        examDate: schema.exams.examDate,
-        duration: schema.exams.duration,
-        totalQuestions: schema.exams.totalQuestions,
-        totalMarks: schema.exams.totalMarks,
-        passingMarks: schema.exams.passingMarks,
-        status: schema.exams.status,
-        createdAt: schema.exams.createdAt,
-        className: schema.classes.name,
-        subjectName: schema.subjects.name
-      })
-      .from(schema.exams)
-      .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
-      .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-      .where(sql`${schema.exams.soCenterIds} @> ARRAY[${soCenterId}]::uuid[]`)
-      .orderBy(desc(schema.exams.examDate));
+      // Simplified exam query to avoid performance issues
+      const allExams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+      
+      // Filter exams for this SO Center in JavaScript to avoid complex SQL
+      const exams = allExams
+        .filter(examRow => {
+          const soCenterIds = examRow.exams.soCenterIds;
+          return Array.isArray(soCenterIds) && soCenterIds.includes(soCenterId);
+        })
+        .map(examRow => ({
+          ...examRow.exams,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A'
+        }));
 
       console.log('✅ Found', exams.length, 'exams for SO Center');
       res.json(exams);
