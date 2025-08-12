@@ -865,6 +865,8 @@ export const insertStudentDropoutRequestSchema = createInsertSchema(studentDropo
 export type InsertStudentDropoutRequest = z.infer<typeof insertStudentDropoutRequestSchema>;
 export type StudentDropoutRequest = typeof studentDropoutRequests.$inferSelect;
 
+
+
 // SO Center Expense Wallet schemas  
 export const insertSoCenterExpenseWalletSchema = createInsertSchema(soCenterExpenseWallet).omit({
   id: true,

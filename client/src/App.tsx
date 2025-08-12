@@ -41,6 +41,8 @@ import AdminStudents from "@/pages/admin/Students";
 import AcademicDashboard from "@/pages/admin/AcademicDashboard";
 import ExamManagement from "@/pages/admin/ExamManagement";
 import SoCenterExamManagement from "@/pages/so-center/ExamManagement";
+import SoCenterExams from "@/pages/so-center/SoCenterExams";
+import ExamResults from "@/pages/so-center/ExamResults";
 import PostExamResult from "@/pages/so-center/PostExamResult";
 import Products from "@/pages/Products";
 import CoursePurchases from "@/pages/admin/CoursePurchases";
@@ -142,6 +144,16 @@ function Router() {
       <Route path="/so-center/exam-management">
         <ProtectedRoute>
           <SoCenterExamManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/so-center/exams">
+        <ProtectedRoute>
+          <SoCenterExams />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/so-center/exam-results">
+        <ProtectedRoute>
+          <ExamResults />
         </ProtectedRoute>
       </Route>
       <Route path="/post-exam-result/:examId">

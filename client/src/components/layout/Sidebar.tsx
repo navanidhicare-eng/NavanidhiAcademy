@@ -30,6 +30,7 @@ import {
   Package,
   ShoppingCart,
   UserMinus,
+  FileText,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -91,6 +92,8 @@ export function Sidebar({ className }: SidebarProps) {
           { icon: Wallet, label: 'Wallet', href: '/wallet' },
           { icon: DollarSign, label: 'Expenses', href: '/expenses' },
           { icon: GraduationCap, label: 'Exam Management', href: '/so-center/exam-management' },
+          { icon: FileText, label: 'Exams', href: '/so-center/exams' },
+          { icon: CheckSquare, label: 'Exam Results', href: '/so-center/exam-results' },
           { icon: UserMinus, label: 'Dropout Requests', href: '/so-center/dropout-requests' },
         ];
       
