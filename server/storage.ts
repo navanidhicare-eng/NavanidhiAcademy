@@ -762,7 +762,7 @@ export class DrizzleStorage implements IStorage {
           s.id,
           s.name,
           s.student_id as "studentId",
-          s.phone,
+          s.parent_phone as "parentPhone",
           s.date_of_birth as "dateOfBirth",
           s.father_name as "fatherName",
           s.mother_name as "motherName",
@@ -779,9 +779,7 @@ export class DrizzleStorage implements IStorage {
           s.total_fee_amount as "totalFeeAmount",
           s.paid_amount as "paidAmount",
           s.pending_amount as "pendingAmount",
-          s.created_at as "createdAt",
-          s.updated_at as "updatedAt",
-          s.parent_phone as "parentPhone"
+          s.created_at as "createdAt"
         FROM students s
         LEFT JOIN classes c ON s.class_id = c.id
         WHERE s.so_center_id = ${soCenterId}
