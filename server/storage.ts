@@ -774,6 +774,7 @@ export class DrizzleStorage implements IStorage {
           s.total_fee_amount as "totalFeeAmount",
           s.paid_amount as "paidAmount",
           s.pending_amount as "pendingAmount",
+          s.qr_code as "qrCode",
           s.created_at as "createdAt"
         FROM students s
         LEFT JOIN classes c ON s.class_id = c.id
