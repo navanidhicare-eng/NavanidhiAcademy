@@ -5257,6 +5257,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update exam results - New API endpoint for modal-based marks entry
+  app.post('/api/exams/:examId/results/update', authenticateToken, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const { students } = req.body;
+      
+      console.log('🔄 Bulk updating exam results for exam:', examId);
+      console.log('📊 Students data:', students);
+
+      // Validate input
+      if (!students || !Array.isArray(students)) {
+        return res.status(400).json({ message: 'Invalid students data' });
+      }
+
+      // Check if exam exists and user has access
+      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+      if (!exam.length) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      // Verify SO Center access for this exam
+      if (req.user?.role === 'so_center') {
+        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
+        if (!soCenter.length) {
+          return res.status(404).json({ message: 'SO Center not found' });
+        }
+
+        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
+        if (!soCenterIds.includes(soCenter[0].id)) {
+          return res.status(403).json({ message: 'Access denied to this exam' });
+        }
+      }
+
+      // Process each student's results
+      const savedResults = [];
+      for (const studentData of students) {
+        const { studentId, marks, totalScore, performance } = studentData;
+
+        // Validate student data
+        if (!studentId || !Array.isArray(marks)) {
+          console.warn('⚠️ Skipping invalid student data:', studentData);
+          continue;
+        }
+
+        // Prepare detailed results
+        const questionResults = marks.map((mark, index) => ({
+          questionNumber: index + 1,
+          marks: mark.score || 0,
+          maxMarks: mark.maxMarks || 1,
+          performance: performance?.[index] || 'not_attempted',
+          answerStatus: mark.score > 0 ? (mark.score >= (mark.maxMarks || 1) ? 'full_answer' : 'partial_answered') : 'not_answered'
+        }));
+
+        // Check if result already exists
+        const existingResult = await db.select()
+          .from(schema.examResults)
+          .where(
+            sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+          );
+
+        if (existingResult.length > 0) {
+          // Update existing result
+          await db
+            .update(schema.examResults)
+            .set({
+              marksObtained: totalScore || 0,
+              answeredQuestions: totalScore > 0 ? 'answered' : 'not_answered',
+              detailedResults: JSON.stringify({ questions: questionResults }),
+              updatedAt: new Date()
+            })
+            .where(
+              sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
+            );
+        } else {
+          // Create new result
+          await db
+            .insert(schema.examResults)
+            .values({
+              examId,
+              studentId,
+              marksObtained: totalScore || 0,
+              answeredQuestions: totalScore > 0 ? 'answered' : 'not_answered',
+              detailedResults: JSON.stringify({ questions: questionResults })
+            });
+        }
+
+        savedResults.push({
+          studentId,
+          totalScore: totalScore || 0,
+          questionsCount: questionResults.length
+        });
+      }
+
+      console.log('✅ Bulk exam results updated successfully:', savedResults.length, 'students');
+      res.json({ 
+        message: 'Results updated successfully',
+        updatedCount: savedResults.length,
+        results: savedResults
+      });
+    } catch (error: any) {
+      console.error('❌ Error bulk updating exam results:', error);
+      res.status(500).json({ message: 'Failed to update exam results' });
+    }
+  });
+
   // Submit exam results
   app.post('/api/so-center/exams/:examId/results', authenticateToken, async (req, res) => {
     try {
