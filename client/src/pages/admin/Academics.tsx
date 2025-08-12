@@ -162,10 +162,19 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
         passingMarks: editingExam.passingMarks?.toString() || '',
         status: editingExam.status || 'scheduled',
       });
-      // Load existing questions if editing
+      // Load existing questions if editing - safely parse and ensure array
+      let parsedQuestions = [];
       if (editingExam.questions) {
-        setQuestions(editingExam.questions);
+        try {
+          parsedQuestions = typeof editingExam.questions === 'string' 
+            ? JSON.parse(editingExam.questions) 
+            : editingExam.questions;
+        } catch (error) {
+          console.warn('Failed to parse exam questions:', error);
+          parsedQuestions = [];
+        }
       }
+      setQuestions(Array.isArray(parsedQuestions) ? parsedQuestions : []);
     } else {
       form.reset({
         title: '',
@@ -597,7 +606,7 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
                 </Button>
               </div>
 
-              {questions.length > 0 && (
+              {Array.isArray(questions) && questions.length > 0 && (
                 <div className="space-y-3 max-h-60 overflow-y-auto border rounded-md p-4">
                   {questions.map((question, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
