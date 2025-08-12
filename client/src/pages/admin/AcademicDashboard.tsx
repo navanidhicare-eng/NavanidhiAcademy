@@ -257,7 +257,7 @@ function AttendanceReportsTab({
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // Center-wise Month-wise Attendance Report (real data)
-  const { data: centerAttendanceReport = [] } = useQuery<any[]>({
+  const { data: centerAttendanceReport = [] } = useQuery({
     queryKey: ['/api/analytics/center-month-attendance', selectedMonth, selectedYear, selectedSoCenter],
     queryFn: () => {
       const params = new URLSearchParams();
@@ -270,14 +270,14 @@ function AttendanceReportsTab({
   });
 
   // Real attendance data from database
-  const { data: attendanceData = [] } = useQuery<any[]>({
+  const { data: attendanceData = [] } = useQuery({
     queryKey: ['/api/analytics/attendance-trends'],
     queryFn: () => apiRequest('GET', `/api/analytics/attendance-trends?soCenterId=${selectedSoCenter}&month=${selectedYear}-${String(selectedMonth).padStart(2, '0')}`),
     enabled: !!selectedSoCenter,
   });
 
   // Group attendance data by center for table display - ensure centerAttendanceReport is an array
-  const groupedAttendanceData = (centerAttendanceReport || []).reduce((acc: any, record: any) => {
+  const groupedAttendanceData = Array.isArray(centerAttendanceReport) ? centerAttendanceReport.reduce((acc: any, record: any) => {
     const key = record.centerId;
     if (!acc[key]) {
       acc[key] = {
@@ -298,7 +298,7 @@ function AttendanceReportsTab({
       attendancePercentage: record.attendancePercentage
     });
     return acc;
-  }, {});
+  }, {}) : {};
 
   const centerAttendanceArray = Object.values(groupedAttendanceData);
 
