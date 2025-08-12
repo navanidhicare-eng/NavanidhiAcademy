@@ -4476,9 +4476,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       res.json(progressData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error fetching admin progress tracking data:', error);
       res.status(500).json({ message: 'Failed to fetch progress tracking data' });
+    }
+  });
+
+  // Enhanced Progress Tracking Routes for SO Centers
+  
+  // Homework activities route
+  app.post("/api/progress-tracking/homework", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      const { activities } = req.body;
+      
+      if (!activities || !Array.isArray(activities)) {
+        return res.status(400).json({ message: 'Activities array is required' });
+      }
+
+      const results = [];
+      
+      for (const activity of activities) {
+        const homeworkData = {
+          student_id: activity.studentId,
+          status: activity.status,
+          completion_type: activity.completionType,
+          reason: activity.reason,
+          activity_date: activity.date,
+          recorded_by: req.user.userId,
+          created_at: new Date().toISOString()
+        };
+
+        // Insert or update homework activity
+        const result = await db.insert(schema.homeworkActivities).values(homeworkData)
+          .onConflictDoUpdate({
+            target: [schema.homeworkActivities.student_id, schema.homeworkActivities.activity_date],
+            set: {
+              status: homeworkData.status,
+              completion_type: homeworkData.completion_type,
+              reason: homeworkData.reason,
+              recorded_by: homeworkData.recorded_by,
+              updated_at: new Date().toISOString()
+            }
+          })
+          .returning();
+          
+        results.push(result[0]);
+      }
+
+      res.json({ message: 'Homework activities saved successfully', count: results.length });
+    } catch (error: any) {
+      console.error('❌ Error saving homework activities:', error);
+      res.status(500).json({ message: 'Failed to save homework activities' });
+    }
+  });
+
+  // Topic completion route
+  app.post("/api/progress-tracking/topics/complete", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      const { studentId, topicId, chapterId } = req.body;
+      
+      if (!studentId || !topicId) {
+        return res.status(400).json({ message: 'Student ID and Topic ID are required' });
+      }
+
+      const progressData = {
+        student_id: studentId,
+        topic_id: topicId,
+        status: 'learned' as const,
+        completed_date: new Date().toISOString(),
+        updated_by: req.user.userId
+      };
+
+      // Insert or update tuition progress
+      const result = await db.insert(schema.tuitionProgress).values(progressData)
+        .onConflictDoUpdate({
+          target: [schema.tuitionProgress.student_id, schema.tuitionProgress.topic_id],
+          set: {
+            status: progressData.status,
+            completed_date: progressData.completed_date,
+            updated_by: progressData.updated_by
+          }
+        })
+        .returning();
+
+      res.json({ message: 'Topic marked as completed', progress: result[0] });
+    } catch (error: any) {
+      console.error('❌ Error marking topic complete:', error);
+      res.status(500).json({ message: 'Failed to mark topic as completed' });
+    }
+  });
+
+  // Get topic completion status for a student
+  app.get("/api/progress-tracking/topics/status", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      const { studentId, chapterId } = req.query;
+      
+      if (!studentId) {
+        return res.status(400).json({ message: 'Student ID is required' });
+      }
+
+      let query = `
+        SELECT 
+          t.id as topic_id,
+          t.name as topic_name,
+          tp.status,
+          tp.completed_date
+        FROM topics t
+        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1
+      `;
+
+      const params = [studentId];
+
+      if (chapterId) {
+        query += ` WHERE t.chapter_id = $2`;
+        params.push(chapterId as string);
+      }
+
+      query += ` ORDER BY t.order_index`;
+
+      const result = await executeRawQuery(query, params);
+      
+      const completed = result.filter(row => row.status === 'learned').map(row => row.topic_id);
+      const remaining = result.filter(row => row.status !== 'learned').map(row => row.topic_id);
+
+      res.json({
+        completed,
+        remaining,
+        total: result.length,
+        details: result
+      });
+    } catch (error: any) {
+      console.error('❌ Error fetching topic status:', error);
+      res.status(500).json({ message: 'Failed to fetch topic status' });
     }
   });
 

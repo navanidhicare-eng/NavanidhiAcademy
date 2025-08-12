@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { ProgressTracker } from '@/components/progress/ProgressTracker';
+import { EnhancedProgressTracker } from '@/components/progress/EnhancedProgressTracker';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Progress() {
@@ -22,11 +22,8 @@ export default function Progress() {
   }
 
   return (
-    <DashboardLayout
-      title="Progress Tracking"
-      subtitle="Update student topic completion status"
-    >
-      <ProgressTracker />
+    <DashboardLayout>
+      <EnhancedProgressTracker />
     </DashboardLayout>
   );
 }
