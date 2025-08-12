@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import {
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -20,411 +21,574 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Users, TrendingUp, TrendingDown, UserCheck, Download } from 'lucide-react';
+import { CalendarIcon, Users, TrendingUp, TrendingDown, UserCheck, Download, MapPin, Building, School } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+interface State {
+  id: string;
+  name: string;
+}
+
+interface District {
+  id: string;
+  name: string;
+  stateId: string;
+}
+
+interface Mandal {
+  id: string;
+  name: string;
+  districtId: string;
+}
+
+interface Village {
+  id: string;
+  name: string;
+  mandalId: string;
+}
+
+interface SoCenter {
+  id: string;
+  name: string;
+  villageId: string;
+}
+
+interface Class {
+  id: string;
+  name: string;
+}
+
+interface Student {
+  id: string;
+  name: string;
+  student_id: string;
+  class_name: string;
+}
+
+interface AttendanceRecord {
+  id: string;
+  student_id: string;
+  date: string;
+  status: 'present' | 'absent' | 'late';
+  remarks?: string;
+  student_name: string;
+  student_code: string;
+  class_name: string;
+  center_name: string;
+  center_code: string;
+}
+
 export default function Attendance() {
-  const [selectedCenter, setSelectedCenter] = useState<string>('all');
-  const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [dateRange, setDateRange] = useState<string>('today');
+  // Hierarchical filter states
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedMandal, setSelectedMandal] = useState<string>('');
+  const [selectedVillage, setSelectedVillage] = useState<string>('');
+  const [selectedCenter, setSelectedCenter] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedStudent, setSelectedStudent] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
 
-  // Mock data - replace with actual API calls
+  // API calls for hierarchical data
+  const { data: states = [] } = useQuery({
+    queryKey: ['/api/locations/states'],
+    enabled: true,
+  });
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ['/api/locations/districts', selectedState],
+    queryFn: async () => {
+      if (!selectedState) return [];
+      const response = await fetch(`/api/locations/districts?stateId=${selectedState}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch districts');
+      return response.json();
+    },
+    enabled: !!selectedState,
+  });
+
+  const { data: mandals = [] } = useQuery({
+    queryKey: ['/api/locations/mandals', selectedDistrict],
+    queryFn: async () => {
+      if (!selectedDistrict) return [];
+      const response = await fetch(`/api/locations/mandals?districtId=${selectedDistrict}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch mandals');
+      return response.json();
+    },
+    enabled: !!selectedDistrict,
+  });
+
+  const { data: villages = [] } = useQuery({
+    queryKey: ['/api/locations/villages', selectedMandal],
+    queryFn: async () => {
+      if (!selectedMandal) return [];
+      const response = await fetch(`/api/locations/villages?mandalId=${selectedMandal}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch villages');
+      return response.json();
+    },
+    enabled: !!selectedMandal,
+  });
+
+  const { data: centers = [] } = useQuery({
+    queryKey: ['/api/locations/so-centers', selectedVillage],
+    queryFn: async () => {
+      if (!selectedVillage) return [];
+      const response = await fetch(`/api/locations/so-centers?villageId=${selectedVillage}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch SO centers');
+      return response.json();
+    },
+    enabled: !!selectedVillage,
+  });
+
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes/by-center', selectedCenter],
+    queryFn: async () => {
+      if (!selectedCenter) return [];
+      const response = await fetch(`/api/classes/by-center?centerId=${selectedCenter}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch classes');
+      return response.json();
+    },
+    enabled: !!selectedCenter,
+  });
+
+  const { data: students = [] } = useQuery({
+    queryKey: ['/api/students/by-filter', selectedClass, selectedCenter],
+    queryFn: async () => {
+      if (!selectedClass && !selectedCenter) return [];
+      const params = new URLSearchParams();
+      if (selectedClass) params.append('classId', selectedClass);
+      if (selectedCenter) params.append('centerId', selectedCenter);
+      
+      const response = await fetch(`/api/students/by-filter?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch students');
+      return response.json();
+    },
+    enabled: !!(selectedClass || selectedCenter),
+  });
+
+  // Attendance data query
   const { data: attendanceData = [], isLoading } = useQuery({
-    queryKey: ['/api/admin/attendance', selectedCenter, selectedClass, selectedDate, dateRange],
+    queryKey: ['/api/attendance', selectedStudent, selectedClass, selectedCenter, selectedDate],
     queryFn: async () => {
-      return [
-        {
-          id: '1',
-          date: '2025-01-08',
-          centerId: '1',
-          centerName: 'Main Center',
-          classId: '1',
-          className: 'Class 10',
-          subject: 'Mathematics',
-          teacherName: 'Dr. Rajesh Kumar',
-          totalStudents: 25,
-          presentStudents: 22,
-          absentStudents: 3,
-          attendancePercentage: 88,
-          sessionTime: '10:00 AM - 12:00 PM',
-          students: [
-            { id: '1', name: 'Ravi Kumar', rollNumber: 'C10001', status: 'present' },
-            { id: '2', name: 'Priya Sharma', rollNumber: 'C10002', status: 'present' },
-            { id: '3', name: 'Amit Patel', rollNumber: 'C10003', status: 'absent' },
-          ]
+      const params = new URLSearchParams();
+      if (selectedStudent) params.append('studentId', selectedStudent);
+      if (selectedClass) params.append('classId', selectedClass);
+      if (selectedCenter) params.append('centerId', selectedCenter);
+      if (selectedDate) params.append('date', selectedDate);
+      
+      const response = await fetch(`/api/attendance?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
-        {
-          id: '2',
-          date: '2025-01-08',
-          centerId: '2',
-          centerName: 'Branch Center',
-          classId: '3',
-          className: 'Navodaya',
-          subject: 'Science',
-          teacherName: 'Ms. Priya Sharma',
-          totalStudents: 20,
-          presentStudents: 18,
-          absentStudents: 2,
-          attendancePercentage: 90,
-          sessionTime: '02:00 PM - 04:00 PM',
-          students: [
-            { id: '4', name: 'Rajesh Singh', rollNumber: 'NV001', status: 'present' },
-            { id: '5', name: 'Sunita Devi', rollNumber: 'NV002', status: 'present' },
-            { id: '6', name: 'Vikram Yadav', rollNumber: 'NV003', status: 'absent' },
-          ]
-        },
-        {
-          id: '3',
-          date: '2025-01-08',
-          centerId: '1',
-          centerName: 'Main Center',
-          classId: '2',
-          className: 'Class 12',
-          subject: 'Physics',
-          teacherName: 'Dr. Rajesh Kumar',
-          totalStudents: 18,
-          presentStudents: 15,
-          absentStudents: 3,
-          attendancePercentage: 83,
-          sessionTime: '03:00 PM - 05:00 PM',
-          students: [
-            { id: '7', name: 'Anita Gupta', rollNumber: 'C12001', status: 'present' },
-            { id: '8', name: 'Suresh Kumar', rollNumber: 'C12002', status: 'absent' },
-          ]
-        }
-      ];
+      });
+      if (!response.ok) throw new Error('Failed to fetch attendance');
+      return response.json();
     },
+    enabled: !!(selectedStudent || selectedClass || selectedCenter),
   });
 
-  const { data: summaryData = {
-    totalSessions: 0,
-    averageAttendance: 0,
-    totalStudents: 0,
-    totalPresent: 0,
-    totalAbsent: 0,
-    trendDirection: 'up',
-    trendPercentage: 0,
-    centerWiseData: [],
-    classWiseData: []
-  }, isLoading: summaryLoading } = useQuery({
-    queryKey: ['/api/admin/attendance-summary', dateRange],
-    queryFn: async () => {
-      return {
-        totalSessions: 15,
-        averageAttendance: 85.5,
-        totalStudents: 150,
-        totalPresent: 128,
-        totalAbsent: 22,
-        trendDirection: 'up',
-        trendPercentage: 3.2,
-        centerWiseData: [
-          { centerId: '1', centerName: 'Main Center', attendance: 87.2, sessions: 8 },
-          { centerId: '2', centerName: 'Branch Center', attendance: 83.1, sessions: 7 },
-        ],
-        classWiseData: [
-          { classId: '1', className: 'Class 10', attendance: 88.0, totalStudents: 45 },
-          { classId: '2', className: 'Class 12', attendance: 85.5, totalStudents: 35 },
-          { classId: '3', className: 'Navodaya', attendance: 82.1, totalStudents: 40 },
-          { classId: '4', className: 'POLYCET', attendance: 87.8, totalStudents: 30 },
-        ]
-      };
-    },
-  });
+  // Reset child selections when parent changes
+  useEffect(() => {
+    setSelectedDistrict('');
+    setSelectedMandal('');
+    setSelectedVillage('');
+    setSelectedCenter('');
+    setSelectedClass('');
+    setSelectedStudent('');
+  }, [selectedState]);
 
-  // Filter attendance data
-  const filteredData = attendanceData.filter(record => {
-    const matchesCenter = selectedCenter === 'all' || record.centerId === selectedCenter;
-    const matchesClass = selectedClass === 'all' || record.classId === selectedClass;
-    const matchesDate = dateRange === 'all' || record.date === format(selectedDate, 'yyyy-MM-dd');
-    
-    return matchesCenter && matchesClass && matchesDate;
-  });
+  useEffect(() => {
+    setSelectedMandal('');
+    setSelectedVillage('');
+    setSelectedCenter('');
+    setSelectedClass('');
+    setSelectedStudent('');
+  }, [selectedDistrict]);
 
-  const getAttendanceColor = (percentage: number) => {
-    if (percentage >= 85) return 'text-green-600';
-    if (percentage >= 70) return 'text-yellow-600';
-    return 'text-red-600';
+  useEffect(() => {
+    setSelectedVillage('');
+    setSelectedCenter('');
+    setSelectedClass('');
+    setSelectedStudent('');
+  }, [selectedMandal]);
+
+  useEffect(() => {
+    setSelectedCenter('');
+    setSelectedClass('');
+    setSelectedStudent('');
+  }, [selectedVillage]);
+
+  useEffect(() => {
+    setSelectedClass('');
+    setSelectedStudent('');
+  }, [selectedCenter]);
+
+  useEffect(() => {
+    setSelectedStudent('');
+  }, [selectedClass]);
+
+  // Calculate attendance statistics
+  const totalPresent = attendanceData.filter((record: AttendanceRecord) => record.status === 'present').length;
+  const totalAbsent = attendanceData.filter((record: AttendanceRecord) => record.status === 'absent').length;
+  const totalLate = attendanceData.filter((record: AttendanceRecord) => record.status === 'late').length;
+  const attendancePercentage = attendanceData.length > 0 ? Math.round((totalPresent / attendanceData.length) * 100) : 0;
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'present': return 'default';
+      case 'absent': return 'destructive';
+      case 'late': return 'secondary';
+      default: return 'outline';
+    }
   };
-
-  const getAttendanceBadge = (percentage: number) => {
-    if (percentage >= 85) return 'default';
-    if (percentage >= 70) return 'secondary';
-    return 'destructive';
-  };
-
-  if (isLoading || summaryLoading) {
-    return <div className="flex justify-center items-center h-64">Loading attendance data...</div>;
-  }
 
   return (
-    <DashboardLayout 
-      title="Attendance Monitoring" 
-      subtitle="Track student attendance across all centers and classes"
-    >
+    <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex justify-end">
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance Monitoring</h1>
+            <p className="text-muted-foreground">
+              Track student attendance with hierarchical filtering across the academy
+            </p>
+          </div>
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
             Export Report
           </Button>
         </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Hierarchical Filters */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overall Attendance</CardTitle>
-            <UserCheck className="h-4 w-4 text-blue-600" />
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Location & Student Filters
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Select filters from left to right to narrow down attendance data
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summaryData.averageAttendance}%</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              {summaryData.trendDirection === 'up' ? (
-                <TrendingUp className="h-3 w-3 text-green-600 mr-1" />
-              ) : (
-                <TrendingDown className="h-3 w-3 text-red-600 mr-1" />
-              )}
-              <span className={summaryData.trendDirection === 'up' ? 'text-green-600' : 'text-red-600'}>
-                {summaryData.trendPercentage}% from last period
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Present</CardTitle>
-            <Users className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{summaryData.totalPresent}</div>
-            <p className="text-xs text-muted-foreground">Out of {summaryData.totalStudents} students</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Absent</CardTitle>
-            <Users className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{summaryData.totalAbsent}</div>
-            <p className="text-xs text-muted-foreground">{((summaryData.totalAbsent / summaryData.totalStudents) * 100).toFixed(1)}% of total</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summaryData.totalSessions}</div>
-            <p className="text-xs text-muted-foreground">Today's sessions</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Filters</h2>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">SO Center</label>
-            <Select value={selectedCenter} onValueChange={setSelectedCenter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select center" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Centers</SelectItem>
-                <SelectItem value="1">Main Center</SelectItem>
-                <SelectItem value="2">Branch Center</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Class</label>
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                <SelectItem value="1">Class 10</SelectItem>
-                <SelectItem value="2">Class 12</SelectItem>
-                <SelectItem value="3">Navodaya</SelectItem>
-                <SelectItem value="4">POLYCET</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Date Range</label>
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="custom">Custom Date</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Select Date</label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => date && setSelectedDate(date)}
-                  initialFocus
+            <div className="space-y-4">
+              {/* Date Filter */}
+              <div className="space-y-2">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full md:w-64"
                 />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="flex items-end">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedCenter('all');
-                setSelectedClass('all');
-                setDateRange('today');
-                setSelectedDate(new Date());
-              }}
-              className="w-full"
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-      </div>
+              </div>
 
-      {/* Attendance Records Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Attendance Records</h2>
-          <p className="text-sm text-gray-600">Detailed session-wise attendance tracking</p>
-        </div>
-
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date & Time</TableHead>
-              <TableHead>Center</TableHead>
-              <TableHead>Class</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Teacher</TableHead>
-              <TableHead>Total Students</TableHead>
-              <TableHead>Present</TableHead>
-              <TableHead>Absent</TableHead>
-              <TableHead>Attendance %</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.map((record: any) => (
-              <TableRow key={record.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{new Date(record.date).toLocaleDateString()}</div>
-                    <div className="text-sm text-gray-600">{record.sessionTime}</div>
-                  </div>
-                </TableCell>
-                <TableCell>{record.centerName}</TableCell>
-                <TableCell>{record.className}</TableCell>
-                <TableCell>{record.subject}</TableCell>
-                <TableCell>{record.teacherName}</TableCell>
-                <TableCell className="text-center">{record.totalStudents}</TableCell>
-                <TableCell className="text-center">
-                  <span className="font-medium text-green-600">{record.presentStudents}</span>
-                </TableCell>
-                <TableCell className="text-center">
-                  <span className="font-medium text-red-600">{record.absentStudents}</span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getAttendanceBadge(record.attendancePercentage)}>
-                    <span className={getAttendanceColor(record.attendancePercentage)}>
-                      {record.attendancePercentage}%
-                    </span>
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button size="sm" variant="outline">
-                    View Details
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Center-wise and Class-wise Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Center-wise Performance</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {summaryData.centerWiseData?.map((center: any) => (
-                <div key={center.centerId} className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{center.centerName}</div>
-                    <div className="text-sm text-gray-600">{center.sessions} sessions</div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-medium ${getAttendanceColor(center.attendance)}`}>
-                      {center.attendance}%
-                    </div>
-                  </div>
+              {/* Location Hierarchy Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 overflow-x-auto">
+                {/* State */}
+                <div className="space-y-2 min-w-40">
+                  <Label>State</Label>
+                  <Select value={selectedState} onValueChange={setSelectedState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(states as State[]).map((state: State) => (
+                        <SelectItem key={state.id} value={state.id}>
+                          {state.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900">Class-wise Performance</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {summaryData.classWiseData?.map((classData: any) => (
-                <div key={classData.classId} className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">{classData.className}</div>
-                    <div className="text-sm text-gray-600">{classData.totalStudents} students</div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-medium ${getAttendanceColor(classData.attendance)}`}>
-                      {classData.attendance}%
-                    </div>
-                  </div>
+                {/* District */}
+                <div className="space-y-2 min-w-40">
+                  <Label>District</Label>
+                  <Select 
+                    value={selectedDistrict} 
+                    onValueChange={setSelectedDistrict}
+                    disabled={!selectedState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(districts as District[]).map((district: District) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
+
+                {/* Mandal */}
+                <div className="space-y-2 min-w-40">
+                  <Label>Mandal</Label>
+                  <Select 
+                    value={selectedMandal} 
+                    onValueChange={setSelectedMandal}
+                    disabled={!selectedDistrict}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(mandals as Mandal[]).map((mandal: Mandal) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>
+                          {mandal.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Village */}
+                <div className="space-y-2 min-w-40">
+                  <Label>Village</Label>
+                  <Select 
+                    value={selectedVillage} 
+                    onValueChange={setSelectedVillage}
+                    disabled={!selectedMandal}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(villages as Village[]).map((village: Village) => (
+                        <SelectItem key={village.id} value={village.id}>
+                          {village.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* SO Center */}
+                <div className="space-y-2 min-w-40">
+                  <Label>SO Center</Label>
+                  <Select 
+                    value={selectedCenter} 
+                    onValueChange={setSelectedCenter}
+                    disabled={!selectedVillage}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select SO Center" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(centers as SoCenter[]).map((center: SoCenter) => (
+                        <SelectItem key={center.id} value={center.id}>
+                          {center.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Class */}
+                <div className="space-y-2 min-w-40">
+                  <Label>Class</Label>
+                  <Select 
+                    value={selectedClass} 
+                    onValueChange={setSelectedClass}
+                    disabled={!selectedCenter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(classes as Class[]).map((cls: Class) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Student */}
+                <div className="space-y-2 min-w-40">
+                  <Label>Student (Optional)</Label>
+                  <Select 
+                    value={selectedStudent} 
+                    onValueChange={setSelectedStudent}
+                    disabled={!selectedClass}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(students as Student[]).map((student: Student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.name} ({student.student_id})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Attendance Statistics */}
+        {attendanceData.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{totalPresent}</p>
+                    <p className="text-xs text-muted-foreground">Present</p>
+                  </div>
+                  <UserCheck className="h-4 w-4 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{totalAbsent}</p>
+                    <p className="text-xs text-muted-foreground">Absent</p>
+                  </div>
+                  <TrendingDown className="h-4 w-4 text-red-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold text-yellow-600">{totalLate}</p>
+                    <p className="text-xs text-muted-foreground">Late</p>
+                  </div>
+                  <TrendingUp className="h-4 w-4 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-2xl font-bold">{attendancePercentage}%</p>
+                    <p className="text-xs text-muted-foreground">Attendance Rate</p>
+                  </div>
+                  <Users className="h-4 w-4" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-        </div>
+        )}
+
+        {/* Attendance Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <School className="h-5 w-5" />
+              Attendance Records
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedStudent 
+                ? `Showing attendance for selected student on ${format(new Date(selectedDate), 'MMM dd, yyyy')}`
+                : `Showing attendance records based on current filters for ${format(new Date(selectedDate), 'MMM dd, yyyy')}`
+              }
+            </p>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-muted-foreground">Loading attendance data...</div>
+              </div>
+            ) : attendanceData.length === 0 ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="text-center text-muted-foreground">
+                  <School className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No attendance records found</p>
+                  <p className="text-sm">
+                    {!selectedCenter 
+                      ? "Please select filters to view attendance data"
+                      : "No attendance records for the selected filters and date"
+                    }
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Student ID</TableHead>
+                      <TableHead>Class</TableHead>
+                      <TableHead>SO Center</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Remarks</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceData.map((record: AttendanceRecord) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">
+                          {record.student_name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{record.student_code}</Badge>
+                        </TableCell>
+                        <TableCell>{record.class_name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Building className="h-4 w-4 text-muted-foreground" />
+                            {record.center_name}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(record.date), 'MMM dd, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(record.status)}>
+                            {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {record.remarks || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

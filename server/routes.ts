@@ -3498,6 +3498,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // New hierarchical location endpoints for attendance filters
+  app.get("/api/locations/states", authenticateToken, async (req, res) => {
+    try {
+      const states = await db.select().from(schema.states).orderBy(schema.states.name);
+      res.json(states);
+    } catch (error: any) {
+      console.error('❌ Error fetching states:', error);
+      res.status(500).json({ message: 'Failed to fetch states' });
+    }
+  });
+
+  app.get("/api/locations/districts", authenticateToken, async (req, res) => {
+    try {
+      const { stateId } = req.query;
+      
+      let query = db.select().from(schema.districts);
+      
+      if (stateId) {
+        query = query.where(eq(schema.districts.stateId, stateId as string));
+      }
+      
+      const districts = await query.orderBy(schema.districts.name);
+      res.json(districts);
+    } catch (error: any) {
+      console.error('❌ Error fetching districts:', error);
+      res.status(500).json({ message: 'Failed to fetch districts' });
+    }
+  });
+
+  app.get("/api/locations/mandals", authenticateToken, async (req, res) => {
+    try {
+      const { districtId } = req.query;
+      
+      let query = db.select().from(schema.mandals);
+      
+      if (districtId) {
+        query = query.where(eq(schema.mandals.districtId, districtId as string));
+      }
+      
+      const mandals = await query.orderBy(schema.mandals.name);
+      res.json(mandals);
+    } catch (error: any) {
+      console.error('❌ Error fetching mandals:', error);
+      res.status(500).json({ message: 'Failed to fetch mandals' });
+    }
+  });
+
+  app.get("/api/locations/villages", authenticateToken, async (req, res) => {
+    try {
+      const { mandalId } = req.query;
+      
+      let query = db.select().from(schema.villages);
+      
+      if (mandalId) {
+        query = query.where(eq(schema.villages.mandalId, mandalId as string));
+      }
+      
+      const villages = await query.orderBy(schema.villages.name);
+      res.json(villages);
+    } catch (error: any) {
+      console.error('❌ Error fetching villages:', error);
+      res.status(500).json({ message: 'Failed to fetch villages' });
+    }
+  });
+
+  app.get("/api/locations/so-centers", authenticateToken, async (req, res) => {
+    try {
+      const { villageId } = req.query;
+      
+      let query = db.select().from(schema.soCenters);
+      
+      if (villageId) {
+        query = query.where(eq(schema.soCenters.villageId, villageId as string));
+      }
+      
+      const centers = await query.orderBy(schema.soCenters.name);
+      res.json(centers);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO centers:', error);
+      res.status(500).json({ message: 'Failed to fetch SO centers' });
+    }
+  });
+
+  app.get("/api/classes/by-center", authenticateToken, async (req, res) => {
+    try {
+      const { centerId } = req.query;
+      
+      if (centerId) {
+        // Get classes that have students in the specified SO center
+        const classesWithStudents = await executeRawQuery(`
+          SELECT DISTINCT c.id, c.name 
+          FROM classes c
+          INNER JOIN students s ON c.id = s.class_id
+          WHERE s.so_center_id = $1 AND s.is_active = true
+          ORDER BY c.name
+        `, [centerId]);
+        
+        res.json(classesWithStudents);
+      } else {
+        // Get all classes
+        const classes = await db.select().from(schema.classes).orderBy(schema.classes.name);
+        res.json(classes);
+      }
+    } catch (error: any) {
+      console.error('❌ Error fetching classes:', error);
+      res.status(500).json({ message: 'Failed to fetch classes' });
+    }
+  });
+
+  app.get("/api/students/by-filter", authenticateToken, async (req, res) => {
+    try {
+      const { classId, centerId } = req.query;
+      
+      let query = `
+        SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE s.is_active = true
+      `;
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (classId) {
+        query += ` AND s.class_id = $${paramIndex}`;
+        params.push(classId);
+        paramIndex++;
+      }
+
+      if (centerId) {
+        query += ` AND s.so_center_id = $${paramIndex}`;
+        params.push(centerId);
+        paramIndex++;
+      }
+
+      query += ` ORDER BY s.name`;
+
+      const students = await executeRawQuery(query, params);
+      res.json(students);
+    } catch (error: any) {
+      console.error('❌ Error fetching students:', error);
+      res.status(500).json({ message: 'Failed to fetch students' });
+    }
+  });
+
   // Students CRUD for admin
   app.get("/api/admin/students", authenticateToken, async (req, res) => {
     try {
@@ -3840,6 +3984,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin comprehensive progress tracking endpoint
+  // Attendance endpoints
+  app.get("/api/attendance", authenticateToken, async (req, res) => {
+    try {
+      const { studentId, classId, centerId, date } = req.query;
+      
+      let query = `
+        SELECT 
+          a.id,
+          a.student_id,
+          a.date,
+          a.status,
+          a.remarks,
+          s.name as student_name,
+          s.student_id as student_code,
+          c.name as class_name,
+          sc.name as center_name,
+          sc.center_id as center_code
+        FROM attendance a
+        LEFT JOIN students s ON a.student_id = s.id
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (studentId) {
+        query += ` AND a.student_id = $${paramIndex}`;
+        params.push(studentId);
+        paramIndex++;
+      }
+
+      if (classId) {
+        query += ` AND s.class_id = $${paramIndex}`;
+        params.push(classId);
+        paramIndex++;
+      }
+
+      if (centerId) {
+        query += ` AND s.so_center_id = $${paramIndex}`;
+        params.push(centerId);
+        paramIndex++;
+      }
+
+      if (date) {
+        query += ` AND a.date = $${paramIndex}`;
+        params.push(date);
+        paramIndex++;
+      }
+
+      query += ` ORDER BY a.date DESC, s.name`;
+
+      const attendanceRecords = await executeRawQuery(query, params);
+      res.json(attendanceRecords);
+    } catch (error: any) {
+      console.error('❌ Error fetching attendance:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance' });
+    }
+  });
+
   app.get("/api/admin/progress-tracking", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
