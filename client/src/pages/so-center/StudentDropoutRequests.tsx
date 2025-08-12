@@ -91,37 +91,14 @@ export default function StudentDropoutRequests() {
   // Fetch classes for dropdown
   const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
     queryKey: ["/api/classes"],
-    queryFn: () => apiRequest("GET", "/api/classes"),
   });
 
   // Ensure classes is always an array
   const classes: Class[] = Array.isArray(classesResponse) ? classesResponse : [];
 
-  // Fetch students with proper error handling
-  const { data: studentsResponse, isLoading: isLoadingStudents, error: studentsError } = useQuery({
+  // Fetch students for dropdown
+  const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
     queryKey: ["/api/students"],
-    queryFn: async () => {
-      console.log("🔍 Fetching students for dropout requests...");
-      try {
-        const response = await apiRequest("GET", "/api/students");
-        console.log("📊 Students API response:", response);
-        
-        // Ensure we always get an array
-        if (Array.isArray(response)) {
-          console.log("✅ Got array response with", response.length, "students");
-          return response;
-        } else if (response && typeof response === 'object' && response.students && Array.isArray(response.students)) {
-          console.log("✅ Got object response with", response.students.length, "students");
-          return response.students;
-        } else {
-          console.log("⚠️ Unexpected response format, returning empty array");
-          return [];
-        }
-      } catch (error) {
-        console.error("❌ Error fetching students:", error);
-        return [];
-      }
-    },
     retry: 3,
     refetchOnWindowFocus: false,
     staleTime: 0,
@@ -130,14 +107,11 @@ export default function StudentDropoutRequests() {
   
   // Ensure students is always an array and filter out invalid entries
   const allStudents = useMemo(() => {
-    console.log("🔄 Processing students response:", studentsResponse);
-    
     if (!studentsResponse || !Array.isArray(studentsResponse)) {
-      console.log("❌ No valid students response or not an array");
       return [];
     }
     
-    const validStudents = studentsResponse.filter((student: any) => 
+    return studentsResponse.filter((student: any) => 
       student && 
       typeof student === 'object' && 
       student.id && 
@@ -145,36 +119,13 @@ export default function StudentDropoutRequests() {
       student.studentId &&
       student.isActive !== false
     );
-    
-    console.log("✅ Valid students filtered:", validStudents.length, "out of", studentsResponse.length);
-    return validStudents;
   }, [studentsResponse]);
 
   // Filter students by selected class
   const filteredStudents = useMemo(() => {
-    if (!selectedClassId || !allStudents || allStudents.length === 0) {
-      console.log("🔍 No class selected or no students available");
-      return [];
-    }
-    
-    const filtered = allStudents.filter((student: Student) => student.classId === selectedClassId);
-    console.log(`🎯 Filtered students for class ${selectedClassId}:`, filtered.length);
-    return filtered;
+    if (!selectedClassId) return allStudents;
+    return allStudents.filter((student: any) => student.classId === selectedClassId);
   }, [allStudents, selectedClassId]);
-  
-  // Debug logging
-  console.log("🔍 Debug info:", {
-    studentsResponse: studentsResponse ? "exists" : "null",
-    allStudents: allStudents?.length || 0,
-    filteredStudents: filteredStudents?.length || 0,
-    selectedClassId,
-    classes: classes?.length || 0
-  });
-  
-  // If we have an error, log it
-  if (studentsError) {
-    console.error("❌ Students API Error:", studentsError);
-  }
 
   const createRequestMutation = useMutation({
     mutationFn: async (data: any) => {
