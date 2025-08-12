@@ -71,19 +71,19 @@ export default function TopicsManagement() {
     updateTopicMutation.mutate({ topicId, updates });
   };
 
-  const filteredTopics = (topics || []).filter((topic: Topic) => {
+  const filteredTopics = Array.isArray(topics) ? topics.filter((topic: Topic) => {
     const matchesSearch = topic.topicName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          topic.chapterName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = !filterClass || topic.className === filterClass;
     const matchesSubject = !filterSubject || topic.subjectName === filterSubject;
     return matchesSearch && matchesClass && matchesSubject;
-  });
+  }) : [];
 
-  const uniqueClasses = Array.from(new Set((topics || []).map((t: Topic) => t.className))).filter(Boolean);
-  const uniqueSubjects = Array.from(new Set((topics || []).map((t: Topic) => t.subjectName))).filter(Boolean);
+  const uniqueClasses = Array.from(new Set(Array.isArray(topics) ? topics.map((t: Topic) => t.className) : [])).filter(Boolean);
+  const uniqueSubjects = Array.from(new Set(Array.isArray(topics) ? topics.map((t: Topic) => t.subjectName) : [])).filter(Boolean);
 
-  const moderateCount = (topics || []).filter((t: Topic) => t.isModerate).length;
-  const importantCount = (topics || []).filter((t: Topic) => t.isImportant).length;
+  const moderateCount = Array.isArray(topics) ? topics.filter((t: Topic) => t.isModerate).length : 0;
+  const importantCount = Array.isArray(topics) ? topics.filter((t: Topic) => t.isImportant).length : 0;
 
   if (isLoading) {
     return (
