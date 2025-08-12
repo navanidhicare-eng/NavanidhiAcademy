@@ -55,6 +55,60 @@ export default function SoCenterExamManagement() {
   // Get SO Center ID from logged-in user (assuming user has soCenterId or similar field)
   const soCenterId = user?.id; // Using user ID for now, will be mapped server-side
 
+  // Mark exam as completed mutation - moved to top
+  const markCompletedMutation = useMutation({
+    mutationFn: async (examId: string) => {
+      const response = await apiRequest('POST', `/api/so-center/exams/${examId}/complete`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Exam Marked Complete",
+        description: "The exam has been marked as completed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: `Failed to mark exam as completed. ${error.message || ''}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Submit results mutation - moved to top
+  const submitResultsMutation = useMutation({
+    mutationFn: async ({ examId, results }: { examId: string; results: ExamResultStudent[] }) => {
+      const response = await apiRequest('POST', `/api/so-center/exams/${examId}/results`, {
+        results: results,
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Results Submitted",
+        description: "Exam results have been posted successfully.",
+      });
+      setIsResultsModalOpen(false);
+      setExamResults([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: `Failed to submit results. ${error.message || ''}`,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Get SO Center exams with error handling and caching
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/exams'],
@@ -181,59 +235,7 @@ export default function SoCenterExamManagement() {
   }
 
 
-  // Mark exam as completed mutation
-  const markCompletedMutation = useMutation({
-    mutationFn: async (examId: string) => {
-      const response = await apiRequest('POST', `/api/so-center/exams/${examId}/complete`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Exam Marked Complete",
-        description: "The exam has been marked as completed successfully.",
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: `Failed to mark exam as completed. ${error.message || ''}`,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Submit results mutation
-  const submitResultsMutation = useMutation({
-    mutationFn: async ({ examId, results }: { examId: string; results: ExamResultStudent[] }) => {
-      const response = await apiRequest('POST', `/api/so-center/exams/${examId}/results`, {
-        results: results,
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Results Submitted",
-        description: "Exam results have been posted successfully.",
-      });
-      setIsResultsModalOpen(false);
-      setExamResults([]);
-      queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: `Failed to submit results. ${error.message || ''}`,
-        variant: "destructive",
-      });
-    },
-  });
+  
 
   const openResultsModal = (exam: any) => {
     setSelectedExamId(exam.id);
