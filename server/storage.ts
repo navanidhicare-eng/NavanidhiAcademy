@@ -995,14 +995,37 @@ export class DrizzleStorage implements IStorage {
   }
 
   async createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction> {
-    const result = await db.insert(schema.walletTransactions).values(transaction).returning();
-    return result[0];
+    // Map the schema fields to the actual database structure
+    const dbTransaction = {
+      id: transaction.id || undefined, // Let DB generate if not provided
+      user_id: transaction.soCenterId, // Map soCenterId to user_id in actual DB
+      transaction_id: `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      status: 'completed', // Default status for wallet transactions
+      created_at: new Date()
+    };
+    
+    // Use raw SQL since the schema doesn't match the actual database
+    const result = await db.execute(sql`
+      INSERT INTO wallet_transactions (user_id, transaction_id, type, amount, description, status, created_at)
+      VALUES (${dbTransaction.user_id}, ${dbTransaction.transaction_id}, ${dbTransaction.type}, ${dbTransaction.amount}, ${dbTransaction.description}, ${dbTransaction.status}, ${dbTransaction.created_at})
+      RETURNING *
+    `);
+    
+    return result.rows[0] as WalletTransaction;
   }
 
   async getWalletTransactions(soCenterId: string): Promise<WalletTransaction[]> {
-    return await db.select().from(schema.walletTransactions)
-      .where(eq(schema.walletTransactions.soCenterId, soCenterId))
-      .orderBy(desc(schema.walletTransactions.createdAt));
+    // Use raw SQL since the schema doesn't match the actual database structure
+    const result = await db.execute(sql`
+      SELECT * FROM wallet_transactions 
+      WHERE user_id = ${soCenterId}
+      ORDER BY created_at DESC
+    `);
+    
+    return result.rows as WalletTransaction[];
   }
 
   // Get payments by student for payment history
