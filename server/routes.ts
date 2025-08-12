@@ -6000,6 +6000,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all exam results for a specific exam (SO Center filtered)
+  app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      const { examId } = req.params;
+      console.log('📊 Fetching all results for exam:', examId);
+
+      // Get SO Center for this user
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(403).json({ message: "SO Center not found for user" });
+      }
+
+      // Get all results for this exam for students from this SO Center
+      const results = await db
+        .select({
+          id: schema.examResults.id,
+          studentId: schema.examResults.studentId,
+          examId: schema.examResults.examId,
+          marksObtained: schema.examResults.marksObtained,
+          answeredQuestions: schema.examResults.answeredQuestions,
+          detailedResults: schema.examResults.detailedResults,
+          createdAt: schema.examResults.createdAt,
+          updatedAt: schema.examResults.updatedAt,
+          // Include student info for verification
+          studentName: schema.students.name,
+          studentNumber: schema.students.studentId
+        })
+        .from(schema.examResults)
+        .leftJoin(schema.students, eq(schema.examResults.studentId, schema.students.id))
+        .where(
+          and(
+            eq(schema.examResults.examId, examId),
+            eq(schema.students.soCenterId, soCenter.id)
+          )
+        )
+        .orderBy(schema.examResults.createdAt);
+
+      console.log(`📊 Found ${results.length} results for exam ${examId} in SO Center ${soCenter.centerId}`);
+      
+      // Calculate percentage for each result that doesn't have it
+      const exam = await db.select()
+        .from(schema.exams)
+        .where(eq(schema.exams.id, examId))
+        .limit(1);
+        
+      const examTotalMarks = exam.length > 0 ? Number(exam[0].totalMarks) : 0;
+      
+      const resultsWithPercentage = results.map(result => ({
+        ...result,
+        percentage: examTotalMarks > 0 ? Math.round((result.marksObtained / examTotalMarks) * 100) : 0
+      }));
+
+      res.json(resultsWithPercentage);
+    } catch (error: any) {
+      console.error('❌ Error fetching exam results:', error);
+      res.status(500).json({ message: 'Failed to fetch exam results' });
+    }
+  });
+
   // Get individual student results for an exam
   app.get('/api/exams/:examId/student-results/:studentId', authenticateToken, async (req, res) => {
     try {

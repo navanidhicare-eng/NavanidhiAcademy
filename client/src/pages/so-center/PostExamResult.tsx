@@ -120,12 +120,24 @@ export default function PostExamResult() {
       }
       const resultsData = await response.json();
       console.log('📊 Results response:', resultsData);
+      console.log('📊 Results data type:', typeof resultsData, 'isArray:', Array.isArray(resultsData));
+      if (Array.isArray(resultsData)) {
+        console.log('📊 Sample result structure:', resultsData.length > 0 ? resultsData[0] : 'Empty array');
+        if (resultsData.length > 0) {
+          resultsData.forEach((result, index) => {
+            console.log(`📊 Result ${index}:`, result);
+          });
+        } else {
+          console.log('⚠️ Results array is empty - no saved results found');
+        }
+      }
       return Array.isArray(resultsData) ? resultsData : [];
     },
     enabled: !!examId,
-    staleTime: 30 * 1000, // 30 seconds cache - results change frequently
-    cacheTime: 2 * 60 * 1000, // 2 minutes cache
+    staleTime: 0, // No cache - always fetch fresh for debugging
+    cacheTime: 0, // No cache
     refetchOnWindowFocus: true, // Refetch when window gains focus
+    refetchInterval: 2000 // Refetch every 2 seconds for debugging
   });
 
   const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
@@ -135,6 +147,15 @@ export default function PostExamResult() {
       console.log('✅ Exam data loaded successfully');
     }
   }, [examId, exam, students, examQuestions]);
+
+  useEffect(() => {
+    console.log('🔄 existingResults changed:', {
+      type: typeof existingResults,
+      isArray: Array.isArray(existingResults),
+      length: existingResults?.length,
+      data: existingResults
+    });
+  }, [existingResults]);
 
 
   // Save student result mutation
@@ -181,46 +202,9 @@ export default function PostExamResult() {
         const updatedResult = data.results[0];
         console.log('🔄 Processing response data:', updatedResult);
         
-        // Update the existing results in the query cache
-        queryClient.setQueryData(['/api/exams', examId, 'results'], (oldData: any) => {
-          if (!Array.isArray(oldData)) return [];
-          
-          const existingIndex = oldData.findIndex((result: any) => 
-            result.studentId === updatedResult.studentId
-          );
-          
-          console.log('📝 Cache update - existing index:', existingIndex, 'for student:', updatedResult.studentId);
-          
-          if (existingIndex >= 0) {
-            // Update existing result
-            oldData[existingIndex] = {
-              ...oldData[existingIndex],
-              marksObtained: updatedResult.totalScore,
-              percentage: updatedResult.percentage,
-              answeredQuestions: updatedResult.status === 'completed' ? 'fully_answered' : 'not_answered',
-              updatedAt: new Date().toISOString()
-            };
-            console.log('✅ Updated existing result at index:', existingIndex);
-          } else {
-            // Add new result
-            const newResult = {
-              id: `temp-${Date.now()}`,
-              examId: examId,
-              studentId: updatedResult.studentId,
-              marksObtained: updatedResult.totalScore,
-              percentage: updatedResult.percentage,
-              answeredQuestions: updatedResult.status === 'completed' ? 'fully_answered' : 'not_answered',
-              detailedResults: null,
-              submittedAt: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
-            };
-            oldData.push(newResult);
-            console.log('✅ Added new result:', newResult);
-          }
-          
-          return [...oldData];
-        });
+        // Simply invalidate the cache to force a fresh fetch
+        console.log('🔄 Invalidating cache after save to force fresh data fetch');
+        queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
       }
       
       // Force immediate refresh of results data
@@ -369,9 +353,27 @@ export default function PostExamResult() {
 
   const getStudentResult = (studentId: string) => {
     if (!existingResults || !Array.isArray(existingResults)) {
+      console.log('❌ getStudentResult: No results or not array', { 
+        existingResults, 
+        isArray: Array.isArray(existingResults),
+        length: existingResults?.length
+      });
       return null;
     }
-    return existingResults.find((result: any) => result.studentId === studentId);
+    console.log('🔍 getStudentResult searching in results:', existingResults.length, 'items');
+    console.log('🔍 First few results:', existingResults.slice(0, 3));
+    const result = existingResults.find((result: any) => result.studentId === studentId);
+    console.log('🔍 getStudentResult for student:', studentId, 'found:', result ? 'YES' : 'NO', result);
+    
+    // Debug: Also check if maybe the field name is different
+    if (!result) {
+      const resultByStudentId = existingResults.find((r: any) => r.student_id === studentId);
+      const resultById = existingResults.find((r: any) => r.id === studentId);
+      console.log('🔍 Alternative searches - by student_id:', resultByStudentId ? 'YES' : 'NO');
+      console.log('🔍 Alternative searches - by id:', resultById ? 'YES' : 'NO');
+    }
+    
+    return result;
   };
 
   const getStudentStatus = (studentId: string) => {
