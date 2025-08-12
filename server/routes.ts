@@ -4543,26 +4543,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = [];
       
       for (const activity of activities) {
+        // Get student details to determine classId
+        const student = await storage.getStudentById(activity.studentId);
+        if (!student) {
+          return res.status(400).json({ message: `Student not found: ${activity.studentId}` });
+        }
+
         const homeworkData = {
-          student_id: activity.studentId,
+          studentId: activity.studentId,
+          classId: student.classId,
+          homeworkDate: activity.date,
           status: activity.status,
-          completion_type: activity.completionType,
+          completionType: activity.completionType,
           reason: activity.reason,
-          activity_date: activity.date,
-          recorded_by: req.user.userId,
-          created_at: new Date().toISOString()
         };
 
         // Insert or update homework activity
         const result = await db.insert(schema.homeworkActivities).values(homeworkData)
           .onConflictDoUpdate({
-            target: [schema.homeworkActivities.student_id, schema.homeworkActivities.activity_date],
+            target: [schema.homeworkActivities.studentId, schema.homeworkActivities.homeworkDate],
             set: {
               status: homeworkData.status,
-              completion_type: homeworkData.completion_type,
+              completionType: homeworkData.completionType,
               reason: homeworkData.reason,
-              recorded_by: homeworkData.recorded_by,
-              updated_at: new Date().toISOString()
+              updatedAt: new Date(),
             }
           })
           .returning();

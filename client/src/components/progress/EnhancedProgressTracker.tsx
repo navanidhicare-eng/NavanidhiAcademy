@@ -305,7 +305,7 @@ export function EnhancedProgressTracker() {
       studentId: selectedStudentHomework,
       date: homeworkDate,
       status: homeworkStatus,
-      completionMethod: homeworkStatus === 'completed' ? completionMethod : undefined,
+      completionType: homeworkStatus === 'completed' ? completionMethod : undefined,
       reason: homeworkStatus === 'not_completed' ? notCompletedReason.trim() : undefined,
     };
 
@@ -527,13 +527,13 @@ export function EnhancedProgressTracker() {
                           <SelectValue placeholder="Did the student complete it on their own?" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="alone">
+                          <SelectItem value="self">
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-blue-600" />
                               Did the student complete it on their own?
                             </div>
                           </SelectItem>
-                          <SelectItem value="so_help">
+                          <SelectItem value="helped_by_so">
                             <div className="flex items-center gap-2">
                               <Users className="h-4 w-4 text-orange-600" />
                               Did SO help the student to complete it?
@@ -623,7 +623,7 @@ export function EnhancedProgressTracker() {
                                 <div className="font-medium">{student?.name} ({student?.studentId})</div>
                                 <div className="text-sm text-muted-foreground">
                                   Status: {activity.status === 'completed' ? 'Completed' : activity.status === 'not_completed' ? 'Not Completed' : 'Not Given'}
-                                  {activity.completionMethod && ` - ${activity.completionMethod === 'alone' ? 'On their own' : 'With SO help'}`}
+                                  {activity.completionType && ` - ${activity.completionType === 'self' ? 'On their own' : 'With SO help'}`}
                                   {activity.reason && ` - Reason: ${activity.reason}`}
                                 </div>
                               </div>
