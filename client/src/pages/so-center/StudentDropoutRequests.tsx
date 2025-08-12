@@ -88,22 +88,49 @@ export default function StudentDropoutRequests() {
   // Ensure requests is always an array
   const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
-  // Fetch classes for dropdown - only classes with students in this SO Center
+  // Fetch classes for dropdown - use manual fetch to avoid caching issues
   const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
-    queryKey: ["/api/classes"],
-    queryFn: () => apiRequest("GET", "/api/classes"),
+    queryKey: ["/api/classes", "dropout-manual"],
+    queryFn: async () => {
+      const response = await fetch('/api/classes', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   // Ensure classes is always an array
   const classes: Class[] = Array.isArray(classesResponse) ? classesResponse : [];
 
-  // Fetch students for dropdown
+  // Fetch students for dropdown - use manual fetch to avoid caching issues
   const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
-    queryKey: ["/api/students"],
+    queryKey: ["/api/students", "dropout-manual"],
+    queryFn: async () => {
+      const response = await fetch('/api/students', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
     retry: 3,
     refetchOnWindowFocus: false,
     staleTime: 0,
-    gcTime: 0,
+    cacheTime: 0,
   });
   
   // Ensure students is always an array and filter out invalid entries
