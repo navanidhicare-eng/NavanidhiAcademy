@@ -276,8 +276,8 @@ function AttendanceReportsTab({
     enabled: !!selectedSoCenter,
   });
 
-  // Group attendance data by center for table display
-  const groupedAttendanceData = centerAttendanceReport.reduce((acc: any, record: any) => {
+  // Group attendance data by center for table display - ensure centerAttendanceReport is an array
+  const groupedAttendanceData = (centerAttendanceReport || []).reduce((acc: any, record: any) => {
     const key = record.centerId;
     if (!acc[key]) {
       acc[key] = {
