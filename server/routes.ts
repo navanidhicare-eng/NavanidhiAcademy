@@ -4834,12 +4834,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const examData = insertExamSchema.parse(req.body);
       const userId = req.user?.userId;
 
+      // Filter out undefined startTime and endTime to avoid database errors
+      const { startTime, endTime, ...filteredExamData } = examData;
+      const insertData: any = {
+        ...filteredExamData,
+        createdBy: userId,
+      };
+
+      // Only add startTime and endTime if they exist in the database schema
+      if (startTime !== undefined) {
+        insertData.startTime = startTime;
+      }
+      if (endTime !== undefined) {
+        insertData.endTime = endTime;
+      }
+
       const [newExam] = await db
         .insert(schema.exams)
-        .values({
-          ...examData,
-          createdBy: userId,
-        })
+        .values(insertData)
         .returning();
 
       console.log('✅ Exam created successfully:', newExam.id);
@@ -4858,12 +4870,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const examData = insertExamSchema.parse(req.body);
 
+      // Filter out undefined startTime and endTime to avoid database errors
+      const { startTime, endTime, ...filteredExamData } = examData;
+      const updateData: any = {
+        ...filteredExamData,
+        updatedAt: new Date(),
+      };
+
+      // Only add startTime and endTime if they exist in the database schema
+      if (startTime !== undefined) {
+        updateData.startTime = startTime;
+      }
+      if (endTime !== undefined) {
+        updateData.endTime = endTime;
+      }
+
       const [updatedExam] = await db
         .update(schema.exams)
-        .set({
-          ...examData,
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(schema.exams.id, examId))
         .returning();
 

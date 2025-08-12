@@ -709,11 +709,15 @@ export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  startTime: true, // Remove start time from required fields
+  endTime: true,   // Remove end time from required fields
 }).extend({
   questions: z.union([
     z.string(), // Allow JSON string
     z.array(z.any()).transform((arr) => JSON.stringify(arr)) // Transform array to JSON string
   ]).optional(),
+  startTime: z.string().optional(), // Make optional
+  endTime: z.string().optional(),   // Make optional
 });
 
 export const insertExamResultSchema = createInsertSchema(examResults).omit({
