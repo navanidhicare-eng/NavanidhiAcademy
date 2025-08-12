@@ -146,6 +146,11 @@ function Router() {
           <SoCenterExamManagement />
         </ProtectedRoute>
       </Route>
+      <Route path="/exam-management">
+        <ProtectedRoute>
+          <SoCenterExamManagement />
+        </ProtectedRoute>
+      </Route>
       <Route path="/so-center/exams">
         <ProtectedRoute>
           <SoCenterExams />
