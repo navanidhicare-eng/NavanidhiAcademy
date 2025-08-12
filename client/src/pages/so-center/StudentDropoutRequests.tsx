@@ -66,6 +66,7 @@ interface Student {
 
 export default function StudentDropoutRequests() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [reason, setReason] = useState("");
   const { toast } = useToast();
@@ -79,6 +80,15 @@ export default function StudentDropoutRequests() {
   // Ensure requests is always an array
   const requests = Array.isArray(requestsResponse) ? requestsResponse : [];
 
+  // Fetch classes for dropdown
+  const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
+    queryKey: ["/api/classes"],
+    queryFn: () => apiRequest("GET", "/api/classes"),
+  });
+
+  // Ensure classes is always an array
+  const classes = Array.isArray(classesResponse) ? classesResponse : [];
+
   const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
     queryKey: ["/api/students"],
     queryFn: () => apiRequest("GET", "/api/students"),
@@ -89,7 +99,7 @@ export default function StudentDropoutRequests() {
   });
   
   // Ensure students is always an array and filter out invalid entries
-  const students = useMemo(() => {
+  const allStudents = useMemo(() => {
     if (!studentsResponse) return [];
     if (Array.isArray(studentsResponse)) {
       return studentsResponse.filter((student: any) => 
@@ -103,10 +113,17 @@ export default function StudentDropoutRequests() {
     // If response is an object but not an array, return empty array
     return [];
   }, [studentsResponse]);
+
+  // Filter students by selected class
+  const filteredStudents = useMemo(() => {
+    if (!selectedClassId) return allStudents;
+    return allStudents.filter((student: any) => student.classId === selectedClassId);
+  }, [allStudents, selectedClassId]);
   
   // Debug logging
   console.log("Students received:", studentsResponse);
-  console.log("Filtered students:", students);
+  console.log("All students:", allStudents);
+  console.log("Filtered students by class:", filteredStudents);
   
   // If we have an error, log it
   if (studentsError) {
@@ -123,9 +140,7 @@ export default function StudentDropoutRequests() {
         title: "Success",
         description: "Dropout request submitted successfully",
       });
-      setIsCreateDialogOpen(false);
-      setSelectedStudentId("");
-      setReason("");
+      handleDialogClose();
     },
     onError: (error: any) => {
       toast({
@@ -150,6 +165,13 @@ export default function StudentDropoutRequests() {
       studentId: selectedStudentId,
       reason: reason.trim(),
     });
+  };
+
+  const handleDialogClose = () => {
+    setIsCreateDialogOpen(false);
+    setSelectedClassId("");
+    setSelectedStudentId("");
+    setReason("");
   };
 
   const getStatusBadge = (status: string) => {
@@ -315,7 +337,9 @@ export default function StudentDropoutRequests() {
         </Card>
 
         {/* Create Request Dialog */}
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {
+          if (!open) handleDialogClose();
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Submit Dropout Request</DialogTitle>
@@ -325,23 +349,58 @@ export default function StudentDropoutRequests() {
             </DialogHeader>
             
             <div className="space-y-4">
+              {/* Class Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="class">Select Class</Label>
+                <Select value={selectedClassId} onValueChange={(value) => {
+                  setSelectedClassId(value);
+                  setSelectedStudentId(""); // Reset student selection when class changes
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingClasses ? (
+                      <SelectItem value="loading" disabled>
+                        Loading classes...
+                      </SelectItem>
+                    ) : classes.length === 0 ? (
+                      <SelectItem value="no-classes" disabled>
+                        No classes found
+                      </SelectItem>
+                    ) : (
+                      classes.map((classItem: any) => (
+                        <SelectItem key={classItem.id} value={classItem.id}>
+                          {classItem.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Student Selection */}
               <div className="space-y-2">
                 <Label htmlFor="student">Select Student</Label>
-                <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                <Select 
+                  value={selectedStudentId} 
+                  onValueChange={setSelectedStudentId}
+                  disabled={!selectedClassId}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a student" />
+                    <SelectValue placeholder={selectedClassId ? "Select a student" : "Please select a class first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {isLoadingStudents ? (
                       <SelectItem value="loading" disabled>
                         Loading students...
                       </SelectItem>
-                    ) : students.length === 0 ? (
+                    ) : filteredStudents.length === 0 ? (
                       <SelectItem value="no-students" disabled>
-                        No students found
+                        {selectedClassId ? "No students found in this class" : "No students found"}
                       </SelectItem>
                     ) : (
-                      students
+                      filteredStudents
                         .filter((student: Student) => student && student.id && student.name)
                         .map((student: Student) => {
                           const totalAmount = parseFloat(student.totalFeeAmount || '0');
@@ -368,8 +427,8 @@ export default function StudentDropoutRequests() {
                     )}
                   </SelectContent>
                 </Select>
-                {selectedStudentId && students.length > 0 && (() => {
-                  const selectedStudent = students.find((s: Student) => s.id === selectedStudentId);
+                {selectedStudentId && filteredStudents.length > 0 && (() => {
+                  const selectedStudent = filteredStudents.find((s: Student) => s.id === selectedStudentId);
                   if (selectedStudent) {
                     const totalAmount = parseFloat((selectedStudent as any).totalFeeAmount || '0');
                     const paidAmount = parseFloat((selectedStudent as any).paidAmount || '0');
@@ -415,7 +474,7 @@ export default function StudentDropoutRequests() {
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
+                onClick={handleDialogClose}
               >
                 Cancel
               </Button>
