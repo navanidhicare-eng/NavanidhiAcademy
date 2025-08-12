@@ -509,9 +509,9 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
   };
 
   // Prepare attendance pie chart data
-  const attendancePieData = attendanceData ? [
-    { name: 'Present', value: attendanceData.presentDays, color: '#00C49F' },
-    { name: 'Absent', value: attendanceData.absentDays, color: '#FF8042' }
+  const attendancePieData = (attendanceData as any)?.presentDays ? [
+    { name: 'Present', value: (attendanceData as any).presentDays, color: '#00C49F' },
+    { name: 'Absent', value: (attendanceData as any).absentDays, color: '#FF8042' }
   ] : [];
 
   return (
@@ -520,10 +520,10 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <User className="h-6 w-6" />
-            {studentDetails?.name || student.name} - Detailed Profile
+            {(studentDetails as any)?.name || student.name} - Detailed Profile
           </DialogTitle>
           <DialogDescription>
-            Comprehensive academic and personal information for student ID: {studentDetails?.studentCode || student.studentId}
+            Comprehensive academic and personal information for student ID: {(studentDetails as any)?.studentCode || student.studentId}
           </DialogDescription>
         </DialogHeader>
 
@@ -573,27 +573,27 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Full Name</p>
-                        <p className="text-gray-900">{studentDetails.name}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.name || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Student ID</p>
-                        <p className="text-gray-900 font-mono">{studentDetails.studentCode}</p>
+                        <p className="text-gray-900 font-mono">{(studentDetails as any)?.studentCode || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Date of Birth</p>
-                        <p className="text-gray-900">{formatDate(studentDetails.dateOfBirth)}</p>
+                        <p className="text-gray-900">{formatDate((studentDetails as any)?.dateOfBirth)}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Enrollment Date</p>
-                        <p className="text-gray-900">{formatDate(studentDetails.enrollmentDate)}</p>
+                        <p className="text-gray-900">{formatDate((studentDetails as any)?.enrollmentDate)}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Class</p>
-                        <p className="text-gray-900">{studentDetails.className}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.className || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">SO Center</p>
-                        <p className="text-gray-900">{studentDetails.soCenterName}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.soCenterName || 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -611,15 +611,15 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     <div className="space-y-3 text-sm">
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Student Phone</p>
-                        <p className="text-gray-900">{studentDetails.phone || 'N/A'}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.phone || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Parent/Guardian Phone</p>
-                        <p className="text-gray-900">{studentDetails.parentPhone || 'N/A'}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.parentPhone || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Email</p>
-                        <p className="text-gray-900">{studentDetails.email || 'N/A'}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.email || 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -637,19 +637,19 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="font-medium text-gray-600 mb-1">State</p>
-                        <p className="text-gray-900">{studentDetails.location?.state}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.location?.state || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">District</p>
-                        <p className="text-gray-900">{studentDetails.location?.district}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.location?.district || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Mandal</p>
-                        <p className="text-gray-900">{studentDetails.location?.mandal}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.location?.mandal || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="font-medium text-gray-600 mb-1">Village</p>
-                        <p className="text-gray-900">{studentDetails.location?.village}</p>
+                        <p className="text-gray-900">{(studentDetails as any)?.location?.village || 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -664,11 +664,11 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {attendanceData ? (
+                    {(attendanceData as any)?.attendancePercentage !== undefined ? (
                       <div className="space-y-4">
                         <div className="text-center">
                           <div className="text-3xl font-bold text-green-600">
-                            {attendanceData.attendancePercentage}%
+                            {(attendanceData as any).attendancePercentage}%
                           </div>
                           <p className="text-sm text-gray-600">Overall Attendance</p>
                         </div>
@@ -696,15 +696,15 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                         <div className="grid grid-cols-3 gap-4 text-center text-sm">
                           <div>
                             <p className="font-medium text-gray-600">Total Days</p>
-                            <p className="text-lg font-bold text-blue-600">{attendanceData.totalDays}</p>
+                            <p className="text-lg font-bold text-blue-600">{(attendanceData as any).totalDays || 0}</p>
                           </div>
                           <div>
                             <p className="font-medium text-gray-600">Present</p>
-                            <p className="text-lg font-bold text-green-600">{attendanceData.presentDays}</p>
+                            <p className="text-lg font-bold text-green-600">{(attendanceData as any).presentDays || 0}</p>
                           </div>
                           <div>
                             <p className="font-medium text-gray-600">Absent</p>
-                            <p className="text-lg font-bold text-red-600">{attendanceData.absentDays}</p>
+                            <p className="text-lg font-bold text-red-600">{(attendanceData as any).absentDays || 0}</p>
                           </div>
                         </div>
                       </div>
@@ -718,7 +718,7 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
 
             {/* Progress Tab */}
             <TabsContent value="progress" className="space-y-6">
-              {progressData && progressData.subjectData ? (
+              {(progressData as any)?.subjectData?.length > 0 ? (
                 <div className="space-y-6">
                   {/* Subject-wise Performance Bar Chart */}
                   <Card>
@@ -731,7 +731,7 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     <CardContent>
                       <div className="h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={progressData.subjectData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                          <BarChart data={(progressData as any).subjectData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis 
                               dataKey="subject" 
@@ -752,7 +752,7 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                   </Card>
 
                   {/* Performance Trend Line Chart */}
-                  {attendanceData?.monthlyTrend && (
+                  {(attendanceData as any)?.monthlyTrend?.length > 0 && (
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -763,7 +763,7 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                       <CardContent>
                         <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={attendanceData.monthlyTrend} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <LineChart data={(attendanceData as any).monthlyTrend} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                               <CartesianGrid strokeDasharray="3 3" />
                               <XAxis dataKey="month" />
                               <YAxis domain={[0, 100]} />
@@ -789,7 +789,7 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
 
                   {/* Subject Summary Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {progressData.subjectData.map((subject: any, index: number) => (
+                    {(progressData as any).subjectData.map((subject: any, index: number) => (
                       <Card key={subject.subject}>
                         <CardContent className="pt-6">
                           <div className="text-center space-y-2">
@@ -837,9 +837,9 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {progressData?.recentHomework?.length > 0 ? (
+                    {(progressData as any)?.recentHomework?.length > 0 ? (
                       <div className="space-y-3">
-                        {progressData.recentHomework.map((hw: any) => (
+                        {(progressData as any).recentHomework.map((hw: any) => (
                           <div key={hw.id} className="border rounded-lg p-3">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-medium text-gray-900">{hw.subject}</h4>
@@ -870,9 +870,9 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {progressData?.recentTuition?.length > 0 ? (
+                    {(progressData as any)?.recentTuition?.length > 0 ? (
                       <div className="space-y-3">
-                        {progressData.recentTuition.map((tp: any) => (
+                        {(progressData as any).recentTuition.map((tp: any) => (
                           <div key={tp.id} className="border rounded-lg p-3">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-medium text-gray-900">{tp.subject}</h4>
@@ -902,9 +902,9 @@ function StudentDetailsModal({ student, onClose }: { student: any; onClose: () =
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {attendanceData?.recentAttendance?.length > 0 ? (
+                    {(attendanceData as any)?.recentAttendance?.length > 0 ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {attendanceData.recentAttendance.map((record: any) => (
+                        {(attendanceData as any).recentAttendance.map((record: any) => (
                           <div key={record.id} className="border rounded-lg p-3 text-center">
                             <div className={`text-sm font-medium mb-1 ${
                               record.status === 'present' 
