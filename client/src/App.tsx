@@ -35,7 +35,7 @@ import AdminTeachers from "@/pages/admin/Teachers";
 import AdminAttendance from "@/pages/admin/Attendance";
 import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminApprovals from "@/pages/admin/Approvals";
-import AdminProgressTracking from "@/pages/admin/ProgressTracking";
+
 import AdminProducts from "@/pages/admin/Products";
 import AdminStudents from "@/pages/admin/Students";
 import AcademicDashboard from "@/pages/admin/AcademicDashboard";
@@ -274,11 +274,7 @@ function Router() {
           <AdminApprovals />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/progress-tracking">
-        <ProtectedRoute>
-          <AdminProgressTracking />
-        </ProtectedRoute>
-      </Route>
+
       
       {/* New Features: Topics Management & Dropout Requests */}
       <Route path="/admin/topics-management">
