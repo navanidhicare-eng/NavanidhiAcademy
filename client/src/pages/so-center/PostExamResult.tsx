@@ -140,11 +140,25 @@ export default function PostExamResult() {
   // Save student result mutation
   const saveResultMutation = useMutation({
     mutationFn: async (resultData: StudentExamResult) => {
-      const response = await apiRequest('POST', `/api/exams/${examId}/student-results`, {
-        studentId: resultData.studentId,
-        questionResults: resultData.questionResults,
-        totalMarks: resultData.totalMarks,
-      });
+      // Prepare the data with proper format for the bulk update API
+      const bulkData = {
+        students: [{
+          studentId: resultData.studentId,
+          marks: resultData.questionResults.map((qr, index) => ({
+            questionNumber: index + 1,
+            score: qr.obtainedMarks,
+            maxMarks: qr.maxMarks
+          })),
+          totalScore: resultData.totalMarks,
+          performance: resultData.questionResults.map(qr => qr.assessment)
+        }]
+      };
+
+      const response = await apiRequest('POST', `/api/exams/${examId}/results/update`, bulkData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save results');
+      }
       return response.json();
     },
     onSuccess: (data, variables) => {
@@ -154,14 +168,49 @@ export default function PostExamResult() {
       });
       setIsMarkingModalOpen(false);
       
-      // Invalidate and refetch all related queries to update the UI
-      queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
-      queryClient.refetchQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      // Immediately update the UI with the returned data
+      if (data.results && data.results.length > 0) {
+        const updatedResult = data.results[0];
+        
+        // Update the existing results in the query cache
+        queryClient.setQueryData(['/api/exams', examId, 'results'], (oldData: any) => {
+          if (!Array.isArray(oldData)) return oldData;
+          
+          const existingIndex = oldData.findIndex((result: any) => 
+            result.studentId === updatedResult.studentId
+          );
+          
+          if (existingIndex >= 0) {
+            // Update existing result
+            oldData[existingIndex] = {
+              ...oldData[existingIndex],
+              marksObtained: updatedResult.totalScore,
+              percentage: updatedResult.percentage,
+              answeredQuestions: updatedResult.status === 'completed' ? 'fully_answered' : 'not_answered',
+              updatedAt: new Date().toISOString()
+            };
+          } else {
+            // Add new result
+            oldData.push({
+              id: `temp-${Date.now()}`,
+              examId: examId,
+              studentId: updatedResult.studentId,
+              marksObtained: updatedResult.totalScore,
+              percentage: updatedResult.percentage,
+              answeredQuestions: updatedResult.status === 'completed' ? 'fully_answered' : 'not_answered',
+              detailedResults: null,
+              submittedAt: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+          
+          return [...oldData];
+        });
+      }
       
-      // Force a refresh of the existing results
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
-      }, 100);
+      // Also invalidate to ensure fresh data on next fetch
+      queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
       
       // Reset the selected student
       setSelectedStudent(null);
@@ -171,7 +220,7 @@ export default function PostExamResult() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to save result. Please try again.",
+        description: error.message || "Failed to save result. Please try again.",
         variant: "destructive",
       });
     },
@@ -190,11 +239,24 @@ export default function PostExamResult() {
       result.studentId === student.id
     );
 
-    if (existingResult && existingResult.detailedResults) {
+    if (existingResult && existingResult.detailedResults && existingResult.marksObtained > 0) {
       try {
         const parsedResults = JSON.parse(existingResult.detailedResults);
-        setQuestionResults(parsedResults);
-        setTotalMarks(existingResult.marksObtained);
+        if (parsedResults.questions && Array.isArray(parsedResults.questions)) {
+          // Use existing detailed results
+          setQuestionResults(parsedResults.questions.map((q: any) => ({
+            questionText: q.questionText || '',
+            maxMarks: q.maxMarks || 0,
+            obtainedMarks: q.marks || 0,
+            assessment: q.answerStatus === 'full_answer' ? 'wrote_well' : 
+                       q.answerStatus === 'partial_answered' ? 'wrote_no_marks' :
+                       q.answerStatus === 'not_answered' ? 'did_not_write' : 'did_not_write'
+          })));
+          setTotalMarks(existingResult.marksObtained);
+        } else {
+          // Initialize with exam questions but preserve existing total marks
+          initializeQuestionResultsWithExistingMarks(existingResult.marksObtained);
+        }
       } catch (error) {
         // Initialize with default values if parsing fails
         initializeQuestionResults();
@@ -205,6 +267,17 @@ export default function PostExamResult() {
     }
 
     setIsMarkingModalOpen(true);
+  };
+
+  const initializeQuestionResultsWithExistingMarks = (existingTotal: number) => {
+    const initialResults = (examQuestions as any[]).map((question: any, index: number) => ({
+      questionText: question.questionText,
+      maxMarks: question.marks,
+      obtainedMarks: index === 0 ? existingTotal : 0, // Put all marks in first question as fallback
+      assessment: index === 0 && existingTotal > 0 ? 'wrote_well' : 'did_not_write' as const,
+    }));
+    setQuestionResults(initialResults);
+    setTotalMarks(existingTotal);
   };
 
   const initializeQuestionResults = () => {
@@ -282,16 +355,17 @@ export default function PostExamResult() {
 
   const getStudentStatus = (studentId: string) => {
     const result = getStudentResult(studentId);
-    if (result && (result.totalMarks !== undefined && result.totalMarks !== null && result.totalMarks >= 0)) {
-      return 'Result Entered';
+    if (result && result.marksObtained !== undefined && result.marksObtained !== null && result.marksObtained > 0) {
+      return 'Completed';
     }
     return 'Pending';
   };
 
   const getStudentMarks = (studentId: string) => {
     const result = getStudentResult(studentId);
-    if (result && (result.totalMarks !== undefined && result.totalMarks !== null && result.totalMarks >= 0)) {
-      return `${result.totalMarks}/${(exam as any)?.totalMarks}`;
+    if (result && result.marksObtained !== undefined && result.marksObtained !== null && result.marksObtained >= 0) {
+      const percentage = result.percentage || 0;
+      return `${result.marksObtained}/${(exam as any)?.totalMarks} (${percentage}%)`;
     }
     return 'Not entered';
   };
@@ -455,9 +529,10 @@ export default function PostExamResult() {
                         <TableCell className="font-medium">{student.name}</TableCell>
                         <TableCell>{student.regId}</TableCell>
                         <TableCell>
-                          {getStudentStatus(student.id) === 'Result Entered' ? (
+                          {getStudentStatus(student.id) === 'Completed' ? (
                             <Badge className="bg-green-100 text-green-800">
-                              Result Entered
+                              <CheckCircle size={14} className="mr-1" />
+                              Completed
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">

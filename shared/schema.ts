@@ -560,10 +560,12 @@ export const examResults = pgTable("exam_results", {
   examId: varchar("exam_id").references(() => exams.id).notNull(),
   studentId: varchar("student_id").references(() => students.id).notNull(),
   marksObtained: integer("marks_obtained").notNull().default(0),
+  percentage: integer("percentage").default(0), // Calculated percentage
   answeredQuestions: varchar("answered_questions", { 
     enum: ["not_answered", "partially_answered", "fully_answered"] 
   }).notNull().default("not_answered"),
   detailedResults: text("detailed_results"), // JSON string for question-level results
+  submittedBy: varchar("submitted_by").references(() => users.id), // Who recorded the result
   submittedAt: timestamp("submitted_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
