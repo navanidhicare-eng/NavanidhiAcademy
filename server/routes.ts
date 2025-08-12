@@ -6248,6 +6248,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updatedAt: new Date()
           };
 
+          let result;
           [result] = await db.insert(schema.examResults)
             .values(minimalData)
             .onConflictDoUpdate({
