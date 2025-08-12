@@ -753,36 +753,54 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getStudentsBySoCenter(soCenterId: string): Promise<any[]> {
-    const results = await db.select({
-      id: schema.students.id,
-      name: schema.students.name,
-      parentPhone: schema.students.parentPhone,
-      fatherMobile: schema.students.fatherMobile,
-      classId: schema.students.classId,
-      className: schema.classes.name,
-      soCenterId: schema.students.soCenterId,
-      createdAt: schema.students.createdAt,
-      qrCode: schema.students.qrCode,
-      studentId: schema.students.studentId,
-      aadharNumber: schema.students.aadharNumber,
-      fatherName: schema.students.fatherName,
-      motherName: schema.students.motherName,
-      courseType: schema.students.courseType,
-      villageId: schema.students.villageId,
-      dateOfBirth: schema.students.dateOfBirth,
-      gender: schema.students.gender,
-      isActive: schema.students.isActive,
-      paymentStatus: schema.students.paymentStatus,
-      totalFeeAmount: schema.students.totalFeeAmount,
-      paidAmount: schema.students.paidAmount,
-      pendingAmount: schema.students.pendingAmount
-    })
-    .from(schema.students)
-    .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
-    .where(and(eq(schema.students.soCenterId, soCenterId), eq(schema.students.isActive, true)))
-    .orderBy(desc(schema.students.createdAt));
+    try {
+      console.log('🔍 Storage: Fetching students for SO Center:', soCenterId);
 
-    return results;
+      const students = await db
+        .select({
+          id: schema.students.id,
+          name: schema.students.name,
+          studentId: schema.students.studentId,
+          email: schema.students.email,
+          phone: schema.students.phone,
+          dateOfBirth: schema.students.dateOfBirth,
+          fatherName: schema.students.fatherName,
+          motherName: schema.students.motherName,
+          fatherMobile: schema.students.fatherMobile,
+          motherMobile: schema.students.motherMobile,
+          address: schema.students.address,
+          enrollmentDate: schema.students.enrollmentDate,
+          courseType: schema.students.courseType,
+          classId: schema.students.classId,
+          className: schema.classes.name,
+          soCenterId: schema.students.soCenterId,
+          villageId: schema.students.villageId,
+          isActive: schema.students.isActive,
+          totalFeeAmount: schema.students.totalFeeAmount,
+          paidAmount: schema.students.paidAmount,
+          pendingAmount: schema.students.pendingAmount,
+          createdAt: schema.students.createdAt,
+          updatedAt: schema.students.updatedAt,
+        })
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .where(
+          and(
+            eq(schema.students.soCenterId, soCenterId),
+            eq(schema.students.isActive, true)
+          )
+        )
+        .orderBy(desc(schema.students.createdAt));
+
+      console.log('✅ Storage: Found', students.length, 'students for SO Center');
+
+      // Ensure we always return an array (this should already be the case, but being explicit)
+      return Array.isArray(students) ? students : [];
+    } catch (error) {
+      console.error('❌ Storage: Error fetching students by SO Center:', error);
+      // Return empty array on error instead of throwing
+      return [];
+    }
   }
 
   async createStudent(student: InsertStudent): Promise<Student> {
@@ -997,7 +1015,7 @@ export class DrizzleStorage implements IStorage {
   async createWalletTransaction(transaction: InsertWalletTransaction): Promise<WalletTransaction> {
     // Use the postgres client directly since the schema doesn't match the actual database
     const transactionId = `TXN-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     try {
       // Use the underlying postgres client for raw SQL
       const result = await sql`
@@ -1005,7 +1023,7 @@ export class DrizzleStorage implements IStorage {
         VALUES (${transaction.soCenterId}, ${transactionId}, ${transaction.type}, ${transaction.amount}, ${transaction.description}, 'completed', NOW())
         RETURNING *
       `;
-      
+
       return result[0] as WalletTransaction;
     } catch (error) {
       console.error('Error creating wallet transaction:', error);
@@ -1021,7 +1039,7 @@ export class DrizzleStorage implements IStorage {
         WHERE user_id = ${soCenterId}
         ORDER BY created_at DESC
       `;
-      
+
       return result as WalletTransaction[];
     } catch (error) {
       console.error('Error fetching wallet transactions:', error);
@@ -1304,7 +1322,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getNextSoCenterId(): Promise<string> {
-    const result = await this.getNextAvailableSoCenterNumber();
+    const result = this.getNextAvailableSoCenterNumber();
     return result.centerId;
   }
 

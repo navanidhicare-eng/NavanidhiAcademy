@@ -891,18 +891,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their students');
 
-          // Get ONLY students registered by THIS SO Center
+          // Get ONLY students registered by THIS SO Center with explicit array return
           const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
 
-          console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
+          console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb ? studentsFromDb.length : 0} students for SO Center ${soCenter.centerId}`);
+
+          // Ensure we always return an array, never an object
+          const students = Array.isArray(studentsFromDb) ? studentsFromDb : [];
 
           // Preserve database values and only add progress info
-          const studentsWithStatus = studentsFromDb.map((student: any) => ({
+          const studentsWithStatus = students.map((student: any) => ({
             ...student,
             paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
             progress: 0
           }));
 
+          // Set proper headers to prevent caching issues
+          res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.set('Pragma', 'no-cache');
+          res.set('Expires', '0');
+
+          console.log(`📤 Sending ${studentsWithStatus.length} students to frontend`);
           res.json(studentsWithStatus);
         } catch (error) {
           console.error('❌ Error in SO Center students endpoint:', error);
@@ -930,6 +939,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(403).json({ message: "Unauthorized" });
       }
     } catch (error) {
+      console.error('❌ Error in SO Center students endpoint:', error);
       res.status(500).json({ message: "Failed to fetch students" });
     }
   });
