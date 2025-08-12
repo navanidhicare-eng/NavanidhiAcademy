@@ -418,7 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SUPABASE AUTH ENFORCED - SO Center Dashboard Stats API
   app.get("/api/so-center/dashboard-stats", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user!.role !== 'so_center') {
+      if (!req.user || req.user.role !== 'so_center') {
         return res.status(403).json({ message: 'SO Center access required' });
       }
 
@@ -1920,7 +1920,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SUPABASE AUTH ENFORCED - Admin user creation endpoint
   app.post("/api/admin/users", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user!.role !== 'admin') {
+      if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
@@ -2139,7 +2139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SUPABASE AUTH ENFORCED - SO Center creation
   app.post("/api/admin/so-centers", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user!.role !== 'admin') {
+      if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
@@ -4419,22 +4419,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get withdrawal requests for SO center
   app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
       }
 
+      let requests;
       if (req.user.role === 'admin') {
-        // Admin sees all withdrawal requests
-        const requests = await storage.getAllWithdrawalRequests();
-        res.json(requests);
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
       } else {
-        // SO Center sees only their requests
-        const requests = await storage.getWithdrawalRequestsBySoCenter(req.user.userId);
-        res.json(requests);
+        return res.status(403).json({ message: "Unauthorized access" });
       }
+
+      res.json(requests);
     } catch (error) {
-      console.error('Error fetching withdrawal requests:', error);
-      res.status(500).json({ message: 'Failed to fetch withdrawal requests' });
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
     }
   });
 
@@ -5002,7 +5009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
         .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
         .orderBy(desc(schema.exams.examDate));
-      
+
       // Filter exams for this SO Center in JavaScript to avoid complex SQL
       const exams = allExams
         .filter(examRow => {
@@ -5026,11 +5033,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
           .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
           .orderBy(desc(schema.exams.examDate));
-        
+
         const filteredExams = allExams.filter(exam => 
           exam.exams.soCenterIds && exam.exams.soCenterIds.includes(req.user?.userId || '')
         );
-        
+
         res.json(filteredExams.map(item => ({
           ...item.exams,
           className: item.classes?.name,
@@ -5106,63 +5113,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get exam questions for individual marks entry
-  app.get('/api/exams/:examId/questions', authenticateToken, async (req, res) => {
+  app.get("/api/exams/:examId/questions", authenticateToken, async (req, res) => {
     try {
       const examId = req.params.examId;
       console.log('📋 Fetching questions for exam:', examId);
 
-      // Get exam details with questions
-      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+      // Get exam with questions
+      const exam = await sql`
+        SELECT questions, title, total_questions, total_marks
+        FROM exams 
+        WHERE id = ${examId}
+      `;
 
-      if (!exam.length) {
-        return res.status(404).json({ message: 'Exam not found' });
+      if (!exam || exam.length === 0) {
+        console.log('❌ Exam not found:', examId);
+        return res.status(404).json({ message: "Exam not found" });
       }
 
-      // Check if user has access to this exam (SO Center only sees their own exams)
-      if (req.user?.role === 'so_center') {
-        // Get SO Center ID from the user's email
-        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
-        if (!soCenter.length) {
-          return res.status(404).json({ message: 'SO Center not found' });
-        }
+      const examData = exam[0];
+      console.log('📊 Exam data found:', { 
+        title: examData.title, 
+        hasQuestions: !!examData.questions 
+      });
 
-        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(soCenter[0].id)) {
-          return res.status(404).json({ message: 'Exam not found or access denied' });
-        }
-      }
-
-      // Parse questions from exam data
-      let questions = exam[0].questions || [];
-      
-      // If questions is a string, parse it as JSON
-      if (typeof questions === 'string') {
+      // Parse questions if they exist
+      let questions = [];
+      if (examData.questions) {
         try {
-          questions = JSON.parse(questions);
-        } catch (e) {
-          console.log('Error parsing questions JSON:', e);
+          questions = JSON.parse(examData.questions);
+          console.log('✅ Questions parsed successfully:', questions.length);
+        } catch (parseError) {
+          console.error('❌ Error parsing questions JSON:', parseError);
           questions = [];
         }
       }
-      
-      // Ensure questions is an array
-      if (!Array.isArray(questions)) {
-        questions = [];
-      }
-      
+
+      // Format questions for response
       const formattedQuestions = questions.map((q: any, index: number) => ({
-        id: q.id || `q_${index + 1}`,
-        questionNumber: index + 1,
-        text: q.text || q.question || 'Question text not available',
-        marks: q.marks || 1,
-        type: q.type || 'text'
+        questionNumber: q.questionNumber || index + 1,
+        marks: q.marks || 0,
+        questionText: q.questionText || q.question || `Question ${index + 1}`,
+        questionType: q.questionType || q.type || 'descriptive'
       }));
 
-      console.log('✅ Found', formattedQuestions.length, 'questions for exam');
+      console.log('📋 Returning formatted questions:', formattedQuestions.length);
+
       res.json(formattedQuestions);
     } catch (error: any) {
       console.error('❌ Error fetching exam questions:', error);
-      res.status(500).json({ message: 'Failed to fetch exam questions' });
+      res.status(500).json({ message: "Failed to fetch exam questions" });
     }
   });
 
@@ -5276,7 +5275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { examId } = req.params;
       const { students } = req.body;
-      
+
       console.log('🔄 Bulk updating exam results for exam:', examId);
       console.log('📊 Students data:', students);
 
@@ -5563,7 +5562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const examId = req.params.examId;
-      
+
       // Get students for this exam who belong to this SO Center
       const students = await sql`
         SELECT DISTINCT 
@@ -5601,7 +5600,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const examId = req.params.examId;
       console.log('📋 Fetching questions for exam:', examId);
 
-      // Get the exam with questions stored as JSON
+      // Get the exam with questions
       const [exam] = await db.select({
         id: schema.exams.id,
         title: schema.exams.title,
@@ -5628,7 +5627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Format questions for the exam results component
       const formattedQuestions = questions.map((q: any, index: number) => ({
-        questionNumber: index + 1,
+        questionNumber: q.questionNumber || index + 1,
         marks: q.marks || 2, // Default to 2 marks per question
         questionText: q.questionText || q.question || '',
         questionType: q.questionType || q.type || 'descriptive'
@@ -5661,7 +5660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { examId, results } = req.body;
-      
+
       if (!examId || !results || !Array.isArray(results)) {
         return res.status(400).json({ message: "examId and results array are required" });
       }
@@ -5670,7 +5669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const savedResults = [];
       for (const result of results) {
         const { studentId, questionResults, totalMarks, percentage, remarks } = result;
-        
+
         // Create or update exam result
         const examResult = await sql`
           INSERT INTO exam_results (
@@ -5702,7 +5701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updated_at = NOW()
           RETURNING *
         `;
-        
+
         savedResults.push(examResult[0]);
       }
 
@@ -5807,7 +5806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get exams for this SO Center
       const exams = await db.select().from(schema.exams);
-      
+
       // Filter exams that include this SO Center
       const availableExams = exams.filter(exam => {
         const soCenterIds = Array.isArray(exam.soCenterIds) ? exam.soCenterIds : [];

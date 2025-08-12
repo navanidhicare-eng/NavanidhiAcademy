@@ -216,10 +216,10 @@ export default function PostExamResult() {
           updated[index].obtainedMarks = 0;
           break;
         case 'did_not_write_well':
-          updated[index].obtainedMarks = 0;
+          updated[index].obtainedMarks = Math.round(maxMarks * 0.25);
           break;
         case 'wrote_no_marks':
-          updated[index].obtainedMarks = 0;
+          updated[index].obtainedMarks = Math.round(maxMarks * 0.5);
           break;
         case 'wrote_well':
           updated[index].obtainedMarks = maxMarks;
@@ -261,16 +261,6 @@ export default function PostExamResult() {
 
   const getStudentResult = (studentId: string) => {
     return (existingResults as any[]).find((result: any) => result.studentId === studentId);
-  };
-
-  const getAssessmentText = (assessment: string) => {
-    switch (assessment) {
-      case 'did_not_write': return 'Did not write';
-      case 'did_not_write_well': return 'Did not write well';
-      case 'wrote_no_marks': return 'Wrote but did not get marks';
-      case 'wrote_well': return 'Wrote well';
-      default: return 'Not assessed';
-    }
   };
 
   if (isLoading) {
@@ -491,16 +481,29 @@ export default function PostExamResult() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Question-wise Marking</h3>
 
-                  {questionResults.map((result, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="space-y-3">
+                  {examQuestions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No questions found for this exam.</p>
+                    </div>
+                  ) : questionResults.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Button 
+                        onClick={initializeQuestionResults}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        Load Questions
+                      </Button>
+                    </div>
+                  ) : (
+                    questionResults.map((result, index) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <p className="font-medium">Q{index + 1}: {result.questionText}</p>
-                            <p className="text-sm text-gray-500">Maximum Marks: {result.maxMarks}</p>
+                            <p className="font-medium text-lg">Q{index + 1}: {result.questionText}</p>
+                            <p className="text-sm text-gray-500 mt-1">Maximum Marks: {result.maxMarks}</p>
                           </div>
-                          <div className="text-right">
-                            <Label htmlFor={`marks-${index}`} className="text-sm">
+                          <div className="text-right min-w-[120px]">
+                            <Label htmlFor={`marks-${index}`} className="text-sm font-medium">
                               Marks Obtained
                             </Label>
                             <Input
@@ -510,21 +513,21 @@ export default function PostExamResult() {
                               max={result.maxMarks}
                               value={result.obtainedMarks}
                               onChange={(e) => updateMarksDirectly(index, parseInt(e.target.value) || 0)}
-                              className="w-20 mt-1"
+                              className="w-20 mt-1 text-center font-semibold"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <Label className="text-sm font-medium">Assessment</Label>
-                          <div className="grid grid-cols-2 gap-2 mt-2">
+                          <Label className="text-sm font-medium mb-2 block">Assessment Options</Label>
+                          <div className="grid grid-cols-1 gap-2">
                             {[
-                              { value: 'did_not_write', label: '1. Did not write' },
-                              { value: 'did_not_write_well', label: '2. Did not write well' },
-                              { value: 'wrote_no_marks', label: '3. Wrote but did not get marks' },
-                              { value: 'wrote_well', label: '4. Wrote well' },
+                              { value: 'did_not_write', label: '1. Did not write (0 marks)', marks: 0 },
+                              { value: 'did_not_write_well', label: '2. Did not write well (25% marks)', marks: Math.round(result.maxMarks * 0.25) },
+                              { value: 'wrote_no_marks', label: '3. Wrote but incomplete (50% marks)', marks: Math.round(result.maxMarks * 0.5) },
+                              { value: 'wrote_well', label: '4. Wrote well (Full marks)', marks: result.maxMarks },
                             ].map((option) => (
-                              <div key={option.value} className="flex items-center space-x-2">
+                              <div key={option.value} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50">
                                 <Checkbox
                                   id={`${index}-${option.value}`}
                                   checked={result.assessment === option.value}
@@ -536,17 +539,20 @@ export default function PostExamResult() {
                                 />
                                 <Label 
                                   htmlFor={`${index}-${option.value}`}
-                                  className="text-sm cursor-pointer"
+                                  className="text-sm cursor-pointer flex-1"
                                 >
                                   {option.label}
                                 </Label>
+                                <span className="text-xs text-gray-500 font-medium">
+                                  ({option.marks} marks)
+                                </span>
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
 
                 <Separator />
