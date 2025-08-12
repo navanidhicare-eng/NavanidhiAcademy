@@ -5333,13 +5333,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify SO Center access for this exam
       if (req.user?.role === 'so_center') {
-        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email)).limit(1);
-        if (!soCenter.length) {
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
           return res.status(404).json({ message: 'SO Center not found' });
         }
 
         const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(soCenter[0].id)) {
+        if (!soCenterIds.includes(soCenter.id)) {
           return res.status(403).json({ message: 'Access denied to this exam' });
         }
       }
@@ -5366,38 +5366,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           percentage: calculatedPercentage
         });
 
-        // Upsert exam result
-        const [result] = await db.insert(schema.examResults)
-          .values({
-            examId,
-            studentId,
-            marksObtained: totalScore || 0,
-            percentage: calculatedPercentage,
-            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
-            detailedResults,
-            submittedBy: req.user?.userId,
-          })
-          .onConflictDoUpdate({
-            target: [schema.examResults.examId, schema.examResults.studentId],
-            set: {
+        // Upsert exam result using the schema
+        try {
+          const [result] = await db.insert(schema.examResults)
+            .values({
+              examId,
+              studentId,
               marksObtained: totalScore || 0,
               percentage: calculatedPercentage,
               answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
               detailedResults,
               submittedBy: req.user?.userId,
-              updatedAt: new Date(),
-            }
-          })
-          .returning();
+              submittedAt: new Date()
+            })
+            .onConflictDoUpdate({
+              target: [schema.examResults.examId, schema.examResults.studentId],
+              set: {
+                marksObtained: totalScore || 0,
+                percentage: calculatedPercentage,
+                answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
+                detailedResults,
+                submittedBy: req.user?.userId,
+                updatedAt: new Date(),
+              }
+            })
+            .returning();
 
-        savedResults.push({
-          studentId,
-          totalScore: totalScore || 0,
-          percentage: calculatedPercentage,
-          status: totalScore > 0 ? 'completed' : 'pending'
-        });
+          savedResults.push({
+            studentId,
+            totalScore: totalScore || 0,
+            percentage: calculatedPercentage,
+            status: totalScore > 0 ? 'completed' : 'pending'
+          });
 
-        console.log('✅ Result saved for student:', studentId, 'Marks:', totalScore);
+          console.log('✅ Result saved for student:', studentId, 'Marks:', totalScore);
+        } catch (dbError) {
+          console.error('❌ Database error for student:', studentId, dbError);
+          // Continue with other students even if one fails
+        }
       }
 
       res.json({
