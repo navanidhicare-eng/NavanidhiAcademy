@@ -46,6 +46,20 @@ import {
   insertProductSchema,
   insertSoCenterExpenseSchema,
   insertExamSchema,
+  insertExamResultSchema, // Import for exam results
+  insertHomeworkActivitySchema,
+  insertTuitionProgressSchema,
+  insertSoCenterExpenseSchema,
+  insertExamSchema,
+  insertExamResultSchema,
+  insertSoCenterSchema,
+  insertSoCenterExpenseSchema,
+  insertStudentSchema,
+  insertStudentSiblingSchema,
+  insertSubjectSchema,
+  insertTopicProgressSchema,
+  insertUserSchema,
+  insertVillageSchema,
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -113,9 +127,6 @@ const requireRole = (allowedRoles: string[]) => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
-  // Initialize teacher storage
-  // Teacher management now integrated with User system
 
   // Test endpoint
   app.get("/api/test", (req, res) => {
@@ -1415,6 +1426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const progress = await storage.getStudentProgress(req.params.studentId);
       res.json(progress);
     } catch (error) {
+      console.error('Error fetching progress:', error);
       res.status(500).json({ message: "Failed to fetch progress" });
     }
   });
@@ -5202,71 +5214,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save individual student results with question-level details
   app.post('/api/exams/:examId/student-results', authenticateToken, async (req, res) => {
     try {
-      const examId = req.params.examId;
-      const { studentId, totalMarks, questions } = req.body;
-
-      console.log('💾 Saving detailed student results:', { examId, studentId, totalMarks });
-
-      // Validate input
-      if (!studentId || !questions || !Array.isArray(questions)) {
-        return res.status(400).json({ message: 'Invalid request data' });
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
       }
 
-      // Calculate overall answer status based on question statuses
-      const statusCounts = questions.reduce((acc: any, q: any) => {
-        acc[q.answerStatus] = (acc[q.answerStatus] || 0) + 1;
-        return acc;
-      }, {});
+      const { examId } = req.params;
+      const { studentId, answers, totalMarks, percentage } = req.body;
 
-      let overallStatus = 'not_answered';
-      if (statusCounts.full_answer > statusCounts.partial_answered && statusCounts.full_answer > statusCounts.wrong_answer) {
-        overallStatus = 'fully_answered';
-      } else if (statusCounts.partial_answered > 0 || statusCounts.wrong_answer > 0) {
-        overallStatus = 'partially_answered';
+      console.log('💾 Saving detailed student results:', {
+        examId,
+        studentId,
+        totalMarks,
+        hasAnswers: !!answers
+      });
+
+      if (!studentId || !examId) {
+        return res.status(400).json({ message: 'Student ID and Exam ID are required' });
       }
 
-      // Update or create exam result record
+      // Validate that totalMarks is provided and is a valid number
+      const numericTotalMarks = Number(totalMarks);
+      if (totalMarks === undefined || totalMarks === null || isNaN(numericTotalMarks) || numericTotalMarks < 0) {
+        return res.status(400).json({ message: 'Valid total marks (non-negative number) are required' });
+      }
+
+      // Get exam details to validate
+      const exam = await db.select()
+        .from(schema.exams)
+        .where(eq(schema.exams.id, examId))
+        .limit(1);
+
+      if (!exam.length) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      const examData = exam[0];
+      const examTotalMarks = Number(examData.totalMarks);
+
+      // Validate total marks doesn't exceed exam total
+      if (numericTotalMarks > examTotalMarks) {
+        return res.status(400).json({ 
+          message: `Total marks (${numericTotalMarks}) cannot exceed exam total marks (${examTotalMarks})` 
+        });
+      }
+
+      // Calculate percentage
+      const calculatedPercentage = examTotalMarks > 0 ? Math.round((numericTotalMarks / examTotalMarks) * 100) : 0;
+
+      // Check if result already exists
       const existingResult = await db.select()
         .from(schema.examResults)
-        .where(
-          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-        );
+        .where(and(
+          eq(schema.examResults.examId, examId),
+          eq(schema.examResults.studentId, studentId)
+        ))
+        .limit(1);
+
+      let result;
+      const resultData = {
+        examId,
+        studentId,
+        answers: answers ? JSON.stringify(answers) : null,
+        totalMarks: numericTotalMarks.toString(),
+        percentage: calculatedPercentage,
+        submittedBy: req.user.userId,
+        submittedAt: new Date()
+      };
 
       if (existingResult.length > 0) {
         // Update existing result
-        await db
-          .update(schema.examResults)
+        [result] = await db.update(schema.examResults)
           .set({
-            marksObtained: totalMarks,
-            answeredQuestions: overallStatus,
-            detailedResults: JSON.stringify({ questions }),
+            ...resultData,
             updatedAt: new Date()
           })
-          .where(
-            sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-          );
+          .where(eq(schema.examResults.id, existingResult[0].id))
+          .returning();
       } else {
         // Create new result
-        await db
-          .insert(schema.examResults)
-          .values({
-            examId,
-            studentId,
-            marksObtained: totalMarks,
-            answeredQuestions: overallStatus,
-            detailedResults: JSON.stringify({ questions })
-          });
+        [result] = await db.insert(schema.examResults)
+          .values(resultData)
+          .returning();
       }
 
-      console.log('✅ Student results saved successfully');
-      res.json({ 
-        message: 'Results saved successfully',
-        totalMarks,
-        status: overallStatus 
+      console.log('✅ Student exam result saved successfully:', result.id);
+
+      res.json({
+        message: 'Exam result saved successfully',
+        result: {
+          id: result.id,
+          examId: result.examId,
+          studentId: result.studentId,
+          totalMarks: result.totalMarks,
+          percentage: result.percentage
+        }
       });
+
     } catch (error: any) {
-      console.error('❌ Error saving student results:', error);
-      res.status(500).json({ message: 'Failed to save student results' });
+      console.error('❌ Error saving exam result:', error);
+      res.status(500).json({ 
+        message: 'Failed to save exam result',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
     }
   });
 
@@ -5316,9 +5365,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Prepare detailed results
         const questionResults = marks.map((mark, index) => ({
-          questionNumber: index + 1,
+          questionNumber: mark.questionNumber || index + 1,
           marks: mark.score || 0,
-          maxMarks: mark.maxMarks || 1,
+          maxMarks: mark.maxMarks || 1, // Default max marks to 1 if not provided
           performance: performance?.[index] || 'not_attempted',
           answerStatus: mark.score > 0 ? (mark.score >= (mark.maxMarks || 1) ? 'full_answer' : 'partial_answered') : 'not_answered'
         }));
