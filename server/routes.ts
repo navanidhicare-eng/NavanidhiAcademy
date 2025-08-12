@@ -1502,21 +1502,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           console.log('🎯 Fetching classes for SO Center:', soCenter.centerId);
 
-          // Get classes where this SO Center has students using executeRawQuery
-          const classQuery = `
-            SELECT DISTINCT 
-              c.id,
-              c.name,
-              c.description
-            FROM classes c
-            INNER JOIN students s ON c.id = s.class_id
-            WHERE s.so_center_id = $1
-              AND s.is_active = true
-              AND c.is_active = true
-            ORDER BY c.name
-          `;
-
-          const classes = await executeRawQuery(classQuery, [soCenter.id]);
+          // Get classes where this SO Center has students using Drizzle ORM
+          const classes = await db
+            .selectDistinct({
+              id: schema.classes.id,
+              name: schema.classes.name,
+              description: schema.classes.description
+            })
+            .from(schema.classes)
+            .innerJoin(schema.students, eq(schema.classes.id, schema.students.classId))
+            .where(
+              and(
+                eq(schema.students.soCenterId, soCenter.id),
+                eq(schema.students.isActive, true),
+                eq(schema.classes.isActive, true)
+              )
+            )
+            .orderBy(schema.classes.name);
 
           console.log('✅ Found', classes.length, 'classes for SO Center', soCenter.centerId);
           res.json(classes);
