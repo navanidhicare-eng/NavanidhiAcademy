@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { StudentTable } from '@/components/students/StudentTable';
-import { AddStudentModal } from '@/components/students/AddStudentModal';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function Students() {
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const { user } = useAuth();
 
   const { data: students = [], isLoading } = useQuery({
@@ -35,15 +32,8 @@ export default function Students() {
     <DashboardLayout
       title="Students"
       subtitle="Manage student registrations and information"
-      showAddButton={user?.role === 'so_center'}
-      onAddClick={() => setIsAddModalOpen(true)}
     >
       <StudentTable students={students} isLoading={isLoading} />
-      
-      <AddStudentModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-      />
     </DashboardLayout>
   );
 }

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { QRModal } from '@/components/qr/QRModal';
+import { AddStudentModal } from '@/components/students/AddStudentModal';
 import { 
   Search, 
   QrCode, 
@@ -13,12 +14,14 @@ import {
   IndianRupee,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  UserPlus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Student {
   id: string;
@@ -41,7 +44,9 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Fetch all classes dynamically
   const { data: classes = [] } = useQuery({
@@ -166,6 +171,17 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Enroll Student Button - Only for SO Center users */}
+              {user?.role === 'so_center' && (
+                <Button
+                  onClick={() => setIsEnrollModalOpen(true)}
+                  className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  <UserPlus className="mr-2" size={16} />
+                  Enroll Student
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -311,6 +327,12 @@ export function StudentTable({ students, isLoading }: StudentTableProps) {
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
         student={selectedStudent}
+      />
+
+      {/* Student Enrollment Modal */}
+      <AddStudentModal
+        isOpen={isEnrollModalOpen}
+        onClose={() => setIsEnrollModalOpen(false)}
       />
 
       {/* Payment History Modal */}
