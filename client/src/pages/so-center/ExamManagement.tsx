@@ -109,7 +109,7 @@ export default function SoCenterExamManagement() {
     },
   });
 
-  // Get SO Center exams with better caching and reduced API calls
+  // Get SO Center exams with optimized caching
   const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/exams'],
     queryFn: async () => {
@@ -121,15 +121,14 @@ export default function SoCenterExamManagement() {
       console.log('✅ SO Center exams fetched successfully:', examsData.length);
       return Array.isArray(examsData) ? examsData : [];
     },
-    retry: 1,
-    staleTime: 10 * 60 * 1000, // 10 minutes cache - longer for better performance
-    cacheTime: 15 * 60 * 1000, // 15 minutes cache
+    retry: 2,
+    staleTime: 15 * 60 * 1000, // 15 minutes cache
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchInterval: false, // Disable automatic refetching
+    refetchInterval: false,
   });
 
-  // Get SO Center students with better caching and reduced API calls
+  // Get SO Center students with optimized caching
   const { data: students = [], isLoading: isLoadingStudents, error: studentsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/students'],
     queryFn: async () => {
@@ -141,64 +140,21 @@ export default function SoCenterExamManagement() {
       console.log('✅ SO Center students fetched successfully:', studentsData.length);
       return Array.isArray(studentsData) ? studentsData : [];
     },
-    retry: 1,
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    cacheTime: 10 * 60 * 1000, // 10 minutes cache
+    retry: 2,
+    staleTime: 10 * 60 * 1000, // 10 minutes cache
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    refetchInterval: false, // Disable automatic refetching
+    refetchInterval: false,
   });
 
-  // Handle loading and error states for exams and students
+  // Simplified loading state
   if (isLoadingExams || isLoadingStudents) {
     return (
       <DashboardLayout title="Exam Management" subtitle="Manage exams and post results for your center">
-        <div className="space-y-6">
-          {/* Statistics Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div className="w-20 h-4 bg-gray-200 animate-pulse rounded" />
-                  <div className="w-4 h-4 bg-gray-200 animate-pulse rounded" />
-                </CardHeader>
-                <CardContent>
-                  <div className="w-8 h-8 bg-gray-200 animate-pulse rounded mb-1" />
-                  <div className="w-16 h-3 bg-gray-100 animate-pulse rounded" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Exam Cards Skeleton */}
-          <Card>
-            <CardHeader>
-              <div className="w-24 h-6 bg-gray-200 animate-pulse rounded" />
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="space-y-3">
-                      <div className="w-32 h-5 bg-gray-200 animate-pulse rounded" />
-                      <div className="space-y-1">
-                        <div className="w-24 h-3 bg-gray-100 animate-pulse rounded" />
-                        <div className="w-20 h-3 bg-gray-100 animate-pulse rounded" />
-                        <div className="w-28 h-3 bg-gray-100 animate-pulse rounded" />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="w-16 h-4 bg-gray-200 animate-pulse rounded" />
-                        <div className="w-20 h-6 bg-gray-200 animate-pulse rounded" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="text-center text-sm text-gray-500 mt-4">
-            Loading your exams...
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Loading exams and students...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -448,94 +404,74 @@ export default function SoCenterExamManagement() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="space-y-4">
                     {exams.map((exam: any) => {
                       const status = getExamStatus(exam);
                       return (
-                        <div key={exam.id} className="border border-gray-200 rounded-lg p-6">
-                          <div className="flex items-start justify-between">
+                        <Card key={exam.id} className="p-4">
+                          <div className="flex items-center justify-between">
                             <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h3 className="text-xl font-semibold text-gray-900">{exam.title}</h3>
-                                <Badge className={`${status.color} text-white`}>
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="text-lg font-semibold">{exam.title}</h3>
+                                <Badge className={`${status.color} text-white text-xs`}>
                                   {status.text}
                                 </Badge>
                               </div>
 
-                              <p className="text-gray-600 mb-3">{exam.description}</p>
-
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                                 <div>
                                   <span className="text-gray-500">Class:</span>
-                                  <p className="font-medium">{exam.className}</p>
+                                  <span className="ml-1 font-medium">{exam.className}</span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Subject:</span>
-                                  <p className="font-medium">{exam.subjectName}</p>
+                                  <span className="ml-1 font-medium">{exam.subjectName}</span>
                                 </div>
                                 <div>
                                   <span className="text-gray-500">Date:</span>
-                                  <p className="font-medium">{new Date(exam.examDate).toLocaleDateString('en-GB')}</p>
+                                  <span className="ml-1 font-medium">{new Date(exam.examDate).toLocaleDateString('en-GB')}</span>
                                 </div>
                                 <div>
-                                  <span className="text-gray-500">Duration:</span>
-                                  <p className="font-medium">{exam.duration} minutes</p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Total Questions:</span>
-                                  <p className="font-medium">{exam.totalQuestions}</p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Max Marks:</span>
-                                  <p className="font-medium">{exam.totalMarks}</p>
-                                </div>
-                                <div>
-                                  <span className="text-gray-500">Passing Marks:</span>
-                                  <p className="font-medium">{exam.passingMarks}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <Clock size={16} className="text-blue-500" />
-                                  <span className="text-sm text-blue-600">
-                                    {getTimeRemaining(exam.examDate)}
-                                  </span>
+                                  <span className="text-gray-500">Marks:</span>
+                                  <span className="ml-1 font-medium">{exam.totalMarks}</span>
                                 </div>
                               </div>
                             </div>
 
-                            <div className="flex flex-col space-y-2 ml-4">
-                              {exam.status !== 'completed' && (
+                            <div className="flex gap-2 ml-4">
+                              {exam.status !== 'completed' ? (
                                 <>
                                   <Button
                                     size="sm"
                                     onClick={() => markCompletedMutation.mutate(exam.id)}
                                     disabled={markCompletedMutation.isPending}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                    className="bg-blue-600 hover:bg-blue-700"
                                   >
-                                    <CheckCircle size={16} className="mr-2" />
-                                    Mark Complete
+                                    <CheckCircle size={14} className="mr-1" />
+                                    Complete
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => openResultsModal(exam)}
+                                    onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
                                   >
-                                    Post Results
+                                    <FileEdit size={14} className="mr-1" />
+                                    Results
                                   </Button>
                                 </>
-                              )}
-
-                              {exam.status === 'completed' && (
+                              ) : (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => openResultsModal(exam)}
+                                  onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
                                 >
-                                  Update Results
+                                  <Edit3 size={14} className="mr-1" />
+                                  Update
                                 </Button>
                               )}
                             </div>
                           </div>
-                        </div>
+                        </Card>
                       );
                     })}
                   </div>
@@ -545,206 +481,7 @@ export default function SoCenterExamManagement() {
           </TabsContent>
         </Tabs>
 
-        {/* Enhanced Results Modal - Students Table with Individual Update Buttons */}
-        <Dialog open={isResultsModalOpen} onOpenChange={setIsResultsModalOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileEdit className="h-5 w-5" />
-                Post Exam Results - {selectedExam?.title}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-6">
-              {/* Exam Information */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
-                  <GraduationCap className="h-4 w-4" />
-                  Exam Information
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-blue-600">Class:</span>
-                    <p className="font-medium">{selectedExam?.className}</p>
-                  </div>
-                  <div>
-                    <span className="text-blue-600">Subject:</span>
-                    <p className="font-medium">{selectedExam?.subjectName}</p>
-                  </div>
-                  <div>
-                    <span className="text-blue-600">Total Questions:</span>
-                    <p className="font-medium">{selectedExam?.totalQuestions}</p>
-                  </div>
-                  <div>
-                    <span className="text-blue-600">Max Marks:</span>
-                    <p className="font-medium">{selectedExam?.totalMarks}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Students Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Students in {selectedExam?.className}
-                    <Badge variant="secondary" className="ml-2">
-                      {students.filter((s: any) => s.classId === selectedExam?.classId).length} Students
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {students.filter((s: any) => s.classId === selectedExam?.classId).length === 0 ? (
-                    <div className="text-center py-8">
-                      <Users className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                      <p className="text-gray-500">No students found in this class.</p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Student Name</TableHead>
-                            <TableHead>Student ID</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Current Status</TableHead>
-                            <TableHead>Quick Marks Entry</TableHead>
-                            <TableHead className="text-center">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {students
-                            .filter((student: any) => student.classId === selectedExam?.classId)
-                            .map((student: any) => {
-                              const existingResult = examResults.find(r => r.id === student.id);
-                              return (
-                                <TableRow key={student.id}>
-                                  <TableCell className="font-medium">{student.name}</TableCell>
-                                  <TableCell className="text-sm text-gray-600">{student.studentId}</TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline">{student.className}</Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    {existingResult ? (
-                                      <Badge 
-                                        className={
-                                          existingResult.answeredQuestions === 'fully_answered' ? 'bg-green-100 text-green-800' :
-                                          existingResult.answeredQuestions === 'partially_answered' ? 'bg-yellow-100 text-yellow-800' :
-                                          'bg-red-100 text-red-800'
-                                        }
-                                      >
-                                        {existingResult.answeredQuestions === 'fully_answered' ? 'Fully Answered' :
-                                         existingResult.answeredQuestions === 'partially_answered' ? 'Partial' :
-                                         'Not Answered'}
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="secondary">Not Entered</Badge>
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {existingResult ? (
-                                      <div className="flex items-center gap-2">
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max={selectedExam?.totalMarks}
-                                          value={existingResult.marksObtained}
-                                          onChange={(e) => updateStudentResult(
-                                            student.id, 
-                                            'marksObtained', 
-                                            parseInt(e.target.value) || 0
-                                          )}
-                                          className="w-20"
-                                        />
-                                        <span className="text-sm text-gray-500">/ {selectedExam?.totalMarks}</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-sm text-gray-400">Add to enter marks</span>
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => openIndividualMarksModal(student, selectedExam)}
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                      >
-                                        <Edit3 className="h-4 w-4 mr-1" />
-                                        Update
-                                      </Button>
-                                      {!existingResult && (
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => {
-                                            const newResult = {
-                                              id: student.id,
-                                              name: student.name,
-                                              regId: student.studentId,
-                                              marksObtained: 0,
-                                              answeredQuestions: 'not_answered' as const,
-                                            };
-                                            setExamResults(prev => [...prev, newResult]);
-                                          }}
-                                        >
-                                          <Plus className="h-4 w-4 mr-1" />
-                                          Add
-                                        </Button>
-                                      )}
-                                      {existingResult && (
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => removeStudentFromResults(student.id)}
-                                          className="text-red-500 hover:text-red-700"
-                                        >
-                                          <Minus className="h-4 w-4" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Action Buttons */}
-              <div className="flex justify-between items-center pt-4 border-t">
-                <div className="text-sm text-gray-600">
-                  {examResults.length} student(s) have results entered
-                </div>
-                <div className="flex gap-3">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => {
-                      setIsResultsModalOpen(false);
-                      setExamResults([]);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={() => submitResultsMutation.mutate({ 
-                      examId: selectedExamId, 
-                      results: examResults 
-                    })}
-                    disabled={submitResultsMutation.isPending || examResults.length === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    {submitResultsMutation.isPending ? 'Submitting...' : 'Submit Results'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        
 
         {/* Individual Student Marks Modal */}
         <IndividualStudentMarksModal
