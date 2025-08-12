@@ -75,12 +75,17 @@ export default function PostExamResult() {
       if (!examId) return [];
       console.log('🔍 Fetching students for exam:', examId);
       const response = await apiRequest('GET', `/api/so-center/exams/${examId}/students`);
+      if (!response.ok) {
+        console.error('❌ Failed to fetch students');
+        return [];
+      }
       const studentsData = await response.json();
       console.log('📊 Students response:', studentsData);
-      console.log('📊 Processed students:', Array.isArray(studentsData) ? studentsData.length : 0);
       return Array.isArray(studentsData) ? studentsData : [];
     },
     enabled: !!examId,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   const { data: examQuestions = [], isLoading: isQuestionsLoading } = useQuery({
@@ -89,12 +94,17 @@ export default function PostExamResult() {
       if (!examId) return [];
       console.log('🔍 Fetching questions for exam:', examId);
       const response = await apiRequest('GET', `/api/exams/${examId}/questions`);
+      if (!response.ok) {
+        console.error('❌ Failed to fetch questions');
+        return [];
+      }
       const questionsData = await response.json();
       console.log('📊 Questions response:', questionsData);
-      console.log('📊 Processed questions:', Array.isArray(questionsData) ? questionsData.length : 0);
       return Array.isArray(questionsData) ? questionsData : [];
     },
     enabled: !!examId,
+    staleTime: 10 * 60 * 1000, // 10 minutes cache - questions rarely change
+    cacheTime: 30 * 60 * 1000, // 30 minutes cache
   });
 
   // Fetch existing results for all students
@@ -104,45 +114,26 @@ export default function PostExamResult() {
       if (!examId) return [];
       console.log('🔍 Fetching results for exam:', examId);
       const response = await apiRequest('GET', `/api/exams/${examId}/results`);
+      if (!response.ok) {
+        console.error('❌ Failed to fetch results');
+        return [];
+      }
       const resultsData = await response.json();
       console.log('📊 Results response:', resultsData);
-      console.log('📊 Processed results:', Array.isArray(resultsData) ? resultsData.length : 0);
       return Array.isArray(resultsData) ? resultsData : [];
     },
     enabled: !!examId,
+    staleTime: 2 * 60 * 1000, // 2 minutes cache - results change frequently
+    cacheTime: 5 * 60 * 1000, // 5 minutes cache
   });
 
   const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
 
   useEffect(() => {
-    const fetchExamData = async () => {
-      try {
-        console.log('🔍 Fetching exam data for:', examId);
-        console.log('📊 Exam data:', exam);
-        console.log('📊 Students response:', students);
-        console.log('📊 Questions response:', examQuestions);
-        console.log('📊 Processed students:', students?.length || 0);
-        console.log('📊 Processed questions:', examQuestions?.length || 0);
-
-        if (exam && students && examQuestions) {
-          console.log('✅ Exam data loaded successfully');
-        } else {
-          console.log('⚠️ Some exam data is missing');
-        }
-      } catch (error) {
-        console.error('❌ Error fetching exam data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch exam data",
-          variant: "destructive",
-        });
-      }
-    };
-
-    if (examId) {
-      fetchExamData();
+    if (examId && exam && students && examQuestions) {
+      console.log('✅ Exam data loaded successfully');
     }
-  }, [examId, exam, students, examQuestions, toast]);
+  }, [examId, exam, students, examQuestions]);
 
 
   // Save student result mutation
@@ -285,8 +276,57 @@ export default function PostExamResult() {
   if (isLoading) {
     return (
       <DashboardLayout title="Post Exam Result">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-24 h-8 bg-gray-200 animate-pulse rounded" />
+              <div>
+                <div className="w-48 h-8 bg-gray-200 animate-pulse rounded mb-2" />
+                <div className="w-96 h-4 bg-gray-100 animate-pulse rounded" />
+              </div>
+            </div>
+          </div>
+
+          {/* Exam Details Card Skeleton */}
+          <Card>
+            <CardHeader>
+              <div className="w-32 h-6 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i}>
+                    <div className="w-20 h-4 bg-gray-100 animate-pulse rounded mb-1" />
+                    <div className="w-24 h-5 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Students Table Skeleton */}
+          <Card>
+            <CardHeader>
+              <div className="w-48 h-6 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded">
+                    <div className="space-y-1">
+                      <div className="w-32 h-4 bg-gray-200 animate-pulse rounded" />
+                      <div className="w-24 h-3 bg-gray-100 animate-pulse rounded" />
+                    </div>
+                    <div className="w-20 h-8 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="text-center text-sm text-gray-500 mt-4">
+            Loading exam data...
+          </div>
         </div>
       </DashboardLayout>
     );

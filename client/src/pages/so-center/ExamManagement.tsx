@@ -24,7 +24,8 @@ import {
   Plus,
   Minus,
   Edit3,
-  FileEdit
+  FileEdit,
+  Loader2
 } from 'lucide-react';
 
 interface ExamResultStudent {
@@ -40,12 +41,12 @@ export default function SoCenterExamManagement() {
   const [isResultsModalOpen, setIsResultsModalOpen] = useState(false);
   const [examResults, setExamResults] = useState<ExamResultStudent[]>([]);
   const [activeTab, setActiveTab] = useState('progress-tracking');
-  
+
   // Individual student marks modal state
   const [isIndividualMarksModalOpen, setIsIndividualMarksModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [selectedExam, setSelectedExam] = useState<any>(null);
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -54,19 +55,139 @@ export default function SoCenterExamManagement() {
   // Get SO Center ID from logged-in user (assuming user has soCenterId or similar field)
   const soCenterId = user?.id; // Using user ID for now, will be mapped server-side
 
-  // Data queries
-  const { data: exams = [] } = useQuery<any[]>({
+  // Get SO Center exams with error handling and caching
+  const { data: exams = [], isLoading: isLoadingExams, error: examsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/exams'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/so-center/exams');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const examsData = await response.json();
+      console.log('✅ SO Center exams fetched successfully:', examsData.length);
+      return Array.isArray(examsData) ? examsData : [];
+    },
+    retry: 2,
+    staleTime: 3 * 60 * 1000, // 3 minutes cache
+    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  const { data: students = [] } = useQuery<any[]>({
+  // Get SO Center students with error handling and caching
+  const { data: students = [], isLoading: isLoadingStudents, error: studentsError } = useQuery<any[]>({
     queryKey: ['/api/so-center/students'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/so-center/students');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const studentsData = await response.json();
+      console.log('✅ SO Center students fetched successfully:', studentsData.length);
+      return Array.isArray(studentsData) ? studentsData : [];
+    },
+    retry: 2,
+    staleTime: 3 * 60 * 1000, // 3 minutes cache
+    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
+
+  // Handle loading and error states for exams and students
+  if (isLoadingExams || isLoadingStudents) {
+    return (
+      <DashboardLayout title="Exam Management" subtitle="Manage exams and post results for your center">
+        <div className="space-y-6">
+          {/* Statistics Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <div className="w-20 h-4 bg-gray-200 animate-pulse rounded" />
+                  <div className="w-4 h-4 bg-gray-200 animate-pulse rounded" />
+                </CardHeader>
+                <CardContent>
+                  <div className="w-8 h-8 bg-gray-200 animate-pulse rounded mb-1" />
+                  <div className="w-16 h-3 bg-gray-100 animate-pulse rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Exam Cards Skeleton */}
+          <Card>
+            <CardHeader>
+              <div className="w-24 h-6 bg-gray-200 animate-pulse rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="space-y-3">
+                      <div className="w-32 h-5 bg-gray-200 animate-pulse rounded" />
+                      <div className="space-y-1">
+                        <div className="w-24 h-3 bg-gray-100 animate-pulse rounded" />
+                        <div className="w-20 h-3 bg-gray-100 animate-pulse rounded" />
+                        <div className="w-28 h-3 bg-gray-100 animate-pulse rounded" />
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <div className="w-16 h-4 bg-gray-200 animate-pulse rounded" />
+                        <div className="w-20 h-6 bg-gray-200 animate-pulse rounded" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="text-center text-sm text-gray-500 mt-4">
+            Loading your exams...
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Handle error states
+  if (examsError) {
+    return (
+      <DashboardLayout title="Exam Management" subtitle="Manage exams and post results for your center">
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-red-500">
+          <AlertCircle className="h-12 w-12 mb-4" />
+          <p className="text-lg font-semibold">Failed to load exams</p>
+          <p className="text-gray-600">Error: {examsError.message}</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/so-center/exams'] })} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (studentsError) {
+    return (
+      <DashboardLayout title="Exam Management" subtitle="Manage exams and post results for your center">
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-red-500">
+          <AlertCircle className="h-12 w-12 mb-4" />
+          <p className="text-lg font-semibold">Failed to load students</p>
+          <p className="text-gray-600">Error: {studentsError.message}</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/so-center/students'] })} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
 
   // Mark exam as completed mutation
   const markCompletedMutation = useMutation({
     mutationFn: async (examId: string) => {
       const response = await apiRequest('POST', `/api/so-center/exams/${examId}/complete`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -79,7 +200,7 @@ export default function SoCenterExamManagement() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to mark exam as completed. Please try again.",
+        description: `Failed to mark exam as completed. ${error.message || ''}`,
         variant: "destructive",
       });
     },
@@ -91,6 +212,9 @@ export default function SoCenterExamManagement() {
       const response = await apiRequest('POST', `/api/so-center/exams/${examId}/results`, {
         results: results,
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -105,7 +229,7 @@ export default function SoCenterExamManagement() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to submit results. Please try again.",
+        description: `Failed to submit results. ${error.message || ''}`,
         variant: "destructive",
       });
     },
@@ -151,7 +275,7 @@ export default function SoCenterExamManagement() {
     const availableStudents = students.filter((student: any) => 
       !examResults.some(result => result.id === student.id)
     );
-    
+
     if (availableStudents.length > 0) {
       const newStudent = availableStudents[0];
       setExamResults(prev => [...prev, {
@@ -172,14 +296,14 @@ export default function SoCenterExamManagement() {
     const now = new Date();
     const exam = new Date(examDate);
     const diff = exam.getTime() - now.getTime();
-    
+
     if (diff <= 0) {
       return 'Exam date passed';
     }
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) {
       return `${days} days, ${hours} hours remaining`;
     } else {
@@ -190,15 +314,15 @@ export default function SoCenterExamManagement() {
   const getExamStatus = (exam: any) => {
     const now = new Date();
     const examDate = new Date(exam.examDate);
-    
+
     if (exam.status === 'completed') {
       return { status: 'completed', color: 'bg-green-500', text: 'Completed' };
     }
-    
+
     if (examDate < now) {
       return { status: 'overdue', color: 'bg-red-500', text: 'Overdue' };
     }
-    
+
     return { status: 'scheduled', color: 'bg-blue-500', text: 'Scheduled' };
   };
 
@@ -247,7 +371,7 @@ export default function SoCenterExamManagement() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card className="bg-green-50">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -261,7 +385,7 @@ export default function SoCenterExamManagement() {
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card className="bg-orange-50">
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -308,9 +432,9 @@ export default function SoCenterExamManagement() {
                                   {status.text}
                                 </Badge>
                               </div>
-                              
+
                               <p className="text-gray-600 mb-3">{exam.description}</p>
-                              
+
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                 <div>
                                   <span className="text-gray-500">Class:</span>
@@ -348,7 +472,7 @@ export default function SoCenterExamManagement() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div className="flex flex-col space-y-2 ml-4">
                               {exam.status !== 'completed' && (
                                 <>
@@ -364,18 +488,18 @@ export default function SoCenterExamManagement() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
+                                    onClick={() => openResultsModal(exam)}
                                   >
                                     Post Results
                                   </Button>
                                 </>
                               )}
-                              
+
                               {exam.status === 'completed' && (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => setLocation(`/post-exam-result/${exam.id}`)}
+                                  onClick={() => openResultsModal(exam)}
                                 >
                                   Update Results
                                 </Button>
@@ -401,7 +525,7 @@ export default function SoCenterExamManagement() {
                 Post Exam Results - {selectedExam?.title}
               </DialogTitle>
             </DialogHeader>
-            
+
             <div className="space-y-6">
               {/* Exam Information */}
               <div className="bg-blue-50 p-4 rounded-lg">

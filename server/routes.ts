@@ -4953,76 +4953,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // SO CENTER EXAM MANAGEMENT ENDPOINTS
 
-  // Get exams for logged-in SO Center user
+  // Get exams for logged-in SO Center user (Optimized for performance)
   app.get('/api/so-center/exams', authenticateToken, async (req, res) => {
     try {
-      // Get user's SO Center from their role/assignment
       const userId = req.user?.userId;
       console.log('📋 Fetching exams for SO Center user:', userId);
 
-      // Find the user's SO Center ID
-      const user = await storage.getUser(userId);
-      console.log('🔍 User details:', { id: user?.id, email: user?.email, role: user?.role });
-
-      let soCenterId = user?.soCenterId;
-
-      // If user doesn't have soCenterId directly, find it through SO Centers table
-      if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
-        console.log('🔍 Searching SO Centers by managerId:', userId);
-
-        // First try to find by managerId
-        const soCentersByManager = await db.select({
+      // Optimized SO Center lookup - direct email match first
+      let soCenterId: string | null = null;
+      
+      // Direct email lookup (fastest method)
+      if (req.user?.email) {
+        const soCenterByEmail = await db.select({
           id: schema.soCenters.id,
-          name: schema.soCenters.name,
-          centerId: schema.soCenters.centerId,
-          email: schema.soCenters.email,
-          managerId: schema.soCenters.managerId
         })
         .from(schema.soCenters)
-        .where(eq(schema.soCenters.managerId, userId));
+        .where(eq(schema.soCenters.email, req.user.email))
+        .limit(1);
 
-        console.log('🔍 Found SO Centers by managerId:', soCentersByManager);
+        if (soCenterByEmail.length > 0) {
+          soCenterId = soCenterByEmail[0].id;
+          console.log('✅ Fast lookup - Found SO Center by email:', soCenterId);
+        }
+      }
 
-        if (soCentersByManager.length > 0) {
-          soCenterId = soCentersByManager[0].id;
-        } else {
-          console.log('🔍 Searching SO Centers by email:', user?.email);
+      // Fallback lookup if email doesn't work
+      if (!soCenterId) {
+        const soCenterByManager = await db.select({
+          id: schema.soCenters.id,
+        })
+        .from(schema.soCenters)
+        .where(eq(schema.soCenters.managerId, userId))
+        .limit(1);
 
-          // If not found by managerId, try to find by email match
-          const soCentersByEmail = await db.select({
-            id: schema.soCenters.id,
-            name: schema.soCenters.name,
-            centerId: schema.soCenters.centerId,
-            email: schema.soCenters.email,
-            managerId: schema.soCenters.managerId
-          })
-          .from(schema.soCenters)
-          .where(eq(schema.soCenters.email, user?.email || ''));
-
-          console.log('🔍 Found SO Centers by email:', soCentersByEmail);
-
-          if (soCentersByEmail.length > 0) {
-            soCenterId = soCentersByEmail[0].id;
-          } else {
-            // Last resort - find any SO Center that might match this user
-            const allSoCenters = await db.select({
-              id: schema.soCenters.id,
-              name: schema.soCenters.name,
-              centerId: schema.soCenters.centerId,
-              email: schema.soCenters.email,
-              managerId: schema.soCenters.managerId
-            })
-            .from(schema.soCenters)
-            .limit(10);
-
-            console.log('🔍 All SO Centers (first 10):', allSoCenters);
-
-            // For demo purposes, use the first SO Center if user email contains 'nnasoc'
-            if (user?.email?.includes('nnasoc') && allSoCenters.length > 0) {
-              soCenterId = allSoCenters[0].id;
-              console.log('🔍 Using first SO Center for demo user:', soCenterId);
-            }
-          }
+        if (soCenterByManager.length > 0) {
+          soCenterId = soCenterByManager[0].id;
+          console.log('✅ Fallback - Found SO Center by managerId:', soCenterId);
         }
       }
 
@@ -5031,27 +4997,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'SO Center not found for this user' });
       }
 
-      console.log('📋 Found SO Center ID:', soCenterId);
-
-      // Debug: Check what exams exist and their soCenterIds
-      const allExams = await db.select({
-        id: schema.exams.id,
-        title: schema.exams.title,
-        soCenterIds: schema.exams.soCenterIds
-      })
-      .from(schema.exams)
-      .limit(10);
-      console.log('🔍 Sample exams and their SO Center IDs:', allExams);
-      console.log('🔍 Looking for SO Center ID:', soCenterId);
-
-      // Get exams where the SO Center ID is in the soCenterIds array using proper Drizzle syntax
+      // Optimized exam query - get only necessary fields and use single query with joins
       const exams = await db.select({
         id: schema.exams.id,
         title: schema.exams.title,
         description: schema.exams.description,
         classId: schema.exams.classId,
         subjectId: schema.exams.subjectId,
-        chapterIds: schema.exams.chapterIds,
         soCenterIds: schema.exams.soCenterIds,
         examDate: schema.exams.examDate,
         duration: schema.exams.duration,
@@ -5059,28 +5011,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalMarks: schema.exams.totalMarks,
         passingMarks: schema.exams.passingMarks,
         status: schema.exams.status,
-        createdBy: schema.exams.createdBy,
         createdAt: schema.exams.createdAt,
-        updatedAt: schema.exams.updatedAt,
         className: schema.classes.name,
         subjectName: schema.subjects.name
       })
       .from(schema.exams)
       .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
       .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-      .orderBy(schema.exams.examDate);
+      .where(sql`${schema.exams.soCenterIds} @> ARRAY[${soCenterId}]::uuid[]`)
+      .orderBy(desc(schema.exams.examDate));
 
-      // Filter exams that contain the soCenterId in their soCenterIds array
-      // Using JavaScript filtering since Drizzle array SQL query has compatibility issues
-      const filteredExams = exams.filter(exam => 
-        exam.soCenterIds && exam.soCenterIds.includes(soCenterId)
-      );
-
-      console.log('✅ Found', filteredExams.length, 'exams for SO Center');
-      res.json(filteredExams);
+      console.log('✅ Found', exams.length, 'exams for SO Center');
+      res.json(exams);
     } catch (error: any) {
       console.error('❌ Error fetching SO Center exams:', error);
-      res.status(500).json({ message: 'Failed to fetch exams' });
+      // Fallback to JavaScript filtering if SQL array query fails
+      try {
+        const allExams = await db.select()
+          .from(schema.exams)
+          .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+          .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+          .orderBy(desc(schema.exams.examDate));
+        
+        const filteredExams = allExams.filter(exam => 
+          exam.exams.soCenterIds && exam.exams.soCenterIds.includes(req.user?.userId || '')
+        );
+        
+        res.json(filteredExams.map(item => ({
+          ...item.exams,
+          className: item.classes?.name,
+          subjectName: item.subjects?.name
+        })));
+      } catch (fallbackError) {
+        res.status(500).json({ message: 'Failed to fetch exams' });
+      }
     }
   });
 
