@@ -6103,21 +6103,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         submittedAt: new Date()
       };
 
-      console.log('💾 Saving individual exam result without percentage column to avoid database errors');
+      console.log('💾 Saving individual exam result with minimal schema (production optimized)');
+      
+      // Minimal result data matching actual database structure
+      const minimalResultData = {
+        examId,
+        studentId,
+        marksObtained: numericTotalMarks,
+        answeredQuestions: answeredQuestions || (numericTotalMarks > 0 ? 'fully_answered' : 'not_answered'),
+        detailedResults: detailedResults ? JSON.stringify(detailedResults) : null
+      };
       
       if (existingResult.length > 0) {
-        // Update existing result without percentage column
+        // Update existing result
         [result] = await db.update(schema.examResults)
           .set({
-            ...baseResultData,
+            ...minimalResultData,
             updatedAt: new Date()
           })
           .where(eq(schema.examResults.id, existingResult[0].id))
           .returning();
       } else {
-        // Create new result without percentage column
+        // Create new result
         [result] = await db.insert(schema.examResults)
-          .values(baseResultData)
+          .values(minimalResultData)
           .returning();
       }
       
@@ -6221,13 +6230,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             updatedAt: new Date()
           };
 
-          // Use fallback approach without percentage column for database operations
-          console.log('💾 Saving exam result without percentage column to avoid database errors');
+          // Production-optimized minimal database operations
+          console.log('💾 Saving bulk exam results with minimal schema (production optimized)');
+          
+          // Minimal data matching actual database structure
+          const minimalData = {
+            examId,
+            studentId,
+            marksObtained: totalScore || 0,
+            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
+            detailedResults
+          };
+
+          const minimalUpdateData = {
+            marksObtained: totalScore || 0,
+            detailedResults,
+            updatedAt: new Date()
+          };
+
           [result] = await db.insert(schema.examResults)
-            .values(baseData)
+            .values(minimalData)
             .onConflictDoUpdate({
               target: [schema.examResults.examId, schema.examResults.studentId],
-              set: updateData
+              set: minimalUpdateData
             })
             .returning();
           

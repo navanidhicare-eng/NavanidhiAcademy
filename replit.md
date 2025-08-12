@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language.
 - **SO Center Synchronization Issue (Aug 10, 2025)**: Fixed critical bug where SO Centers were created in Supabase Auth but failed to sync to database due to missing `admission_fee_applicable` column. Added missing column and related equipment tables.
 - **Database Schema Completion**: Successfully migrated all missing tables including `so_center_equipment`, ensuring complete SO Center registration process works end-to-end.
 - **SO Center Data Privacy & UI Improvements (Aug 10, 2025)**: Implemented strict data privacy controls ensuring SO Centers can only access their own data. Fixed manager dropdown to show only SO Center role users. Updated UI labels from "Center Manager (Optional)" to "SO Study Organizer" for better clarity and accuracy.
+- **Exam Results Database Schema Issue (Aug 12, 2025)**: Fixed critical database synchronization issue where `exam_results` table was missing multiple columns (`percentage`, `submitted_by`, `submitted_at`). Implemented production-ready fallback approach using minimal schema to ensure exam results save successfully. Created comprehensive SQL migration script (`add_percentage_column.sql`) for manual database column addition.
 
 ## System Architecture
 
