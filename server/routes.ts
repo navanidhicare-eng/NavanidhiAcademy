@@ -4959,43 +4959,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.userId;
       console.log('📋 Fetching exams for SO Center user:', userId);
 
-      // Optimized SO Center lookup - direct email match first
-      let soCenterId: string | null = null;
-      
-      // Direct email lookup (fastest method)
+      // Use the existing working getSoCenterByEmail method
+      let soCenter = null;
       if (req.user?.email) {
-        const soCenterByEmail = await db.select({
-          id: schema.soCenters.id,
-        })
-        .from(schema.soCenters)
-        .where(eq(schema.soCenters.email, req.user.email))
-        .limit(1);
-
-        if (soCenterByEmail.length > 0) {
-          soCenterId = soCenterByEmail[0].id;
-          console.log('✅ Fast lookup - Found SO Center by email:', soCenterId);
+        try {
+          soCenter = await storage.getSoCenterByEmail(req.user.email);
+          if (soCenter) {
+            console.log('✅ Found SO Center by email:', soCenter.centerId);
+          }
+        } catch (error) {
+          console.log('⚠️ Email lookup failed, trying fallback');
         }
       }
 
-      // Fallback lookup if email doesn't work
-      if (!soCenterId) {
-        const soCenterByManager = await db.select({
-          id: schema.soCenters.id,
-        })
-        .from(schema.soCenters)
-        .where(eq(schema.soCenters.managerId, userId))
-        .limit(1);
+      // Fallback lookup by managerId if email lookup fails
+      if (!soCenter && userId) {
+        try {
+          const soCenterByManager = await db.select()
+            .from(schema.soCenters)
+            .where(eq(schema.soCenters.managerId, userId))
+            .limit(1);
 
-        if (soCenterByManager.length > 0) {
-          soCenterId = soCenterByManager[0].id;
-          console.log('✅ Fallback - Found SO Center by managerId:', soCenterId);
+          if (soCenterByManager.length > 0) {
+            soCenter = soCenterByManager[0];
+            console.log('✅ Fallback - Found SO Center by managerId:', soCenter.centerId);
+          }
+        } catch (error) {
+          console.log('⚠️ Manager lookup also failed');
         }
       }
 
-      if (!soCenterId) {
+      if (!soCenter) {
         console.log('❌ No SO Center found for user');
         return res.status(404).json({ message: 'SO Center not found for this user' });
       }
+
+      const soCenterId = soCenter.id;
 
       // Simplified exam query to avoid performance issues
       const allExams = await db.select()
