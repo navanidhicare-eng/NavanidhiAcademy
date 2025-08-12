@@ -203,10 +203,19 @@ export function EnhancedProgressTracker() {
   const chapters = Array.isArray(chaptersResponse) ? chaptersResponse : [];
 
   // Fetch topics based on selected chapter
-  const { data: topicsResponse = [], isLoading: isLoadingTopics } = useQuery({
+  const { data: topicsResponse = [], isLoading: isLoadingTopics, error: topicsError } = useQuery({
     queryKey: ["/api/topics", selectedChapter],
-    queryFn: () => apiRequest("GET", `/api/topics/${selectedChapter}`),
+    queryFn: async () => {
+      if (!selectedChapter) return [];
+      console.log('🔍 Fetching topics for chapter:', selectedChapter);
+      const response = await apiRequest("GET", `/api/topics/${selectedChapter}`);
+      const data = await response.json();
+      console.log('📝 Topics response:', data);
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!selectedChapter,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   const topics = Array.isArray(topicsResponse) ? topicsResponse : [];
@@ -249,6 +258,14 @@ export function EnhancedProgressTracker() {
   useEffect(() => {
     setSelectedTopic('');
     setCompletedTopics([]);
+  }, [selectedChapter]);
+
+  // Debug logging for chapter selection
+  useEffect(() => {
+    if (selectedChapter) {
+      console.log('📖 Chapter selected for topics:', selectedChapter);
+      console.log('📝 Will fetch topics for chapter:', selectedChapter);
+    }
   }, [selectedChapter]);
 
   // Fetch topic completion status when student and chapter are selected
@@ -917,7 +934,7 @@ export function EnhancedProgressTracker() {
                             </SelectItem>
                           ) : topics.length === 0 ? (
                             <SelectItem value="no-topics" disabled>
-                              No topics found for this chapter
+                              {topicsError ? 'Error loading topics' : 'No topics found for this chapter'}
                             </SelectItem>
                           ) : (
                             topics.map((topic: Topic) => {
