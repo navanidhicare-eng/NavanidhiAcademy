@@ -79,22 +79,54 @@ export function EnhancedProgressTracker() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [completedTopics, setCompletedTopics] = useState<string[]>([]);
 
-  // Fetch classes - only classes with students in this SO Center
-  const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
-    queryKey: ["/api/classes"],
-    queryFn: () => apiRequest("GET", "/api/classes"),
+  // Fetch classes - use manual API call to avoid caching issues with TanStack Query default queryFn
+  const { data: classesResponse = [], isLoading: isLoadingClasses, error: classesError } = useQuery({
+    queryKey: ["/api/classes", "progress-manual"],
+    queryFn: async () => {
+      const response = await fetch('/api/classes', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const classes = Array.isArray(classesResponse) ? classesResponse : [];
 
-  // Fetch students for homework activity - use regular students endpoint which works consistently
+
+
+  // Fetch students for homework activity - use manual fetch to avoid caching issues
   const { data: studentsHomeworkResponse = [], isLoading: isLoadingStudentsHomework } = useQuery({
-    queryKey: ["/api/students"],
-    queryFn: () => apiRequest("GET", "/api/students"),
+    queryKey: ["/api/students", "homework-manual"],
+    queryFn: async () => {
+      const response = await fetch('/api/students', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
     enabled: true,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const allStudentsHomework = Array.isArray(studentsHomeworkResponse) ? studentsHomeworkResponse : [];
+
+
 
   // Filter students by selected class for homework
   const filteredStudentsHomework = useMemo(() => {
@@ -102,11 +134,25 @@ export function EnhancedProgressTracker() {
     return allStudentsHomework.filter((student: Student) => student.classId === selectedClassHomework);
   }, [allStudentsHomework, selectedClassHomework]);
 
-  // Fetch students for topic completion - use regular students endpoint which works consistently
+  // Fetch students for topic completion - use manual fetch to avoid caching issues
   const { data: studentsTopicResponse = [], isLoading: isLoadingStudentsTopic } = useQuery({
-    queryKey: ["/api/students"],
-    queryFn: () => apiRequest("GET", "/api/students"),
+    queryKey: ["/api/students", "topic-manual"],
+    queryFn: async () => {
+      const response = await fetch('/api/students', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    },
     enabled: true,
+    staleTime: 0,
+    cacheTime: 0,
   });
 
   const allStudentsTopic = Array.isArray(studentsTopicResponse) ? studentsTopicResponse : [];
