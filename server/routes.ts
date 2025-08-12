@@ -5841,7 +5841,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res?.role !== 'admin') {
+  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
       }
 
