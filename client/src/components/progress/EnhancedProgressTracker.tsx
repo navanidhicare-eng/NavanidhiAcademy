@@ -80,31 +80,21 @@ export function EnhancedProgressTracker() {
   const [completedTopics, setCompletedTopics] = useState<string[]>([]);
 
   // Fetch classes - only classes with students in this SO Center
-  const { data: classesResponse = [], isLoading: isLoadingClasses, error: classesError } = useQuery({
+  const { data: classesResponse = [], isLoading: isLoadingClasses } = useQuery({
     queryKey: ["/api/classes"],
-    queryFn: () => {
-      console.log('🔑 Making API request to /api/classes');
-      return apiRequest("GET", "/api/classes");
-    },
+    queryFn: () => apiRequest("GET", "/api/classes"),
   });
 
   const classes = Array.isArray(classesResponse) ? classesResponse : [];
 
-  console.log('Classes received:', classes);
-  console.log('Classes loading state:', isLoadingClasses);
-  console.log('Classes error:', classesError);
-
-  // Fetch students for homework activity
+  // Fetch students for homework activity - use regular students endpoint which works consistently
   const { data: studentsHomeworkResponse = [], isLoading: isLoadingStudentsHomework } = useQuery({
-    queryKey: ["/api/so-center/detailed-students"],
-    queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    queryKey: ["/api/students"],
+    queryFn: () => apiRequest("GET", "/api/students"),
     enabled: true,
   });
 
   const allStudentsHomework = Array.isArray(studentsHomeworkResponse) ? studentsHomeworkResponse : [];
-
-  console.log('All students homework:', allStudentsHomework);
-  console.log('Student class IDs:', allStudentsHomework.map(s => ({ name: s.name, classId: s.classId })));
 
   // Filter students by selected class for homework
   const filteredStudentsHomework = useMemo(() => {
@@ -112,10 +102,10 @@ export function EnhancedProgressTracker() {
     return allStudentsHomework.filter((student: Student) => student.classId === selectedClassHomework);
   }, [allStudentsHomework, selectedClassHomework]);
 
-  // Fetch students for topic completion
+  // Fetch students for topic completion - use regular students endpoint which works consistently
   const { data: studentsTopicResponse = [], isLoading: isLoadingStudentsTopic } = useQuery({
-    queryKey: ["/api/so-center/detailed-students"],
-    queryFn: () => apiRequest("GET", "/api/so-center/detailed-students"),
+    queryKey: ["/api/students"],
+    queryFn: () => apiRequest("GET", "/api/students"),
     enabled: true,
   });
 
@@ -136,9 +126,6 @@ export function EnhancedProgressTracker() {
 
   const subjects = Array.isArray(subjectsResponse) ? subjectsResponse : [];
 
-  console.log('Subjects received for class:', selectedClassTopic, subjects);
-  console.log('Subjects loading state:', isLoadingSubjects);
-
   // Fetch chapters based on selected subject
   const { data: chaptersResponse = [], isLoading: isLoadingChapters } = useQuery({
     queryKey: ["/api/chapters", selectedSubject],
@@ -148,9 +135,6 @@ export function EnhancedProgressTracker() {
 
   const chapters = Array.isArray(chaptersResponse) ? chaptersResponse : [];
 
-  console.log('Chapters received for subject:', selectedSubject, chapters);
-  console.log('Chapters loading state:', isLoadingChapters);
-
   // Fetch topics based on selected chapter
   const { data: topicsResponse = [], isLoading: isLoadingTopics } = useQuery({
     queryKey: ["/api/topics", selectedChapter],
@@ -159,9 +143,6 @@ export function EnhancedProgressTracker() {
   });
 
   const topics = Array.isArray(topicsResponse) ? topicsResponse : [];
-
-  console.log('Topics received for chapter:', selectedChapter, topics);
-  console.log('Topics loading state:', isLoadingTopics);
 
   // Reset dependent dropdowns when parent changes
   useEffect(() => {
