@@ -185,10 +185,19 @@ export function EnhancedProgressTracker() {
   const subjects = Array.isArray(subjectsResponse) ? subjectsResponse : [];
 
   // Fetch chapters based on selected subject
-  const { data: chaptersResponse = [], isLoading: isLoadingChapters } = useQuery({
+  const { data: chaptersResponse = [], isLoading: isLoadingChapters, error: chaptersError } = useQuery({
     queryKey: ["/api/chapters", selectedSubject],
-    queryFn: () => apiRequest("GET", `/api/chapters/${selectedSubject}`),
+    queryFn: async () => {
+      if (!selectedSubject) return [];
+      console.log('🔍 Fetching chapters for subject:', selectedSubject);
+      const response = await apiRequest("GET", `/api/chapters/${selectedSubject}`);
+      const data = await response.json();
+      console.log('📚 Chapters response:', data);
+      return Array.isArray(data) ? data : [];
+    },
     enabled: !!selectedSubject,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    cacheTime: 10 * 60 * 1000, // 10 minutes cache
   });
 
   const chapters = Array.isArray(chaptersResponse) ? chaptersResponse : [];
@@ -228,6 +237,14 @@ export function EnhancedProgressTracker() {
       console.log('📚 Will fetch subjects for class:', selectedClassTopic);
     }
   }, [selectedClassTopic]);
+
+  // Debug logging for subject selection
+  useEffect(() => {
+    if (selectedSubject) {
+      console.log('📖 Subject selected for topics:', selectedSubject);
+      console.log('📑 Will fetch chapters for subject:', selectedSubject);
+    }
+  }, [selectedSubject]);
 
   useEffect(() => {
     setSelectedTopic('');
@@ -857,7 +874,7 @@ export function EnhancedProgressTracker() {
                             </SelectItem>
                           ) : chapters.length === 0 ? (
                             <SelectItem value="no-chapters" disabled>
-                              No chapters found for this subject
+                              {chaptersError ? 'Error loading chapters' : 'No chapters found for this subject'}
                             </SelectItem>
                           ) : (
                             chapters.map((chapter: Chapter) => (
