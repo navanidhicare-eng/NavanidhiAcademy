@@ -46,20 +46,7 @@ import {
   insertProductSchema,
   insertSoCenterExpenseSchema,
   insertExamSchema,
-  insertExamResultSchema, // Import for exam results
-  insertHomeworkActivitySchema,
-  insertTuitionProgressSchema,
-  insertSoCenterExpenseSchema,
-  insertExamSchema,
-  insertExamResultSchema,
-  insertSoCenterSchema,
-  insertSoCenterExpenseSchema,
-  insertStudentSchema,
-  insertStudentSiblingSchema,
-  insertSubjectSchema,
-  insertTopicProgressSchema,
-  insertUserSchema,
-  insertVillageSchema,
+  insertExamResultSchema
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -5671,7 +5658,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const examId = req.params.examId;
 
-      // Get students for this exam who belong to this SO Center      const students = await sql`
+      // Get students for this exam who belong to this SO Center
+      const students = await sql`
         SELECT DISTINCT 
           s.id,
           s.name,
