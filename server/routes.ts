@@ -1535,7 +1535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           COUNT(s.id) as total_students,
           COUNT(DISTINCT s.so_center_id) as total_so_centers,
-          COALESCE(SUM(CASE WHEN p.payment_date >= DATE_TRUNC('month', CURRENT_DATE) THEN p.amount ELSE 0 END), 0) as monthly_revenue,
+          COALESCE(SUM(CASE WHEN p.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN CAST(p.amount AS NUMERIC) ELSE 0 END), 0) as monthly_revenue,
           COUNT(CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_students_this_month
         FROM students s
         LEFT JOIN payments p ON p.student_id = s.id
