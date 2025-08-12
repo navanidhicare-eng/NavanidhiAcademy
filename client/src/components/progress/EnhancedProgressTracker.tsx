@@ -658,253 +658,288 @@ export function EnhancedProgressTracker() {
                 Topic Completion Tracking
               </CardTitle>
               <CardDescription>
-                Mark topics as completed for individual students
+                Mark topics as completed for students with automatic date capture
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Selection Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Class *</Label>
-                  <Select value={selectedClassTopic} onValueChange={setSelectedClassTopic}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "Select class"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingClasses ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading classes...
-                        </SelectItem>
-                      ) : classes.length === 0 ? (
-                        <SelectItem value="no-classes" disabled>
-                          No classes available
-                        </SelectItem>
-                      ) : (
-                        classes.map((classItem: Class) => (
-                          <SelectItem key={classItem.id} value={classItem.id}>
-                            <div className="flex items-center gap-2">
-                              <GraduationCap className="h-4 w-4" />
-                              {classItem.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Student *</Label>
-                  <Select 
-                    value={selectedStudentTopic} 
-                    onValueChange={setSelectedStudentTopic}
-                    disabled={!selectedClassTopic}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedClassTopic 
-                          ? "Select class first" 
-                          : isLoadingStudentsTopic 
-                          ? "Loading students..." 
-                          : "Select student"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingStudentsTopic ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading students...
-                        </SelectItem>
-                      ) : !selectedClassTopic ? (
-                        <SelectItem value="no-class" disabled>
-                          Please select a class first
-                        </SelectItem>
-                      ) : filteredStudentsTopic.length === 0 ? (
-                        <SelectItem value="no-students" disabled>
-                          No students found in this class
-                        </SelectItem>
-                      ) : (
-                        filteredStudentsTopic.map((student: Student) => (
-                          <SelectItem key={student.id} value={student.id}>
-                            <div className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
-                              {student.name} ({student.studentId})
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Subject *</Label>
-                  <Select 
-                    value={selectedSubject} 
-                    onValueChange={setSelectedSubject}
-                    disabled={!selectedClassTopic}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedClassTopic 
-                          ? "Select class first" 
-                          : isLoadingSubjects 
-                          ? "Loading subjects..." 
-                          : "Select subject"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingSubjects ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading subjects...
-                        </SelectItem>
-                      ) : !selectedClassTopic ? (
-                        <SelectItem value="no-class" disabled>
-                          Please select a class first
-                        </SelectItem>
-                      ) : subjects.length === 0 ? (
-                        <SelectItem value="no-subjects" disabled>
-                          No subjects found
-                        </SelectItem>
-                      ) : (
-                        subjects.map((subject: Subject) => (
-                          <SelectItem key={subject.id} value={subject.id}>
-                            <div className="flex items-center gap-2">
-                              <Book className="h-4 w-4" />
-                              {subject.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Chapter *</Label>
-                  <Select 
-                    value={selectedChapter} 
-                    onValueChange={setSelectedChapter}
-                    disabled={!selectedSubject}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedSubject 
-                          ? "Select subject first" 
-                          : isLoadingChapters 
-                          ? "Loading chapters..." 
-                          : "Select chapter"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingChapters ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading chapters...
-                        </SelectItem>
-                      ) : !selectedSubject ? (
-                        <SelectItem value="no-subject" disabled>
-                          Please select a subject first
-                        </SelectItem>
-                      ) : chapters.length === 0 ? (
-                        <SelectItem value="no-chapters" disabled>
-                          No chapters found
-                        </SelectItem>
-                      ) : (
-                        chapters.map((chapter: Chapter) => (
-                          <SelectItem key={chapter.id} value={chapter.id}>
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4" />
-                              {chapter.name}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Topic *</Label>
-                  <Select 
-                    value={selectedTopic} 
-                    onValueChange={setSelectedTopic}
-                    disabled={!selectedChapter}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        !selectedChapter 
-                          ? "Select chapter first" 
-                          : isLoadingTopics 
-                          ? "Loading topics..." 
-                          : "Select topic"
-                      } />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {isLoadingTopics ? (
-                        <SelectItem value="loading" disabled>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Loading topics...
-                        </SelectItem>
-                      ) : !selectedChapter ? (
-                        <SelectItem value="no-chapter" disabled>
-                          Please select a chapter first
-                        </SelectItem>
-                      ) : topics.length === 0 ? (
-                        <SelectItem value="no-topics" disabled>
-                          No topics found
-                        </SelectItem>
-                      ) : (
-                        topics.map((topic: Topic) => {
-                          const isCompleted = completedTopics.includes(topic.id);
-                          return (
-                            <SelectItem key={topic.id} value={topic.id}>
-                              <div className="flex items-center gap-2">
-                                {isCompleted ? (
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <Clock className="h-4 w-4 text-gray-400" />
-                                )}
-                                <span className={isCompleted ? "text-green-600" : ""}>
-                                  {topic.name}
-                                </span>
-                                {isCompleted && (
-                                  <Badge variant="secondary" className="ml-2 text-xs">
-                                    Completed
-                                  </Badge>
-                                )}
-                              </div>
-                            </SelectItem>
-                          );
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
+              {/* Auto-Date Display */}
+              <div className="p-4 border rounded-lg bg-gray-50/50">
+                <h3 className="font-medium text-gray-900 mb-2">Date Automatically Captured</h3>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                  <span className="text-lg font-medium text-blue-900">
+                    {new Date().toLocaleDateString('en-GB', { 
+                      day: '2-digit', 
+                      month: '2-digit', 
+                      year: 'numeric' 
+                    })}
+                  </span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <Button 
-                  onClick={handleCompleteTopics}
-                  disabled={
-                    !selectedStudentTopic || 
-                    !selectedTopic || 
-                    completedTopics.includes(selectedTopic) ||
-                    topicCompletionMutation.isPending
-                  }
-                >
-                  {topicCompletionMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Mark Topic as Completed
-                </Button>
+              {/* Step-by-Step Workflow */}
+              <div className="space-y-4">
+                {/* Step 1: Class Selection */}
+                <div className="p-4 border rounded-lg bg-blue-50/50">
+                  <h3 className="font-medium text-blue-900 mb-3">Step 1: Select Class</h3>
+                  <div className="space-y-2">
+                    <Label>Class *</Label>
+                    <Select 
+                      value={selectedClassTopic} 
+                      onValueChange={(value) => {
+                        setSelectedClassTopic(value);
+                        setSelectedStudentTopic(''); // Reset dependent selections
+                        setSelectedSubject('');
+                        setSelectedChapter('');
+                        setSelectedTopic('');
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={isLoadingClasses ? "Loading classes..." : "First, select the class"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {isLoadingClasses ? (
+                          <SelectItem value="loading" disabled>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading classes...
+                          </SelectItem>
+                        ) : classes.length === 0 ? (
+                          <SelectItem value="no-classes" disabled>
+                            No classes available
+                          </SelectItem>
+                        ) : (
+                          classes.map((classItem: Class) => (
+                            <SelectItem key={classItem.id} value={classItem.id}>
+                              <div className="flex items-center gap-2">
+                                <GraduationCap className="h-4 w-4" />
+                                {classItem.name}
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-                {completedTopics.includes(selectedTopic) && selectedTopic && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Already Completed
-                  </Badge>
+                {/* Step 2: Student Selection */}
+                {selectedClassTopic && (
+                  <div className="p-4 border rounded-lg bg-green-50/50">
+                    <h3 className="font-medium text-green-900 mb-3">Step 2: Select Student from that Class</h3>
+                    <div className="space-y-2">
+                      <Label>Student *</Label>
+                      <Select 
+                        value={selectedStudentTopic} 
+                        onValueChange={setSelectedStudentTopic}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingStudentsTopic 
+                              ? "Loading students..." 
+                              : "Then, select the student from that class"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingStudentsTopic ? (
+                            <SelectItem value="loading" disabled>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading students...
+                            </SelectItem>
+                          ) : filteredStudentsTopic.length === 0 ? (
+                            <SelectItem value="no-students" disabled>
+                              No students found in this class
+                            </SelectItem>
+                          ) : (
+                            filteredStudentsTopic.map((student: Student) => (
+                              <SelectItem key={student.id} value={student.id}>
+                                <div className="flex items-center gap-2">
+                                  <User className="h-4 w-4" />
+                                  {student.name} ({student.studentId})
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Subject Selection */}
+                {selectedClassTopic && (
+                  <div className="p-4 border rounded-lg bg-purple-50/50">
+                    <h3 className="font-medium text-purple-900 mb-3">Step 3: Select Subject for that Class</h3>
+                    <div className="space-y-2">
+                      <Label>Subject *</Label>
+                      <Select 
+                        value={selectedSubject} 
+                        onValueChange={(value) => {
+                          setSelectedSubject(value);
+                          setSelectedChapter(''); // Reset dependent selections
+                          setSelectedTopic('');
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingSubjects 
+                              ? "Loading subjects..." 
+                              : "Then, select the subject assigned to that class"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingSubjects ? (
+                            <SelectItem value="loading" disabled>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading subjects...
+                            </SelectItem>
+                          ) : subjects.length === 0 ? (
+                            <SelectItem value="no-subjects" disabled>
+                              No subjects found for this class
+                            </SelectItem>
+                          ) : (
+                            subjects.map((subject: Subject) => (
+                              <SelectItem key={subject.id} value={subject.id}>
+                                <div className="flex items-center gap-2">
+                                  <Book className="h-4 w-4" />
+                                  {subject.name}
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Chapter Selection */}
+                {selectedSubject && (
+                  <div className="p-4 border rounded-lg bg-yellow-50/50">
+                    <h3 className="font-medium text-yellow-900 mb-3">Step 4: Select Chapter for that Subject</h3>
+                    <div className="space-y-2">
+                      <Label>Chapter *</Label>
+                      <Select 
+                        value={selectedChapter} 
+                        onValueChange={(value) => {
+                          setSelectedChapter(value);
+                          setSelectedTopic(''); // Reset dependent selection
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingChapters 
+                              ? "Loading chapters..." 
+                              : "Then, select the chapter for that subject"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingChapters ? (
+                            <SelectItem value="loading" disabled>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading chapters...
+                            </SelectItem>
+                          ) : chapters.length === 0 ? (
+                            <SelectItem value="no-chapters" disabled>
+                              No chapters found for this subject
+                            </SelectItem>
+                          ) : (
+                            chapters.map((chapter: Chapter) => (
+                              <SelectItem key={chapter.id} value={chapter.id}>
+                                <div className="flex items-center gap-2">
+                                  <BookOpen className="h-4 w-4" />
+                                  {chapter.name}
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 5: Topic Selection */}
+                {selectedChapter && (
+                  <div className="p-4 border rounded-lg bg-orange-50/50">
+                    <h3 className="font-medium text-orange-900 mb-3">Step 5: Select Topic for that Chapter</h3>
+                    <div className="space-y-2">
+                      <Label>Topic *</Label>
+                      <Select 
+                        value={selectedTopic} 
+                        onValueChange={setSelectedTopic}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            isLoadingTopics 
+                              ? "Loading topics..." 
+                              : "Finally, select the topic for that chapter"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingTopics ? (
+                            <SelectItem value="loading" disabled>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading topics...
+                            </SelectItem>
+                          ) : topics.length === 0 ? (
+                            <SelectItem value="no-topics" disabled>
+                              No topics found for this chapter
+                            </SelectItem>
+                          ) : (
+                            topics.map((topic: Topic) => {
+                              const isCompleted = completedTopics.includes(topic.id);
+                              return (
+                                <SelectItem key={topic.id} value={topic.id}>
+                                  <div className="flex items-center gap-2">
+                                    {isCompleted ? (
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Clock className="h-4 w-4 text-gray-400" />
+                                    )}
+                                    <span className={isCompleted ? "text-green-600" : ""}>
+                                      {topic.name}
+                                    </span>
+                                    {isCompleted && (
+                                      <Badge variant="secondary" className="ml-2 text-xs">
+                                        Completed
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              );
+                            })
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                {selectedTopic && (
+                  <div className="flex items-center justify-between pt-4">
+                    <Button 
+                      onClick={handleCompleteTopics}
+                      disabled={
+                        !selectedStudentTopic || 
+                        !selectedTopic || 
+                        completedTopics.includes(selectedTopic) ||
+                        topicCompletionMutation.isPending
+                      }
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {topicCompletionMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Mark Topic as Completed
+                    </Button>
+
+                    {completedTopics.includes(selectedTopic) && selectedTopic && (
+                      <Badge variant="secondary" className="bg-green-100 text-green-700">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Already Completed
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
 
