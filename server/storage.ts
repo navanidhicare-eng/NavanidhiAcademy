@@ -756,45 +756,42 @@ export class DrizzleStorage implements IStorage {
     try {
       console.log('🔍 Storage: Fetching students for SO Center:', soCenterId);
 
-      const students = await db
-        .select({
-          id: schema.students.id,
-          name: schema.students.name,
-          studentId: schema.students.studentId,
-          email: schema.students.email,
-          phone: schema.students.phone,
-          dateOfBirth: schema.students.dateOfBirth,
-          fatherName: schema.students.fatherName,
-          motherName: schema.students.motherName,
-          fatherMobile: schema.students.fatherMobile,
-          motherMobile: schema.students.motherMobile,
-          address: schema.students.address,
-          enrollmentDate: schema.students.enrollmentDate,
-          courseType: schema.students.courseType,
-          classId: schema.students.classId,
-          className: schema.classes.name,
-          soCenterId: schema.students.soCenterId,
-          villageId: schema.students.villageId,
-          isActive: schema.students.isActive,
-          totalFeeAmount: schema.students.totalFeeAmount,
-          paidAmount: schema.students.paidAmount,
-          pendingAmount: schema.students.pendingAmount,
-          createdAt: schema.students.createdAt,
-          updatedAt: schema.students.updatedAt,
-        })
-        .from(schema.students)
-        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
-        .where(
-          and(
-            eq(schema.students.soCenterId, soCenterId),
-            eq(schema.students.isActive, true)
-          )
-        )
-        .orderBy(desc(schema.students.createdAt));
+      // Use a simpler approach with raw SQL to avoid Drizzle ordering issues
+      const students = await sql`
+        SELECT 
+          s.id,
+          s.name,
+          s.student_id as "studentId",
+          s.email,
+          s.phone,
+          s.date_of_birth as "dateOfBirth",
+          s.father_name as "fatherName",
+          s.mother_name as "motherName",
+          s.father_mobile as "fatherMobile",
+          s.mother_mobile as "motherMobile",
+          s.address,
+          s.enrollment_date as "enrollmentDate",
+          s.course_type as "courseType",
+          s.class_id as "classId",
+          c.name as "className",
+          s.so_center_id as "soCenterId",
+          s.village_id as "villageId",
+          s.is_active as "isActive",
+          s.total_fee_amount as "totalFeeAmount",
+          s.paid_amount as "paidAmount",
+          s.pending_amount as "pendingAmount",
+          s.created_at as "createdAt",
+          s.updated_at as "updatedAt"
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE s.so_center_id = ${soCenterId}
+          AND s.is_active = true
+        ORDER BY s.created_at DESC
+      `;
 
       console.log('✅ Storage: Found', students.length, 'students for SO Center');
 
-      // Ensure we always return an array (this should already be the case, but being explicit)
+      // Ensure we always return an array
       return Array.isArray(students) ? students : [];
     } catch (error) {
       console.error('❌ Storage: Error fetching students by SO Center:', error);
