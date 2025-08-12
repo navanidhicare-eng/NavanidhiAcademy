@@ -77,13 +77,21 @@ export default function SoCenterExams() {
   // Fetch students and questions for modal
   const fetchExamData = async (examId: string) => {
     try {
+      console.log('🔍 Fetching exam data for:', examId);
+      
       const [studentsResponse, questionsResponse] = await Promise.all([
         apiRequest("GET", `/api/so-center/exams/${examId}/students`),
         apiRequest("GET", `/api/exams/${examId}/questions`)
       ]);
       
+      console.log('📊 Students response:', studentsResponse);
+      console.log('📊 Questions response:', questionsResponse);
+      
       const studentsData = Array.isArray(studentsResponse) ? studentsResponse : [];
       const questionsData = Array.isArray(questionsResponse) ? questionsResponse : [];
+      
+      console.log('📊 Processed students:', studentsData.length);
+      console.log('📊 Processed questions:', questionsData.length);
       
       setStudents(studentsData);
       setExamQuestions(questionsData);
@@ -93,18 +101,20 @@ export default function SoCenterExams() {
       studentsData.forEach((student: Student) => {
         initialMarks[student.id] = {
           studentId: student.id,
-          marks: questionsData.map((q: ExamQuestion) => ({
-            questionNo: q.questionNumber,
+          marks: questionsData.map((q: ExamQuestion, index: number) => ({
+            questionNo: q.questionNumber || (index + 1),
             score: 0,
-            maxMarks: q.marks
+            maxMarks: q.marks || 1
           })),
           performance: questionsData.map(() => 'not_attempted'),
           totalScore: 0
         };
       });
       setStudentMarks(initialMarks);
+      
+      console.log('✅ Exam data loaded successfully');
     } catch (error) {
-      console.error('Error fetching exam data:', error);
+      console.error('❌ Error fetching exam data:', error);
       toast({
         title: "Error",
         description: "Failed to fetch exam data",
