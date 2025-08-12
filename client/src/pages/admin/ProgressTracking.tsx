@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -108,6 +109,25 @@ export default function ProgressTracking() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Redirect non-SO Center users
+  useEffect(() => {
+    if (user && user.role !== 'so_center') {
+      toast({
+        title: "Access Denied",
+        description: "You do not have permission to access Progress Tracking.",
+        variant: "destructive",
+      });
+      setLocation('/dashboard');
+      return;
+    }
+  }, [user, setLocation, toast]);
+
+  // If user is not SO Center, don't render the component
+  if (user && user.role !== 'so_center') {
+    return null;
+  }
   
   // Hierarchical filter states
   const [selectedState, setSelectedState] = useState<string>('');

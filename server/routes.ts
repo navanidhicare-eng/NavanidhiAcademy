@@ -1411,9 +1411,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Progress routes
+  // Progress routes - SO Center access only
   app.get("/api/progress/:studentId", authenticateToken, async (req, res) => {
     try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
       const progress = await storage.getStudentProgress(req.params.studentId);
       res.json(progress);
     } catch (error) {
@@ -1426,6 +1429,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
+      }
+      if (req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
       }
       const progressData = insertTopicProgressSchema.parse({
         ...req.body,
@@ -4352,13 +4358,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/progress-tracking", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
       }
 
       const { classId, soCenterId, fromDate, toDate } = req.query;
 
-      console.log('📊 Admin requesting comprehensive progress tracking with filters:', {
+      console.log('📊 SO Center requesting comprehensive progress tracking with filters:', {
         classId: classId || 'All',
         soCenterId: soCenterId || 'All',
         fromDate: fromDate || 'No date filter',
