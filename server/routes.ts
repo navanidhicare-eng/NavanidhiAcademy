@@ -3674,6 +3674,264 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single student details by ID for admin
+  app.get("/api/students/:studentId", authenticateToken, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      
+      // Get basic student info with related data
+      const studentQuery = `
+        SELECT 
+          s.id, s.student_id as student_code, s.name, s.email, s.phone, s.parent_phone,
+          s.date_of_birth, s.enrollment_date, s.pending_amount, s.paid_amount,
+          c.name as class_name, c.id as class_id,
+          sc.name as so_center_name, sc.center_id as so_center_code,
+          st.name as state_name, d.name as district_name, 
+          m.name as mandal_name, v.name as village_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        WHERE s.id = $1 AND s.is_active = true
+      `;
+
+      const studentResults = await executeRawQuery(studentQuery, [studentId]);
+      
+      if (!studentResults.length) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      const student = studentResults[0];
+      
+      // Transform the result
+      const studentData = {
+        id: student.id,
+        studentCode: student.student_code,
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        parentPhone: student.parent_phone,
+        dateOfBirth: student.date_of_birth,
+        enrollmentDate: student.enrollment_date,
+        pendingAmount: parseFloat(student.pending_amount) || 0,
+        paidAmount: parseFloat(student.paid_amount) || 0,
+        className: student.class_name,
+        classId: student.class_id,
+        soCenterName: student.so_center_name,
+        soCenterCode: student.so_center_code,
+        location: {
+          state: student.state_name || 'N/A',
+          district: student.district_name || 'N/A',
+          mandal: student.mandal_name || 'N/A',
+          village: student.village_name || 'N/A'
+        }
+      };
+
+      res.json(studentData);
+    } catch (error) {
+      console.error('Error fetching student details:', error);
+      res.status(500).json({ message: 'Failed to fetch student details' });
+    }
+  });
+
+  // Get student progress tracking data for detailed view
+  app.get("/api/progress-tracking/student/:studentId", authenticateToken, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      
+      // Get homework activities progress
+      const homeworkQuery = `
+        SELECT 
+          ha.id, ha.homework_date, ha.subject, ha.chapter, ha.topic, ha.status,
+          ha.score, ha.total_score, ha.remarks, ha.created_at
+        FROM homework_activities ha
+        WHERE ha.student_id = $1
+        ORDER BY ha.homework_date DESC, ha.created_at DESC
+      `;
+
+      // Get tuition progress
+      const tuitionQuery = `
+        SELECT 
+          tp.id, tp.status, tp.completion_date, tp.created_at,
+          t.name as topic_name, c.name as chapter_name, s.name as subject_name
+        FROM tuition_progress tp
+        JOIN topics t ON tp.topic_id = t.id
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects s ON c.subject_id = s.id
+        WHERE tp.student_id = $1
+        ORDER BY s.name, c.name, t.name
+      `;
+
+      const [homeworkResults, tuitionResults] = await Promise.all([
+        executeRawQuery(homeworkQuery, [studentId]),
+        executeRawQuery(tuitionQuery, [studentId])
+      ]);
+
+      // Calculate subject-wise statistics
+      const subjectStats: any = {};
+      
+      // Process homework data
+      homeworkResults.forEach((hw: any) => {
+        const subject = hw.subject || 'General';
+        if (!subjectStats[subject]) {
+          subjectStats[subject] = {
+            homeworkTotal: 0,
+            homeworkCompleted: 0,
+            totalScore: 0,
+            maxScore: 0,
+            tuitionTopics: 0,
+            completedTuitionTopics: 0
+          };
+        }
+        
+        subjectStats[subject].homeworkTotal++;
+        if (hw.status === 'completed') {
+          subjectStats[subject].homeworkCompleted++;
+        }
+        if (hw.score) {
+          subjectStats[subject].totalScore += parseFloat(hw.score);
+          subjectStats[subject].maxScore += parseFloat(hw.total_score || hw.score);
+        }
+      });
+
+      // Process tuition data
+      tuitionResults.forEach((tp: any) => {
+        const subject = tp.subject_name || 'General';
+        if (!subjectStats[subject]) {
+          subjectStats[subject] = {
+            homeworkTotal: 0,
+            homeworkCompleted: 0,
+            totalScore: 0,
+            maxScore: 0,
+            tuitionTopics: 0,
+            completedTuitionTopics: 0
+          };
+        }
+        
+        subjectStats[subject].tuitionTopics++;
+        if (tp.status === 'learned' || tp.status === 'completed') {
+          subjectStats[subject].completedTuitionTopics++;
+        }
+      });
+
+      // Calculate percentages and format for charts
+      const subjectData = Object.keys(subjectStats).map(subject => {
+        const stats = subjectStats[subject];
+        return {
+          subject,
+          homeworkPercentage: stats.homeworkTotal > 0 ? Math.round((stats.homeworkCompleted / stats.homeworkTotal) * 100) : 0,
+          tuitionPercentage: stats.tuitionTopics > 0 ? Math.round((stats.completedTuitionTopics / stats.tuitionTopics) * 100) : 0,
+          averageScore: stats.maxScore > 0 ? Math.round((stats.totalScore / stats.maxScore) * 100) : 0,
+          homeworkCount: stats.homeworkCompleted,
+          tuitionCount: stats.completedTuitionTopics
+        };
+      });
+
+      const response = {
+        subjectData,
+        recentHomework: homeworkResults.slice(0, 10).map((hw: any) => ({
+          id: hw.id,
+          date: hw.homework_date,
+          subject: hw.subject,
+          topic: hw.topic,
+          status: hw.status,
+          score: hw.score ? `${hw.score}/${hw.total_score || hw.score}` : null
+        })),
+        recentTuition: tuitionResults.slice(0, 10).map((tp: any) => ({
+          id: tp.id,
+          subject: tp.subject_name,
+          chapter: tp.chapter_name,
+          topic: tp.topic_name,
+          status: tp.status,
+          completionDate: tp.completion_date
+        }))
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching student progress data:', error);
+      res.status(500).json({ message: 'Failed to fetch progress data' });
+    }
+  });
+
+  // Get student attendance statistics  
+  app.get("/api/attendance/student/:studentId", authenticateToken, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      
+      // Get attendance records with stats
+      const attendanceQuery = `
+        SELECT 
+          a.id, a.date, a.status, a.remarks, a.created_at,
+          COUNT(*) OVER() as total_records,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) OVER() as total_present,
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) OVER() as total_absent
+        FROM attendance a
+        WHERE a.student_id = $1
+        ORDER BY a.date DESC
+      `;
+
+      const attendanceResults = await executeRawQuery(attendanceQuery, [studentId]);
+
+      let attendancePercentage = 0;
+      let monthlyData: any[] = [];
+      
+      if (attendanceResults.length > 0) {
+        const totalPresent = parseInt(attendanceResults[0].total_present) || 0;
+        const totalRecords = parseInt(attendanceResults[0].total_records) || 0;
+        attendancePercentage = totalRecords > 0 ? Math.round((totalPresent / totalRecords) * 100) : 0;
+
+        // Group by month for trend analysis
+        const monthlyStats: any = {};
+        attendanceResults.forEach((record: any) => {
+          const date = new Date(record.date);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!monthlyStats[monthKey]) {
+            monthlyStats[monthKey] = { total: 0, present: 0 };
+          }
+          
+          monthlyStats[monthKey].total++;
+          if (record.status === 'present') {
+            monthlyStats[monthKey].present++;
+          }
+        });
+
+        monthlyData = Object.keys(monthlyStats)
+          .sort()
+          .slice(-6) // Last 6 months
+          .map(month => ({
+            month,
+            percentage: Math.round((monthlyStats[month].present / monthlyStats[month].total) * 100),
+            present: monthlyStats[month].present,
+            total: monthlyStats[month].total
+          }));
+      }
+
+      const response = {
+        attendancePercentage,
+        totalDays: attendanceResults.length,
+        presentDays: attendanceResults.filter((r: any) => r.status === 'present').length,
+        absentDays: attendanceResults.filter((r: any) => r.status === 'absent').length,
+        monthlyTrend: monthlyData,
+        recentAttendance: attendanceResults.slice(0, 20).map((record: any) => ({
+          id: record.id,
+          date: record.date,
+          status: record.status,
+          remarks: record.remarks
+        }))
+      };
+
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching student attendance data:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance data' });
+    }
+  });
+
   app.put("/api/admin/students/:id", authenticateToken, async (req, res) => {
     try {
       if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'so_center')) {

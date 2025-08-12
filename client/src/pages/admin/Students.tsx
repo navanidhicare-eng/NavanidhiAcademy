@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Dialog, 
   DialogContent, 
@@ -20,6 +20,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Search, 
   Eye, 
@@ -35,8 +37,28 @@ import {
   Home,
   FileText,
   Plus,
-  Download
+  Download,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  BookOpen,
+  ClipboardCheck,
+  AlertTriangle
 } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  ResponsiveContainer
+} from 'recharts';
 
 export default function Students() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -420,14 +442,15 @@ export default function Students() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button 
-                          onClick={() => handleViewStudent(student)}
-                          className="text-gray-400 hover:text-gray-600"
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedStudent(student)}
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zM12 13a1 1 0 110-2 1 1 0 010 2zM12 20a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
+                          <Eye className="h-4 w-4" />
+                          View Details
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -446,218 +469,473 @@ export default function Students() {
         )}
       </div>
 
-      {/* Detailed Student View Modal */}
-      <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" aria-describedby="student-dialog-description">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Complete Student Profile
-            </DialogTitle>
-            <DialogDescription id="student-dialog-description">
-              Comprehensive information for {selectedStudent?.name}
-            </DialogDescription>
-          </DialogHeader>
+      {/* Enhanced Student Details Modal */}
+      {selectedStudent && <StudentDetailsModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />}
+    </div>
+  );
+}
 
-          {selectedStudent && (
-            <div className="space-y-6">
-              {/* Student ID - Non-editable */}
-              <div className="bg-gray-50 p-4 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Student ID (Non-editable)</p>
-                    <p className="text-lg font-bold text-gray-900">{selectedStudent.studentId}</p>
-                  </div>
-                  <Badge variant="secondary">Read Only</Badge>
-                </div>
-              </div>
+// Color scheme for charts
+const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-              {/* Personal Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="font-medium text-gray-600">Full Name</p>
-                      <p className="text-gray-900">{selectedStudent.name}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Date of Birth</p>
-                      <p className="text-gray-900">{formatDate(selectedStudent.dateOfBirth)}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Gender</p>
-                      <p className="text-gray-900">{selectedStudent.gender || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Aadhar Number</p>
-                      <p className="text-gray-900">{selectedStudent.aadharNumber}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="font-medium text-gray-600">Enrollment Date</p>
-                      <p className="text-gray-900">{formatDate(selectedStudent.enrollmentDate)}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Course Type</p>
-                      <p className="text-gray-900">{selectedStudent.courseType?.replace('_', ' ').toUpperCase()}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Class</p>
-                      <p className="text-gray-900">{(classes as any[]).find((c: any) => c.id === selectedStudent.classId)?.name || 'Unknown'}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">SO Center</p>
-                      <p className="text-gray-900">{(soCenters as any[]).find((c: any) => c.id === selectedStudent.soCenterId)?.name || 'Unknown'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+// Student Details Modal Component
+function StudentDetailsModal({ student, onClose }: { student: any; onClose: () => void }) {
+  // Fetch detailed student data
+  const { data: studentDetails, isLoading: loadingDetails } = useQuery({
+    queryKey: [`/api/students/${student.id}`],
+    enabled: !!student.id,
+  });
 
-              {/* Parent Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Parent Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-blue-600">Father Details</h4>
-                    <div className="space-y-2 text-sm">
+  const { data: progressData, isLoading: loadingProgress } = useQuery({
+    queryKey: [`/api/progress-tracking/student/${student.id}`],
+    enabled: !!student.id,
+  });
+
+  const { data: attendanceData, isLoading: loadingAttendance } = useQuery({
+    queryKey: [`/api/attendance/student/${student.id}`],
+    enabled: !!student.id,
+  });
+
+  const isLoading = loadingDetails || loadingProgress || loadingAttendance;
+
+  // Format date utility
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  // Prepare attendance pie chart data
+  const attendancePieData = attendanceData ? [
+    { name: 'Present', value: attendanceData.presentDays, color: '#00C49F' },
+    { name: 'Absent', value: attendanceData.absentDays, color: '#FF8042' }
+  ] : [];
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <User className="h-6 w-6" />
+            {studentDetails?.name || student.name} - Detailed Profile
+          </DialogTitle>
+          <DialogDescription>
+            Comprehensive academic and personal information for student ID: {studentDetails?.studentCode || student.studentId}
+          </DialogDescription>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-48 w-full" />
+          </div>
+        ) : !studentDetails ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-2">Student details not available</p>
+              <p className="text-gray-600">Unable to retrieve student information at this time.</p>
+            </div>
+          </div>
+        ) : (
+          <Tabs defaultValue="overview" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="progress" className="flex items-center gap-2">
+                <BarChart3 className="h-4 w-4" />
+                Progress
+              </TabsTrigger>
+              <TabsTrigger value="activities" className="flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Activities
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Overview Tab */}
+            <TabsContent value="overview" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Basic Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      Basic Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="font-medium text-gray-600">Name</p>
-                        <p className="text-gray-900">{selectedStudent.fatherName}</p>
+                        <p className="font-medium text-gray-600 mb-1">Full Name</p>
+                        <p className="text-gray-900">{studentDetails.name}</p>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-600">Mobile</p>
-                        <p className="text-gray-900">{selectedStudent.fatherMobile}</p>
+                        <p className="font-medium text-gray-600 mb-1">Student ID</p>
+                        <p className="text-gray-900 font-mono">{studentDetails.studentCode}</p>
                       </div>
                       <div>
-                        <p className="font-medium text-gray-600">Occupation</p>
-                        <p className="text-gray-900">{selectedStudent.fatherOccupation || 'N/A'}</p>
+                        <p className="font-medium text-gray-600 mb-1">Date of Birth</p>
+                        <p className="text-gray-900">{formatDate(studentDetails.dateOfBirth)}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Enrollment Date</p>
+                        <p className="text-gray-900">{formatDate(studentDetails.enrollmentDate)}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Class</p>
+                        <p className="text-gray-900">{studentDetails.className}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">SO Center</p>
+                        <p className="text-gray-900">{studentDetails.soCenterName}</p>
                       </div>
                     </div>
-                  </div>
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-pink-600">Mother Details</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <p className="font-medium text-gray-600">Name</p>
-                        <p className="text-gray-900">{selectedStudent.motherName}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">Mobile</p>
-                        <p className="text-gray-900">{selectedStudent.motherMobile}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">Occupation</p>
-                        <p className="text-gray-900">{selectedStudent.motherOccupation || 'N/A'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </CardContent>
+                </Card>
 
-              {/* Address Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Home className="h-5 w-5" />
-                  Address Information
-                </h3>
-                <div className="text-sm space-y-2">
-                  <div>
-                    <p className="font-medium text-gray-600">Complete Address</p>
-                    <p className="text-gray-900">{selectedStudent.address}</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <p className="font-medium text-gray-600">Village</p>
-                      <p className="text-gray-900">{selectedStudent.villageName || 'N/A'}</p>
+                {/* Contact Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Phone className="h-5 w-5" />
+                      Contact Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Student Phone</p>
+                        <p className="text-gray-900">{studentDetails.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Parent/Guardian Phone</p>
+                        <p className="text-gray-900">{studentDetails.parentPhone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Email</p>
+                        <p className="text-gray-900">{studentDetails.email || 'N/A'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-600">Mandal</p>
-                      <p className="text-gray-900">{selectedStudent.mandalName || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-600">District</p>
-                      <p className="text-gray-900">{selectedStudent.districtName || 'N/A'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </CardContent>
+                </Card>
 
-              {/* Fee Information */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Fee Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="font-medium text-blue-600">Total Fee Amount</p>
-                    <p className="text-lg font-bold text-blue-900">{formatCurrency(selectedStudent.totalFeeAmount)}</p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="font-medium text-green-600">Paid Amount</p>
-                    <p className="text-lg font-bold text-green-900">{formatCurrency(selectedStudent.paidAmount)}</p>
-                  </div>
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <p className="font-medium text-red-600">Pending Amount</p>
-                    <p className="text-lg font-bold text-red-900">{formatCurrency(selectedStudent.pendingAmount)}</p>
-                  </div>
-                </div>
-              </div>
+                {/* Location Information */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      Location Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">State</p>
+                        <p className="text-gray-900">{studentDetails.location?.state}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">District</p>
+                        <p className="text-gray-900">{studentDetails.location?.district}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Mandal</p>
+                        <p className="text-gray-900">{studentDetails.location?.mandal}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-600 mb-1">Village</p>
+                        <p className="text-gray-900">{studentDetails.location?.village}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Sibling Information */}
-              {selectedStudent.siblings && selectedStudent.siblings.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Sibling Information
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedStudent.siblings.map((sibling: any, index: number) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                {/* Attendance Summary */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardCheck className="h-5 w-5" />
+                      Attendance Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {attendanceData ? (
+                      <div className="space-y-4">
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-green-600">
+                            {attendanceData.attendancePercentage}%
+                          </div>
+                          <p className="text-sm text-gray-600">Overall Attendance</p>
+                        </div>
+                        
+                        <div className="h-48 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={attendancePieData}
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={60}
+                                dataKey="value"
+                                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(1)}%)`}
+                              >
+                                {attendancePieData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4 text-center text-sm">
                           <div>
-                            <p className="font-medium text-gray-600">Name</p>
-                            <p className="text-gray-900">{sibling.name}</p>
+                            <p className="font-medium text-gray-600">Total Days</p>
+                            <p className="text-lg font-bold text-blue-600">{attendanceData.totalDays}</p>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-600">Age</p>
-                            <p className="text-gray-900">{sibling.age}</p>
+                            <p className="font-medium text-gray-600">Present</p>
+                            <p className="text-lg font-bold text-green-600">{attendanceData.presentDays}</p>
                           </div>
                           <div>
-                            <p className="font-medium text-gray-600">School/Class</p>
-                            <p className="text-gray-900">{sibling.school || sibling.class || 'N/A'}</p>
+                            <p className="font-medium text-gray-600">Absent</p>
+                            <p className="text-lg font-bold text-red-600">{attendanceData.absentDays}</p>
                           </div>
                         </div>
                       </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">No attendance data available</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Progress Tab */}
+            <TabsContent value="progress" className="space-y-6">
+              {progressData && progressData.subjectData ? (
+                <div className="space-y-6">
+                  {/* Subject-wise Performance Bar Chart */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5" />
+                        Subject-wise Performance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={progressData.subjectData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis 
+                              dataKey="subject" 
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                              interval={0}
+                            />
+                            <YAxis domain={[0, 100]} />
+                            <Tooltip />
+                            <Bar dataKey="homeworkPercentage" fill="#0088FE" name="Homework %" />
+                            <Bar dataKey="tuitionPercentage" fill="#00C49F" name="Tuition %" />
+                            <Bar dataKey="averageScore" fill="#FFBB28" name="Average Score %" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Performance Trend Line Chart */}
+                  {attendanceData?.monthlyTrend && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5" />
+                          Attendance Trend (Last 6 Months)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-64 w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={attendanceData.monthlyTrend} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="month" />
+                              <YAxis domain={[0, 100]} />
+                              <Tooltip 
+                                formatter={(value: any, name: string) => [
+                                  `${value}%`, 
+                                  'Attendance %'
+                                ]}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="percentage" 
+                                stroke="#8884d8" 
+                                strokeWidth={2}
+                                dot={{ fill: '#8884d8', strokeWidth: 2, r: 4 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Subject Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {progressData.subjectData.map((subject: any, index: number) => (
+                      <Card key={subject.subject}>
+                        <CardContent className="pt-6">
+                          <div className="text-center space-y-2">
+                            <h3 className="font-semibold text-lg text-gray-900">{subject.subject}</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="text-gray-600">Homework</p>
+                                <p className="text-xl font-bold text-blue-600">{subject.homeworkPercentage}%</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-600">Tuition</p>
+                                <p className="text-xl font-bold text-green-600">{subject.tuitionPercentage}%</p>
+                              </div>
+                            </div>
+                            <div className="pt-2 border-t">
+                              <p className="text-gray-600">Average Score</p>
+                              <p className="text-xl font-bold text-purple-600">{subject.averageScore}%</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-lg font-medium text-gray-900 mb-2">No progress data available</p>
+                    <p className="text-gray-600">Progress information will appear here once academic activities begin.</p>
+                  </CardContent>
+                </Card>
               )}
+            </TabsContent>
 
-              {/* Additional Notes */}
-              {selectedStudent.notes && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Additional Notes
-                  </h3>
-                  <div className="bg-yellow-50 p-4 rounded-lg text-sm">
-                    <p className="text-gray-900">{selectedStudent.notes}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+            {/* Activities Tab */}
+            <TabsContent value="activities" className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Recent Homework */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Recent Homework
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {progressData?.recentHomework?.length > 0 ? (
+                      <div className="space-y-3">
+                        {progressData.recentHomework.map((hw: any) => (
+                          <div key={hw.id} className="border rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium text-gray-900">{hw.subject}</h4>
+                              <Badge variant={hw.status === 'completed' ? 'default' : 'secondary'}>
+                                {hw.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">{hw.topic}</p>
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>{formatDate(hw.date)}</span>
+                              {hw.score && <span>Score: {hw.score}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No homework activities found</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Recent Tuition Progress */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5" />
+                      Recent Tuition Progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {progressData?.recentTuition?.length > 0 ? (
+                      <div className="space-y-3">
+                        {progressData.recentTuition.map((tp: any) => (
+                          <div key={tp.id} className="border rounded-lg p-3">
+                            <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-medium text-gray-900">{tp.subject}</h4>
+                              <Badge variant={tp.status === 'learned' ? 'default' : 'secondary'}>
+                                {tp.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">{tp.chapter} - {tp.topic}</p>
+                            <div className="text-xs text-gray-500">
+                              {tp.completionDate ? formatDate(tp.completionDate) : 'In Progress'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No tuition progress found</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Recent Attendance */}
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ClipboardCheck className="h-5 w-5" />
+                      Recent Attendance (Last 20 Days)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {attendanceData?.recentAttendance?.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {attendanceData.recentAttendance.map((record: any) => (
+                          <div key={record.id} className="border rounded-lg p-3 text-center">
+                            <div className={`text-sm font-medium mb-1 ${
+                              record.status === 'present' 
+                                ? 'text-green-600' 
+                                : record.status === 'absent' 
+                                ? 'text-red-600' 
+                                : 'text-yellow-600'
+                            }`}>
+                              {record.status.toUpperCase()}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {formatDate(record.date)}
+                            </div>
+                            {record.remarks && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {record.remarks}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No attendance records found</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
