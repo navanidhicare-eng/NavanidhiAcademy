@@ -24,10 +24,13 @@ export default function SoCenterExams() {
   const [, setLocation] = useLocation();
 
   // Fetch SO Center's exams
-  const { data: exams, isLoading, error } = useQuery({
+  const { data: examsData, isLoading, error } = useQuery({
     queryKey: ["/api/so-center/exams"],
     queryFn: () => apiRequest("GET", "/api/so-center/exams"),
   });
+
+  // Ensure exams is always an array
+  const exams = Array.isArray(examsData) ? examsData : [];
 
   const handleUpdateResults = (examId: string) => {
     setLocation("/so-center/exam-results");
@@ -86,7 +89,7 @@ export default function SoCenterExams() {
               <BookOpen className="h-4 w-4 text-blue-500" />
               <div>
                 <p className="text-sm font-medium">Total Exams</p>
-                <p className="text-2xl font-bold">{exams?.length || 0}</p>
+                <p className="text-2xl font-bold">{exams.length}</p>
               </div>
             </div>
           </CardContent>
@@ -99,7 +102,7 @@ export default function SoCenterExams() {
               <div>
                 <p className="text-sm font-medium">Completed</p>
                 <p className="text-2xl font-bold">
-                  {exams?.filter((exam: Exam) => exam.status === 'completed').length || 0}
+                  {exams.filter((exam: Exam) => exam.status === 'completed').length}
                 </p>
               </div>
             </div>
@@ -113,7 +116,7 @@ export default function SoCenterExams() {
               <div>
                 <p className="text-sm font-medium">Ongoing</p>
                 <p className="text-2xl font-bold">
-                  {exams?.filter((exam: Exam) => exam.status === 'ongoing' || exam.status === 'active').length || 0}
+                  {exams.filter((exam: Exam) => exam.status === 'ongoing' || exam.status === 'active').length}
                 </p>
               </div>
             </div>
@@ -127,11 +130,11 @@ export default function SoCenterExams() {
               <div>
                 <p className="text-sm font-medium">This Month</p>
                 <p className="text-2xl font-bold">
-                  {exams?.filter((exam: Exam) => {
+                  {exams.filter((exam: Exam) => {
                     const examDate = new Date(exam.date);
                     const now = new Date();
                     return examDate.getMonth() === now.getMonth() && examDate.getFullYear() === now.getFullYear();
-                  }).length || 0}
+                  }).length}
                 </p>
               </div>
             </div>
@@ -149,7 +152,7 @@ export default function SoCenterExams() {
           <CardDescription>View and update exam results</CardDescription>
         </CardHeader>
         <CardContent>
-          {exams && exams.length > 0 ? (
+          {exams.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>

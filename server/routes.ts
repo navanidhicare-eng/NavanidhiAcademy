@@ -5464,27 +5464,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const examId = req.params.examId;
-      
-      // Get exam questions with simplified query
-      const questions = await sql`
-        SELECT 
-          q.id,
-          q.exam_id,
-          q.question_text,
-          q.question_type,
-          q.marks,
-          q.created_at
-        FROM exam_questions q
-        WHERE q.exam_id = ${examId}
-        ORDER BY q.created_at ASC
-      `;
+      console.log('📋 Fetching questions for exam:', examId);
 
+      // Get the exam with questions stored as JSON
+      const [exam] = await db.select({
+        id: schema.exams.id,
+        title: schema.exams.title,
+        questions: schema.exams.questions,
+        totalQuestions: schema.exams.totalQuestions,
+        totalMarks: schema.exams.totalMarks
+      }).from(schema.exams)
+        .where(eq(schema.exams.id, examId));
+
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // Parse questions from JSON string
+      let questions = [];
+      if (exam.questions) {
+        try {
+          questions = JSON.parse(exam.questions);
+        } catch (e) {
+          console.error('Error parsing exam questions JSON:', e);
+          questions = [];
+        }
+      }
+
+      // Format questions for the exam results component
       const formattedQuestions = questions.map((q: any, index: number) => ({
         questionNumber: index + 1,
-        marks: parseInt(q.marks) || 1
+        marks: q.marks || 2, // Default to 2 marks per question
+        questionText: q.questionText || q.question || '',
+        questionType: q.questionType || q.type || 'descriptive'
       }));
 
-      res.json(formattedQuestions);
+      res.json({
+        examInfo: {
+          id: exam.id,
+          title: exam.title,
+          totalQuestions: exam.totalQuestions,
+          totalMarks: exam.totalMarks
+        },
+        questions: formattedQuestions
+      });
     } catch (error: any) {
       console.error('Error fetching exam questions:', error);
       res.status(500).json({ message: "Failed to fetch exam questions" });

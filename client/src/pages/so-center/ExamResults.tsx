@@ -83,7 +83,9 @@ export default function ExamResults() {
   const fetchExamQuestions = async (examId: string) => {
     try {
       const response = await apiRequest("GET", `/api/so-center/exams/${examId}/questions`);
-      setExamQuestions(response || []);
+      // Handle the new API response format
+      const questions = response?.questions || response || [];
+      setExamQuestions(questions);
     } catch (error) {
       console.error("Error fetching exam questions:", error);
       toast({
