@@ -850,7 +850,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      console.log('🔐 PRIVACY CHECK: User role:', req.user.role, 'User ID:', req.user.userId);
+      console.log("🔐 PRIVACY CHECK: User role:", req.user.role, "User ID:", req.user.userId);
 
       if (req.user.role === 'so_center') {
         // CRITICAL PRIVACY: SO Center can ONLY see their own students
@@ -4695,7 +4695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       res.json({ 
-        expense: updatedExpense, 
+        expense: updatedExpense,
         transactionId 
       });
     } catch (error) {

@@ -102,9 +102,25 @@ export default function StudentDropoutRequests() {
     queryKey: ["/api/students"],
     queryFn: async () => {
       console.log("🔍 Fetching students for dropout requests...");
-      const response = await apiRequest("GET", "/api/students");
-      console.log("📊 Students API response:", response);
-      return response;
+      try {
+        const response = await apiRequest("GET", "/api/students");
+        console.log("📊 Students API response:", response);
+        
+        // Ensure we always get an array
+        if (Array.isArray(response)) {
+          console.log("✅ Got array response with", response.length, "students");
+          return response;
+        } else if (response && typeof response === 'object' && response.students && Array.isArray(response.students)) {
+          console.log("✅ Got object response with", response.students.length, "students");
+          return response.students;
+        } else {
+          console.log("⚠️ Unexpected response format, returning empty array");
+          return [];
+        }
+      } catch (error) {
+        console.error("❌ Error fetching students:", error);
+        return [];
+      }
     },
     retry: 3,
     refetchOnWindowFocus: false,
@@ -116,44 +132,22 @@ export default function StudentDropoutRequests() {
   const allStudents = useMemo(() => {
     console.log("🔄 Processing students response:", studentsResponse);
     
-    if (!studentsResponse) {
-      console.log("❌ No students response");
+    if (!studentsResponse || !Array.isArray(studentsResponse)) {
+      console.log("❌ No valid students response or not an array");
       return [];
     }
     
-    // Handle array response
-    if (Array.isArray(studentsResponse)) {
-      const validStudents = studentsResponse.filter((student: any) => 
-        student && 
-        typeof student === 'object' && 
-        student.id && 
-        student.name && 
-        student.studentId &&
-        student.isActive !== false
-      );
-      console.log("✅ Valid students from array:", validStudents.length);
-      return validStudents;
-    }
+    const validStudents = studentsResponse.filter((student: any) => 
+      student && 
+      typeof student === 'object' && 
+      student.id && 
+      student.name && 
+      student.studentId &&
+      student.isActive !== false
+    );
     
-    // Handle object response (might have students property)
-    if (typeof studentsResponse === 'object' && studentsResponse.students) {
-      const validStudents = Array.isArray(studentsResponse.students) 
-        ? studentsResponse.students.filter((student: any) => 
-            student && 
-            typeof student === 'object' && 
-            student.id && 
-            student.name && 
-            student.studentId &&
-            student.isActive !== false
-          )
-        : [];
-      console.log("✅ Valid students from object.students:", validStudents.length);
-      return validStudents;
-    }
-    
-    // If response is an object but not an array, return empty array
-    console.log("❌ Invalid students response format");
-    return [];
+    console.log("✅ Valid students filtered:", validStudents.length, "out of", studentsResponse.length);
+    return validStudents;
   }, [studentsResponse]);
 
   // Filter students by selected class
