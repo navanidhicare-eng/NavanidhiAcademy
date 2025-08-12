@@ -543,8 +543,6 @@ export const exams = pgTable("exams", {
   chapterIds: text("chapter_ids").array().notNull(), // Array of chapter IDs
   soCenterIds: text("so_center_ids").array().notNull(), // Array of SO Center IDs for visibility
   examDate: date("exam_date").notNull(),
-  startTime: text("start_time"), // Feature 6: Time limit for exams
-  endTime: text("end_time"), // Feature 6: Time limit for exams
   duration: integer("duration").notNull(), // Duration in minutes
   totalQuestions: integer("total_questions").notNull(), // Total number of questions
   totalMarks: integer("total_marks").notNull(),
@@ -709,15 +707,11 @@ export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  startTime: true, // Remove start time from required fields
-  endTime: true,   // Remove end time from required fields
 }).extend({
   questions: z.union([
     z.string(), // Allow JSON string
     z.array(z.any()).transform((arr) => JSON.stringify(arr)) // Transform array to JSON string
   ]).optional(),
-  startTime: z.string().optional(), // Make optional
-  endTime: z.string().optional(),   // Make optional
 });
 
 export const insertExamResultSchema = createInsertSchema(examResults).omit({
