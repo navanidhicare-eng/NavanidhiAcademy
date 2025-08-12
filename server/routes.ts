@@ -3839,6 +3839,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin comprehensive progress tracking endpoint
+  app.get("/api/admin/progress-tracking", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { classId, soCenterId, fromDate, toDate } = req.query;
+
+      console.log('📊 Admin requesting comprehensive progress tracking with filters:', {
+        classId: classId || 'All',
+        soCenterId: soCenterId || 'All',
+        fromDate: fromDate || 'No date filter',
+        toDate: toDate || 'No date filter'
+      });
+
+      // Build query for comprehensive progress data
+      let query = `
+        SELECT DISTINCT
+          s.id as student_id,
+          s.name as student_name,
+          s.student_id as student_code,
+          s.class_id,
+          cls.name as class_name,
+          s.so_center_id,
+          sc.name as center_name,
+          sc.center_id as center_code,
+          
+          -- Homework completion stats
+          COALESCE(
+            ROUND(
+              (COUNT(CASE WHEN ha.status = 'completed' THEN 1 END) * 100.0) / 
+              NULLIF(COUNT(ha.id), 0), 
+              1
+            ), 
+            0
+          ) as homework_completion_percentage,
+          
+          -- Tuition progress stats  
+          COALESCE(
+            ROUND(
+              (COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) * 100.0) / 
+              NULLIF(COUNT(tp.id), 0), 
+              1
+            ), 
+            0
+          ) as tuition_completion_percentage,
+          
+          COUNT(DISTINCT ha.id) as total_homework_activities,
+          COUNT(CASE WHEN ha.status = 'completed' THEN 1 END) as completed_homework,
+          COUNT(DISTINCT tp.id) as total_tuition_topics,
+          COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_tuition_topics
+          
+        FROM students s
+        LEFT JOIN classes cls ON s.class_id = cls.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN homework_activities ha ON s.id = ha.student_id
+        LEFT JOIN tuition_progress tp ON s.id = tp.student_id
+        WHERE s.is_active = true
+      `;
+
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      // Add filters
+      if (classId && classId !== 'all' && classId !== '') {
+        query += ` AND s.class_id = $${paramIndex}`;
+        params.push(classId);
+        paramIndex++;
+      }
+
+      if (soCenterId && soCenterId !== 'all' && soCenterId !== '') {
+        query += ` AND s.so_center_id = $${paramIndex}`;
+        params.push(soCenterId);
+        paramIndex++;
+      }
+
+      if (fromDate) {
+        query += ` AND (ha.homework_date >= $${paramIndex} OR tp.created_at >= $${paramIndex})`;
+        params.push(fromDate);
+        paramIndex++;
+      }
+
+      if (toDate) {
+        query += ` AND (ha.homework_date <= $${paramIndex} OR tp.created_at <= $${paramIndex})`;
+        params.push(toDate);
+        paramIndex++;
+      }
+
+      query += `
+        GROUP BY 
+          s.id, s.name, s.student_id, s.class_id, cls.name, 
+          s.so_center_id, sc.name, sc.center_id
+        ORDER BY 
+          sc.name ASC, cls.name ASC, s.name ASC
+      `;
+
+      console.log('🔍 Executing admin progress query...');
+      const results = await executeRawQuery(query, params);
+
+      console.log(`✅ Retrieved ${results.length} student progress records for admin`);
+
+      // Transform the results
+      const progressData = results.map((row: any) => ({
+        studentId: row.student_id,
+        studentName: row.student_name,
+        studentCode: row.student_code,
+        classId: row.class_id,
+        className: row.class_name,
+        soCenterId: row.so_center_id,
+        centerName: row.center_name,
+        centerCode: row.center_code,
+        homeworkCompletionPercentage: parseFloat(row.homework_completion_percentage) || 0,
+        tuitionCompletionPercentage: parseFloat(row.tuition_completion_percentage) || 0,
+        totalHomeworkActivities: parseInt(row.total_homework_activities) || 0,
+        completedHomework: parseInt(row.completed_homework) || 0,
+        totalTuitionTopics: parseInt(row.total_tuition_topics) || 0,
+        completedTuitionTopics: parseInt(row.completed_tuition_topics) || 0
+      }));
+
+      res.json(progressData);
+    } catch (error) {
+      console.error('❌ Error fetching admin progress tracking data:', error);
+      res.status(500).json({ message: 'Failed to fetch progress tracking data' });
+    }
+  });
+
   // Teacher Management Routes
 
   // Get all teachers

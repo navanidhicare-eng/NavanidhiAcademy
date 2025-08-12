@@ -23,6 +23,29 @@ interface Student {
   className: string;
 }
 
+interface ProgressTrackingData {
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  classId: string;
+  className: string;
+  soCenterId: string;
+  centerName: string;
+  centerCode: string;
+  homeworkCompletionPercentage: number;
+  tuitionCompletionPercentage: number;
+  totalHomeworkActivities: number;
+  completedHomework: number;
+  totalTuitionTopics: number;
+  completedTuitionTopics: number;
+}
+
+interface SoCenter {
+  id: string;
+  name: string;
+  centerId: string;
+}
+
 interface Subject {
   id: string;
   name: string;
@@ -62,13 +85,18 @@ export default function ProgressTracking() {
   const { user } = useAuth();
   
   // States for filters
-  const [activeTab, setActiveTab] = useState('homework');
-  const [selectedClass, setSelectedClass] = useState('');
+  const [activeTab, setActiveTab] = useState('all-students');
+  const [selectedClass, setSelectedClass] = useState('all');
+  const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'completed', 'pending'
   const [selectedTopic, setSelectedTopic] = useState('');
   const [homeworkDate, setHomeworkDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dateRange, setDateRange] = useState({
+    fromDate: '',
+    toDate: ''
+  });
 
   // Homework activity states
   const [homeworkActivities, setHomeworkActivities] = useState<Record<string, {
@@ -94,18 +122,39 @@ export default function ProgressTracking() {
     queryKey: ['/api/admin/topics'],
   });
 
+  // Fetch SO Centers for filter dropdown
+  const { data: soCenters = [] } = useQuery({
+    queryKey: ['/api/admin/so-centers'],
+    enabled: user?.role === 'admin',
+  });
+
+  // Comprehensive progress tracking data for admin
+  const { data: progressTrackingData = [] } = useQuery({
+    queryKey: ['/api/admin/progress-tracking', selectedClass === 'all' ? '' : selectedClass, selectedCenter === 'all' ? '' : selectedCenter, dateRange.fromDate, dateRange.toDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedClass && selectedClass !== 'all') params.append('classId', selectedClass);
+      if (selectedCenter && selectedCenter !== 'all') params.append('soCenterId', selectedCenter);
+      if (dateRange.fromDate) params.append('fromDate', dateRange.fromDate);
+      if (dateRange.toDate) params.append('toDate', dateRange.toDate);
+      
+      const response = await fetch(`/api/admin/progress-tracking?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch progress tracking data');
+      return response.json();
+    },
+    enabled: user?.role === 'admin' && activeTab === 'all-students',
+  });
+
   const { data: students = [] } = useQuery({
     queryKey: ['/api/students', user?.id],
     queryFn: async () => {
       if (user?.role === 'admin') {
-        // Admin uses admin endpoint to see all students
-        const response = await fetch('/api/admin/students', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          },
-        });
-        if (!response.ok) throw new Error('Failed to fetch students');
-        return response.json();
+        // For legacy class-based views, we'll use the default query function
+        return [];
       } else {
         // SO center users get students from their specific center
         const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
@@ -119,7 +168,7 @@ export default function ProgressTracking() {
         return Array.isArray(data) ? data : [];
       }
     },
-    enabled: !!user,
+    enabled: !!user && (user.role !== 'admin' || activeTab !== 'all-students'),
   });
 
   const { data: tuitionProgress = [] } = useQuery({
@@ -299,7 +348,13 @@ export default function ProgressTracking() {
       subtitle="Track homework and tuition activities for students"
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${user?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          {user?.role === 'admin' && (
+            <TabsTrigger value="all-students" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              All Students
+            </TabsTrigger>
+          )}
           <TabsTrigger value="homework" className="flex items-center gap-2">
             <School className="h-4 w-4" />
             School Homework Activity
@@ -309,6 +364,217 @@ export default function ProgressTracking() {
             Tuition Activity
           </TabsTrigger>
         </TabsList>
+
+        {/* All Students Progress Overview - Admin Only */}
+        {user?.role === 'admin' && (
+          <TabsContent value="all-students" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  All Students Progress Overview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label>SO Center</Label>
+                    <Select value={selectedCenter} onValueChange={setSelectedCenter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Centers" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Centers</SelectItem>
+                        {(soCenters as SoCenter[]).map((center: SoCenter) => (
+                          <SelectItem key={center.id} value={center.id}>
+                            {center.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Class</Label>
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Classes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Classes</SelectItem>
+                        {(classes as Class[]).map((cls: Class) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>From Date</Label>
+                    <Input
+                      type="date"
+                      value={dateRange.fromDate}
+                      onChange={(e) => setDateRange(prev => ({...prev, fromDate: e.target.value}))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>To Date</Label>
+                    <Input
+                      type="date"
+                      value={dateRange.toDate}
+                      onChange={(e) => setDateRange(prev => ({...prev, toDate: e.target.value}))}
+                    />
+                  </div>
+                </div>
+
+                {/* Progress Table */}
+                <div className="border rounded-md">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="border-b px-4 py-3 text-left font-medium">Center</th>
+                          <th className="border-b px-4 py-3 text-left font-medium">Class</th>
+                          <th className="border-b px-4 py-3 text-left font-medium">Student</th>
+                          <th className="border-b px-4 py-3 text-center font-medium">School HW %</th>
+                          <th className="border-b px-4 py-3 text-center font-medium">Tuition %</th>
+                          <th className="border-b px-4 py-3 text-center font-medium">Details</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(progressTrackingData as ProgressTrackingData[]).length > 0 ? (
+                          (progressTrackingData as ProgressTrackingData[]).map((data: ProgressTrackingData) => (
+                            <tr key={data.studentId} className="hover:bg-muted/30">
+                              <td className="border-b px-4 py-3">
+                                <div>
+                                  <div className="font-medium">{data.centerName}</div>
+                                  <div className="text-xs text-muted-foreground">{data.centerCode}</div>
+                                </div>
+                              </td>
+                              <td className="border-b px-4 py-3 font-medium">{data.className}</td>
+                              <td className="border-b px-4 py-3">
+                                <div>
+                                  <div className="font-medium">{data.studentName}</div>
+                                  <div className="text-xs text-muted-foreground">{data.studentCode}</div>
+                                </div>
+                              </td>
+                              <td className="border-b px-4 py-3 text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge 
+                                    variant={data.homeworkCompletionPercentage >= 70 ? "default" : "destructive"}
+                                    className={data.homeworkCompletionPercentage >= 70 ? "bg-green-600" : ""}
+                                  >
+                                    {data.homeworkCompletionPercentage.toFixed(1)}%
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {data.completedHomework}/{data.totalHomeworkActivities}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="border-b px-4 py-3 text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <Badge 
+                                    variant={data.tuitionCompletionPercentage >= 70 ? "default" : "destructive"}
+                                    className={data.tuitionCompletionPercentage >= 70 ? "bg-blue-600" : ""}
+                                  >
+                                    {data.tuitionCompletionPercentage.toFixed(1)}%
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {data.completedTuitionTopics}/{data.totalTuitionTopics}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="border-b px-4 py-3 text-center">
+                                <div className="flex items-center gap-2 justify-center">
+                                  {data.homeworkCompletionPercentage >= 70 && (
+                                    <CheckCircle className="h-4 w-4 text-green-600" title="Good homework progress" />
+                                  )}
+                                  {data.tuitionCompletionPercentage >= 70 && (
+                                    <Target className="h-4 w-4 text-blue-600" title="Good tuition progress" />
+                                  )}
+                                  {data.homeworkCompletionPercentage < 70 && data.tuitionCompletionPercentage < 70 && (
+                                    <XCircle className="h-4 w-4 text-red-600" title="Needs attention" />
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="border-b px-4 py-8 text-center text-muted-foreground">
+                              No progress data available. Select filters to view student progress.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                {(progressTrackingData as ProgressTrackingData[]).length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Users className="h-8 w-8 text-blue-600" />
+                        <div>
+                          <div className="text-2xl font-bold">{(progressTrackingData as ProgressTrackingData[]).length}</div>
+                          <div className="text-sm text-muted-foreground">Total Students</div>
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3">
+                        <School className="h-8 w-8 text-green-600" />
+                        <div>
+                          <div className="text-2xl font-bold">
+                            {Math.round((progressTrackingData as ProgressTrackingData[])
+                              .reduce((sum, data) => sum + data.homeworkCompletionPercentage, 0) / 
+                              (progressTrackingData as ProgressTrackingData[]).length || 0)}%
+                          </div>
+                          <div className="text-sm text-muted-foreground">Avg. Homework</div>
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="h-8 w-8 text-purple-600" />
+                        <div>
+                          <div className="text-2xl font-bold">
+                            {Math.round((progressTrackingData as ProgressTrackingData[])
+                              .reduce((sum, data) => sum + data.tuitionCompletionPercentage, 0) / 
+                              (progressTrackingData as ProgressTrackingData[]).length || 0)}%
+                          </div>
+                          <div className="text-sm text-muted-foreground">Avg. Tuition</div>
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4">
+                      <div className="flex items-center gap-3">
+                        <Target className="h-8 w-8 text-orange-600" />
+                        <div>
+                          <div className="text-2xl font-bold">
+                            {(progressTrackingData as ProgressTrackingData[])
+                              .filter(data => data.homeworkCompletionPercentage >= 70 && data.tuitionCompletionPercentage >= 70)
+                              .length}
+                          </div>
+                          <div className="text-sm text-muted-foreground">High Performers</div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* School Homework Activity */}
         <TabsContent value="homework" className="space-y-6">
@@ -338,12 +604,18 @@ export default function ProgressTracking() {
                 </div>
                 <div className="space-y-2">
                   <Label>Class</Label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                  <Select value={selectedClass} onValueChange={(value) => {
+                    setSelectedClass(value);
+                    setSelectedSubject('');
+                    setSelectedChapter('');
+                    setSelectedTopic('');
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select Class" />
                     </SelectTrigger>
                     <SelectContent>
-                      {classes.map((cls: Class) => (
+                      <SelectItem value="all">All Classes</SelectItem>
+                      {(classes as Class[]).map((cls: Class) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
                         </SelectItem>
