@@ -5119,7 +5119,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Parse questions from exam data
-      const questions = exam[0].questions || [];
+      let questions = exam[0].questions || [];
+      
+      // If questions is a string, parse it as JSON
+      if (typeof questions === 'string') {
+        try {
+          questions = JSON.parse(questions);
+        } catch (e) {
+          console.log('Error parsing questions JSON:', e);
+          questions = [];
+        }
+      }
+      
+      // Ensure questions is an array
+      if (!Array.isArray(questions)) {
+        questions = [];
+      }
+      
       const formattedQuestions = questions.map((q: any, index: number) => ({
         id: q.id || `q_${index + 1}`,
         questionNumber: index + 1,

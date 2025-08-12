@@ -113,7 +113,8 @@ export default function ExamResults() {
       
       // Initialize results for all students
       const initialResults: Record<string, StudentResult> = {};
-      students.forEach(student => {
+      const studentsArray = Array.isArray(students) ? students : [];
+      studentsArray.forEach(student => {
         initialResults[student.id] = {
           studentId: student.id,
           questionResults: examQuestions.map(q => ({
@@ -225,7 +226,9 @@ export default function ExamResults() {
     });
   };
 
-  const currentStudent = students[currentStudentIndex];
+  // Get current student and result
+  const studentsArray = Array.isArray(students) ? students : [];
+  const currentStudent = studentsArray[currentStudentIndex];
   const currentResult = currentStudent ? studentResults[currentStudent.id] : null;
 
   if (examsLoading) {
@@ -317,11 +320,11 @@ export default function ExamResults() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Students ({students.length})
+                Students ({Array.isArray(students) ? students.length : 0})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {students.map((student, index) => (
+              {Array.isArray(students) ? students.map((student, index) => (
                 <div
                   key={student.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -344,7 +347,9 @@ export default function ExamResults() {
                     </div>
                   )}
                 </div>
-              ))}
+              )) : (
+                <p className="text-center text-muted-foreground">No students found</p>
+              )}
             </CardContent>
           </Card>
 
@@ -453,8 +458,8 @@ export default function ExamResults() {
                     Previous Student
                   </Button>
                   <Button
-                    onClick={() => setCurrentStudentIndex(Math.min(students.length - 1, currentStudentIndex + 1))}
-                    disabled={currentStudentIndex === students.length - 1}
+                    onClick={() => setCurrentStudentIndex(Math.min(Array.isArray(students) ? students.length - 1 : 0, currentStudentIndex + 1))}
+                    disabled={currentStudentIndex === (Array.isArray(students) ? students.length - 1 : 0)}
                   >
                     Next Student
                   </Button>
@@ -465,7 +470,7 @@ export default function ExamResults() {
         </div>
       )}
 
-      {selectedExam && students.length === 0 && (
+      {selectedExam && (!Array.isArray(students) || students.length === 0) && (
         <Card>
           <CardContent className="text-center py-8">
             <p className="text-muted-foreground">No students found for this exam.</p>
