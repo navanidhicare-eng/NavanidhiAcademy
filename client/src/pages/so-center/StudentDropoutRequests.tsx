@@ -53,6 +53,7 @@ interface Student {
   id: string;
   name: string;
   studentId: string;
+  classId: string;
   className: string;
   totalFeeAmount?: string;
   paidAmount?: string;
@@ -64,6 +65,12 @@ interface Student {
   [key: string]: any;
 }
 
+interface Class {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export default function StudentDropoutRequests() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -72,6 +79,7 @@ export default function StudentDropoutRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch dropout requests
   const { data: requestsResponse = [], isLoading: isLoadingRequests } = useQuery({
     queryKey: ["/api/dropout-requests"],
     queryFn: () => apiRequest("GET", "/api/dropout-requests"),
@@ -87,43 +95,87 @@ export default function StudentDropoutRequests() {
   });
 
   // Ensure classes is always an array
-  const classes = Array.isArray(classesResponse) ? classesResponse : [];
+  const classes: Class[] = Array.isArray(classesResponse) ? classesResponse : [];
 
-  const { data: studentsResponse = [], isLoading: isLoadingStudents, error: studentsError } = useQuery({
+  // Fetch students with proper error handling
+  const { data: studentsResponse, isLoading: isLoadingStudents, error: studentsError } = useQuery({
     queryKey: ["/api/students"],
-    queryFn: () => apiRequest("GET", "/api/students"),
+    queryFn: async () => {
+      console.log("🔍 Fetching students for dropout requests...");
+      const response = await apiRequest("GET", "/api/students");
+      console.log("📊 Students API response:", response);
+      return response;
+    },
     retry: 3,
     refetchOnWindowFocus: false,
-    staleTime: 0, // Always fetch fresh data
-    gcTime: 0, // Don't cache to avoid stale data issues (previously cacheTime)
+    staleTime: 0,
+    gcTime: 0,
   });
   
   // Ensure students is always an array and filter out invalid entries
   const allStudents = useMemo(() => {
-    if (!studentsResponse) return [];
+    console.log("🔄 Processing students response:", studentsResponse);
+    
+    if (!studentsResponse) {
+      console.log("❌ No students response");
+      return [];
+    }
+    
+    // Handle array response
     if (Array.isArray(studentsResponse)) {
-      return studentsResponse.filter((student: any) => 
+      const validStudents = studentsResponse.filter((student: any) => 
         student && 
         typeof student === 'object' && 
         student.id && 
         student.name && 
-        student.studentId
+        student.studentId &&
+        student.isActive !== false
       );
+      console.log("✅ Valid students from array:", validStudents.length);
+      return validStudents;
     }
+    
+    // Handle object response (might have students property)
+    if (typeof studentsResponse === 'object' && studentsResponse.students) {
+      const validStudents = Array.isArray(studentsResponse.students) 
+        ? studentsResponse.students.filter((student: any) => 
+            student && 
+            typeof student === 'object' && 
+            student.id && 
+            student.name && 
+            student.studentId &&
+            student.isActive !== false
+          )
+        : [];
+      console.log("✅ Valid students from object.students:", validStudents.length);
+      return validStudents;
+    }
+    
     // If response is an object but not an array, return empty array
+    console.log("❌ Invalid students response format");
     return [];
   }, [studentsResponse]);
 
   // Filter students by selected class
   const filteredStudents = useMemo(() => {
-    if (!selectedClassId) return allStudents;
-    return allStudents.filter((student: any) => student.classId === selectedClassId);
+    if (!selectedClassId || !allStudents || allStudents.length === 0) {
+      console.log("🔍 No class selected or no students available");
+      return [];
+    }
+    
+    const filtered = allStudents.filter((student: Student) => student.classId === selectedClassId);
+    console.log(`🎯 Filtered students for class ${selectedClassId}:`, filtered.length);
+    return filtered;
   }, [allStudents, selectedClassId]);
   
   // Debug logging
-  console.log("Students received:", studentsResponse);
-  console.log("All students:", allStudents);
-  console.log("Filtered students by class:", filteredStudents);
+  console.log("🔍 Debug info:", {
+    studentsResponse: studentsResponse ? "exists" : "null",
+    allStudents: allStudents?.length || 0,
+    filteredStudents: filteredStudents?.length || 0,
+    selectedClassId,
+    classes: classes?.length || 0
+  });
   
   // If we have an error, log it
   if (studentsError) {
@@ -351,25 +403,30 @@ export default function StudentDropoutRequests() {
             <div className="space-y-4">
               {/* Class Selection */}
               <div className="space-y-2">
-                <Label htmlFor="class">Select Class</Label>
-                <Select value={selectedClassId} onValueChange={(value) => {
-                  setSelectedClassId(value);
-                  setSelectedStudentId(""); // Reset student selection when class changes
-                }}>
+                <Label htmlFor="class">Select Class *</Label>
+                <Select 
+                  value={selectedClassId} 
+                  onValueChange={(value) => {
+                    console.log("🎯 Class selected:", value);
+                    setSelectedClassId(value);
+                    setSelectedStudentId(""); // Reset student selection when class changes
+                  }}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a class" />
+                    <SelectValue placeholder="Choose a class first" />
                   </SelectTrigger>
                   <SelectContent>
                     {isLoadingClasses ? (
                       <SelectItem value="loading" disabled>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Loading classes...
                       </SelectItem>
                     ) : classes.length === 0 ? (
                       <SelectItem value="no-classes" disabled>
-                        No classes found
+                        No classes available
                       </SelectItem>
                     ) : (
-                      classes.map((classItem: any) => (
+                      classes.map((classItem: Class) => (
                         <SelectItem key={classItem.id} value={classItem.id}>
                           {classItem.name}
                         </SelectItem>
@@ -381,57 +438,81 @@ export default function StudentDropoutRequests() {
 
               {/* Student Selection */}
               <div className="space-y-2">
-                <Label htmlFor="student">Select Student</Label>
+                <Label htmlFor="student">Select Student *</Label>
                 <Select 
                   value={selectedStudentId} 
-                  onValueChange={setSelectedStudentId}
+                  onValueChange={(value) => {
+                    console.log("👨‍🎓 Student selected:", value);
+                    setSelectedStudentId(value);
+                  }}
                   disabled={!selectedClassId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={selectedClassId ? "Select a student" : "Please select a class first"} />
+                    <SelectValue placeholder={
+                      !selectedClassId 
+                        ? "Please select a class first" 
+                        : isLoadingStudents 
+                        ? "Loading students..." 
+                        : "Choose a student"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {isLoadingStudents ? (
                       <SelectItem value="loading" disabled>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Loading students...
+                      </SelectItem>
+                    ) : studentsError ? (
+                      <SelectItem value="error" disabled>
+                        Error loading students
+                      </SelectItem>
+                    ) : !selectedClassId ? (
+                      <SelectItem value="no-class" disabled>
+                        Please select a class first
                       </SelectItem>
                     ) : filteredStudents.length === 0 ? (
                       <SelectItem value="no-students" disabled>
-                        {selectedClassId ? "No students found in this class" : "No students found"}
+                        No students found in this class
                       </SelectItem>
                     ) : (
-                      filteredStudents
-                        .filter((student: Student) => student && student.id && student.name)
-                        .map((student: Student) => {
-                          const totalAmount = parseFloat(student.totalFeeAmount || '0');
-                          const paidAmount = parseFloat(student.paidAmount || '0');
-                          const pendingAmount = totalAmount - paidAmount;
-                          const hasBalance = pendingAmount > 0;
-                          return (
-                            <SelectItem 
-                              key={student.id} 
-                              value={student.id}
-                              disabled={hasBalance}
-                            >
-                              <div className="flex flex-col">
-                                <span>{student.name} ({student.studentId}) - {student.className}</span>
-                                {hasBalance && (
-                                  <span className="text-red-500 text-xs">
-                                    ₹{pendingAmount.toFixed(2)} pending
-                                  </span>
-                                )}
+                      filteredStudents.map((student: Student) => {
+                        const totalAmount = parseFloat(student.totalFeeAmount || '0');
+                        const paidAmount = parseFloat(student.paidAmount || '0');
+                        const pendingAmount = totalAmount - paidAmount;
+                        const hasBalance = pendingAmount > 0;
+                        
+                        return (
+                          <SelectItem 
+                            key={student.id} 
+                            value={student.id}
+                            disabled={hasBalance}
+                          >
+                            <div className="flex flex-col w-full">
+                              <div className="font-medium">
+                                {student.name} ({student.studentId})
                               </div>
-                            </SelectItem>
-                          );
-                        })
+                              <div className="text-sm text-muted-foreground">
+                                Class: {student.className}
+                              </div>
+                              {hasBalance && (
+                                <div className="text-xs text-red-500 font-medium">
+                                  ₹{pendingAmount.toFixed(2)} pending - Clear dues first
+                                </div>
+                              )}
+                            </div>
+                          </SelectItem>
+                        );
+                      })
                     )}
                   </SelectContent>
                 </Select>
+                
+                {/* Student Balance Warning/Success */}
                 {selectedStudentId && filteredStudents.length > 0 && (() => {
                   const selectedStudent = filteredStudents.find((s: Student) => s.id === selectedStudentId);
                   if (selectedStudent) {
-                    const totalAmount = parseFloat((selectedStudent as any).totalFeeAmount || '0');
-                    const paidAmount = parseFloat((selectedStudent as any).paidAmount || '0');
+                    const totalAmount = parseFloat(selectedStudent.totalFeeAmount || '0');
+                    const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
                     const pendingAmount = totalAmount - paidAmount;
                     
                     if (pendingAmount > 0) {
@@ -459,14 +540,16 @@ export default function StudentDropoutRequests() {
                 })()}
               </div>
               
+              {/* Reason Input */}
               <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Dropout</Label>
+                <Label htmlFor="reason">Reason for Dropout *</Label>
                 <Textarea
                   id="reason"
                   placeholder="Please provide a detailed reason for the dropout request..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   rows={4}
+                  className="resize-none"
                 />
               </div>
             </div>
@@ -475,12 +558,13 @@ export default function StudentDropoutRequests() {
               <Button
                 variant="outline"
                 onClick={handleDialogClose}
+                disabled={createRequestMutation.isPending}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmitRequest}
-                disabled={createRequestMutation.isPending}
+                disabled={createRequestMutation.isPending || !selectedStudentId || !reason.trim()}
               >
                 {createRequestMutation.isPending && (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
