@@ -123,8 +123,9 @@ export default function PostExamResult() {
       return Array.isArray(resultsData) ? resultsData : [];
     },
     enabled: !!examId,
-    staleTime: 2 * 60 * 1000, // 2 minutes cache - results change frequently
-    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    staleTime: 30 * 1000, // 30 seconds cache - results change frequently
+    cacheTime: 2 * 60 * 1000, // 2 minutes cache
+    refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
   const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
@@ -146,13 +147,21 @@ export default function PostExamResult() {
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       toast({
         title: "Result Saved",
         description: "Student exam result has been saved successfully.",
       });
       setIsMarkingModalOpen(false);
+      
+      // Invalidate and refetch all related queries to update the UI
       queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      queryClient.refetchQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      
+      // Reset the selected student
+      setSelectedStudent(null);
+      setQuestionResults([]);
+      setTotalMarks(0);
     },
     onError: (error: any) => {
       toast({
@@ -260,7 +269,10 @@ export default function PostExamResult() {
   };
 
   const getStudentResult = (studentId: string) => {
-    return (existingResults as any[]).find((result: any) => result.studentId === studentId);
+    if (!existingResults || !Array.isArray(existingResults)) {
+      return null;
+    }
+    return existingResults.find((result: any) => result.studentId === studentId);
   };
 
   if (isLoading) {
@@ -427,7 +439,7 @@ export default function PostExamResult() {
                               Result Entered
                             </Badge>
                           ) : (
-                            <Badge variant="outline">
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
                               Pending
                             </Badge>
                           )}
