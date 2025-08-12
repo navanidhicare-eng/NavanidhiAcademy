@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,10 @@ interface Student {
   paidAmount?: string;
   pendingAmount?: string;
   isActive?: boolean;
+  paymentStatus?: string;
+  progress?: number;
+  // Additional properties that might be present in the API response
+  [key: string]: any;
 }
 
 export default function StudentDropoutRequests() {
@@ -80,10 +84,25 @@ export default function StudentDropoutRequests() {
     queryFn: () => apiRequest("GET", "/api/students"),
     retry: 3,
     refetchOnWindowFocus: false,
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache to avoid stale data issues (previously cacheTime)
   });
   
-  // Ensure students is always an array
-  const students = Array.isArray(studentsResponse) ? studentsResponse : [];
+  // Ensure students is always an array and filter out invalid entries
+  const students = useMemo(() => {
+    if (!studentsResponse) return [];
+    if (Array.isArray(studentsResponse)) {
+      return studentsResponse.filter((student: any) => 
+        student && 
+        typeof student === 'object' && 
+        student.id && 
+        student.name && 
+        student.studentId
+      );
+    }
+    // If response is an object but not an array, return empty array
+    return [];
+  }, [studentsResponse]);
   
   // Debug logging
   console.log("Students received:", studentsResponse);
@@ -352,8 +371,8 @@ export default function StudentDropoutRequests() {
                 {selectedStudentId && students.length > 0 && (() => {
                   const selectedStudent = students.find((s: Student) => s.id === selectedStudentId);
                   if (selectedStudent) {
-                    const totalAmount = parseFloat(selectedStudent.totalFeeAmount || '0');
-                    const paidAmount = parseFloat(selectedStudent.paidAmount || '0');
+                    const totalAmount = parseFloat((selectedStudent as any).totalFeeAmount || '0');
+                    const paidAmount = parseFloat((selectedStudent as any).paidAmount || '0');
                     const pendingAmount = totalAmount - paidAmount;
                     
                     if (pendingAmount > 0) {
