@@ -139,3 +139,85 @@
 .bg-error {
   background-color: var(--error);
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  /* Larger touch targets for mobile */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better button spacing on mobile */
+  button, .btn {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+  
+  /* Improved form inputs for mobile */
+  input, textarea, select {
+    min-height: 48px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Better card spacing on mobile */
+  .card-mobile {
+    margin: 8px;
+    border-radius: 12px;
+  }
+  
+  /* Improved table responsiveness */
+  .table-mobile {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  /* Better modal sizing on mobile */
+  .modal-mobile {
+    margin: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}
+
+/* Touch-friendly hover states */
+@media (hover: hover) and (pointer: fine) {
+  /* Only apply hover effects on devices that support hover */
+  .hover-effect:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Improve scroll behavior */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Better focus states for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Prevent text selection on interactive elements */
+button, .btn, [role="button"] {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Improve performance on mobile */
+.gpu-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+}

@@ -1,204 +1,251 @@
-import { Link, useLocation } from 'wouter';
-import { cn } from '@/lib/utils';
+
+import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
+import { useScreenSize } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import {
-  GraduationCap,
   LayoutDashboard,
   Users,
+  GraduationCap,
   CreditCard,
   TrendingUp,
-  Wallet,
-  UserCog,
-  Table,
-  Building,
-  Presentation,
-  CheckSquare,
-  LogOut,
-  Shield,
-  IndianRupee,
-  DollarSign,
-  BookOpen,
-  ClipboardCheck,
-  Megaphone,
-  FileCheck,
-  MapPin,
-  Receipt,
   Calendar,
-  BarChart3,
   Settings,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  FileText,
+  DollarSign,
+  BarChart3,
+  UserCheck,
+  School,
+  Building,
+  Award,
+  ClipboardList,
+  Bell,
+  CheckCircle,
   Package,
   ShoppingCart,
-  UserMinus,
-  FileText,
+  X
 } from 'lucide-react';
 
 interface SidebarProps {
-  className?: string;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
-  const [location] = useLocation();
-  const { user, logout } = useAuth();
+interface NavItem {
+  title: string;
+  href?: string;
+  icon: any;
+  children?: NavItem[];
+  roles?: string[];
+}
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+const navigation: NavItem[] = [
+  {
+    title: 'Dashboard',
+    href: '/dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    title: 'Students',
+    icon: Users,
+    children: [
+      { title: 'All Students', href: '/students', icon: Users },
+      { title: 'Progress Tracking', href: '/progress', icon: TrendingUp },
+      { title: 'Attendance', href: '/attendance', icon: Calendar },
+      { title: 'Attendance Reports', href: '/attendance-reports', icon: FileText },
+    ],
+  },
+  {
+    title: 'Academics',
+    icon: BookOpen,
+    children: [
+      { title: 'Exam Management', href: '/exam-management', icon: Award, roles: ['so_center'] },
+      { title: 'SO Center Exams', href: '/so-center/exams', icon: ClipboardList, roles: ['so_center'] },
+      { title: 'Exam Results', href: '/so-center/exam-results', icon: BarChart3, roles: ['so_center'] },
+    ],
+  },
+  {
+    title: 'Finance',
+    icon: DollarSign,
+    children: [
+      { title: 'Fee Payments', href: '/fee-payments', icon: CreditCard },
+      { title: 'Wallet', href: '/wallet', icon: DollarSign },
+      { title: 'Expenses', href: '/expenses', icon: FileText },
+    ],
+  },
+  {
+    title: 'Products',
+    href: '/products',
+    icon: Package,
+  },
+  {
+    title: 'Admin',
+    icon: Settings,
+    roles: ['admin', 'super_admin'],
+    children: [
+      { title: 'Users', href: '/admin/users', icon: Users },
+      { title: 'SO Centers', href: '/admin/centers', icon: Building },
+      { title: 'Academic Structure', href: '/admin/structure', icon: School },
+      { title: 'All Students', href: '/admin/students', icon: GraduationCap },
+      { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard },
+      { title: 'Exam Management', href: '/admin/exam-management', icon: Award },
+      { title: 'Products', href: '/admin/products', icon: Package },
+      { title: 'Announcements', href: '/admin/announcements', icon: Bell },
+      { title: 'Approvals', href: '/admin/approvals', icon: CheckCircle },
+    ],
+  },
+  {
+    title: 'Settings',
+    href: '/settings',
+    icon: Settings,
+  },
+];
+
+export function Sidebar({ onMobileClose }: SidebarProps) {
+  const [location, setLocation] = useLocation();
+  const { user } = useAuth();
+  const { isMobile } = useScreenSize();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  const toggleExpanded = (title: string) => {
+    setExpandedItems(prev => 
+      prev.includes(title) 
+        ? prev.filter(item => item !== title)
+        : [...prev, title]
+    );
   };
 
-  const getRoleNavItems = (role: string) => {
-    const baseItems = [
-      { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-    ];
-
-    switch (role) {
-      case 'admin':
-        return [
-          ...baseItems,
-          { icon: UserCog, label: 'Manage Users', href: '/admin/users' },
-          { icon: Shield, label: 'Role Management', href: '/admin/roles' },
-          { icon: MapPin, label: 'Address Management', href: '/admin/addresses' },
-          { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
-          { icon: Building, label: 'SO Centers', href: '/admin/centers' },
-          { icon: Users, label: 'All Students', href: '/admin/students' },
-          { icon: CreditCard, label: 'All Payments', href: '/admin/payments' },
-          { icon: IndianRupee, label: 'Fee Management', href: '/admin/fees' },
-          { icon: DollarSign, label: 'Expenses & Salary', href: '/admin/expenses' },
-          { icon: BookOpen, label: 'Academic Management', href: '/admin/academics' },
-          { icon: Presentation, label: 'Teacher Management', href: '/admin/teachers' },
-          { icon: Package, label: 'Products', href: '/admin/products' },
-          { icon: ClipboardCheck, label: 'Attendance Monitoring', href: '/admin/attendance' },
-          { icon: Megaphone, label: 'Announcements', href: '/admin/announcements' },
-          { icon: ShoppingCart, label: 'Course Purchases', href: '/admin/course-purchases' },
-          { icon: FileCheck, label: 'Approvals', href: '/admin/approvals' },
-          { icon: BookOpen, label: 'Topics Management', href: '/admin/topics-management' },
-          { icon: UserMinus, label: 'Dropout Requests', href: '/admin/dropout-requests' },
-        ];
-      
-      case 'so_center':
-        return [
-          ...baseItems,
-          { icon: Users, label: 'Students', href: '/students' },
-          { icon: Receipt, label: 'Fee Payments', href: '/fee-payments' },
-          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
-          { icon: Calendar, label: 'Attendance', href: '/attendance' },
-          { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
-          { icon: Package, label: 'Products', href: '/products' },
-          { icon: Wallet, label: 'Wallet', href: '/wallet' },
-          { icon: DollarSign, label: 'Expenses', href: '/expenses' },
-          { icon: GraduationCap, label: 'Exam Management', href: '/so-center/exam-management' },
-          { icon: UserMinus, label: 'Dropout Requests', href: '/so-center/dropout-requests' },
-        ];
-      
-      case 'teacher':
-        return [
-          ...baseItems,
-          { icon: Users, label: 'Students', href: '/students' },
-          { icon: TrendingUp, label: 'Progress Tracking', href: '/progress' },
-          { icon: Calendar, label: 'Attendance', href: '/attendance' },
-          { icon: BarChart3, label: 'Attendance Reports', href: '/attendance-reports' },
-        ];
-      
-      case 'academic_admin':
-        return [
-          ...baseItems,
-          { icon: BarChart3, label: 'Academic Dashboard', href: '/admin/academic-dashboard' },
-          { icon: GraduationCap, label: 'Exam Management', href: '/admin/exam-management' },
-          { icon: Table, label: 'Academic Structure', href: '/admin/structure' },
-        ];
-      
-      case 'agent':
-        return [
-          ...baseItems,
-          { icon: Package, label: 'Products', href: '/products' },
-          { icon: Wallet, label: 'Wallet', href: '/wallet' },
-          { icon: DollarSign, label: 'Expenses', href: '/expenses' },
-        ];
-
-      default:
-        return baseItems;
+  const handleNavigation = (href: string) => {
+    setLocation(href);
+    if (isMobile && onMobileClose) {
+      onMobileClose();
     }
   };
 
-  const navItems = getRoleNavItems(user?.role || '');
+  const isItemVisible = (item: NavItem) => {
+    if (!item.roles) return true;
+    return item.roles.includes(user?.role || '');
+  };
+
+  const isActive = (href: string) => {
+    return location === href || location.startsWith(href + '/');
+  };
+
+  const renderNavItem = (item: NavItem, level = 0) => {
+    if (!isItemVisible(item)) return null;
+
+    const hasChildren = item.children && item.children.length > 0;
+    const isExpanded = expandedItems.includes(item.title);
+    const Icon = item.icon;
+
+    if (hasChildren) {
+      return (
+        <div key={item.title} className="space-y-1">
+          <Button
+            variant="ghost"
+            className={cn(
+              "w-full justify-start gap-3 h-11 px-3 text-left font-normal",
+              level > 0 && "pl-6",
+              "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              "focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
+            )}
+            onClick={() => toggleExpanded(item.title)}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="flex-1 truncate">{item.title}</span>
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            )}
+          </Button>
+          {isExpanded && (
+            <div className="space-y-1 pl-3">
+              {item.children?.map(child => renderNavItem(child, level + 1))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <Button
+        key={item.title}
+        variant="ghost"
+        className={cn(
+          "w-full justify-start gap-3 h-11 px-3 text-left font-normal",
+          level > 0 && "pl-6",
+          isActive(item.href!) && "bg-sidebar-accent text-sidebar-accent-foreground",
+          "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          "focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
+        )}
+        onClick={() => item.href && handleNavigation(item.href)}
+      >
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="flex-1 truncate">{item.title}</span>
+      </Button>
+    );
+  };
 
   return (
-    <div className={cn("flex flex-col h-full bg-white dark:bg-gray-900 shadow-xl", className)}>
+    <div className="flex h-full w-full flex-col bg-sidebar border-r border-sidebar-border">
       {/* Header */}
-      <div className="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <GraduationCap className="text-white text-sm" size={16} />
+      <div className="flex h-14 items-center border-b border-sidebar-border px-4">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <GraduationCap className="h-4 w-4" />
           </div>
-          <h2 className="font-bold text-xl text-gray-900 dark:text-white">Navanidhi</h2>
-        </div>
-      </div>
-
-      {/* User Info */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user ? getInitials(user.name) : 'NA'}
-            </span>
-          </div>
-          <div>
-            <p className="font-medium text-gray-900 dark:text-white">{user?.name || 'User'}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 capitalize">
-              {user?.role?.replace('_', ' ') || 'Role'}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">
+              Navanidhi Academy
+            </p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">
+              Management System
             </p>
           </div>
         </div>
+        {isMobile && onMobileClose && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMobileClose}
+            className="h-8 w-8 p-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 mt-4 px-4 pb-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
-          const isActive = location === item.href;
-          const Icon = item.icon;
-          
-          return (
-            <Link key={item.href} href={item.href}>
-              <div className={cn(
-                "flex items-center px-4 py-3 rounded-lg transition-colors text-sm",
-                isActive 
-                  ? "text-primary bg-blue-50 dark:bg-blue-900/50" 
-                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              )}>
-                <Icon className="mr-3" size={18} />
-                {item.label}
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
+      <ScrollArea className="flex-1 px-3 py-4">
+        <nav className="space-y-2">
+          {navigation.map(item => renderNavItem(item))}
+        </nav>
+      </ScrollArea>
 
-      {/* Settings and Logout */}
-      <div className="p-4 space-y-2">
-        <Link href="/settings">
-          <div className={cn(
-            "flex items-center px-4 py-3 rounded-lg transition-colors text-sm",
-            location === '/settings'
-              ? "text-primary bg-blue-50 dark:bg-blue-900/50" 
-              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          )}>
-            <Settings className="mr-3" size={18} />
-            Settings
+      {/* Footer */}
+      <div className="border-t border-sidebar-border p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar-accent text-sidebar-accent-foreground">
+            <span className="text-xs font-medium">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            </span>
           </div>
-        </Link>
-        
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm"
-          onClick={() => logout()}
-        >
-          <LogOut className="mr-3" size={18} />
-          Logout
-        </Button>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {user?.name || 'User'}
+            </p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">
+              {user?.role?.replace('_', ' ') || 'User'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

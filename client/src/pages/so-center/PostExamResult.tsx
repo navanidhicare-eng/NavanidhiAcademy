@@ -13,14 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Users, 
-  FileText, 
-  CheckCircle, 
+import {
+  ArrowLeft,
+  Users,
+  FileText,
+  CheckCircle,
   Save,
-  Calculator
+  Calculator,
+  Eye // Import Eye icon
 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'; // Import RadioGroup and RadioGroupItem
 
 interface QuestionResult {
   questionText: string;
@@ -45,6 +47,7 @@ export default function PostExamResult() {
   const [isMarkingModalOpen, setIsMarkingModalOpen] = useState(false);
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [totalMarks, setTotalMarks] = useState(0);
+  const [marksData, setMarksData] = useState({}); // State to manage marks for non-modal view
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -130,14 +133,20 @@ export default function PostExamResult() {
 
   const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
 
-  useEffect(() => {
-    if (examId && exam && students && examQuestions) {
-      console.log('✅ Exam data loaded successfully');
+  // Mock handleViewDetails and handleMarksChange for the context of this component
+  const handleViewDetails = (studentId: string) => {
+    const student = students.find((s: any) => s.id === studentId);
+    if (student) {
+      openMarkingModal(student);
     }
-  }, [examId, exam, students, examQuestions]);
+  };
 
-  // Results data effect hook removed for production
-
+  const handleMarksChange = (studentId: string, questionIndex: number, marks: number) => {
+    setMarksData(prev => ({
+      ...prev,
+      [`${studentId}-${questionIndex}`]: { marks }
+    }));
+  };
 
   // Save student result mutation
   const saveResultMutation = useMutation({
@@ -177,26 +186,26 @@ export default function PostExamResult() {
         description: "Student exam result has been saved successfully.",
       });
       setIsMarkingModalOpen(false);
-      
+
       // Immediately update the UI with the returned data
       if (data.results && data.results.length > 0) {
         const updatedResult = data.results[0];
         console.log('🔄 Processing response data:', updatedResult);
-        
+
         // Invalidate cache to refresh results
         queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
       }
-      
+
       // Force immediate refresh of results data
       console.log('🔄 Force invalidating results cache...');
       queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
-      
+
       // Also manually trigger a refetch to ensure immediate UI update
       setTimeout(() => {
         console.log('🔄 Manual refetch triggered');
         queryClient.refetchQueries({ queryKey: ['/api/exams', examId, 'results'] });
       }, 100);
-      
+
       // Reset the selected student
       setSelectedStudent(null);
       setQuestionResults([]);
@@ -212,7 +221,7 @@ export default function PostExamResult() {
   });
 
   // Filter students for this exam's class
-  const classStudents = (students as any[]).filter((student: any) => 
+  const classStudents = (students as any[]).filter((student: any) =>
     student.classId === exam?.classId
   );
 
@@ -220,7 +229,7 @@ export default function PostExamResult() {
     setSelectedStudent(student);
 
     // Check if student already has results
-    const existingResult = (existingResults as any[]).find((result: any) => 
+    const existingResult = (existingResults as any[]).find((result: any) =>
       result.studentId === student.id
     );
 
@@ -233,7 +242,7 @@ export default function PostExamResult() {
             questionText: q.questionText || '',
             maxMarks: q.maxMarks || 0,
             obtainedMarks: q.marks || 0,
-            assessment: q.answerStatus === 'full_answer' ? 'wrote_well' : 
+            assessment: q.answerStatus === 'full_answer' ? 'wrote_well' :
                        q.answerStatus === 'partial_answered' ? 'wrote_no_marks' :
                        q.answerStatus === 'not_answered' ? 'did_not_write' : 'did_not_write'
           })));
@@ -363,13 +372,19 @@ export default function PostExamResult() {
   if (isLoading) {
     return (
       <DashboardLayout title="Post Exam Result">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center space-x-4">
-              <div className="w-24 h-8 bg-gray-200 animate-pulse rounded" />
+              <Button
+                variant="outline"
+                onClick={() => setLocation('/exam-management')}
+              >
+                <ArrowLeft size={16} className="mr-2" />
+                Back to Exams
+              </Button>
               <div>
-                <div className="w-48 h-8 bg-gray-200 animate-pulse rounded mb-2" />
-                <div className="w-96 h-4 bg-gray-100 animate-pulse rounded" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-green-800">Post Exam Result</h1>
+                <p className="text-sm sm:text-base text-green-600 mt-1">Update individual student results for {(exam as any)?.title}</p>
               </div>
             </div>
           </div>
@@ -377,7 +392,10 @@ export default function PostExamResult() {
           {/* Exam Details Card Skeleton */}
           <Card>
             <CardHeader>
-              <div className="w-32 h-6 bg-gray-200 animate-pulse rounded" />
+              <CardTitle className="flex items-center space-x-2">
+                <FileText size={20} />
+                <span>Exam Details</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -394,17 +412,20 @@ export default function PostExamResult() {
           {/* Students Table Skeleton */}
           <Card>
             <CardHeader>
-              <div className="w-48 h-6 bg-gray-200 animate-pulse rounded" />
+              <CardTitle className="flex items-center space-x-2">
+                <Users size={20} />
+                <span>Class Students</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-4 border border-gray-200 rounded">
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded gap-3">
                     <div className="space-y-1">
                       <div className="w-32 h-4 bg-gray-200 animate-pulse rounded" />
                       <div className="w-24 h-3 bg-gray-100 animate-pulse rounded" />
                     </div>
-                    <div className="w-20 h-8 bg-gray-200 animate-pulse rounded" />
+                    <div className="w-20 h-8 bg-gray-200 animate-pulse rounded self-end sm:self-auto" />
                   </div>
                 ))}
               </div>
@@ -422,7 +443,7 @@ export default function PostExamResult() {
   if (!exam) {
     return (
       <DashboardLayout title="Post Exam Result">
-        <div className="text-center py-8">
+        <div className="p-4 sm:p-6 text-center py-8">
           <p className="text-red-600">Exam not found or access denied.</p>
         </div>
       </DashboardLayout>
@@ -431,8 +452,8 @@ export default function PostExamResult() {
 
   return (
     <DashboardLayout title="Post Exam Result">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="p-4 sm:p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center space-x-4">
             <Button
               variant="outline"
@@ -442,8 +463,8 @@ export default function PostExamResult() {
               Back to Exams
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-green-800">Post Exam Result</h1>
-              <p className="text-green-600 mt-1">Update individual student results for {(exam as any)?.title}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-green-800">Post Exam Result</h1>
+              <p className="text-sm sm:text-base text-green-600 mt-1">Update individual student results for {(exam as any)?.title}</p>
             </div>
           </div>
         </div>
@@ -545,10 +566,10 @@ export default function PostExamResult() {
                               openMarkingModal(student);
                             }}
                             className={`${
-                              isStudentCompleted(student.id) 
-                                ? "bg-gray-400 cursor-not-allowed text-white" 
+                              isStudentCompleted(student.id)
+                                ? "bg-gray-400 cursor-not-allowed text-white"
                                 : "bg-blue-600 hover:bg-blue-700 text-white"
-                            }`}
+                            } touch-target`}
                             disabled={isStudentCompleted(student.id)}
                           >
                             {isStudentCompleted(student.id) ? 'Completed' : (result ? 'Update' : 'Enter Marks')}
@@ -597,20 +618,24 @@ export default function PostExamResult() {
                     </div>
                   ) : questionResults.length === 0 ? (
                     <div className="text-center py-8">
-                      <Button 
+                      <Button
                         onClick={initializeQuestionResults}
-                        className="bg-blue-600 hover:bg-blue-700"
+                        className="bg-blue-600 hover:bg-blue-700 touch-target"
                       >
                         Load Questions
                       </Button>
                     </div>
                   ) : (
                     questionResults.map((result, index) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <p className="font-medium text-lg">Q{index + 1}: {result.questionText}</p>
-                            <p className="text-sm text-gray-500 mt-1">Maximum Marks: {result.maxMarks}</p>
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 md:p-4 bg-gray-50">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-3 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 text-sm md:text-base">
+                              Q{index + 1}: {result.questionText}
+                            </p>
+                            <p className="text-xs md:text-sm text-gray-600 mt-1">
+                              Maximum Marks: {result.maxMarks}
+                            </p>
                           </div>
                           <div className="text-right min-w-[120px]">
                             <Label htmlFor={`marks-${index}`} className="text-sm font-medium">
@@ -623,42 +648,44 @@ export default function PostExamResult() {
                               max={result.maxMarks}
                               value={result.obtainedMarks}
                               onChange={(e) => updateMarksDirectly(index, parseInt(e.target.value) || 0)}
-                              className="w-20 mt-1 text-center font-semibold"
+                              className="w-20 mt-1 text-center font-semibold touch-target"
                             />
                           </div>
                         </div>
 
                         <div>
                           <Label className="text-sm font-medium mb-2 block">Assessment Options</Label>
-                          <div className="grid grid-cols-1 gap-2">
+                          <RadioGroup
+                            value={result.assessment}
+                            onValueChange={(value) => updateQuestionResult(index, 'assessment', value)}
+                            className="grid grid-cols-1 gap-2"
+                          >
                             {[
-                              { value: 'did_not_write', label: '1. Did not write (0 marks)', marks: 0 },
-                              { value: 'did_not_write_well', label: '2. Did not write well (25% marks)', marks: Math.round(result.maxMarks * 0.25) },
-                              { value: 'wrote_no_marks', label: '3. Wrote but incomplete (50% marks)', marks: Math.round(result.maxMarks * 0.5) },
-                              { value: 'wrote_well', label: '4. Wrote well (Full marks)', marks: result.maxMarks },
+                              { value: 'did_not_write', label: 'Did not write', marks: 0 },
+                              { value: 'did_not_write_well', label: 'Did not write well', marks: Math.round(result.maxMarks * 0.25) },
+                              { value: 'wrote_no_marks', label: 'Wrote but incomplete', marks: Math.round(result.maxMarks * 0.5) },
+                              { value: 'wrote_well', label: 'Wrote well', marks: result.maxMarks },
                             ].map((option) => (
-                              <div key={option.value} className="flex items-center space-x-2 p-2 border rounded hover:bg-gray-50">
-                                <Checkbox
+                              <div key={option.value} className="flex items-center space-x-3 p-2 rounded border hover:bg-gray-50 touch-target">
+                                <RadioGroupItem
+                                  value={option.value}
                                   id={`${index}-${option.value}`}
-                                  checked={result.assessment === option.value}
-                                  onCheckedChange={(checked) => {
-                                    if (checked) {
-                                      updateQuestionResult(index, 'assessment', option.value);
-                                    }
-                                  }}
+                                  className="shrink-0"
                                 />
-                                <Label 
-                                  htmlFor={`${index}-${option.value}`}
-                                  className="text-sm cursor-pointer flex-1"
-                                >
-                                  {option.label}
-                                </Label>
-                                <span className="text-xs text-gray-500 font-medium">
-                                  ({option.marks} marks)
-                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <Label
+                                    htmlFor={`${index}-${option.value}`}
+                                    className="text-sm cursor-pointer block"
+                                  >
+                                    {option.label}
+                                  </Label>
+                                  <span className="text-xs text-gray-500 font-medium block">
+                                    ({option.marks} marks)
+                                  </span>
+                                </div>
                               </div>
                             ))}
-                          </div>
+                          </RadioGroup>
                         </div>
                       </div>
                     ))
@@ -685,13 +712,14 @@ export default function PostExamResult() {
                   <Button
                     variant="outline"
                     onClick={() => setIsMarkingModalOpen(false)}
+                    className="touch-target"
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={saveResult}
                     disabled={saveResultMutation.isPending}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white touch-target"
                   >
                     {saveResultMutation.isPending ? (
                       <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
