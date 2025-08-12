@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,16 +11,40 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { BookOpen, School, Target, CheckCircle, XCircle, Clock, Users } from 'lucide-react';
+import { BookOpen, School, Target, CheckCircle, XCircle, Clock, Users, MapPin, Building, Loader2 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/useAuth';
+
+// Hierarchical location interfaces
+interface State {
+  id: string;
+  name: string;
+}
+
+interface District {
+  id: string;
+  name: string;
+  stateId: string;
+}
+
+interface Mandal {
+  id: string;
+  name: string;
+  districtId: string;
+}
+
+interface Village {
+  id: string;
+  name: string;
+  mandalId: string;
+}
 
 interface Student {
   id: string;
   name: string;
-  studentId: string;
-  classId: string;
-  className: string;
+  student_id: string;
+  class_id: string;
+  class_name: string;
 }
 
 interface ProgressTrackingData {
@@ -43,7 +67,8 @@ interface ProgressTrackingData {
 interface SoCenter {
   id: string;
   name: string;
-  centerId: string;
+  center_id: string;
+  villageId: string;
 }
 
 interface Subject {
@@ -84,8 +109,17 @@ export default function ProgressTracking() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   
-  // States for filters
-  const [activeTab, setActiveTab] = useState('all-students');
+  // Hierarchical filter states
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedMandal, setSelectedMandal] = useState<string>('');
+  const [selectedVillage, setSelectedVillage] = useState<string>('');
+  const [selectedCenterNew, setSelectedCenterNew] = useState<string>('');
+  const [selectedClassNew, setSelectedClassNew] = useState<string>('');
+  const [selectedStudentNew, setSelectedStudentNew] = useState<string>('');
+  
+  // States for filters (legacy)
+  const [activeTab, setActiveTab] = useState('school-homework');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedCenter, setSelectedCenter] = useState('all');
   const [selectedSubject, setSelectedSubject] = useState('');
@@ -105,7 +139,107 @@ export default function ProgressTracking() {
     reason?: string;
   }>>({});
 
-  // Fetch data
+  // API calls for hierarchical data
+  const { data: states = [] } = useQuery({
+    queryKey: ['/api/locations/states'],
+    enabled: true,
+  });
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ['/api/locations/districts', selectedState],
+    queryFn: async () => {
+      if (!selectedState) return [];
+      const response = await fetch(`/api/locations/districts?stateId=${selectedState}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch districts');
+      return response.json();
+    },
+    enabled: !!selectedState,
+  });
+
+  const { data: mandals = [] } = useQuery({
+    queryKey: ['/api/locations/mandals', selectedDistrict],
+    queryFn: async () => {
+      if (!selectedDistrict) return [];
+      const response = await fetch(`/api/locations/mandals?districtId=${selectedDistrict}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch mandals');
+      return response.json();
+    },
+    enabled: !!selectedDistrict,
+  });
+
+  const { data: villages = [] } = useQuery({
+    queryKey: ['/api/locations/villages', selectedMandal],
+    queryFn: async () => {
+      if (!selectedMandal) return [];
+      const response = await fetch(`/api/locations/villages?mandalId=${selectedMandal}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch villages');
+      return response.json();
+    },
+    enabled: !!selectedMandal,
+  });
+
+  const { data: centersNew = [] } = useQuery({
+    queryKey: ['/api/locations/so-centers', selectedVillage],
+    queryFn: async () => {
+      if (!selectedVillage) return [];
+      const response = await fetch(`/api/locations/so-centers?villageId=${selectedVillage}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch SO centers');
+      return response.json();
+    },
+    enabled: !!selectedVillage,
+  });
+
+  const { data: classesNew = [] } = useQuery({
+    queryKey: ['/api/classes/by-center', selectedCenterNew],
+    queryFn: async () => {
+      if (!selectedCenterNew) return [];
+      const response = await fetch(`/api/classes/by-center?centerId=${selectedCenterNew}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch classes');
+      return response.json();
+    },
+    enabled: !!selectedCenterNew,
+  });
+
+  const { data: studentsNew = [] } = useQuery({
+    queryKey: ['/api/students/by-filter', selectedClassNew, selectedCenterNew],
+    queryFn: async () => {
+      if (!selectedClassNew && !selectedCenterNew) return [];
+      const params = new URLSearchParams();
+      if (selectedClassNew) params.append('classId', selectedClassNew);
+      if (selectedCenterNew) params.append('centerId', selectedCenterNew);
+      
+      const response = await fetch(`/api/students/by-filter?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to fetch students');
+      return response.json();
+    },
+    enabled: !!(selectedClassNew || selectedCenterNew),
+  });
+
+  // Fetch data (Legacy)
   const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
   });
@@ -193,7 +327,81 @@ export default function ProgressTracking() {
   const filteredTopics = (topics as Topic[]).filter((t: Topic) => 
     selectedChapter ? t.chapterId === selectedChapter : filteredChapters.some((c: Chapter) => c.id === t.chapterId)
   );
-  const classStudents = (students as Student[]).filter((s: Student) => s.classId === selectedClass);
+  const classStudents = (students as Student[]).filter((s: Student) => s.class_id === selectedClass);
+
+  // Reset function for hierarchical dropdowns
+  const resetChildDropdowns = (level: string) => {
+    switch(level) {
+      case 'state':
+        setSelectedDistrict('');
+        setSelectedMandal('');
+        setSelectedVillage('');
+        setSelectedCenterNew('');
+        setSelectedClassNew('');
+        setSelectedStudentNew('');
+        break;
+      case 'district':
+        setSelectedMandal('');
+        setSelectedVillage('');
+        setSelectedCenterNew('');
+        setSelectedClassNew('');
+        setSelectedStudentNew('');
+        break;
+      case 'mandal':
+        setSelectedVillage('');
+        setSelectedCenterNew('');
+        setSelectedClassNew('');
+        setSelectedStudentNew('');
+        break;
+      case 'village':
+        setSelectedCenterNew('');
+        setSelectedClassNew('');
+        setSelectedStudentNew('');
+        break;
+      case 'center':
+        setSelectedClassNew('');
+        setSelectedStudentNew('');
+        break;
+      case 'class':
+        setSelectedStudentNew('');
+        break;
+    }
+  };
+
+  // Handle hierarchical filter changes
+  const handleStateChange = (value: string) => {
+    setSelectedState(value);
+    resetChildDropdowns('state');
+  };
+
+  const handleDistrictChange = (value: string) => {
+    setSelectedDistrict(value);
+    resetChildDropdowns('district');
+  };
+
+  const handleMandalChange = (value: string) => {
+    setSelectedMandal(value);
+    resetChildDropdowns('mandal');
+  };
+
+  const handleVillageChange = (value: string) => {
+    setSelectedVillage(value);
+    resetChildDropdowns('village');
+  };
+
+  const handleCenterChange = (value: string) => {
+    setSelectedCenterNew(value);
+    resetChildDropdowns('center');
+  };
+
+  const handleClassChange = (value: string) => {
+    setSelectedClassNew(value);
+    resetChildDropdowns('class');
+  };
+
+  const handleStudentChange = (value: string) => {
+    setSelectedStudentNew(value);
+  };
   
   // Helper function to check if topic is completed
   const isTopicCompleted = (studentId: string, topicId: string) => {
@@ -349,21 +557,397 @@ export default function ProgressTracking() {
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className={`grid w-full ${user?.role === 'admin' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+          <TabsTrigger value="school-homework" className="flex items-center gap-2">
+            <School className="h-4 w-4" />
+            School Homework Activity
+          </TabsTrigger>
+          <TabsTrigger value="tuition-activity" className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            Tuition Activity
+          </TabsTrigger>
           {user?.role === 'admin' && (
             <TabsTrigger value="all-students" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               All Students
             </TabsTrigger>
           )}
-          <TabsTrigger value="homework" className="flex items-center gap-2">
-            <School className="h-4 w-4" />
-            School Homework Activity
-          </TabsTrigger>
-          <TabsTrigger value="tuition" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Tuition Activity
-          </TabsTrigger>
         </TabsList>
+
+        {/* School Homework Activity Tab */}
+        <TabsContent value="school-homework" className="space-y-6">
+          {/* Hierarchical Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Location Filters
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {/* State */}
+                <div className="space-y-2">
+                  <Label>State</Label>
+                  <Select value={selectedState} onValueChange={handleStateChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(states as State[]).map((state: State) => (
+                        <SelectItem key={state.id} value={state.id}>
+                          {state.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* District */}
+                <div className="space-y-2">
+                  <Label>District</Label>
+                  <Select 
+                    value={selectedDistrict} 
+                    onValueChange={handleDistrictChange}
+                    disabled={!selectedState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(districts as District[]).map((district: District) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Mandal */}
+                <div className="space-y-2">
+                  <Label>Mandal</Label>
+                  <Select 
+                    value={selectedMandal} 
+                    onValueChange={handleMandalChange}
+                    disabled={!selectedDistrict}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(mandals as Mandal[]).map((mandal: Mandal) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>
+                          {mandal.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Village */}
+                <div className="space-y-2">
+                  <Label>Village</Label>
+                  <Select 
+                    value={selectedVillage} 
+                    onValueChange={handleVillageChange}
+                    disabled={!selectedMandal}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(villages as Village[]).map((village: Village) => (
+                        <SelectItem key={village.id} value={village.id}>
+                          {village.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* SO Center */}
+                <div className="space-y-2">
+                  <Label>SO Center</Label>
+                  <Select 
+                    value={selectedCenterNew} 
+                    onValueChange={handleCenterChange}
+                    disabled={!selectedVillage}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Center" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(centersNew as SoCenter[]).map((center: SoCenter) => (
+                        <SelectItem key={center.id} value={center.id}>
+                          {center.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Class */}
+                <div className="space-y-2">
+                  <Label>Class</Label>
+                  <Select 
+                    value={selectedClassNew} 
+                    onValueChange={handleClassChange}
+                    disabled={!selectedCenterNew}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(classesNew as Class[]).map((cls: Class) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Student */}
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <Select 
+                    value={selectedStudentNew} 
+                    onValueChange={handleStudentChange}
+                    disabled={!selectedClassNew}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(studentsNew as Student[]).map((student: Student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Validation Message */}
+          {!selectedStudentNew && (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Please select a student to view School Homework Activity</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* School Homework Activity Data */}
+          {selectedStudentNew && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  School Homework Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="mb-4">Data will be loaded automatically for selected student</div>
+                  <div className="text-sm">
+                    <strong>Selected Student:</strong> {studentsNew.find(s => s.id === selectedStudentNew)?.name}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Tuition Activity Tab */}
+        <TabsContent value="tuition-activity" className="space-y-6">
+          {/* Hierarchical Filters - Same as School Homework */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Location Filters
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                {/* Same hierarchical filters as above */}
+                <div className="space-y-2">
+                  <Label>State</Label>
+                  <Select value={selectedState} onValueChange={handleStateChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(states as State[]).map((state: State) => (
+                        <SelectItem key={state.id} value={state.id}>
+                          {state.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>District</Label>
+                  <Select 
+                    value={selectedDistrict} 
+                    onValueChange={handleDistrictChange}
+                    disabled={!selectedState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(districts as District[]).map((district: District) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Mandal</Label>
+                  <Select 
+                    value={selectedMandal} 
+                    onValueChange={handleMandalChange}
+                    disabled={!selectedDistrict}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(mandals as Mandal[]).map((mandal: Mandal) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>
+                          {mandal.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Village</Label>
+                  <Select 
+                    value={selectedVillage} 
+                    onValueChange={handleVillageChange}
+                    disabled={!selectedMandal}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(villages as Village[]).map((village: Village) => (
+                        <SelectItem key={village.id} value={village.id}>
+                          {village.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>SO Center</Label>
+                  <Select 
+                    value={selectedCenterNew} 
+                    onValueChange={handleCenterChange}
+                    disabled={!selectedVillage}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Center" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(centersNew as SoCenter[]).map((center: SoCenter) => (
+                        <SelectItem key={center.id} value={center.id}>
+                          {center.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Class</Label>
+                  <Select 
+                    value={selectedClassNew} 
+                    onValueChange={handleClassChange}
+                    disabled={!selectedCenterNew}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(classesNew as Class[]).map((cls: Class) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <Select 
+                    value={selectedStudentNew} 
+                    onValueChange={handleStudentChange}
+                    disabled={!selectedClassNew}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(studentsNew as Student[]).map((student: Student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Validation Message */}
+          {!selectedStudentNew && (
+            <Card>
+              <CardContent className="py-8">
+                <div className="text-center text-muted-foreground">
+                  <School className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Please select a student to view Tuition Activity</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tuition Activity Data */}
+          {selectedStudentNew && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <School className="h-5 w-5" />
+                  Tuition Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="mb-4">Data will be loaded automatically for selected student</div>
+                  <div className="text-sm">
+                    <strong>Selected Student:</strong> {studentsNew.find(s => s.id === selectedStudentNew)?.name}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* All Students Progress Overview - Admin Only */}
         {user?.role === 'admin' && (

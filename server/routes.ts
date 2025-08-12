@@ -3587,13 +3587,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (centerId) {
         // Get classes that have students in the specified SO center
-        const classesWithStudents = await executeRawQuery(`
+        const classesWithStudents = await sql`
           SELECT DISTINCT c.id, c.name 
           FROM classes c
           INNER JOIN students s ON c.id = s.class_id
-          WHERE s.so_center_id = $1 AND s.is_active = true
+          WHERE s.so_center_id = ${centerId} AND s.is_active = true
           ORDER BY c.name
-        `, [centerId]);
+        `;
         
         res.json(classesWithStudents);
       } else {
@@ -3611,30 +3611,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { classId, centerId } = req.query;
       
-      let query = `
+      let query = sql`
         SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
         FROM students s
         LEFT JOIN classes c ON s.class_id = c.id
         WHERE s.is_active = true
       `;
-      const params: any[] = [];
-      let paramIndex = 1;
 
-      if (classId) {
-        query += ` AND s.class_id = $${paramIndex}`;
-        params.push(classId);
-        paramIndex++;
+      if (classId && centerId) {
+        query = sql`
+          SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.is_active = true AND s.class_id = ${classId} AND s.so_center_id = ${centerId}
+          ORDER BY s.name
+        `;
+      } else if (classId) {
+        query = sql`
+          SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.is_active = true AND s.class_id = ${classId}
+          ORDER BY s.name
+        `;
+      } else if (centerId) {
+        query = sql`
+          SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.is_active = true AND s.so_center_id = ${centerId}
+          ORDER BY s.name
+        `;
+      } else {
+        query = sql`
+          SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.is_active = true
+          ORDER BY s.name
+        `;
       }
 
-      if (centerId) {
-        query += ` AND s.so_center_id = $${paramIndex}`;
-        params.push(centerId);
-        paramIndex++;
-      }
-
-      query += ` ORDER BY s.name`;
-
-      const students = await executeRawQuery(query, params);
+      const students = await query;
       res.json(students);
     } catch (error: any) {
       console.error('❌ Error fetching students:', error);
@@ -3989,7 +4007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { studentId, classId, centerId, date } = req.query;
       
-      let query = `
+      let query = sql`
         SELECT 
           a.id,
           a.student_id,
@@ -4007,36 +4025,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN so_centers sc ON s.so_center_id = sc.id
         WHERE 1=1
       `;
-      const params: any[] = [];
-      let paramIndex = 1;
 
-      if (studentId) {
-        query += ` AND a.student_id = $${paramIndex}`;
-        params.push(studentId);
-        paramIndex++;
+      // Build dynamic query based on filters
+      if (studentId && classId && centerId && date) {
+        query = sql`
+          SELECT 
+            a.id, a.student_id, a.date, a.status, a.remarks,
+            s.name as student_name, s.student_id as student_code,
+            c.name as class_name, sc.name as center_name, sc.center_id as center_code
+          FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+          WHERE a.student_id = ${studentId} AND s.class_id = ${classId} AND s.so_center_id = ${centerId} AND a.date = ${date}
+          ORDER BY a.date DESC, s.name
+        `;
+      } else if (studentId) {
+        query = sql`
+          SELECT 
+            a.id, a.student_id, a.date, a.status, a.remarks,
+            s.name as student_name, s.student_id as student_code,
+            c.name as class_name, sc.name as center_name, sc.center_id as center_code
+          FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+          WHERE a.student_id = ${studentId}
+          ORDER BY a.date DESC, s.name
+        `;
+      } else if (classId && centerId) {
+        query = sql`
+          SELECT 
+            a.id, a.student_id, a.date, a.status, a.remarks,
+            s.name as student_name, s.student_id as student_code,
+            c.name as class_name, sc.name as center_name, sc.center_id as center_code
+          FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+          WHERE s.class_id = ${classId} AND s.so_center_id = ${centerId}
+          ORDER BY a.date DESC, s.name
+        `;
+      } else if (centerId) {
+        query = sql`
+          SELECT 
+            a.id, a.student_id, a.date, a.status, a.remarks,
+            s.name as student_name, s.student_id as student_code,
+            c.name as class_name, sc.name as center_name, sc.center_id as center_code
+          FROM attendance a
+          LEFT JOIN students s ON a.student_id = s.id
+          LEFT JOIN classes c ON s.class_id = c.id
+          LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+          WHERE s.so_center_id = ${centerId}
+          ORDER BY a.date DESC, s.name
+        `;
+      } else {
+        // Return empty array if no meaningful filters provided
+        return res.json([]);
       }
 
-      if (classId) {
-        query += ` AND s.class_id = $${paramIndex}`;
-        params.push(classId);
-        paramIndex++;
-      }
-
-      if (centerId) {
-        query += ` AND s.so_center_id = $${paramIndex}`;
-        params.push(centerId);
-        paramIndex++;
-      }
-
-      if (date) {
-        query += ` AND a.date = $${paramIndex}`;
-        params.push(date);
-        paramIndex++;
-      }
-
-      query += ` ORDER BY a.date DESC, s.name`;
-
-      const attendanceRecords = await executeRawQuery(query, params);
+      const attendanceRecords = await query;
       res.json(attendanceRecords);
     } catch (error: any) {
       console.error('❌ Error fetching attendance:', error);
