@@ -59,10 +59,13 @@ export default function ExamResults() {
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
 
   // Fetch SO Center's exams
-  const { data: exams, isLoading: examsLoading } = useQuery({
+  const { data: examsData, isLoading: examsLoading } = useQuery({
     queryKey: ["/api/so-center/exams"],
     queryFn: () => apiRequest("GET", "/api/so-center/exams"),
   });
+
+  // Ensure exams is always an array
+  const exams = Array.isArray(examsData) ? examsData : [];
 
   // Fetch students for selected exam
   const fetchStudentsForExam = async (examId: string) => {
@@ -99,7 +102,7 @@ export default function ExamResults() {
   // Handle exam selection
   const handleExamSelect = async (examId: string) => {
     setSelectedExamId(examId);
-    const exam = exams?.find((e: Exam) => e.id === examId);
+    const exam = exams.find((e: Exam) => e.id === examId);
     setSelectedExam(exam || null);
     
     if (examId) {
