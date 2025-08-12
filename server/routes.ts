@@ -1487,9 +1487,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Academic structure routes
   app.get("/api/classes", authenticateToken, async (req, res) => {
     try {
-      const classes = await storage.getAllClasses();
-      res.json(classes);
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      if (req.user.role === 'so_center') {
+        // For SO Centers, get classes where they have students
+        try {
+          // Get the SO Center details
+          const soCenter = await storage.getSoCenterByEmail(req.user.email);
+          if (!soCenter) {
+            return res.status(403).json({ message: "SO Center not found" });
+          }
+
+          // Get classes where this SO Center has students
+          const query = `
+            SELECT DISTINCT c.id, c.name, c.description, c.order_index
+            FROM classes c
+            INNER JOIN students s ON c.id = s.class_id
+            WHERE s.so_center_id = $1 AND s.is_active = true
+            ORDER BY c.order_index
+          `;
+          const classes = await executeRawQuery(query, [soCenter.id]);
+          res.json(classes);
+        } catch (error) {
+          console.error('Error fetching SO Center classes:', error);
+          res.status(500).json({ message: "Failed to fetch classes for SO Center" });
+        }
+      } else {
+        // For admins and other roles, return all classes
+        const classes = await storage.getAllClasses();
+        res.json(classes);
+      }
     } catch (error) {
+      console.error('Error fetching classes:', error);
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });

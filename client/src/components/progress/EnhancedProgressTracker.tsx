@@ -94,12 +94,18 @@ export function EnhancedProgressTracker() {
   const [topicFilter, setTopicFilter] = useState('all'); // 'all' | 'completed' | 'not_completed'
   const [topicCounts, setTopicCounts] = useState<Record<string, TopicCounts>>({});
 
-  // Fetch classes
+  // Fetch classes for SO Center
   const { data: classes = [], isLoading: classesLoading } = useQuery({
     queryKey: ['/api/classes'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/classes');
-      return Array.isArray(response) ? response : [];
+      try {
+        const response = await apiRequest('GET', '/api/classes');
+        console.log('Classes API response:', response);
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        return [];
+      }
     },
   });
 
@@ -109,12 +115,22 @@ export function EnhancedProgressTracker() {
     queryFn: async () => {
       if (!selectedClass) return [];
       try {
+        // Get all students for the selected class (already filtered by SO Center on backend)
         const students = await apiRequest('GET', `/api/students?classId=${selectedClass}`);
+        console.log('Students API response:', students);
+        
         // Filter only present students from today's attendance
         const attendance = await apiRequest('GET', `/api/attendance/existing?date=${homeworkDate}`);
-        return Array.isArray(students) ? students.filter((student: Student) => 
-          attendance[student.id]?.status === 'present'
-        ) : [];
+        console.log('Attendance API response:', attendance);
+        
+        if (!Array.isArray(students)) return [];
+        
+        const presentStudents = students.filter((student: Student) => 
+          attendance && (attendance as any)[student.id]?.status === 'present'
+        );
+        
+        console.log('Filtered students:', presentStudents);
+        return presentStudents;
       } catch (error) {
         console.error('Error fetching homework students:', error);
         return [];
@@ -188,7 +204,7 @@ export function EnhancedProgressTracker() {
           
           const topicsWithStatus = allTopics.map((topic: Topic) => ({
             ...topic,
-            isCompleted: completionStatus.completed && completionStatus.completed.includes(topic.id)
+            isCompleted: completionStatus && (completionStatus as any).completed && (completionStatus as any).completed.includes(topic.id)
           }));
 
           // Apply filter
@@ -220,8 +236,8 @@ export function EnhancedProgressTracker() {
           setTopicCounts(prev => ({
             ...prev,
             [student.id]: {
-              completed: counts.completed.length,
-              remaining: counts.remaining.length
+              completed: counts && (counts as any).completed ? (counts as any).completed.length : 0,
+              remaining: counts && (counts as any).remaining ? (counts as any).remaining.length : 0
             }
           }));
         } catch (error) {
@@ -398,7 +414,8 @@ export function EnhancedProgressTracker() {
                   <Input
                     type="date"
                     value={homeworkDate}
-                    onChange={(e) => setHomeworkDate(e.target.value)}
+                    readOnly
+                    className="bg-muted"
                   />
                 </div>
                 
