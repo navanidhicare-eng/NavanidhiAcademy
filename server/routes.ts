@@ -1365,18 +1365,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      // Get comprehensive real progress data
+      // Get current and previous month dates
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+      // Get comprehensive real progress data with tuition_progress table
       const progressQuery = `
         SELECT 
           tp.id,
           tp.status,
-          tp.completion_date,
+          tp.completed_date,
+          t.id as topic_id,
           t.name as topic_name,
+          t.is_moderate,
+          t.is_important,
+          c.id as chapter_id,
           c.name as chapter_name,
+          s.id as subject_id,
           s.name as subject_name,
           tp.created_at,
           tp.updated_at
-        FROM topic_progress tp
+        FROM tuition_progress tp
         JOIN topics t ON tp.topic_id = t.id
         JOIN chapters c ON t.chapter_id = c.id
         JOIN subjects s ON c.subject_id = s.id
@@ -1384,26 +1395,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ORDER BY s.name, c.name, t.name
       `;
 
-      const progressResults = await executeRawQuery(progressQuery, [student.id]);
+      // Get all topics for the student's class (including pending ones)
+      const allTopicsQuery = `
+        SELECT 
+          t.id as topic_id,
+          t.name as topic_name,
+          t.is_moderate,
+          t.is_important,
+          c.id as chapter_id,
+          c.name as chapter_name,
+          s.id as subject_id,
+          s.name as subject_name,
+          tp.status,
+          tp.completed_date
+        FROM topics t
+        JOIN chapters c ON t.chapter_id = c.id
+        JOIN subjects s ON c.subject_id = s.id
+        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1
+        WHERE s.class_id = $2 AND t.is_active = true
+        ORDER BY s.name, c.name, t.order_index, t.name
+      `;
 
-      const progress = progressResults.map((row: any) => ({
-        id: row.id,
-        status: row.status,
-        topicName: row.topic_name,
-        chapterName: row.chapter_name,
-        subjectName: row.subject_name,
-        completionDate: row.completion_date,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
+      // Get attendance for current and previous month
+      const attendanceQuery = `
+        SELECT 
+          date,
+          status
+        FROM attendance
+        WHERE student_id = $1 
+        AND date >= $2 
+        AND date <= CURRENT_DATE
+        ORDER BY date DESC
+      `;
+
+      // Get recent exam results
+      const examResultsQuery = `
+        SELECT 
+          er.id,
+          er.marks_obtained,
+          er.answered_questions,
+          er.created_at,
+          e.title as exam_title,
+          e.total_marks,
+          e.exam_date,
+          e.description
+        FROM exam_results er
+        JOIN exams e ON er.exam_id = e.id
+        WHERE er.student_id = $1
+        ORDER BY e.exam_date DESC, er.created_at DESC
+        LIMIT 10
+      `;
+
+      const [allTopicsResults, attendanceResults, examResults] = await Promise.all([
+        executeRawQuery(allTopicsQuery, [student.id, student.classId]),
+        executeRawQuery(attendanceQuery, [student.id, previousMonthStart.toISOString().split('T')[0]]),
+        executeRawQuery(examResultsQuery, [student.id])
+      ]);
+
+      // Process attendance data
+      const currentMonthAttendance = attendanceResults.filter(a => 
+        new Date(a.date) >= currentMonthStart
+      );
+      const previousMonthAttendance = attendanceResults.filter(a => 
+        new Date(a.date) >= previousMonthStart && new Date(a.date) <= previousMonthEnd
+      );
+
+      const attendanceData = {
+        currentMonth: {
+          total: currentMonthAttendance.length,
+          present: currentMonthAttendance.filter(a => a.status === 'present').length,
+          absent: currentMonthAttendance.filter(a => a.status === 'absent').length,
+          monthName: now.toLocaleString('default', { month: 'long', year: 'numeric' })
+        },
+        previousMonth: {
+          total: previousMonthAttendance.length,
+          present: previousMonthAttendance.filter(a => a.status === 'present').length,
+          absent: previousMonthAttendance.filter(a => a.status === 'absent').length,
+          monthName: previousMonthStart.toLocaleString('default', { month: 'long', year: 'numeric' })
+        }
+      };
+
+      // Process exam results with percentage calculation
+      const processedExamResults = examResults.map((exam: any) => ({
+        id: exam.id,
+        examTitle: exam.exam_title,
+        marksObtained: exam.marks_obtained,
+        totalMarks: exam.total_marks,
+        percentage: exam.total_marks > 0 ? Math.round((exam.marks_obtained / exam.total_marks) * 100) : 0,
+        examDate: exam.exam_date,
+        answeredQuestions: exam.answered_questions,
+        description: exam.description,
+        completedAt: exam.created_at
       }));
+
+      // Organize topics by subjects with completion status
+      const subjectMap = new Map();
+      
+      allTopicsResults.forEach((topic: any) => {
+        const subjectId = topic.subject_id;
+        if (!subjectMap.has(subjectId)) {
+          subjectMap.set(subjectId, {
+            id: subjectId,
+            name: topic.subject_name,
+            completedTopics: [],
+            pendingTopics: []
+          });
+        }
+        
+        const subject = subjectMap.get(subjectId);
+        const topicData = {
+          id: topic.topic_id,
+          name: topic.topic_name,
+          chapterName: topic.chapter_name,
+          isModerate: topic.is_moderate,
+          isImportant: topic.is_important,
+          status: topic.status || 'pending',
+          completedDate: topic.completed_date
+        };
+
+        if (topic.status === 'learned') {
+          subject.completedTopics.push(topicData);
+        } else {
+          subject.pendingTopics.push(topicData);
+        }
+      });
+
+      const subjectProgress = Array.from(subjectMap.values());
+
+      // Calculate overall stats
+      const totalTopics = allTopicsResults.length;
+      const completedTopics = allTopicsResults.filter(t => t.status === 'learned').length;
+      const pendingTopics = totalTopics - completedTopics;
+      const overallProgress = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
       res.json({
         student: {
           id: student.id,
           name: student.name,
-          class: student.classId,
+          className: student.className,
+          studentId: student.studentId
         },
-        progress,
+        progressStats: {
+          totalTopics,
+          completedTopics,
+          pendingTopics,
+          overallProgress
+        },
+        subjectProgress,
+        attendance: attendanceData,
+        examResults: processedExamResults
       });
     } catch (error) {
       console.error('Error fetching student progress:', error);
@@ -4592,6 +4732,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!studentId || !topicId) {
         return res.status(400).json({ message: 'Student ID and Topic ID are required' });
+      }
+
+      // Check if topic is already completed for this student
+      const existingProgress = await db.select()
+        .from(schema.tuitionProgress)
+        .where(
+          sql`${schema.tuitionProgress.studentId} = ${studentId} AND ${schema.tuitionProgress.topicId} = ${topicId} AND ${schema.tuitionProgress.status} = 'learned'`
+        )
+        .limit(1);
+
+      if (existingProgress.length > 0) {
+        return res.status(400).json({ 
+          message: 'Topic already completed',
+          alreadyCompleted: true,
+          completedDate: existingProgress[0].completedDate
+        });
       }
 
       const progressData = {
