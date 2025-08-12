@@ -46,7 +46,12 @@ import {
   insertProductSchema,
   insertSoCenterExpenseSchema,
   insertExamSchema,
-  insertExamResultSchema
+  insertExamResultSchema,
+  insertSoCenterExpenseWalletSchema,
+  insertWalletTransactionSchema,
+  insertAdminNotificationSchema,
+  insertWithdrawalRequestSchema,
+  insertTeacherDailyRecordSchema
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -197,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const userMetadata = authData.user.user_metadata;
               user = await storage.createUser({
                 email: email,
-                role: userMetadata.role || 'admin',
+                role: userMetadata.role || 'agent',
                 name: userMetadata.name || authData.user.email?.split('@')[0] || 'User',
                 isActive: true,
                 password: '' // We use Supabase Auth, no local password needed
@@ -5207,7 +5212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { examId } = req.params;
-      const { studentId, answers, totalMarks, percentage } = req.body;
+      const { studentId, answers, totalMarks, percentage, answeredQuestions, detailedResults } = req.body;
 
       console.log('💾 Saving detailed student results:', {
         examId,
@@ -5262,8 +5267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         studentId,
         marksObtained: numericTotalMarks,
         percentage: calculatedPercentage,
-        answeredQuestions: numericTotalMarks > 0 ? 'answered' : 'not_answered',
-        detailedResults: answers ? JSON.stringify(answers) : null,
+        answeredQuestions: answeredQuestions || (numericTotalMarks > 0 ? 'fully_answered' : 'not_answered'),
+        detailedResults: detailedResults ? JSON.stringify(detailedResults) : null,
         submittedBy: req.user.userId,
         submittedAt: new Date()
       };
@@ -5310,26 +5315,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk update exam results - New API endpoint for modal-based marks entry
   app.post('/api/exams/:examId/results/update', authenticateToken, async (req, res) => {
     try {
-      const { examId } = req.params;
+      const examId = req.params.examId;
       const { results } = req.body;
 
       console.log('🔄 Bulk updating exam results for exam:', examId);
       console.log('📊 Students data:', results);
 
-      // Validate input
       if (!results || !Array.isArray(results)) {
         return res.status(400).json({ message: 'Invalid students data' });
       }
 
       // Check if exam exists and user has access
-      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
+      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId)).limit(1);
       if (!exam.length) {
         return res.status(404).json({ message: 'Exam not found' });
       }
 
       // Verify SO Center access for this exam
       if (req.user?.role === 'so_center') {
-        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
+        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email)).limit(1);
         if (!soCenter.length) {
           return res.status(404).json({ message: 'SO Center not found' });
         }
@@ -5345,65 +5349,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const studentData of results) {
         const { studentId, marks, totalScore, performance } = studentData;
 
-        // Validate student data
-        if (!studentId || !Array.isArray(marks)) {
-          console.warn('⚠️ Skipping invalid student data:', studentData);
+        if (!studentId) {
+          console.warn('⚠️ Skipping student with missing ID');
           continue;
         }
 
+        // Calculate percentage
+        const examTotalMarks = Number(exam[0]?.totalMarks || 100); // Default to 100 if not found
+        const calculatedPercentage = Math.round((totalScore / examTotalMarks) * 100);
+
         // Prepare detailed results
-        const questionResults = marks.map((mark, index) => ({
-          questionNumber: mark.questionNumber || index + 1,
-          marks: mark.score || 0,
-          maxMarks: mark.maxMarks || 1, // Default max marks to 1 if not provided
-          performance: performance?.[index] || 'not_attempted',
-          answerStatus: mark.score > 0 ? (mark.score >= (mark.maxMarks || 1) ? 'full_answer' : 'partial_answered') : 'not_answered'
-        }));
+        const detailedResults = JSON.stringify({
+          questions: marks || [],
+          performance: performance || [],
+          totalScore,
+          percentage: calculatedPercentage
+        });
 
-        // Check if result already exists
-        const existingResult = await db.select()
-          .from(schema.examResults)
-          .where(
-            sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-          );
-
-        if (existingResult.length > 0) {
-          // Update existing result
-          await db
-            .update(schema.examResults)
-            .set({
+        // Upsert exam result
+        const [result] = await db.insert(schema.examResults)
+          .values({
+            examId,
+            studentId,
+            marksObtained: totalScore || 0,
+            percentage: calculatedPercentage,
+            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
+            detailedResults,
+            submittedBy: req.user?.userId,
+          })
+          .onConflictDoUpdate({
+            target: [schema.examResults.examId, schema.examResults.studentId],
+            set: {
               marksObtained: totalScore || 0,
-              answeredQuestions: totalScore > 0 ? 'answered' : 'not_answered',
-              detailedResults: JSON.stringify({ questions: questionResults }),
-              updatedAt: new Date()
-            })
-            .where(
-              sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-            );
-        } else {
-          // Create new result
-          await db
-            .insert(schema.examResults)
-            .values({
-              examId,
-              studentId,
-              marksObtained: totalScore || 0,
-              answeredQuestions: totalScore > 0 ? 'answered' : 'not_answered',
-              detailedResults: JSON.stringify({ questions: questionResults })
-            });
-        }
+              percentage: calculatedPercentage,
+              answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
+              detailedResults,
+              submittedBy: req.user?.userId,
+              updatedAt: new Date(),
+            }
+          })
+          .returning();
 
         savedResults.push({
           studentId,
           totalScore: totalScore || 0,
-          questionsCount: questionResults.length
+          percentage: calculatedPercentage,
+          status: totalScore > 0 ? 'completed' : 'pending'
         });
+
+        console.log('✅ Result saved for student:', studentId, 'Marks:', totalScore);
       }
 
-      console.log('✅ Bulk exam results updated successfully:', savedResults.length, 'students');
-      res.json({ 
-        message: 'Results updated successfully',
-        updatedCount: savedResults.length,
+      res.json({
+        message: 'Exam results updated successfully',
         results: savedResults
       });
     } catch (error: any) {

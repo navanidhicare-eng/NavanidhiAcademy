@@ -141,20 +141,29 @@ export default function PostExamResult() {
   const saveResultMutation = useMutation({
     mutationFn: async (resultData: StudentExamResult) => {
       // Prepare the data with proper format for the bulk update API
-      const bulkData = {
-        students: [{
-          studentId: resultData.studentId,
-          marks: resultData.questionResults.map((qr, index) => ({
+      const requestData = {
+        studentId: resultData.studentId,
+        marksObtained: resultData.totalMarks,
+        percentage: Math.round((resultData.totalMarks / ((exam as any)?.totalMarks || 1)) * 100),
+        answeredQuestions: resultData.totalMarks > 0 ? 'fully_answered' : 'not_answered',
+        detailedResults: JSON.stringify({
+          questions: resultData.questionResults.map((qr, index) => ({
             questionNumber: index + 1,
-            score: qr.obtainedMarks,
-            maxMarks: qr.maxMarks
+            questionText: qr.questionText,
+            maxMarks: qr.maxMarks,
+            marks: qr.obtainedMarks,
+            answerStatus: qr.assessment === 'wrote_well' ? 'full_answer' :
+                         qr.assessment === 'wrote_no_marks' ? 'partial_answered' :
+                         qr.assessment === 'did_not_write_well' ? 'partial_answered' : 'not_answered'
           })),
-          totalScore: resultData.totalMarks,
-          performance: resultData.questionResults.map(qr => qr.assessment)
-        }]
+          totalMarks: resultData.totalMarks,
+          percentage: Math.round((resultData.totalMarks / ((exam as any)?.totalMarks || 1)) * 100)
+        })
       };
 
-      const response = await apiRequest('POST', `/api/exams/${examId}/results/update`, bulkData);
+      console.log('🔄 Sending exam result data:', requestData);
+
+      const response = await apiRequest('POST', `/api/exams/${examId}/results/update`, requestData);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to save results');
