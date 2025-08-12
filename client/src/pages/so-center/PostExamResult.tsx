@@ -179,14 +179,17 @@ export default function PostExamResult() {
       // Immediately update the UI with the returned data
       if (data.results && data.results.length > 0) {
         const updatedResult = data.results[0];
+        console.log('🔄 Processing response data:', updatedResult);
         
         // Update the existing results in the query cache
         queryClient.setQueryData(['/api/exams', examId, 'results'], (oldData: any) => {
-          if (!Array.isArray(oldData)) return oldData;
+          if (!Array.isArray(oldData)) return [];
           
           const existingIndex = oldData.findIndex((result: any) => 
             result.studentId === updatedResult.studentId
           );
+          
+          console.log('📝 Cache update - existing index:', existingIndex, 'for student:', updatedResult.studentId);
           
           if (existingIndex >= 0) {
             // Update existing result
@@ -197,9 +200,10 @@ export default function PostExamResult() {
               answeredQuestions: updatedResult.status === 'completed' ? 'fully_answered' : 'not_answered',
               updatedAt: new Date().toISOString()
             };
+            console.log('✅ Updated existing result at index:', existingIndex);
           } else {
             // Add new result
-            oldData.push({
+            const newResult = {
               id: `temp-${Date.now()}`,
               examId: examId,
               studentId: updatedResult.studentId,
@@ -210,15 +214,24 @@ export default function PostExamResult() {
               submittedAt: new Date().toISOString(),
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
-            });
+            };
+            oldData.push(newResult);
+            console.log('✅ Added new result:', newResult);
           }
           
           return [...oldData];
         });
       }
       
-      // Also invalidate to ensure fresh data on next fetch
+      // Force immediate refresh of results data
+      console.log('🔄 Force invalidating results cache...');
       queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      
+      // Also manually trigger a refetch to ensure immediate UI update
+      setTimeout(() => {
+        console.log('🔄 Manual refetch triggered');
+        queryClient.refetchQueries({ queryKey: ['/api/exams', examId, 'results'] });
+      }, 100);
       
       // Reset the selected student
       setSelectedStudent(null);
