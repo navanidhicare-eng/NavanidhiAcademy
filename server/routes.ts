@@ -5272,9 +5272,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resultData = {
         examId,
         studentId,
-        answers: answers ? JSON.stringify(answers) : null,
-        totalMarks: numericTotalMarks.toString(),
+        marksObtained: numericTotalMarks,
         percentage: calculatedPercentage,
+        answeredQuestions: numericTotalMarks > 0 ? 'answered' : 'not_answered',
+        detailedResults: answers ? JSON.stringify(answers) : null,
         submittedBy: req.user.userId,
         submittedAt: new Date()
       };
@@ -5303,7 +5304,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: result.id,
           examId: result.examId,
           studentId: result.studentId,
-          totalMarks: result.totalMarks,
+          totalMarks: result.marksObtained,
+          marksObtained: result.marksObtained,
           percentage: result.percentage
         }
       });
@@ -5901,72 +5903,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { examId } = req.params;
       console.log('📊 Fetching results for exam:', examId);
 
-      // Fetch all students belonging to the SO Centers associated with this exam
-      const exam = await db.select({
-        soCenterIds: schema.exams.soCenterIds
-      }).from(schema.exams).where(eq(schema.exams.id, examId)).limit(1);
+      // Get exam results directly using SQL to avoid array operation issues
+      const examResults = await sql`
+        SELECT 
+          er.id,
+          er.exam_id,
+          er.student_id,
+          er.marks_obtained,
+          er.percentage,
+          er.answered_questions,
+          er.detailed_results,
+          er.created_at,
+          s.name as student_name,
+          s.student_id as student_unique_id,
+          s.father_name,
+          s.parent_phone,
+          sc.name as so_center_name,
+          s.class_id,
+          c.name as class_name
+        FROM exam_results er
+        LEFT JOIN students s ON er.student_id = s.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE er.exam_id = ${examId}
+        ORDER BY s.name ASC
+      `;
 
-      if (!exam.length || !exam[0].soCenterIds || !Array.isArray(exam[0].soCenterIds)) {
-        console.log('❌ Exam not found or SO Center IDs not properly configured:', examId);
-        return res.status(404).json({ message: "Exam not found or SO Center configuration is missing" });
-      }
-
-      const soCenterIds = exam[0].soCenterIds;
-
-      // Get students from these SO Centers
-      const students = await db.select()
-        .from(schema.students)
-        .where(
-          and(
-            sqlQuery`${schema.students.soCenterId} = ANY(${soCenterIds})`,
-            eq(schema.students.isActive, true)
-          )
-        )
-        .orderBy(schema.students.name);
-
-      // Fetch results for these students and this exam
-      const examResults = await db.select()
-        .from(schema.examResults)
-        .where(
-          and(
-            eq(schema.examResults.examId, examId),
-            sqlQuery`${schema.examResults.studentId} = ANY(${students.map(s => s.id)})`
-          )
-        );
-
-      // Map results to students
-      const studentResultsMap = new Map(examResults.map(result => [result.studentId, result]));
-
-      const formattedResults = students.map(student => {
-        const result = studentResultsMap.get(student.id);
-        let formattedResult = {
-          studentId: student.id,
-          studentName: student.name,
-          studentUniqueId: student.studentId,
-          fatherName: student.fatherName,
-          parentPhone: student.parentPhone,
-          soCenterName: student.soCenterName,
-          className: student.className,
-          soCenterId: student.soCenterId,
-          // Default values if no result is found
-          totalMarks: 0,
-          percentage: 0,
-          answeredQuestions: 'not_answered',
-          detailedResults: [],
-          // You can add other student details as needed
-        };
-
-        if (result) {
-          formattedResult = {
-            ...formattedResult,
-            totalMarks: result.marksObtained || 0,
-            percentage: result.percentage || 0,
-            answeredQuestions: result.answeredQuestions || 'not_answered',
-            detailedResults: result.detailedResults ? JSON.parse(result.detailedResults) : [],
-          };
-        }
-        return formattedResult;
-      });
+      // Format the results
+      const formattedResults = examResults.map((result: any) => ({
+        studentId: result.student_id,
+        studentName: result.student_name,
+        studentUniqueId: result.student_unique_id,
+        fatherName: result.father_name,
+        parentPhone: result.parent_phone,
+        soCenterName: result.so_center_name,
+        className: result.class_name,
+        soCenterId: result.so_center_id,
+        totalMarks: result.marks_obtained || 0,
+        marksObtained: result.marks_obtained || 0,
+        percentage: result.percentage || 0,
+        answeredQuestions: result.answered_questions || 'answered',
+        detailedResults: result.detailed_results ? JSON.parse(result.detailed_results) : [],
+      }));
 
       console.log('✅ Returning', formattedResults.length, 'results for exam');
       res.json(formattedResults);

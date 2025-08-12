@@ -282,7 +282,7 @@ export default function PostExamResult() {
 
   const getStudentStatus = (studentId: string) => {
     const result = getStudentResult(studentId);
-    if (result && result.totalMarks !== undefined && result.totalMarks !== null) {
+    if (result && (result.totalMarks !== undefined && result.totalMarks !== null && result.totalMarks >= 0)) {
       return 'Result Entered';
     }
     return 'Pending';
@@ -290,7 +290,7 @@ export default function PostExamResult() {
 
   const getStudentMarks = (studentId: string) => {
     const result = getStudentResult(studentId);
-    if (result && result.totalMarks !== undefined && result.totalMarks !== null) {
+    if (result && (result.totalMarks !== undefined && result.totalMarks !== null && result.totalMarks >= 0)) {
       return `${result.totalMarks}/${(exam as any)?.totalMarks}`;
     }
     return 'Not entered';
