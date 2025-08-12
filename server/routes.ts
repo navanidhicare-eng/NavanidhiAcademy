@@ -101,22 +101,22 @@ const requireRole = (allowedRoles: string[]) => {
     if (!req.user) {
       return res.status(401).json({ message: 'Authentication required' });
     }
-    
+
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
         message: `Access denied. Required roles: ${allowedRoles.join(', ')}` 
       });
     }
-    
+
     next();
   };
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Initialize teacher storage
   // Teacher management now integrated with User system
-  
+
   // Test endpoint
   app.get("/api/test", (req, res) => {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
@@ -156,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (async () => {
           console.log("Login attempt:", req.body);
           let { email, password } = req.body;
-          
+
           if (!email || !password) {
             return res.status(400).json({ message: "Email and password are required" });
           }
@@ -175,24 +175,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
               email,
               password
             });
-            
+
             if (authError || !authData.user) {
               console.log(`❌ Supabase Auth failed:`, authError?.message);
               return res.status(401).json({ message: "Invalid credentials" });
             }
-            
+
             console.log(`✅ Supabase Auth successful:`, authData.user.id);
-            
+
             // 2. Get or sync user from our database with timeout
             console.log(`🔍 Getting user from database: ${email}`);
             const dbQueryPromise = storage.getUserByEmail(email);
             const dbTimeoutPromise = new Promise((_, reject) => {
               setTimeout(() => reject(new Error('Database query timeout')), 5000);
             });
-            
+
             let user = await Promise.race([dbQueryPromise, dbTimeoutPromise]);
             console.log(`✅ Database query completed successfully`);
-            
+
             if (!user) {
               // User exists in Supabase but not in our database - sync them
               console.log(`🔄 Syncing user from Supabase to database: ${email}`);
@@ -206,7 +206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
               console.log(`✅ User synced to database:`, user.id);
             }
-            
+
             console.log(`✅ User authenticated:`, { id: user.id, email: user.email, role: user.role });
 
             const token = jwt.sign(
@@ -259,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               },
               redirectTo: dashboardRoute
             });
-            
+
             console.log(`✅ Login response sent successfully`);
           } catch (dbError) {
             console.error("Database error:", dbError);
@@ -286,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔧 Creating new user through Supabase Auth (MANDATORY)');
       const userData = insertUserSchema.parse(req.body);
-      
+
       // ALL USER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createUser({
         email: userData.email,
@@ -298,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log('✅ User created through Supabase Auth:', result.dbUser.id);
-      
+
       res.status(201).json({
         message: "User created successfully",
         user: {
@@ -336,7 +336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Import SO Center Auth Manager
       const { SOCenterAuthManager } = await import('./createSOCenterAuth');
-      
+
       // Check if SO Center already exists
       const exists = await SOCenterAuthManager.checkSOCenterExists(centerId);
       if (exists) {
@@ -384,7 +384,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // ALL SO CENTER LOGIN MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.login(email, password);
-      
+
       // Verify this is a SO Center user
       if (result.user.role !== 'so_center') {
         return res.status(403).json({ message: "Access denied. SO Center credentials required." });
@@ -415,7 +415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // SO Center Dashboard Stats API
+  // SUPABASE AUTH ENFORCED - SO Center Dashboard Stats API
   app.get("/api/so-center/dashboard-stats", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user!.role !== 'so_center') {
@@ -432,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate real metrics from database
       const stats = await storage.getSoCenterDashboardStats(soCenter.id);
-      
+
       console.log('✅ SO Center dashboard stats calculated:', stats);
       res.json(stats);
     } catch (error) {
@@ -486,7 +486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({
         id: user.id,
         email: user.email,
@@ -505,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
+
       const { id } = req.params;
       const payments = await storage.getStudentPaymentHistory(id);
       res.json(payments);
@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔄 Recalculating fees for student:', studentId);
 
       const feeCalculation = await FeeCalculationService.recalculateStudentFees(studentId);
-      
+
       res.json({
         message: 'Fees recalculated successfully',
         feeCalculation
@@ -546,7 +546,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('👀 Admin previewing monthly fee update');
       const preview = await MonthlyFeeScheduler.previewMonthlyFeeUpdate();
-      
+
       res.json({
         message: 'Monthly fee preview generated',
         preview
@@ -566,7 +566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🚀 Admin manually running monthly fee update');
       await MonthlyFeeScheduler.addMonthlyFeesToAllStudents();
-      
+
       res.json({
         message: 'Monthly fees added successfully to all active students'
       });
@@ -629,23 +629,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/attendance/existing", authenticateToken, async (req, res) => {
     try {
       const { date, studentIds } = req.query;
-      
+
       if (!date || !studentIds) {
         return res.status(400).json({ message: "Date and studentIds are required" });
       }
-      
+
       const studentIdArray = (studentIds as string).split(',');
       const attendanceMap = await storage.getExistingAttendance({
         date: date as string,
         studentIds: studentIdArray
       });
-      
+
       // Convert Map to object for JSON response
       const result: Record<string, { status: string; id: string }> = {};
       attendanceMap.forEach((value, key) => {
         result[key] = value;
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error('Error fetching existing attendance:', error);
@@ -731,31 +731,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🏢 SO Center requesting detailed students - enforcing strict privacy');
       console.log('🔍 SO Center user email:', req.user.email);
-      
+
       try {
         // Get SO Center associated with this user
         const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        
+
         if (!soCenter) {
           console.log('❌ No SO Center found for user email:', req.user.email);
           return res.status(403).json({ message: "SO Center not found for user" });
         }
 
         console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their detailed students');
-        
+
         // Get detailed students for this SO Center using the same working method as regular students endpoint
         const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
-        
+
         console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb ? studentsFromDb.length : 0} detailed students for SO Center ${soCenter.centerId}`);
-        
+
         // Ensure we always return an array, never an object
         const students = Array.isArray(studentsFromDb) ? studentsFromDb : [];
-        
+
         // Set proper headers to prevent caching issues
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.set('Pragma', 'no-cache');
         res.set('Expires', '0');
-        
+
         console.log(`📤 Sending ${students.length} students to frontend`);
         res.json(students);
       } catch (error) {
@@ -776,16 +776,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('🔐 PRIVACY CHECK: User role:', req.user.role, 'User ID:', req.user.userId);
-      
+
       if (req.user.role === 'so_center') {
         // CRITICAL PRIVACY: SO Center can ONLY see their own students
         console.log('🏢 SO Center requesting students - enforcing strict privacy');
         console.log('🔍 SO Center user email:', req.user.email);
-        
+
         try {
           // Get SO Center associated with this user using improved lookup
           let soCenter = await storage.getSoCenterByEmail(req.user.email);
-          
+
           // Fallback: try to find by center ID pattern if email doesn't work
           if (!soCenter) {
             const emailPrefix = req.user.email.split('@')[0];
@@ -796,7 +796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 WHERE center_id = ${emailPrefix.toUpperCase()}
                 LIMIT 1
               `;
-              
+
               if (results.length > 0) {
                 soCenter = {
                   id: results[0].id,
@@ -808,26 +808,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
           }
-          
+
           if (!soCenter) {
             console.log('❌ No SO Center found for user email:', req.user.email);
             return res.status(403).json({ message: "SO Center not found for user" });
           }
 
           console.log('✅ SO Center found:', soCenter.centerId, '- Fetching ONLY their students');
-          
+
           // Get ONLY students registered by THIS SO Center
           const studentsFromDb = await storage.getStudentsBySoCenter(soCenter.id);
-          
+
           console.log(`🔒 PRIVACY ENFORCED: Retrieved ${studentsFromDb.length} students for SO Center ${soCenter.centerId}`);
-          
+
           // Preserve database values and only add progress info
           const studentsWithStatus = studentsFromDb.map((student: any) => ({
             ...student,
             paymentStatus: parseFloat(student.pendingAmount || '0') <= 0 ? 'paid' : 'pending',
             progress: 0
           }));
-          
+
           res.json(studentsWithStatus);
         } catch (error) {
           console.error('❌ Error in SO Center students endpoint:', error);
@@ -865,7 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
       const studentData = insertStudentSchema.parse(req.body);
-      
+
       if (req.user.role !== 'so_center' && req.user.role !== 'admin') {
         return res.status(403).json({ message: "Unauthorized" });
       }
@@ -943,13 +943,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
+
       if (req.user.role !== 'so_center' && req.user.role !== 'admin') {
         return res.status(403).json({ message: "Unauthorized" });
       }
 
       const { studentData, siblings, admissionFeePaid, receiptNumber } = req.body;
-      
+
       console.log('📝 Comprehensive student registration:', {
         studentName: studentData.name,
         aadhar: studentData.aadharNumber,
@@ -959,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.userId,
         userRole: req.user.role
       });
-      
+
       // Detailed validation for SO Centers
       const missingFields = [];
       if (!studentData.name) missingFields.push('Student Name');
@@ -970,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!studentData.fatherMobile) missingFields.push('Father Mobile');
       if (!studentData.villageId) missingFields.push('Village');
       if (!studentData.soCenterId) missingFields.push('SO Center');
-      
+
       if (missingFields.length > 0) {
         console.log('❌ Missing required fields:', missingFields);
         return res.status(400).json({ 
@@ -978,7 +978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           missingFields
         });
       }
-      
+
       console.log('✅ All required fields present, proceeding with registration...');
 
       // Validate Aadhar number uniqueness
@@ -999,7 +999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           console.log('🧮 Calculating retroactive fees for student:', student.id);
           const enrollmentDate = new Date(studentData.enrollmentDate);
-          
+
           // Use new fee calculation service for retroactive fee calculation
           const feeCalculation = await FeeCalculationService.calculateRetroactiveFees(
             enrollmentDate,
@@ -1007,24 +1007,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             studentData.courseType,
             admissionFeePaid
           );
-          
+
           console.log('💰 Retroactive fee calculation result:', {
             totalDueAmount: feeCalculation.totalDueAmount,
             admissionFee: feeCalculation.admissionFee,
             totalMonthlyFees: feeCalculation.totalMonthlyFees,
             monthCount: feeCalculation.monthlyBreakdown.length
           });
-          
+
           // Update student with calculated fees
           await FeeCalculationService.updateStudentFeeAmounts(student.id, feeCalculation);
-          
+
           console.log('✅ Retroactive fee calculation completed successfully');
         } catch (feeError) {
           console.error('⚠️ Retroactive fee calculation failed:', feeError);
           // Don't fail student creation if fee calculation fails - can be fixed later
         }
       }
-      
+
       // Handle admission fee if paid (separate from student creation)
       let feeProcessed = false;
       if (admissionFeePaid && receiptNumber && studentData.soCenterId) {
@@ -1032,7 +1032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Processing admission fee...');
           // Get class fee information
           const classFee = await storage.getClassFees(studentData.classId, studentData.courseType);
-          
+
           if (classFee) {
             // Create payment record
             const feeAmount = parseFloat(classFee.admissionFee);
@@ -1060,7 +1060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const walletAmount = Number(feeAmount);
             console.log('Updating wallet with amount:', walletAmount, 'Type:', typeof walletAmount);
             await storage.updateSoCenterWallet(studentData.soCenterId, walletAmount);
-            
+
             console.log('💰 Admission fee processed:', classFee.admissionFee);
             feeProcessed = true;
           }
@@ -1070,7 +1070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           feeProcessed = false;
         }
       }
-      
+
       // Get fee amount for response
       let feeAmount: number | null = null;
       if (feeProcessed && admissionFeePaid && receiptNumber) {
@@ -1095,7 +1095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactionId: admissionFeePaid ? `TXN-${Date.now()}-${student.id.slice(0, 8)}` : null,
         amount: feeAmount
       };
-      
+
       // Create wallet transaction record for fee payment
       if (feeProcessed && admissionFeePaid && receiptNumber && feeAmount) {
         try {
@@ -1110,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('Error creating wallet transaction:', error);
         }
       }
-      
+
       console.log('✅ Registration complete, sending response:', response);
       res.status(201).json(response);
     } catch (error: any) {
@@ -1122,9 +1122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sqlState: error.code,
         detail: error.detail
       });
-      
+
       let userFriendlyMessage = "Failed to register student. Please try again.";
-      
+
       // Provide specific error messages for common issues
       if (error.message?.includes('unique') || error.message?.includes('duplicate')) {
         userFriendlyMessage = "A student with this information already exists. Please check the Aadhar number and other details.";
@@ -1137,7 +1137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (error.message?.includes('connection') || error.message?.includes('timeout')) {
         userFriendlyMessage = "Database connection issue. Please check your internet connection and try again.";
       }
-      
+
       res.status(500).json({ 
         message: userFriendlyMessage,
         debugInfo: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -1149,13 +1149,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/students/validate-aadhar", authenticateToken, async (req, res) => {
     try {
       const { aadharNumber } = req.body;
-      
+
       if (!aadharNumber) {
         return res.status(400).json({ message: "Aadhar number is required" });
       }
 
       const isUnique = await storage.validateAadharNumber(aadharNumber);
-      
+
       res.json({ 
         isUnique,
         message: isUnique ? "Aadhar number is available" : "Aadhar number already registered"
@@ -1179,7 +1179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/class-fees", authenticateToken, async (req, res) => {
     try {
       const { classId, courseType } = req.query;
-      
+
       if (classId && courseType) {
         const classFee = await storage.getClassFees(classId as string, courseType as string);
         res.json(classFee);
@@ -1197,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: "Only admins can manage class fees" });
       }
-      
+
       const classFeeData = insertClassFeeSchema.parse(req.body);
       const classFee = await storage.createClassFee(classFeeData);
       res.status(201).json(classFee);
@@ -1211,7 +1211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: "Only admins can manage class fees" });
       }
-      
+
       const updates = insertClassFeeSchema.partial().parse(req.body);
       const classFee = await storage.updateClassFee(req.params.id, updates);
       res.json(classFee);
@@ -1225,7 +1225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: "Only admins can manage class fees" });
       }
-      
+
       await storage.deleteClassFee(req.params.id);
       res.json({ message: "Class fee deleted successfully" });
     } catch (error) {
@@ -1239,30 +1239,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
+
       // Allow access to Pothanapudi SO Center wallet for the current user
       const allowedSoCenterIds = [
         req.user.userId, // Their own SO Center ID
         '84bf6d19-8830-4abd-8374-2c29faecaa24' // Pothanapudi Agraharam SO Center
       ];
-      
+
       // Only SO center can access their allowed wallets, admins can access any
       if (req.user.role !== 'admin' && !allowedSoCenterIds.includes(req.params.soCenterId)) {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
+
       const soCenter = await storage.getSoCenter(req.params.soCenterId);
       if (!soCenter) {
         return res.status(404).json({ message: "SO Center not found" });
       }
-      
+
       const transactions = await storage.getWalletTransactions(req.params.soCenterId);
-      
+
       // Force fresh data by adding cache-busting headers
       res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.set('Pragma', 'no-cache');
       res.set('Expires', '0');
-      
+
       res.json({
         balance: parseFloat(soCenter.walletBalance || '0'),
         transactions: transactions.map(t => ({
@@ -1309,9 +1309,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE tp.student_id = $1
         ORDER BY s.name, c.name, t.name
       `;
-      
+
       const progressResults = await executeRawQuery(progressQuery, [student.id]);
-      
+
       const progress = progressResults.map((row: any) => ({
         id: row.id,
         status: row.status,
@@ -1481,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Unauthorized" });
       }
-      
+
       const centers = await storage.getAllSoCenters();
       res.json(centers);
     } catch (error) {
@@ -1495,18 +1495,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user) {
         return res.status(401).json({ message: "User not authenticated" });
       }
-      
+
       if (req.user.role !== 'so_center') {
         return res.status(403).json({ message: "Only SO Center users can access this endpoint" });
       }
-      
+
       console.log('🔍 Getting SO Center for user email:', req.user.email);
       const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      
+
       if (!soCenter) {
         return res.status(404).json({ message: "SO Center not found for current user" });
       }
-      
+
       console.log('✅ Found SO Center:', soCenter.centerId, '-', soCenter.name);
       res.json(soCenter);
     } catch (error) {
@@ -1524,12 +1524,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userData = await storage.getUserByEmail(req.user.email);
       let whereClause = '';
-      
+
       // Filter by SO Center for so_center role
       if (userData?.role === 'so_center' && userData?.soCenterId) {
         whereClause = `WHERE s.so_center_id = '${userData.soCenterId}'`;
       }
-      
+
       // Get real dashboard statistics using tagged template literals
       const results = await sql`
         SELECT 
@@ -1541,9 +1541,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN payments p ON p.student_id = s.id
         ${whereClause ? sql.unsafe(whereClause) : sql``}
       `;
-      
+
       const statsData = results[0] || {};
-      
+
       const stats = {
         totalStudents: parseInt(statsData.total_students) || 0,
         totalSoCenters: parseInt(statsData.total_so_centers) || 0,
@@ -1566,7 +1566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const soCenterId = req.params.userId;
-      
+
       // Get real SO center data from Supabase
       const soCenter = await storage.getSoCenter(soCenterId);
       if (!soCenter) {
@@ -1575,10 +1575,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get real transaction history from wallet_transactions table
       const walletTransactions = await storage.getWalletTransactions(soCenterId);
-      
+
       // Get recent payments as transaction history
       const recentPayments = await storage.getPaymentsBySoCenter(soCenterId);
-      
+
       // Combine wallet transactions and payments into transaction history
       const allTransactions = [
         ...walletTransactions.map(wt => ({
@@ -1752,9 +1752,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const stateId = req.params.id;
-      
+
       // Check if state has any districts
       const districts = await storage.getDistrictsByState(stateId);
       if (districts.length > 0) {
@@ -1762,7 +1762,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Cannot delete state with existing districts. Please delete all districts first.' 
         });
       }
-      
+
       await storage.deleteState(stateId);
       res.json({ message: 'State deleted successfully' });
     } catch (error) {
@@ -1776,9 +1776,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const districtId = req.params.id;
-      
+
       // Check if district has any mandals
       const mandals = await storage.getMandalsByDistrict(districtId);
       if (mandals.length > 0) {
@@ -1786,7 +1786,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Cannot delete district with existing mandals. Please delete all mandals first.' 
         });
       }
-      
+
       await storage.deleteDistrict(districtId);
       res.json({ message: 'District deleted successfully' });
     } catch (error) {
@@ -1800,9 +1800,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const mandalId = req.params.id;
-      
+
       // Check if mandal has any villages
       const villages = await storage.getVillagesByMandal(mandalId);
       if (villages.length > 0) {
@@ -1810,7 +1810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: 'Cannot delete mandal with existing villages. Please delete all villages first.' 
         });
       }
-      
+
       await storage.deleteMandal(mandalId);
       res.json({ message: 'Mandal deleted successfully' });
     } catch (error) {
@@ -1824,19 +1824,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const villageId = req.params.id;
-      
+
       // Check if village has any students or SO centers
       const students = await storage.getStudentsByVillage(villageId);
       const soCenters = await storage.getSoCentersByVillage(villageId);
-      
+
       if (students.length > 0 || soCenters.length > 0) {
         return res.status(400).json({ 
           message: 'Cannot delete village with existing students or SO centers. Please relocate them first.' 
         });
       }
-      
+
       await storage.deleteVillage(villageId);
       res.json({ message: 'Village deleted successfully' });
     } catch (error) {
@@ -1853,7 +1853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('🔧 Admin creating user through Supabase Auth (MANDATORY)');
-      
+
       // Convert numeric fields to strings before validation
       const bodyWithStringFields = {
         ...req.body,
@@ -1861,7 +1861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const userData = insertUserSchema.parse(bodyWithStringFields);
-      
+
       // ALL USER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createUser({
         email: userData.email,
@@ -1873,7 +1873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       console.log('✅ Admin created user through Supabase Auth:', result.dbUser.id);
-      
+
       res.status(201).json({
         message: "User created successfully via Supabase Auth",
         ...result.dbUser,
@@ -1901,7 +1901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('❌ No SO Center found for user email:', req.user.email);
             return res.status(403).json({ message: "SO Center not found for user" });
           }
-          
+
           console.log(`✅ SO Center ${soCenter.centerId} accessing ONLY their own data`);
           // Return ONLY their own center data
           res.json([soCenter]);
@@ -1950,23 +1950,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('🔧 Fetching UNASSIGNED SO Center role users for manager dropdown');
-      
+
       // Get users with SO Center role only
       const soCenterUsers = await storage.getUsersByRole('so_center');
-      
+
       // Get all SO Centers to find which managers are already assigned
       const allSoCenters = await storage.getAllSoCenters();
       const assignedManagerIds = allSoCenters
         .filter(center => center.managerId)
         .map(center => center.managerId);
-      
+
       // Filter out users who are already assigned as managers
       const unassignedManagers = soCenterUsers.filter(user => 
         !assignedManagerIds.includes(user.id)
       );
-      
+
       console.log(`✅ Found ${soCenterUsers.length} total SO Center users, ${unassignedManagers.length} unassigned managers available`);
       res.json(unassignedManagers);
     } catch (error) {
@@ -1981,28 +1981,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const centerId = req.params.centerId;
       console.log(`🔧 Fetching available managers for editing SO Center ${centerId}`);
-      
+
       // Get users with SO Center role only
       const soCenterUsers = await storage.getUsersByRole('so_center');
-      
+
       // Get all SO Centers to find which managers are already assigned
       const allSoCenters = await storage.getAllSoCenters();
       const assignedManagerIds = allSoCenters
         .filter(center => center.managerId && center.id !== centerId) // Exclude current center
         .map(center => center.managerId);
-      
+
       // Get current center's manager
       const currentCenter = allSoCenters.find(center => center.id === centerId);
       const currentManagerId = currentCenter?.managerId;
-      
+
       // Filter out users who are already assigned as managers (except current manager)
       const availableManagers = soCenterUsers.filter(user => 
         !assignedManagerIds.includes(user.id)
       );
-      
+
       console.log(`✅ Found ${soCenterUsers.length} total SO Center users, ${availableManagers.length} available managers for editing (including current: ${currentManagerId ? 'yes' : 'no'})`);
       res.json(availableManagers);
     } catch (error) {
@@ -2051,7 +2051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update SO Center
       const updatedCenter = await storage.updateSoCenter(centerId, updateData);
-      
+
       if (!updatedCenter) {
         return res.status(404).json({ message: 'SO Center not found' });
       }
@@ -2084,11 +2084,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Extract additional data for SO Center creation
       const { nearbySchools, nearbyTuitions, equipment, ...centerData } = centerDataWithStringFields;
-      
+
       // Generate next available SO Center account number automatically
       const nextAvailable = await storage.getNextAvailableSoCenterNumber();
       console.log('🔢 Generated next available SO Center details:', nextAvailable);
-      
+
       // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createSoCenter({
         email: nextAvailable.email, // Use auto-generated email
@@ -2139,7 +2139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         table: error.table_name,
         stack: error.stack
       });
-      
+
       // Provide more specific error messages
       let errorMessage = 'Failed to create SO Center';
       if (error.code === '23505') {
@@ -2151,7 +2151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errorMessage = `Duplicate entry: ${error.detail || 'Please check your data and try again.'}`;
         }
       }
-      
+
       res.status(500).json({ 
         message: errorMessage,
         ...(process.env.NODE_ENV === 'development' && { debug: error.message })
@@ -2342,7 +2342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalEarnings: newTotalEarnings
         }
       };
-      
+
       console.log('✅ Purchase successful - Response:', {
         transactionId,
         coursePrice,
@@ -2350,7 +2350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newCourseBalance,
         newCommissionBalance
       });
-      
+
       res.json(response);
 
     } catch (error) {
@@ -2367,7 +2367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       email: req.user?.email,
       hasUser: !!req.user
     });
-    
+
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
       console.log('❌ Access denied for role:', req.user?.role);
@@ -2410,7 +2410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       email: req.user?.email,
       hasUser: !!req.user
     });
-    
+
     // Check if user has appropriate role
     if (!['agent', 'so_center'].includes(req.user?.role)) {
       console.log('❌ Access denied for role:', req.user?.role);
@@ -2671,11 +2671,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('📋 Admin fetching all students with comprehensive data...');
-      
+
       const students = await storage.getAllStudentsWithDetails();
-      
+
       console.log('✅ Retrieved', students.length, 'students for admin');
       res.json(students);
     } catch (error) {
@@ -2704,16 +2704,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('🔧 Admin updating user through Supabase Auth (MANDATORY)');
-      
+
       const updates = req.body;
-      
+
       // ALL USER UPDATES MUST GO THROUGH SUPABASE AUTH
       const updatedUser = await AuthService.updateUser(req.params.id, updates);
-      
+
       console.log('✅ Admin updated user through Supabase Auth:', updatedUser.id);
-      
+
       res.json({
         ...updatedUser,
         password: undefined // Never return password
@@ -2730,14 +2730,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('🔧 Admin deleting user through Supabase Auth (MANDATORY)');
-      
+
       // ALL USER DELETION MUST GO THROUGH SUPABASE AUTH
       await AuthService.deleteUser(req.params.id);
-      
+
       console.log('✅ Admin deleted user through Supabase Auth:', req.params.id);
-      
+
       res.json({ message: 'User deleted successfully via Supabase Auth' });
     } catch (error: any) {
       console.error('❌ Admin user deletion failed:', error);
@@ -3012,9 +3012,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('📋 Fetching all fee structures...');
-      
+
       // Get all class fees with class names
       const fees = await db
         .select({
@@ -3033,7 +3033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.classes, eq(schema.classFees.classId, schema.classes.id))
         .where(eq(schema.classFees.isActive, true))
         .orderBy(desc(schema.classFees.createdAt));
-      
+
       console.log('✅ Fee structures fetched successfully:', fees.length);
       res.json(fees);
     } catch (error: any) {
@@ -3048,9 +3048,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('📝 Creating new fee structure:', req.body);
-      
+
       // Convert string numbers to proper decimal values for database
       const convertedData = {
         ...req.body,
@@ -3058,18 +3058,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         monthlyFee: req.body.monthlyFee ? req.body.monthlyFee.toString() : null,
         yearlyFee: req.body.yearlyFee ? req.body.yearlyFee.toString() : null,
       };
-      
+
       console.log('📝 Converted fee data:', convertedData);
-      
+
       // Use insertClassFeeSchema to validate the data
       const feeData = insertClassFeeSchema.parse(convertedData);
-      
+
       // Insert directly into classFees table using Drizzle
       const [newFee] = await db
         .insert(schema.classFees)
         .values(feeData)
         .returning();
-      
+
       console.log('✅ Fee structure created successfully:', newFee.id);
       res.status(201).json(newFee);
     } catch (error: any) {
@@ -3084,9 +3084,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('📝 Updating fee structure:', req.params.id, req.body);
-      
+
       // Convert string numbers to proper decimal values for database
       const convertedData = {
         ...req.body,
@@ -3094,21 +3094,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         monthlyFee: req.body.monthlyFee ? req.body.monthlyFee.toString() : null,
         yearlyFee: req.body.yearlyFee ? req.body.yearlyFee.toString() : null,
       };
-      
+
       // Validate the data
       const feeData = insertClassFeeSchema.parse(convertedData);
-      
+
       // Update the fee structure in database
       const [updatedFee] = await db
         .update(schema.classFees)
         .set(feeData)
         .where(eq(schema.classFees.id, req.params.id))
         .returning();
-      
+
       if (!updatedFee) {
         return res.status(404).json({ message: 'Fee structure not found' });
       }
-      
+
       console.log('✅ Fee structure updated successfully:', updatedFee.id);
       res.json(updatedFee);
     } catch (error: any) {
@@ -3123,19 +3123,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('🗑️ Deleting fee structure:', req.params.id);
-      
+
       // Actually DELETE the record from database (not just set isActive: false)
       const deletedResult = await db
         .delete(schema.classFees)
         .where(eq(schema.classFees.id, req.params.id))
         .returning();
-      
+
       if (deletedResult.length === 0) {
         return res.status(404).json({ message: 'Fee structure not found' });
       }
-      
+
       console.log('✅ Fee structure deleted permanently from database:', req.params.id);
       res.json({ message: 'Fee structure deleted successfully' });
     } catch (error: any) {
@@ -3151,9 +3151,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('📊 Fetching student fee payment histories...');
-      
+
       // Get all student fee payments with student and SO center details
       const studentPayments = await db
         .select({
@@ -3186,7 +3186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
         .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .orderBy(desc(schema.payments.createdAt));
-      
+
       console.log('✅ Student payments fetched successfully:', studentPayments.length);
       res.json(studentPayments);
     } catch (error: any) {
@@ -3201,9 +3201,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('💰 Fetching SO Center wallet transaction histories...');
-      
+
       // Get all SO Center wallet transactions with SO center details
       const soWalletTransactions = await db
         .select({
@@ -3228,7 +3228,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
         .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .orderBy(desc(schema.walletTransactions.createdAt));
-      
+
       console.log('✅ SO wallet transactions fetched successfully:', soWalletTransactions.length);
       res.json(soWalletTransactions);
     } catch (error: any) {
@@ -3243,9 +3243,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('🎯 Fetching Agent wallet transaction histories...');
-      
+
       // For now, return product orders as agent transactions since commission_transactions might not exist yet
       const agentWalletTransactions = await db
         .select({
@@ -3271,7 +3271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
         .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .orderBy(desc(schema.productOrders.createdAt));
-      
+
       console.log('✅ Agent wallet transactions fetched successfully:', agentWalletTransactions.length);
       res.json(agentWalletTransactions);
     } catch (error: any) {
@@ -3286,10 +3286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const studentId = req.params.studentId;
       console.log(`📊 Fetching student details for ID: ${studentId}`);
-      
+
       // Get student basic details with SO center and location info
       const studentDetails = await db
         .select({
@@ -3346,7 +3346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         student: studentDetails[0],
         payments: paymentHistory
       });
-      
+
     } catch (error: any) {
       console.error('❌ Error fetching student details:', error);
       res.status(500).json({ message: 'Failed to fetch student details' });
@@ -3359,7 +3359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const states = await db.select().from(schema.states).orderBy(schema.states.name);
       res.json(states);
     } catch (error: any) {
@@ -3373,7 +3373,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const districts = await db
         .select()
         .from(schema.districts)
@@ -3391,7 +3391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const mandals = await db
         .select()
         .from(schema.mandals)
@@ -3409,7 +3409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const villages = await db
         .select()
         .from(schema.villages)
@@ -3643,7 +3643,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { studentId } = req.params;
       const payments = await storage.getPaymentsByStudent(studentId);
-      
+
       res.json(payments);
     } catch (error) {
       console.error("Payment history error:", error);
@@ -3657,7 +3657,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/homework-activity", authenticateToken, async (req, res) => {
     try {
       const { activities } = req.body;
-      
+
       if (!activities || !Array.isArray(activities)) {
         return res.status(400).json({ message: "Activities array is required" });
       }
@@ -3665,11 +3665,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate each activity
       const validatedActivities = activities.map(activity => {
         const validation = insertHomeworkActivitySchema.safeParse(activity);
-        
+
         if (!validation.success) {
           throw new Error(`Invalid activity data: ${validation.error.message}`);
         }
-        
+
         return validation.data;
       });
 
@@ -3684,13 +3684,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/homework-activity", authenticateToken, async (req, res) => {
     try {
       const { classId, date, soCenterId } = req.query;
-      
+
       const activities = await storage.getHomeworkActivities({
         classId: classId as string,
         date: date as string,
         soCenterId: soCenterId as string
       });
-      
+
       res.json(activities);
     } catch (error) {
       console.error("Error fetching homework activities:", error);
@@ -3705,7 +3705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         updatedBy: req.user?.userId
       });
-      
+
       if (!validation.success) {
         return res.status(400).json({ 
           message: "Invalid progress data", 
@@ -3724,14 +3724,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/tuition-progress", authenticateToken, async (req, res) => {
     try {
       const { classId, topicId, studentId, soCenterId } = req.query;
-      
+
       const progress = await storage.getTuitionProgress({
         classId: classId as string,
         topicId: topicId as string,
         studentId: studentId as string,
         soCenterId: soCenterId as string
       });
-      
+
       res.json(progress);
     } catch (error) {
       console.error("Error fetching tuition progress:", error);
@@ -3742,12 +3742,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/tuition-progress/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       const validation = insertTuitionProgressSchema.partial().safeParse({
         ...req.body,
         updatedBy: req.user?.userId
       });
-      
+
       if (!validation.success) {
         return res.status(400).json({ 
           message: "Invalid progress data", 
@@ -3764,14 +3764,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teacher Management Routes
-  
+
   // Get all teachers
   app.get("/api/admin/teachers", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const teachers = await storage.getUsersByRole('teacher');
       res.json(teachers);
     } catch (error) {
@@ -3786,12 +3786,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       res.json(teacher);
     } catch (error) {
       console.error('Error fetching teacher:', error);
@@ -3805,7 +3805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Teachers should be created through the User Management system with role "teacher"
       res.status(400).json({ 
         message: "Teachers should be created through User Management with role 'teacher'" 
@@ -3822,13 +3822,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       // Teachers should be updated through the User Management system
       res.status(400).json({ 
         message: "Teacher details should be updated through User Management" 
@@ -3845,13 +3845,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       await storage.deleteUser(req.params.id);
       res.json({ message: 'Teacher deleted successfully' });
     } catch (error) {
@@ -3866,13 +3866,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       // Get teacher subjects from teacher_subjects table
       const query = sqlQuery`
         SELECT s.id, s.name, s.description 
@@ -3895,13 +3895,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       // Get teacher classes from teacher_classes table
       const query = sqlQuery`
         SELECT c.id, c.name, c.description 
@@ -3924,13 +3924,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       // Get teacher records from teacher_daily_records table
       const query = sqlQuery`
         SELECT tr.*, c.name as class_name, s.name as subject_name, ch.name as chapter_title, t.name as topic_title
@@ -3956,9 +3956,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       console.log('Teaching record request body:', req.body);
-      
+
       const { teacherId, classId, subjectId, chapterId, teachingDuration, notes, recordDate } = req.body;
 
       if (!teacherId || !classId || !subjectId || !teachingDuration) {
@@ -3985,11 +3985,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log('Creating teaching record with data:', recordData);
-      
+
       const [newRecord] = await db.insert(schema.teacherDailyRecords)
         .values(recordData)
         .returning();
-      
+
       console.log('Teaching record created successfully:', newRecord);
       res.status(201).json({ message: 'Teaching record added successfully', record: newRecord });
     } catch (error: any) {
@@ -4004,12 +4004,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const { teacherId } = req.params;
       const { fromDate, toDate } = req.query;
-      
+
       console.log('Fetching records for teacher:', teacherId, 'with dates:', { fromDate, toDate });
-      
+
       // Build the query with proper parameter substitution
       let queryString = `
         SELECT 
@@ -4031,27 +4031,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN chapters ch ON tr.chapter_id = ch.id
         WHERE tr.teacher_id = $1
       `;
-      
+
       const params = [teacherId];
-      
+
       if (fromDate) {
         queryString += ` AND tr.record_date >= $${params.length + 1}`;
         params.push(fromDate as string);
       }
-      
+
       if (toDate) {
         queryString += ` AND tr.record_date <= $${params.length + 1}`;
         params.push(toDate as string);
       }
-      
+
       queryString += ` ORDER BY tr.record_date DESC, tr.created_at DESC`;
-      
+
       console.log('Executing query:', queryString);
       console.log('With params:', params);
-      
+
       const result = await executeRawQuery(queryString, params);
       console.log('Query result:', result);
-      
+
       // Transform result to match expected format
       const records = result.map((row: any) => ({
         id: row.id,
@@ -4067,7 +4067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjectName: row.subjectname,
         chapterTitle: row.chaptertitle
       }));
-      
+
       res.json(records);
     } catch (error: any) {
       console.error('Error fetching teacher records:', error);
@@ -4081,22 +4081,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       const { subjectIds } = req.body;
-      
+
       if (!Array.isArray(subjectIds)) {
         return res.status(400).json({ message: 'subjectIds must be an array' });
       }
 
       // Delete existing assignments
       await db.execute(sqlQuery`DELETE FROM teacher_subjects WHERE user_id = ${req.params.id}`);
-      
+
       // Insert new assignments
       if (subjectIds.length > 0) {
         for (const subjectId of subjectIds) {
@@ -4106,7 +4106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `);
         }
       }
-      
+
       res.json({ message: 'Teacher subjects updated successfully' });
     } catch (error) {
       console.error('Error updating teacher subjects:', error);
@@ -4120,22 +4120,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       // Check if user exists and has teacher role
       const teacher = await storage.getUser(req.params.id);
       if (!teacher || teacher.role !== 'teacher') {
         return res.status(404).json({ message: 'Teacher not found' });
       }
-      
+
       const { classIds } = req.body;
-      
+
       if (!Array.isArray(classIds)) {
         return res.status(400).json({ message: 'classIds must be an array' });
       }
 
       // Delete existing assignments
       await db.execute(sqlQuery`DELETE FROM teacher_classes WHERE user_id = ${req.params.id}`);
-      
+
       // Insert new assignments
       if (classIds.length > 0) {
         for (const classId of classIds) {
@@ -4145,7 +4145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           `);
         }
       }
-      
+
       res.json({ message: 'Teacher classes updated successfully' });
     } catch (error) {
       console.error('Error updating teacher classes:', error);
@@ -4159,9 +4159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
+
       const { classIds } = req.body;
-      
+
       if (!Array.isArray(classIds)) {
         return res.status(400).json({ message: 'classIds must be an array' });
       }
@@ -4281,7 +4281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
-      
+
       if (!soCenterId) {
         return res.status(400).json({ message: 'SO Center ID required' });
       }
@@ -4302,13 +4302,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
-      
+
       if (!soCenterId) {
         return res.status(400).json({ message: 'SO Center ID required' });
       }
 
       const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
-      
+
       if (!wallet) {
         // Create wallet if doesn't exist
         const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
@@ -4373,19 +4373,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
+      const { id } = req.params;
       const { status, notes } = req.body;
-      
+
       if (!['approved', 'rejected'].includes(status)) {
         return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
       }
 
       const request = await storage.processWithdrawalRequest(
-        req.params.id, 
+        id, 
         status, 
         req.user.userId, 
         notes
       );
-      
+
       res.json(request);
     } catch (error) {
       console.error('Error processing withdrawal request:', error);
@@ -4423,7 +4424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description, 
         req.user.userId
       );
-      
+
       res.json(setting);
     } catch (error) {
       console.error('Error updating system setting:', error);
@@ -4432,7 +4433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SO Center Expenses Management Routes
-  
+
   // Get SO Center profile with autofill data
   app.get("/api/so-center/profile", authenticateToken, async (req, res) => {
     try {
@@ -4442,7 +4443,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Debug: Check what email we're looking for
       console.log('🔍 Looking for SO Center with email:', req.user.email);
-      
+
       // Look up SO Center by email since SO Centers use email authentication
       const soCenter = await db.select()
         .from(schema.soCenters)
@@ -4456,18 +4457,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .from(schema.soCenters)
           .limit(5);
         console.log('📋 Available SO Centers:', allCenters);
-        
+
         // Try to find by similar email pattern
         const emailMatch = await db.select()
           .from(schema.soCenters)
           .where(sqlQuery`email ILIKE ${`%${req.user.email.split('@')[0]}%`}`)
           .limit(1);
-          
+
         if (emailMatch.length) {
           console.log('✅ Found SO Center by email pattern match:', emailMatch[0].centerId);
           return res.json(emailMatch[0]);
         }
-        
+
         console.error('SO Center not found for email:', req.user.email);
         return res.status(404).json({ message: "SO Center not found" });
       }
@@ -4631,7 +4632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Expense Approval Routes
-  
+
   // Get all expense requests for admin approval
   app.get("/api/admin/expenses", authenticateToken, async (req, res) => {
     try {
@@ -4640,10 +4641,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { status, search, soCenterId } = req.query;
-      
+
       // Build base query with joins
       let whereClause = sqlQuery`1=1`;
-      
+
       if (status && status !== 'all') {
         whereClause = sqlQuery`${whereClause} AND ${schema.soCenterExpenses.status} = ${status}`;
       }
@@ -4795,10 +4796,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/admin/exams', authenticateToken, async (req, res) => {
     try {
       console.log('📋 Fetching all exams for admin...');
-      
+
       // Simple query first to check if exams exist
       const examsList = await db.select().from(schema.exams);
-      
+
       console.log('✅ Exams fetched successfully:', examsList.length);
       console.log('📊 Exams data:', examsList);
       res.json(examsList);
@@ -4813,10 +4814,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/admin/exams', authenticateToken, async (req, res) => {
     try {
       console.log('🆕 Creating new exam...');
-      
+
       const examData = insertExamSchema.parse(req.body);
       const userId = req.user?.userId;
-      
+
       const [newExam] = await db
         .insert(schema.exams)
         .values({
@@ -4838,9 +4839,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = req.params.id;
       console.log('📝 Updating exam:', examId);
-      
+
       const examData = insertExamSchema.parse(req.body);
-      
+
       const [updatedExam] = await db
         .update(schema.exams)
         .set({
@@ -4867,9 +4868,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = req.params.id;
       console.log('🗑️ Deleting exam:', examId);
-      
+
       await db.delete(schema.exams).where(eq(schema.exams.id, examId));
-      
+
       console.log('✅ Exam deleted successfully');
       res.json({ message: 'Exam deleted successfully' });
     } catch (error: any) {
@@ -4879,24 +4880,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // SO CENTER EXAM MANAGEMENT ENDPOINTS
-  
+
   // Get exams for logged-in SO Center user
   app.get('/api/so-center/exams', authenticateToken, async (req, res) => {
     try {
       // Get user's SO Center from their role/assignment
       const userId = req.user?.userId;
       console.log('📋 Fetching exams for SO Center user:', userId);
-      
+
       // Find the user's SO Center ID
       const user = await storage.getUser(userId);
       console.log('🔍 User details:', { id: user?.id, email: user?.email, role: user?.role });
-      
+
       let soCenterId = user?.soCenterId;
-      
+
       // If user doesn't have soCenterId directly, find it through SO Centers table
       if (!soCenterId && (user?.role === 'so_center_manager' || user?.role === 'so_center')) {
         console.log('🔍 Searching SO Centers by managerId:', userId);
-        
+
         // First try to find by managerId
         const soCentersByManager = await db.select({
           id: schema.soCenters.id,
@@ -4907,14 +4908,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(schema.soCenters)
         .where(eq(schema.soCenters.managerId, userId));
-        
+
         console.log('🔍 Found SO Centers by managerId:', soCentersByManager);
-        
+
         if (soCentersByManager.length > 0) {
           soCenterId = soCentersByManager[0].id;
         } else {
           console.log('🔍 Searching SO Centers by email:', user?.email);
-          
+
           // If not found by managerId, try to find by email match
           const soCentersByEmail = await db.select({
             id: schema.soCenters.id,
@@ -4925,9 +4926,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
           .from(schema.soCenters)
           .where(eq(schema.soCenters.email, user?.email || ''));
-          
+
           console.log('🔍 Found SO Centers by email:', soCentersByEmail);
-          
+
           if (soCentersByEmail.length > 0) {
             soCenterId = soCentersByEmail[0].id;
           } else {
@@ -4941,9 +4942,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             })
             .from(schema.soCenters)
             .limit(10);
-            
+
             console.log('🔍 All SO Centers (first 10):', allSoCenters);
-            
+
             // For demo purposes, use the first SO Center if user email contains 'nnasoc'
             if (user?.email?.includes('nnasoc') && allSoCenters.length > 0) {
               soCenterId = allSoCenters[0].id;
@@ -4952,14 +4953,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
-      
+
       if (!soCenterId) {
         console.log('❌ No SO Center found for user');
         return res.status(404).json({ message: 'SO Center not found for this user' });
       }
-      
+
       console.log('📋 Found SO Center ID:', soCenterId);
-      
+
       // Debug: Check what exams exist and their soCenterIds
       const allExams = await db.select({
         id: schema.exams.id,
@@ -4970,7 +4971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .limit(10);
       console.log('🔍 Sample exams and their SO Center IDs:', allExams);
       console.log('🔍 Looking for SO Center ID:', soCenterId);
-      
+
       // Get exams where the SO Center ID is in the soCenterIds array using proper Drizzle syntax
       const exams = await db.select({
         id: schema.exams.id,
@@ -4996,13 +4997,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
       .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
       .orderBy(schema.exams.examDate);
-      
+
       // Filter exams that contain the soCenterId in their soCenterIds array
       // Using JavaScript filtering since Drizzle array SQL query has compatibility issues
       const filteredExams = exams.filter(exam => 
         exam.soCenterIds && exam.soCenterIds.includes(soCenterId)
       );
-      
+
       console.log('✅ Found', filteredExams.length, 'exams for SO Center');
       res.json(filteredExams);
     } catch (error: any) {
@@ -5020,7 +5021,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🔐 CRITICAL PRIVACY: SO Center students endpoint - enforcing strict filtering');
       console.log('👥 SO Center user requesting students:', req.user.userId, req.user.email);
-      
+
       // Get SO Center associated with this user's email
       const soCenter = await storage.getSoCenterByEmail(req.user.email);
       if (!soCenter) {
@@ -5029,12 +5030,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log('✅ SO Center identified:', soCenter.centerId, '- Fetching ONLY their students');
-      
+
       // Get ONLY students registered by THIS specific SO Center
       const students = await storage.getStudentsBySoCenter(soCenter.id);
-      
+
       console.log(`🔒 PRIVACY ENFORCED: Retrieved ${students.length} students exclusively for SO Center ${soCenter.centerId}`);
-      
+
       if (!students || students.length === 0) {
         console.log('📭 No students found for this SO Center');
         return res.json([]);
@@ -5047,16 +5048,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-
-
   // Mark exam as completed by SO Center
   app.post('/api/so-center/exams/:examId/complete', authenticateToken, async (req, res) => {
     try {
       const { examId } = req.params;
       console.log('✅ Marking exam as completed:', examId);
-      
+
       const [updatedExam] = await db
         .update(schema.exams)
         .set({
@@ -5083,10 +5080,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = req.params.examId;
       console.log('📋 Fetching questions for exam:', examId);
-      
+
       // Get exam details with questions
       const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
-      
+
       if (!exam.length) {
         return res.status(404).json({ message: 'Exam not found' });
       }
@@ -5098,7 +5095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!soCenter.length) {
           return res.status(404).json({ message: 'SO Center not found' });
         }
-        
+
         const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
         if (!soCenterIds.includes(soCenter[0].id)) {
           return res.status(404).json({ message: 'Exam not found or access denied' });
@@ -5128,7 +5125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { examId, studentId } = req.params;
       console.log('📊 Fetching individual student results:', { examId, studentId });
-      
+
       // Get existing detailed results if any
       const existingResult = await db.select()
         .from(schema.examResults)
@@ -5162,9 +5159,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const examId = req.params.examId;
       const { studentId, totalMarks, questions } = req.body;
-      
+
       console.log('💾 Saving detailed student results:', { examId, studentId, totalMarks });
-      
+
       // Validate input
       if (!studentId || !questions || !Array.isArray(questions)) {
         return res.status(400).json({ message: 'Invalid request data' });
@@ -5235,13 +5232,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { results } = req.body;
       console.log('📊 Submitting exam results for exam:', examId);
       console.log('📊 Results data:', results);
-      
+
       // Here you would typically store results in an exam_results table
       // For now, we'll just acknowledge the submission
-      
+
       // You could create an exam_results table with schema like:
       // examId, studentId, marksObtained, answeredQuestions, submittedAt
-      
+
       console.log('✅ Exam results submitted successfully');
       res.json({ message: 'Results submitted successfully' });
     } catch (error: any) {
@@ -5263,7 +5260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const examId = req.params.id;
       await storage.deleteExam(examId);
-      
+
       res.json({ message: "Exam deleted successfully" });
     } catch (error) {
       console.error("Error deleting exam:", error);
@@ -5271,1022 +5268,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics API endpoints for real data
-  app.get('/api/analytics/student-performance/:studentId', authenticateToken, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      const { timeframe = '6m' } = req.query;
-      
-      // Get exam results over time for performance trends
-      const performanceQuery = sqlQuery`
-        SELECT 
-          DATE_TRUNC('month', e.exam_date) as month,
-          AVG(er.marks_obtained) as avg_marks,
-          COUNT(er.id) as exam_count
-        FROM exam_results er
-        JOIN exams e ON er.exam_id = e.id
-        WHERE er.student_id = ${studentId}
-          AND e.exam_date >= NOW() - INTERVAL '6 months'
-        GROUP BY DATE_TRUNC('month', e.exam_date)
-        ORDER BY month ASC
-      `;
-      
-      const attendanceQuery = sqlQuery`
-        SELECT 
-          DATE_TRUNC('month', a.date) as month,
-          COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / COUNT(*) as attendance_percentage
-        FROM attendance a
-        WHERE a.student_id = ${studentId}
-          AND a.date >= NOW() - INTERVAL '6 months'
-        GROUP BY DATE_TRUNC('month', a.date)
-        ORDER BY month ASC
-      `;
-      
-      const [performanceResults, attendanceResults] = await Promise.all([
-        db.execute(performanceQuery),
-        db.execute(attendanceQuery)
-      ]);
-      
-      const combinedData = performanceResults.rows.map((perf: any) => {
-        const monthStr = new Date(perf.month).toLocaleString('default', { month: 'short' });
-        const attendance = attendanceResults.rows.find((att: any) => 
-          new Date(att.month).getTime() === new Date(perf.month).getTime()
-        );
-        
-        return {
-          month: monthStr,
-          marks: Math.round(parseFloat(perf.avg_marks) || 0),
-          attendance: Math.round(parseFloat(attendance?.attendance_percentage) || 0)
-        };
-      });
-      
-      res.json(combinedData);
-    } catch (error) {
-      console.error('Error fetching student performance:', error);
-      res.status(500).json({ message: 'Failed to fetch performance data' });
-    }
-  });
-
-  app.get('/api/analytics/subject-progress/:studentId', authenticateToken, async (req, res) => {
-    try {
-      const { studentId } = req.params;
-      
-      // Get subject-wise progress from topic completion
-      const progressQuery = sqlQuery`
-        SELECT 
-          s.name as subject,
-          s.id as subject_id,
-          COUNT(tp.id) * 100.0 / COUNT(t.id) as progress_percentage
-        FROM subjects s
-        JOIN chapters c ON c.subject_id = s.id
-        JOIN topics t ON t.chapter_id = c.id
-        LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = ${studentId} AND tp.status = 'learned'
-        GROUP BY s.id, s.name
-        ORDER BY s.name
-      `;
-      
-      const results = await db.execute(progressQuery);
-      const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
-      
-      const subjectProgress = results.rows.map((row: any, index: number) => ({
-        subject: row.subject,
-        progress: Math.round(parseFloat(row.progress_percentage) || 0),
-        color: colors[index % colors.length]
-      }));
-      
-      res.json(subjectProgress);
-    } catch (error) {
-      console.error('Error fetching subject progress:', error);
-      res.status(500).json({ message: 'Failed to fetch subject progress' });
-    }
-  });
-
-  app.get('/api/analytics/attendance-trends', authenticateToken, async (req, res) => {
-    try {
-      const { soCenterId, month } = req.query;
-      
-      if (!soCenterId || !month) {
-        return res.status(400).json({ message: 'SO Center ID and month are required' });
-      }
-      
-      // Get daily attendance for the month
-      const attendanceQuery = sqlQuery`
-        SELECT 
-          EXTRACT(DAY FROM a.date) as day,
-          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present_count,
-          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absent_count,
-          COUNT(CASE WHEN a.status = 'holiday' THEN 1 END) as holiday_count
-        FROM attendance a
-        JOIN students st ON a.student_id = st.id
-        WHERE st.so_center_id = ${soCenterId}
-          AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', ${month}::date)
-        GROUP BY EXTRACT(DAY FROM a.date)
-        ORDER BY day ASC
-      `;
-      
-      const results = await db.execute(attendanceQuery);
-      
-      const attendanceData = results.rows.map((row: any) => ({
-        date: row.day.toString(),
-        present: parseInt(row.present_count) || 0,
-        absent: parseInt(row.absent_count) || 0,
-        holiday: parseInt(row.holiday_count) || 0
-      }));
-      
-      res.json(attendanceData);
-    } catch (error) {
-      console.error('Error fetching attendance trends:', error);
-      res.status(500).json({ message: 'Failed to fetch attendance data' });
-    }
-  });
-
-  app.get('/api/analytics/so-center-comparison', authenticateToken, async (req, res) => {
-    try {
-      const { stateId, districtId, mandalId, villageId, month } = req.query;
-      
-      // Build dynamic WHERE clause based on location filters
-      let locationFilter = '';
-      const params = [];
-      
-      if (villageId) {
-        locationFilter = 'WHERE sc.village_id = $1';
-        params.push(villageId);
-      } else if (mandalId) {
-        locationFilter = `WHERE v.mandal_id = $1`;
-        params.push(mandalId);
-      } else if (districtId) {
-        locationFilter = `WHERE m.district_id = $1`;
-        params.push(districtId);
-      } else if (stateId) {
-        locationFilter = `WHERE d.state_id = $1`;
-        params.push(stateId);
-      }
-      
-      const monthFilter = month ? `AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $${params.length + 1}::date)` : '';
-      if (month) params.push(month);
-      
-      const comparisonQuery = `
-        SELECT 
-          sc.name,
-          COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / NULLIF(COUNT(a.id), 0) as attendance_percentage
-        FROM so_centers sc
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN students st ON st.so_center_id = sc.id
-        LEFT JOIN attendance a ON a.student_id = st.id ${monthFilter}
-        ${locationFilter}
-        GROUP BY sc.id, sc.name
-        ORDER BY sc.name
-      `;
-      
-      const results = await executeRawQuery(comparisonQuery, params);
-      
-      const soCenterStats = results.map((row: any) => ({
-        name: row.name,
-        attendance: Math.round(parseFloat(row.attendance_percentage) || 0)
-      }));
-      
-      res.json(soCenterStats);
-    } catch (error) {
-      console.error('Error fetching SO center comparison:', error);
-      res.status(500).json({ message: 'Failed to fetch SO center data' });
-    }
-  });
-
-  app.get('/api/analytics/dashboard-stats', authenticateToken, async (req, res) => {
-    try {
-      const user = req.user;
-      let whereClause = '';
-      
-      // Filter by SO Center for so_center role
-      if (user?.role === 'so_center') {
-        const userRecord = await storage.getUserByEmail(user.email);
-        if (userRecord?.soCenterId) {
-          whereClause = `WHERE s.so_center_id = '${userRecord.soCenterId}'`;
-        }
-      }
-      
-      // Get real dashboard statistics
-      const statsQuery = `
-        SELECT 
-          COUNT(s.id) as total_students,
-          COUNT(DISTINCT s.so_center_id) as total_so_centers,
-          SUM(CASE WHEN p.payment_date >= DATE_TRUNC('month', CURRENT_DATE) THEN p.amount ELSE 0 END) as monthly_revenue,
-          COUNT(CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN 1 END) as new_students_this_month
-        FROM students s
-        LEFT JOIN payments p ON p.student_id = s.id
-        ${whereClause}
-      `;
-      
-      const results = await executeRawQuery(statsQuery);
-      const stats = results[0] || {};
-      
-      res.json({
-        totalStudents: parseInt(stats.total_students) || 0,
-        totalSoCenters: parseInt(stats.total_so_centers) || 0,
-        monthlyRevenue: parseFloat(stats.monthly_revenue) || 0,
-        newStudentsThisMonth: parseInt(stats.new_students_this_month) || 0
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-      res.status(500).json({ message: 'Failed to fetch dashboard statistics' });
-    }
-  });
-
-  // Real analytics endpoints for charts and graphs
-  
-  // Student performance analytics (real data for line/bar charts)
-  app.get("/api/analytics/student-performance", authenticateToken, async (req, res) => {
-    try {
-      const { studentId, timeframe = '6months' } = req.query;
-      
-      const performanceQuery = `
-        SELECT 
-          DATE_TRUNC('month', tp.completion_date) as month,
-          COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_topics,
-          COUNT(tp.id) as total_topics,
-          s.name as subject_name
-        FROM topic_progress tp
-        JOIN topics t ON tp.topic_id = t.id
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects s ON c.subject_id = s.id
-        WHERE tp.student_id = $1 
-          AND tp.completion_date >= CURRENT_DATE - INTERVAL '${timeframe}'
-        GROUP BY DATE_TRUNC('month', tp.completion_date), s.name
-        ORDER BY month, s.name
-      `;
-      
-      const results = await sql`
-        SELECT 
-          DATE_TRUNC('month', tp.completion_date) as month,
-          COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_topics,
-          COUNT(tp.id) as total_topics,
-          s.name as subject_name
-        FROM topic_progress tp
-        JOIN topics t ON tp.topic_id = t.id
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects s ON c.subject_id = s.id
-        WHERE tp.student_id = ${studentId} 
-          AND tp.completion_date >= CURRENT_DATE - INTERVAL '${timeframe}'
-        GROUP BY DATE_TRUNC('month', tp.completion_date), s.name
-        ORDER BY month, s.name
-      `;
-      
-      const performanceData = results.map((row: any) => ({
-        month: row.month,
-        completedTopics: parseInt(row.completed_topics) || 0,
-        totalTopics: parseInt(row.total_topics) || 0,
-        subject: row.subject_name,
-        percentage: row.total_topics > 0 ? Math.round((row.completed_topics / row.total_topics) * 100) : 0
-      }));
-      
-      res.json(performanceData);
-    } catch (error) {
-      console.error('Error fetching student performance:', error);
-      res.status(500).json({ message: "Failed to fetch performance data" });
-    }
-  });
-
-  // SO Center analytics (real data for admin dashboard)
-  app.get("/api/analytics/so-center-stats", authenticateToken, async (req, res) => {
-    try {
-      const { location } = req.query;
-      let whereClause = '';
-      
-      if (location) {
-        whereClause = `WHERE sc.state = '${location}' OR sc.district = '${location}' OR sc.mandal = '${location}'`;
-      }
-      
-      const soCenterQuery = `
-        SELECT 
-          sc.name as so_center_name,
-          sc.state,
-          sc.district,
-          sc.mandal,
-          COUNT(s.id) as student_count,
-          SUM(p.amount) as total_revenue,
-          AVG(CASE WHEN tp.status = 'learned' THEN 1.0 ELSE 0.0 END) * 100 as avg_completion_rate
-        FROM so_centers sc
-        LEFT JOIN students s ON s.so_center_id = sc.id
-        LEFT JOIN payments p ON p.student_id = s.id
-        LEFT JOIN topic_progress tp ON tp.student_id = s.id
-        ${whereClause}
-        GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
-        ORDER BY student_count DESC
-      `;
-      
-      const results = await sql`${soCenterQuery}`;
-      
-      const soCenterStats = results.map((row: any) => ({
-        name: row.so_center_name,
-        state: row.state,
-        district: row.district,
-        mandal: row.mandal,
-        studentCount: parseInt(row.student_count) || 0,
-        totalRevenue: parseFloat(row.total_revenue) || 0,
-        avgCompletionRate: parseFloat(row.avg_completion_rate) || 0
-      }));
-      
-      res.json(soCenterStats);
-    } catch (error) {
-      console.error('Error fetching SO center stats:', error);
-      res.status(500).json({ message: "Failed to fetch SO center statistics" });
-    }
-  });
-
-  // Payment analytics (real data for revenue charts)
-  app.get("/api/analytics/payment-trends", authenticateToken, async (req, res) => {
-    try {
-      const { timeframe = '12months' } = req.query;
-      
-      const paymentQuery = `
-        SELECT 
-          DATE_TRUNC('month', p.payment_date) as month,
-          SUM(p.amount) as total_amount,
-          COUNT(p.id) as payment_count,
-          COUNT(DISTINCT p.student_id) as unique_students,
-          p.payment_method
-        FROM payments p
-        WHERE p.payment_date >= CURRENT_DATE - INTERVAL '${timeframe}'
-        GROUP BY DATE_TRUNC('month', p.payment_date), p.payment_method
-        ORDER BY month DESC
-      `;
-      
-      const results = await sql`${paymentQuery}`;
-      
-      const paymentTrends = results.map((row: any) => ({
-        month: row.month,
-        totalAmount: parseFloat(row.total_amount) || 0,
-        paymentCount: parseInt(row.payment_count) || 0,
-        uniqueStudents: parseInt(row.unique_students) || 0,
-        paymentMethod: row.payment_method
-      }));
-      
-      res.json(paymentTrends);
-    } catch (error) {
-      console.error('Error fetching payment trends:', error);
-      res.status(500).json({ message: "Failed to fetch payment analytics" });
-    }
-  });
-
-  // Academic progress analytics (real data for pie charts and progress bars)
-  app.get("/api/analytics/academic-progress", authenticateToken, async (req, res) => {
-    try {
-      const { classId, subjectId, soCenterId } = req.query;
-      let whereConditions = [];
-      
-      if (classId) whereConditions.push(`s.class_id = '${classId}'`);
-      if (subjectId) whereConditions.push(`sub.id = '${subjectId}'`);
-      if (soCenterId) whereConditions.push(`s.so_center_id = '${soCenterId}'`);
-      
-      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-      
-      const progressQuery = `
-        SELECT 
-          sub.name as subject_name,
-          c.name as chapter_name,
-          tp.status,
-          COUNT(tp.id) as status_count,
-          COUNT(DISTINCT tp.student_id) as student_count
-        FROM topic_progress tp
-        JOIN topics t ON tp.topic_id = t.id
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects sub ON c.subject_id = sub.id
-        JOIN students s ON tp.student_id = s.id
-        ${whereClause}
-        GROUP BY sub.name, c.name, tp.status
-        ORDER BY sub.name, c.name, tp.status
-      `;
-      
-      const results = await sql`
-        SELECT 
-          sub.name as subject_name,
-          c.name as chapter_name,
-          tp.status,
-          COUNT(tp.id) as status_count,
-          COUNT(DISTINCT tp.student_id) as student_count
-        FROM topic_progress tp
-        JOIN topics t ON tp.topic_id = t.id
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects sub ON c.subject_id = sub.id
-        JOIN students s ON tp.student_id = s.id
-        ${whereClause ? sql`WHERE ${sql.unsafe(whereClause)}` : sql``}
-        GROUP BY sub.name, c.name, tp.status
-        ORDER BY sub.name, c.name, tp.status
-      `;
-      
-      const academicProgress = results.map((row: any) => ({
-        subject: row.subject_name,
-        chapter: row.chapter_name,
-        status: row.status,
-        count: parseInt(row.status_count) || 0,
-        studentCount: parseInt(row.student_count) || 0
-      }));
-      
-      res.json(academicProgress);
-    } catch (error) {
-      console.error('Error fetching academic progress:', error);
-      res.status(500).json({ message: "Failed to fetch academic analytics" });
-    }
-  });
-
-  // Additional analytics for attendance and SO center comparison
-  
-  // Center-wise, Month-wise Attendance Report (real data)
-  app.get("/api/analytics/center-month-attendance", authenticateToken, async (req, res) => {
-    try {
-      const { month, year, soCenterId } = req.query;
-      const currentMonth = month || new Date().getMonth() + 1;
-      const currentYear = year || new Date().getFullYear();
-      
-      let whereClause = '';
-      if (soCenterId) {
-        whereClause = `AND s.so_center_id = '${soCenterId}'`;
-      }
-      
-      const attendanceQuery = `
-        WITH date_series AS (
-          SELECT generate_series(
-            DATE_TRUNC('month', $1::date),
-            DATE_TRUNC('month', $1::date) + INTERVAL '1 month' - INTERVAL '1 day',
-            INTERVAL '1 day'
-          )::date as date
-        ),
-        centers_students AS (
-          SELECT 
-            sc.id as center_id,
-            sc.name as center_name,
-            sc.state,
-            sc.district,
-            sc.mandal,
-            COUNT(s.id) as total_students
-          FROM so_centers sc
-          LEFT JOIN students s ON s.so_center_id = sc.id
-          WHERE sc.status = 'active' ${whereClause.replace('s.so_center_id', 'sc.id')}
-          GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
-        )
-        SELECT 
-          cs.center_id,
-          cs.center_name,
-          cs.state,
-          cs.district,
-          cs.mandal,
-          cs.total_students,
-          ds.date,
-          COUNT(a.id) as present_count,
-          ROUND(
-            CASE 
-              WHEN cs.total_students > 0 
-              THEN (COUNT(a.id)::numeric / cs.total_students * 100)
-              ELSE 0 
-            END, 2
-          ) as attendance_percentage
-        FROM centers_students cs
-        CROSS JOIN date_series ds
-        LEFT JOIN students s ON s.so_center_id = cs.center_id
-        LEFT JOIN attendance a ON a.student_id = s.id AND a.date = ds.date
-        GROUP BY cs.center_id, cs.center_name, cs.state, cs.district, cs.mandal, cs.total_students, ds.date
-        ORDER BY cs.center_name, ds.date
-      `;
-      
-      const targetDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-      const results = await sql`
-        WITH date_series AS (
-          SELECT generate_series(
-            DATE_TRUNC('month', ${targetDate}::date),
-            DATE_TRUNC('month', ${targetDate}::date) + INTERVAL '1 month' - INTERVAL '1 day',
-            INTERVAL '1 day'
-          )::date as date
-        ),
-        centers_students AS (
-          SELECT 
-            sc.id as center_id,
-            sc.name as center_name,
-            sc.state,
-            sc.district,
-            sc.mandal,
-            COUNT(s.id) as total_students
-          FROM so_centers sc
-          LEFT JOIN students s ON s.so_center_id = sc.id
-          WHERE sc.status = 'active' ${soCenterId ? sql`AND sc.id = ${soCenterId}` : sql``}
-          GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
-        )
-        SELECT 
-          cs.center_id,
-          cs.center_name,
-          cs.state,
-          cs.district,
-          cs.mandal,
-          cs.total_students,
-          ds.date,
-          COUNT(a.id) as present_count,
-          ROUND(
-            CASE 
-              WHEN cs.total_students > 0 
-              THEN (COUNT(a.id)::numeric / cs.total_students * 100)
-              ELSE 0 
-            END, 2
-          ) as attendance_percentage
-        FROM centers_students cs
-        CROSS JOIN date_series ds
-        LEFT JOIN students s ON s.so_center_id = cs.center_id
-        LEFT JOIN attendance a ON a.student_id = s.id AND a.date = ds.date
-        GROUP BY cs.center_id, cs.center_name, cs.state, cs.district, cs.mandal, cs.total_students, ds.date
-        ORDER BY cs.center_name, ds.date
-      `;
-      
-      const attendanceReport = results.map((row: any) => ({
-        centerId: row.center_id,
-        centerName: row.center_name,
-        state: row.state,
-        district: row.district,
-        mandal: row.mandal,
-        totalStudents: parseInt(row.total_students) || 0,
-        date: row.date,
-        presentCount: parseInt(row.present_count) || 0,
-        attendancePercentage: parseFloat(row.attendance_percentage) || 0
-      }));
-      
-      res.json(attendanceReport);
-    } catch (error) {
-      console.error('Error fetching center-month attendance:', error);
-      res.status(500).json({ message: "Failed to fetch attendance report" });
-    }
-  });
-
-  // Attendance trends analytics (real data)
-  app.get("/api/analytics/attendance-trends", authenticateToken, async (req, res) => {
-    try {
-      const { soCenterId, month } = req.query;
-      
-      const attendanceQuery = `
-        SELECT 
-          DATE_TRUNC('day', a.date) as day,
-          COUNT(a.id) as present_count,
-          COUNT(DISTINCT a.student_id) as total_students,
-          ROUND(COUNT(a.id)::numeric / COUNT(DISTINCT a.student_id) * 100, 2) as attendance_rate
-        FROM attendance a
-        JOIN students s ON a.student_id = s.id
-        WHERE DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $1::date)
-        ${soCenterId ? `AND s.so_center_id = '${soCenterId}'` : ''}
-        GROUP BY DATE_TRUNC('day', a.date)
-        ORDER BY day
-      `;
-      
-      const targetMonth = month || new Date().toISOString().slice(0, 7) + '-01';
-      const results = await sql`
-        SELECT 
-          DATE_TRUNC('day', a.date) as day,
-          COUNT(a.id) as present_count,
-          COUNT(DISTINCT a.student_id) as total_students,
-          ROUND(COUNT(a.id)::numeric / COUNT(DISTINCT a.student_id) * 100, 2) as attendance_rate
-        FROM attendance a
-        JOIN students s ON a.student_id = s.id
-        WHERE DATE_TRUNC('month', a.date) = DATE_TRUNC('month', ${targetMonth}::date)
-        ${soCenterId ? sql`AND s.so_center_id = ${soCenterId}` : sql``}
-        GROUP BY DATE_TRUNC('day', a.date)
-        ORDER BY day
-      `;
-      
-      const attendanceData = results.map((row: any) => ({
-        day: row.day,
-        presentCount: parseInt(row.present_count) || 0,
-        totalStudents: parseInt(row.total_students) || 0,
-        attendanceRate: parseFloat(row.attendance_rate) || 0
-      }));
-      
-      res.json(attendanceData);
-    } catch (error) {
-      console.error('Error fetching attendance trends:', error);
-      res.status(500).json({ message: "Failed to fetch attendance data" });
-    }
-  });
-
-  // SO Center comparison analytics (real data)
-  app.get("/api/analytics/so-center-comparison", authenticateToken, async (req, res) => {
-    try {
-      const { stateId, districtId, mandalId, villageId, month } = req.query;
-      let whereConditions = [];
-      
-      if (stateId) whereConditions.push(`sc.state = '${stateId}'`);
-      if (districtId) whereConditions.push(`sc.district = '${districtId}'`);
-      if (mandalId) whereConditions.push(`sc.mandal = '${mandalId}'`);
-      if (villageId) whereConditions.push(`sc.village = '${villageId}'`);
-      
-      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
-      
-      const comparisonQuery = `
-        SELECT 
-          sc.name as so_center_name,
-          sc.state,
-          sc.district,
-          sc.mandal,
-          COUNT(s.id) as total_students,
-          COUNT(a.id) as total_attendance,
-          COUNT(p.id) as total_payments,
-          SUM(p.amount) as total_revenue,
-          AVG(CASE WHEN tp.status = 'learned' THEN 1.0 ELSE 0.0 END) * 100 as completion_rate
-        FROM so_centers sc
-        LEFT JOIN students s ON s.so_center_id = sc.id
-        LEFT JOIN attendance a ON a.student_id = s.id AND DATE_TRUNC('month', a.date) = DATE_TRUNC('month', $1::date)
-        LEFT JOIN payments p ON p.student_id = s.id AND DATE_TRUNC('month', p.payment_date) = DATE_TRUNC('month', $1::date)
-        LEFT JOIN topic_progress tp ON tp.student_id = s.id
-        ${whereClause}
-        GROUP BY sc.id, sc.name, sc.state, sc.district, sc.mandal
-        ORDER BY total_students DESC
-      `;
-      
-      const results = await sql`${comparisonQuery}`.values([month || new Date().toISOString().slice(0, 7) + '-01']);
-      
-      const comparisonData = results.map((row: any) => ({
-        soCenterName: row.so_center_name,
-        state: row.state,
-        district: row.district,
-        mandal: row.mandal,
-        totalStudents: parseInt(row.total_students) || 0,
-        totalAttendance: parseInt(row.total_attendance) || 0,
-        totalPayments: parseInt(row.total_payments) || 0,
-        totalRevenue: parseFloat(row.total_revenue) || 0,
-        completionRate: parseFloat(row.completion_rate) || 0
-      }));
-      
-      res.json(comparisonData);
-    } catch (error) {
-      console.error('Error fetching SO center comparison:', error);
-      res.status(500).json({ message: "Failed to fetch comparison data" });
-    }
-  });
-
-  // ANNOUNCEMENTS MANAGEMENT ENDPOINTS
-  
-  // Get all announcements (admin only)
-  app.get("/api/admin/announcements", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-      
-      console.log('📋 Fetching all announcements for admin...');
-      
-      const announcementsList = await db.select().from(schema.announcements)
-        .orderBy(sql`${schema.announcements.createdAt} DESC`);
-      
-      console.log('✅ Announcements fetched successfully:', announcementsList.length);
-      res.json(announcementsList);
-    } catch (error) {
-      console.error('❌ Error fetching announcements:', error);
-      res.status(500).json({ message: 'Failed to fetch announcements' });
-    }
-  });
-
-  // Create new announcement (admin only)
-  app.post("/api/admin/announcements", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-      
-      console.log('🆕 Creating new announcement...');
-      
-      const announcementData = schema.insertAnnouncementSchema.parse(req.body);
-      const userId = req.user?.userId;
-      
-      const [newAnnouncement] = await db
-        .insert(schema.announcements)
-        .values({
-          ...announcementData,
-          createdBy: userId,
-        })
-        .returning();
-
-      console.log('✅ Announcement created successfully:', newAnnouncement.id);
-      res.status(201).json(newAnnouncement);
-    } catch (error) {
-      console.error('❌ Error creating announcement:', error);
-      res.status(500).json({ message: 'Failed to create announcement' });
-    }
-  });
-
-  // Update announcement (admin only)
-  app.put("/api/admin/announcements/:id", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-      
-      const announcementId = req.params.id;
-      console.log('📝 Updating announcement:', announcementId);
-      
-      const announcementData = schema.insertAnnouncementSchema.parse(req.body);
-      
-      const [updatedAnnouncement] = await db
-        .update(schema.announcements)
-        .set({
-          ...announcementData,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.announcements.id, announcementId))
-        .returning();
-
-      if (!updatedAnnouncement) {
-        return res.status(404).json({ message: 'Announcement not found' });
-      }
-
-      console.log('✅ Announcement updated successfully');
-      res.json(updatedAnnouncement);
-    } catch (error) {
-      console.error('❌ Error updating announcement:', error);
-      res.status(500).json({ message: 'Failed to update announcement' });
-    }
-  });
-
-  // Delete announcement (admin only)
-  app.delete("/api/admin/announcements/:id", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-      
-      const announcementId = req.params.id;
-      console.log('🗑️ Deleting announcement:', announcementId);
-      
-      await db.delete(schema.announcements).where(eq(schema.announcements.id, announcementId));
-      
-      console.log('✅ Announcement deleted successfully');
-      res.json({ message: 'Announcement deleted successfully' });
-    } catch (error) {
-      console.error('❌ Error deleting announcement:', error);
-      res.status(500).json({ message: 'Failed to delete announcement' });
-    }
-  });
-
-  // Get active announcements for students (public endpoint for QR code display)
-  app.get("/api/announcements/students", async (req, res) => {
-    try {
-      console.log('📋 Fetching active student announcements...');
-      
-      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      const studentAnnouncements = await db.select()
-        .from(schema.announcements)
-        .where(sql`
-          (${schema.announcements.targetAudience} && ARRAY['students', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
-          AND ${schema.announcements.isActive} = true
-          AND ${schema.announcements.fromDate} <= ${currentDate}
-          AND ${schema.announcements.toDate} >= ${currentDate}
-          AND ${schema.announcements.showOnQrCode} = true
-        `)
-        .orderBy(sql`
-          CASE ${schema.announcements.priority}
-            WHEN 'urgent' THEN 1
-            WHEN 'high' THEN 2
-            WHEN 'normal' THEN 3
-            WHEN 'low' THEN 4
-          END,
-          ${schema.announcements.createdAt} DESC
-        `);
-      
-      console.log('✅ Student announcements fetched:', studentAnnouncements.length);
-      res.json(studentAnnouncements);
-    } catch (error) {
-      console.error('❌ Error fetching student announcements:', error);
-      res.status(500).json({ message: 'Failed to fetch announcements' });
-    }
-  });
-
-  // Get active announcements for admin dashboard popup
-  app.get("/api/admin/active-announcements", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-      
-      console.log('📋 Fetching active admin announcements...');
-      
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      const adminAnnouncements = await db.select()
-        .from(schema.announcements)
-        .where(sql`
-          (${schema.announcements.targetAudience} && ARRAY['admin', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
-          AND ${schema.announcements.isActive} = true
-          AND ${schema.announcements.fromDate} <= ${currentDate}
-          AND ${schema.announcements.toDate} >= ${currentDate}
-        `)
-        .orderBy(sql`
-          CASE ${schema.announcements.priority}
-            WHEN 'urgent' THEN 1
-            WHEN 'high' THEN 2
-            WHEN 'normal' THEN 3
-            WHEN 'low' THEN 4
-          END,
-          ${schema.announcements.createdAt} DESC
-        `);
-      
-      console.log('✅ Admin announcements fetched:', adminAnnouncements.length);
-      res.json(adminAnnouncements);
-    } catch (error) {
-      console.error('❌ Error fetching admin announcements:', error);
-      res.status(500).json({ message: 'Failed to fetch announcements' });
-    }
-  });
-
-  // Get active announcements for SO center dashboard popup
-  app.get("/api/so-center/active-announcements", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-      
-      console.log('📋 Fetching active SO center announcements...');
-      
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      const soCenterAnnouncements = await db.select()
-        .from(schema.announcements)
-        .where(sql`
-          (${schema.announcements.targetAudience} && ARRAY['so_centers', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
-          AND ${schema.announcements.isActive} = true
-          AND ${schema.announcements.fromDate} <= ${currentDate}
-          AND ${schema.announcements.toDate} >= ${currentDate}
-        `)
-        .orderBy(sql`
-          CASE ${schema.announcements.priority}
-            WHEN 'urgent' THEN 1
-            WHEN 'high' THEN 2
-            WHEN 'normal' THEN 3
-            WHEN 'low' THEN 4
-          END,
-          ${schema.announcements.createdAt} DESC
-        `);
-      
-      console.log('✅ SO Center announcements fetched:', soCenterAnnouncements.length);
-      res.json(soCenterAnnouncements);
-    } catch (error) {
-      console.error('❌ Error fetching SO center announcements:', error);
-      res.status(500).json({ message: 'Failed to fetch announcements' });
-    }
-  });
-
-  // Get active announcements for teacher dashboard popup
-  app.get("/api/teacher/active-announcements", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'teacher' && req.user?.role !== 'admin') {
-        return res.status(403).json({ message: 'Teacher access required' });
-      }
-      
-      console.log('📋 Fetching active teacher announcements...');
-      
-      const currentDate = new Date().toISOString().split('T')[0];
-      
-      const teacherAnnouncements = await db.select()
-        .from(schema.announcements)
-        .where(sql`
-          (${schema.announcements.targetAudience} && ARRAY['teachers', 'all']::text[] OR 'all' = ANY(${schema.announcements.targetAudience}))
-          AND ${schema.announcements.isActive} = true
-          AND ${schema.announcements.fromDate} <= ${currentDate}
-          AND ${schema.announcements.toDate} >= ${currentDate}
-        `)
-        .orderBy(sql`
-          CASE ${schema.announcements.priority}
-            WHEN 'urgent' THEN 1
-            WHEN 'high' THEN 2
-            WHEN 'normal' THEN 3
-            WHEN 'low' THEN 4
-          END,
-          ${schema.announcements.createdAt} DESC
-        `);
-      
-      console.log('✅ Teacher announcements fetched:', teacherAnnouncements.length);
-      res.json(teacherAnnouncements);
-    } catch (error) {
-      console.error('❌ Error fetching teacher announcements:', error);
-      res.status(500).json({ message: 'Failed to fetch announcements' });
-    }
-  });
-
-  // Exam Results API Endpoints for SO Centers
-  
-  // Get existing exam results for a specific exam
-  app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const userId = req.user?.userId;
-      
-      // Get exam details first
-      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId));
-      
-      if (!exam.length) {
-        return res.status(404).json({ message: 'Exam not found' });
-      }
-
-      // Check if user has access to this exam (SO Center only sees their own exams)
-      if (req.user?.role === 'so_center') {
-        // Get SO Center ID from the user's email
-        const soCenter = await db.select().from(schema.soCenters).where(eq(schema.soCenters.email, req.user.email));
-        if (!soCenter.length) {
-          return res.status(404).json({ message: 'SO Center not found' });
-        }
-        
-        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(soCenter[0].id)) {
-          return res.status(404).json({ message: 'Exam not found or access denied' });
-        }
-      }
-      
-      // Get results from exam_results table (if it exists) or return empty array
-      try {
-        const results = await sql`
-          SELECT * FROM exam_results 
-          WHERE exam_id = ${examId}
-        `;
-        
-        res.json(Array.from(results).map(r => ({
-          id: r.id,
-          examId: r.exam_id,
-          studentId: r.student_id,
-          marksObtained: parseFloat(r.marks_obtained),
-          questionResults: JSON.parse(r.question_results || '[]'),
-          createdAt: r.created_at,
-          updatedAt: r.updated_at
-        })));
-      } catch (dbError) {
-        // If exam_results table doesn't exist, return empty results
-        console.log('No exam_results table found, returning empty results');
-        res.json([]);
-      }
-    } catch (error) {
-      console.error('Error fetching exam results:', error);
-      res.status(500).json({ message: 'Failed to fetch exam results' });
-    }
-  });
-  
-  // Save or update exam result for a specific student
-  app.post('/api/exams/results', authenticateToken, async (req, res) => {
-    try {
-      const { examId, studentId, marksObtained, questionResults } = req.body;
-      const userId = req.user?.userId;
-      
-      // Validate required fields
-      if (!examId || !studentId || marksObtained === undefined || !questionResults) {
-        return res.status(400).json({ message: 'Missing required fields' });
-      }
-      
-      // Check if user has access to this exam (SO Center only sees their own exams)
-      if (req.user?.role === 'so_center') {
-        const exam = await sql`
-          SELECT * FROM exams 
-          WHERE id = ${examId} AND ${userId} = ANY(so_center_ids)
-        `;
-        
-        if (exam.length === 0) {
-          return res.status(404).json({ message: 'Exam not found or access denied' });
-        }
-      }
-      
-      // Check if result already exists
-      const existingResult = await sql`
-        SELECT * FROM exam_results 
-        WHERE exam_id = ${examId} AND student_id = ${studentId}
-      `;
-      
-      if (existingResult.length > 0) {
-        // Update existing result
-        await sql`
-          UPDATE exam_results 
-          SET 
-            marks_obtained = ${marksObtained},
-            question_results = ${JSON.stringify(questionResults)},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE exam_id = ${examId} AND student_id = ${studentId}
-        `;
-        
-        res.json({ message: 'Exam result updated successfully' });
-      } else {
-        // Create new result
-        await sql`
-          INSERT INTO exam_results (exam_id, student_id, marks_obtained, question_results)
-          VALUES (${examId}, ${studentId}, ${marksObtained}, ${JSON.stringify(questionResults)})
-        `;
-        
-        res.json({ message: 'Exam result saved successfully' });
-      }
-    } catch (error) {
-      console.error('Error saving exam result:', error);
-      res.status(500).json({ message: 'Failed to save exam result' });
-    }
-  });
-
   // ======================== ALL 7 NEW FEATURES API ROUTES ========================
-  
+
   // Feature 1: Topics Management with Moderate/Important flags
   app.get("/api/topics-management", authenticateToken, async (req, res) => {
     try {
       if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
         return res.status(403).json({ message: "Admin access required" });
       }
-      
+
       const topics = await storage.getAllTopicsWithChapters();
       res.json(topics);
     } catch (error) {
@@ -6456,7 +5446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.user.userId, 
         adminNotes
       );
-      
+
       res.json(updatedRequest);
     } catch (error) {
       console.error('Error processing dropout request:', error);
