@@ -20,7 +20,7 @@ import { MonthlyFeeScheduler } from './monthlyFeeScheduler';
 import { supabaseAdmin } from './supabaseClient';
 import { createAdminUser } from './createAdminUser';
 import { AuthService } from './authService';
-import { sql as sqlQuery, eq, desc } from "drizzle-orm";
+import { sql as sqlQuery, eq, desc, and } from "drizzle-orm";
 import * as schema from "@shared/schema";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -638,6 +638,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error marking holiday:', error);
       res.status(500).json({ message: 'Failed to mark holiday' });
+    }
+  });
+
+  // Get students for a specific exam (SO Center specific)
+  app.get("/api/so-center/exams/:examId/students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: 'SO Center access required' });
+      }
+
+      const examId = req.params.examId;
+      console.log('🔍 Fetching students for exam:', examId);
+
+      // Get the exam first to get class information
+      const exam = await db.select()
+        .from(schema.exams)
+        .where(eq(schema.exams.id, examId))
+        .limit(1);
+
+      if (!exam.length) {
+        return res.status(404).json({ message: 'Exam not found' });
+      }
+
+      const examData = exam[0];
+
+      // Get SO Center for this user
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(403).json({ message: "SO Center not found for user" });
+      }
+
+      // Get students from this SO Center who are in the exam's class
+      const students = await db
+        .select({
+          id: schema.students.id,
+          name: schema.students.name,
+          studentId: schema.students.studentId,
+          classId: schema.students.classId,
+          className: schema.classes.name,
+        })
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .where(
+          and(
+            eq(schema.students.soCenterId, soCenter.id),
+            eq(schema.students.classId, examData.classId),
+            eq(schema.students.isActive, true)
+          )
+        )
+        .orderBy(schema.students.name);
+
+      console.log(`📊 Found ${students.length} students for exam ${examId} in SO Center ${soCenter.centerId}`);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching exam students:', error);
+      res.status(500).json({ message: 'Failed to fetch exam students' });
     }
   });
 

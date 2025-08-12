@@ -40,37 +40,110 @@ export default function PostExamResult() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const examId = params.examId;
-  
+
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [isMarkingModalOpen, setIsMarkingModalOpen] = useState(false);
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [totalMarks, setTotalMarks] = useState(0);
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch exam details
-  const { data: exam, isLoading: examLoading } = useQuery({
+  // Data queries with proper error handling
+  const { data: exam, isLoading: isExamLoading } = useQuery({
     queryKey: ['/api/so-center/exams', examId],
+    queryFn: async () => {
+      console.log('🔍 Fetching exam data for:', examId);
+      const response = await apiRequest('GET', `/api/so-center/exams`);
+      const examsData = await response.json();
+      console.log('📊 Exams response:', examsData);
+
+      // Find the specific exam
+      if (Array.isArray(examsData)) {
+        const foundExam = examsData.find((e: any) => e.id === examId);
+        console.log('📊 Found exam:', foundExam);
+        return foundExam;
+      }
+      return null;
+    },
     enabled: !!examId,
   });
 
-  // Fetch students for this exam's class
-  const { data: students = [], isLoading: studentsLoading } = useQuery({
-    queryKey: ['/api/so-center/students'],
+  const { data: students = [], isLoading: isStudentsLoading } = useQuery({
+    queryKey: ['/api/so-center/exams', examId, 'students'],
+    queryFn: async () => {
+      if (!examId) return [];
+      console.log('🔍 Fetching students for exam:', examId);
+      const response = await apiRequest('GET', `/api/so-center/exams/${examId}/students`);
+      const studentsData = await response.json();
+      console.log('📊 Students response:', studentsData);
+      console.log('📊 Processed students:', Array.isArray(studentsData) ? studentsData.length : 0);
+      return Array.isArray(studentsData) ? studentsData : [];
+    },
+    enabled: !!examId,
   });
 
-  // Fetch exam questions
-  const { data: examQuestions = [], isLoading: questionsLoading } = useQuery({
+  const { data: examQuestions = [], isLoading: isQuestionsLoading } = useQuery({
     queryKey: ['/api/exams', examId, 'questions'],
+    queryFn: async () => {
+      if (!examId) return [];
+      console.log('🔍 Fetching questions for exam:', examId);
+      const response = await apiRequest('GET', `/api/exams/${examId}/questions`);
+      const questionsData = await response.json();
+      console.log('📊 Questions response:', questionsData);
+      console.log('📊 Processed questions:', Array.isArray(questionsData) ? questionsData.length : 0);
+      return Array.isArray(questionsData) ? questionsData : [];
+    },
     enabled: !!examId,
   });
 
   // Fetch existing results for all students
   const { data: existingResults = [], isLoading: resultsLoading } = useQuery({
     queryKey: ['/api/exams', examId, 'results'],
+    queryFn: async () => {
+      if (!examId) return [];
+      console.log('🔍 Fetching results for exam:', examId);
+      const response = await apiRequest('GET', `/api/exams/${examId}/results`);
+      const resultsData = await response.json();
+      console.log('📊 Results response:', resultsData);
+      console.log('📊 Processed results:', Array.isArray(resultsData) ? resultsData.length : 0);
+      return Array.isArray(resultsData) ? resultsData : [];
+    },
     enabled: !!examId,
   });
+
+  const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
+
+  useEffect(() => {
+    const fetchExamData = async () => {
+      try {
+        console.log('🔍 Fetching exam data for:', examId);
+        console.log('📊 Exam data:', exam);
+        console.log('📊 Students response:', students);
+        console.log('📊 Questions response:', examQuestions);
+        console.log('📊 Processed students:', students?.length || 0);
+        console.log('📊 Processed questions:', examQuestions?.length || 0);
+
+        if (exam && students && examQuestions) {
+          console.log('✅ Exam data loaded successfully');
+        } else {
+          console.log('⚠️ Some exam data is missing');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching exam data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch exam data",
+          variant: "destructive",
+        });
+      }
+    };
+
+    if (examId) {
+      fetchExamData();
+    }
+  }, [examId, exam, students, examQuestions, toast]);
+
 
   // Save student result mutation
   const saveResultMutation = useMutation({
@@ -106,12 +179,12 @@ export default function PostExamResult() {
 
   const openMarkingModal = (student: any) => {
     setSelectedStudent(student);
-    
+
     // Check if student already has results
     const existingResult = (existingResults as any[]).find((result: any) => 
       result.studentId === student.id
     );
-    
+
     if (existingResult && existingResult.detailedResults) {
       try {
         const parsedResults = JSON.parse(existingResult.detailedResults);
@@ -125,7 +198,7 @@ export default function PostExamResult() {
       // Initialize with default values for new result
       initializeQuestionResults();
     }
-    
+
     setIsMarkingModalOpen(true);
   };
 
@@ -143,7 +216,7 @@ export default function PostExamResult() {
   const updateQuestionResult = (index: number, field: string, value: any) => {
     const updated = [...questionResults];
     updated[index] = { ...updated[index], [field]: value };
-    
+
     // Auto-calculate marks based on assessment
     if (field === 'assessment') {
       const maxMarks = updated[index].maxMarks;
@@ -162,9 +235,9 @@ export default function PostExamResult() {
           break;
       }
     }
-    
+
     setQuestionResults(updated);
-    
+
     // Recalculate total marks
     const newTotal = updated.reduce((sum, result) => sum + result.obtainedMarks, 0);
     setTotalMarks(newTotal);
@@ -176,7 +249,7 @@ export default function PostExamResult() {
     const validMarks = Math.min(Math.max(0, marks), maxMarks);
     updated[index].obtainedMarks = validMarks;
     setQuestionResults(updated);
-    
+
     // Recalculate total marks
     const newTotal = updated.reduce((sum, result) => sum + result.obtainedMarks, 0);
     setTotalMarks(newTotal);
@@ -184,14 +257,14 @@ export default function PostExamResult() {
 
   const saveResult = () => {
     if (!selectedStudent) return;
-    
+
     const resultData: StudentExamResult = {
       studentId: selectedStudent.id,
       examId: examId!,
       questionResults,
       totalMarks,
     };
-    
+
     saveResultMutation.mutate(resultData);
   };
 
@@ -209,7 +282,7 @@ export default function PostExamResult() {
     }
   };
 
-  if (examLoading || studentsLoading || questionsLoading || resultsLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout title="Post Exam Result">
         <div className="flex items-center justify-center h-64">
@@ -359,7 +432,7 @@ export default function PostExamResult() {
                 <span>Enter Marks - {selectedStudent?.name}</span>
               </DialogTitle>
             </DialogHeader>
-            
+
             {selectedStudent && (
               <div className="space-y-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
@@ -377,7 +450,7 @@ export default function PostExamResult() {
 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Question-wise Marking</h3>
-                  
+
                   {questionResults.map((result, index) => (
                     <div key={index} className="border border-gray-200 rounded-lg p-4">
                       <div className="space-y-3">
