@@ -11,6 +11,7 @@ Preferred communication style: Simple, everyday language.
 - **Database Schema Completion**: Successfully migrated all missing tables including `so_center_equipment`, ensuring complete SO Center registration process works end-to-end.
 - **SO Center Data Privacy & UI Improvements (Aug 10, 2025)**: Implemented strict data privacy controls ensuring SO Centers can only access their own data. Fixed manager dropdown to show only SO Center role users. Updated UI labels from "Center Manager (Optional)" to "SO Study Organizer" for better clarity and accuracy.
 - **Exam Results Database Schema Issue (Aug 12, 2025)**: Fixed critical database synchronization issue where `exam_results` table was missing multiple columns (`percentage`, `submitted_by`, `submitted_at`). Implemented production-ready fallback approach using minimal schema to ensure exam results save successfully. Created comprehensive SQL migration script (`add_percentage_column.sql`) for manual database column addition.
+- **Missing Exam Results API Endpoint (Aug 12, 2025)**: Fixed critical issue where frontend was calling `/api/exams/{examId}/results` endpoint that didn't exist, causing empty results display. Added missing GET endpoint with SO Center filtering, percentage calculation, and proper data structure. Implemented business rule preventing modification of completed exam results - students can only submit marks once.
 
 ## System Architecture
 

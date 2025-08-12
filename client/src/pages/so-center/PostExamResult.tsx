@@ -119,25 +119,13 @@ export default function PostExamResult() {
         return [];
       }
       const resultsData = await response.json();
-      console.log('📊 Results response:', resultsData);
-      console.log('📊 Results data type:', typeof resultsData, 'isArray:', Array.isArray(resultsData));
-      if (Array.isArray(resultsData)) {
-        console.log('📊 Sample result structure:', resultsData.length > 0 ? resultsData[0] : 'Empty array');
-        if (resultsData.length > 0) {
-          resultsData.forEach((result, index) => {
-            console.log(`📊 Result ${index}:`, result);
-          });
-        } else {
-          console.log('⚠️ Results array is empty - no saved results found');
-        }
-      }
+      // Results loaded successfully
       return Array.isArray(resultsData) ? resultsData : [];
     },
     enabled: !!examId,
-    staleTime: 0, // No cache - always fetch fresh for debugging
-    cacheTime: 0, // No cache
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    refetchInterval: 2000 // Refetch every 2 seconds for debugging
+    staleTime: 30 * 1000, // 30 seconds cache - results change frequently
+    cacheTime: 2 * 60 * 1000, // 2 minutes cache
+    refetchOnWindowFocus: true // Refetch when window gains focus
   });
 
   const isLoading = isExamLoading || isStudentsLoading || isQuestionsLoading || resultsLoading;
@@ -148,14 +136,7 @@ export default function PostExamResult() {
     }
   }, [examId, exam, students, examQuestions]);
 
-  useEffect(() => {
-    console.log('🔄 existingResults changed:', {
-      type: typeof existingResults,
-      isArray: Array.isArray(existingResults),
-      length: existingResults?.length,
-      data: existingResults
-    });
-  }, [existingResults]);
+  // Results data effect hook removed for production
 
 
   // Save student result mutation
@@ -202,8 +183,7 @@ export default function PostExamResult() {
         const updatedResult = data.results[0];
         console.log('🔄 Processing response data:', updatedResult);
         
-        // Simply invalidate the cache to force a fresh fetch
-        console.log('🔄 Invalidating cache after save to force fresh data fetch');
+        // Invalidate cache to refresh results
         queryClient.invalidateQueries({ queryKey: ['/api/exams', examId, 'results'] });
       }
       
@@ -353,35 +333,22 @@ export default function PostExamResult() {
 
   const getStudentResult = (studentId: string) => {
     if (!existingResults || !Array.isArray(existingResults)) {
-      console.log('❌ getStudentResult: No results or not array', { 
-        existingResults, 
-        isArray: Array.isArray(existingResults),
-        length: existingResults?.length
-      });
       return null;
     }
-    console.log('🔍 getStudentResult searching in results:', existingResults.length, 'items');
-    console.log('🔍 First few results:', existingResults.slice(0, 3));
     const result = existingResults.find((result: any) => result.studentId === studentId);
-    console.log('🔍 getStudentResult for student:', studentId, 'found:', result ? 'YES' : 'NO', result);
-    
-    // Debug: Also check if maybe the field name is different
-    if (!result) {
-      const resultByStudentId = existingResults.find((r: any) => r.student_id === studentId);
-      const resultById = existingResults.find((r: any) => r.id === studentId);
-      console.log('🔍 Alternative searches - by student_id:', resultByStudentId ? 'YES' : 'NO');
-      console.log('🔍 Alternative searches - by id:', resultById ? 'YES' : 'NO');
-    }
-    
     return result;
   };
 
   const getStudentStatus = (studentId: string) => {
     const result = getStudentResult(studentId);
-    if (result && result.marksObtained !== undefined && result.marksObtained !== null && result.marksObtained > 0) {
+    if (result && result.marksObtained !== undefined && result.marksObtained !== null && result.marksObtained >= 0) {
       return 'Completed';
     }
     return 'Pending';
+  };
+
+  const isStudentCompleted = (studentId: string) => {
+    return getStudentStatus(studentId) === 'Completed';
   };
 
   const getStudentMarks = (studentId: string) => {
@@ -569,10 +536,22 @@ export default function PostExamResult() {
                         <TableCell>
                           <Button
                             size="sm"
-                            onClick={() => openMarkingModal(student)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => {
+                              if (isStudentCompleted(student.id)) {
+                                // Show alert - cannot edit completed results
+                                alert('This student has already completed the exam. Results cannot be modified.');
+                                return;
+                              }
+                              openMarkingModal(student);
+                            }}
+                            className={`${
+                              isStudentCompleted(student.id) 
+                                ? "bg-gray-400 cursor-not-allowed text-white" 
+                                : "bg-blue-600 hover:bg-blue-700 text-white"
+                            }`}
+                            disabled={isStudentCompleted(student.id)}
                           >
-                            {result ? 'Update' : 'Enter Marks'}
+                            {isStudentCompleted(student.id) ? 'Completed' : (result ? 'Update' : 'Enter Marks')}
                           </Button>
                         </TableCell>
                       </TableRow>

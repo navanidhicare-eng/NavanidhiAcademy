@@ -6147,12 +6147,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate percentage
       const calculatedPercentage = examTotalMarks > 0 ? Math.round((numericTotalMarks / examTotalMarks) * 100) : 0;
 
-      // Check if result already exists
+      // Check if result already exists  
       const existingResult = await db.select()
         .from(schema.examResults)
         .where(
           sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
         );
+
+      // Prevent modification of already completed results (business rule)
+      if (existingResult.length > 0 && existingResult[0].marksObtained !== null && existingResult[0].marksObtained >= 0) {
+        console.log('❌ Attempt to modify completed result for student:', studentId);
+        return res.status(400).json({ 
+          message: 'This student has already completed the exam. Results cannot be modified.' 
+        });
+      }
 
       let result;
       // Base result data without percentage - will add it conditionally
