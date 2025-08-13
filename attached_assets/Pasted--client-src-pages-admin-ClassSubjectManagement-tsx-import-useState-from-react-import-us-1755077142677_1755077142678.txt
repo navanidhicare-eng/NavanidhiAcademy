@@ -1,0 +1,63 @@
+// client/src/pages/admin/ClassSubjectManagement.tsx
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { Select, SelectItem, SelectTrigger, SelectValue, Button } from '@/components/ui/select'; // Make sure to import your UI components
+import { useToast } from '@/hooks/use-toast';
+
+export default function ClassSubjectManagement() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+
+  // Fetch classes and subjects
+  const { data: classes = [] } = useQuery('/api/classes');
+  const { data: subjects = [] } = useQuery('/api/admin/subjects');
+
+  const addSubjectToClassMutation = useMutation(async () => {
+    await fetch(`/api/classes/${selectedClass}/subjects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subjectId: selectedSubject }),
+    });
+    queryClient.invalidateQueries('/api/classes');
+    toast.success('Subject added successfully');
+  });
+
+  const handleAddSubjectToClass = () => {
+    if (!selectedClass || !selectedSubject) {
+      toast.error('Please select both a class and a subject');
+      return;
+    }
+    addSubjectToClassMutation.mutate();
+  };
+
+  return (
+    <div>
+      <h1>Add Subject to Class</h1>
+      <Select value={selectedClass} onValueChange={setSelectedClass}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select Class" />
+        </SelectTrigger>
+        {classes.map(cls => (
+          <SelectItem key={cls.id} value={cls.id}>
+            {cls.name}
+          </SelectItem>
+        ))}
+      </Select>
+      
+      <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select Subject" />
+        </SelectTrigger>
+        {subjects.map(sub => (
+          <SelectItem key={sub.id} value={sub.id}>
+            {sub.name}
+          </SelectItem>
+        ))}
+      </Select>
+
+      <Button onClick={handleAddSubjectToClass}>Add Subject to Class</Button>
+    </div>
+  );
+}
