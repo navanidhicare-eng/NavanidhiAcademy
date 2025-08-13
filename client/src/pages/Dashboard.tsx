@@ -25,10 +25,11 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 function SOCenterDashboard() {
   const { user } = useAuth();
 
-  // Fetch SO Center specific metrics
+  // Fetch SO Center specific metrics with auto-refresh
   const { data: soCenterStats } = useQuery({
-    queryKey: ['/api/so-center/dashboard-stats'],
+    queryKey: ['/api/so-center/dashboard-stats', user?.email],
     queryFn: async () => {
+      console.log('🔄 Fetching SO Center dashboard stats');
       const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/so-center/dashboard-stats', {
         headers: {
@@ -38,9 +39,13 @@ function SOCenterDashboard() {
       if (!response.ok) {
         throw new Error('Failed to fetch SO center stats');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('🏢 SO Center stats received:', data);
+      return data;
     },
-    enabled: !!user,
+    enabled: !!user && user.role === 'so_center',
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 0, // Always consider data stale to ensure fresh updates
   });
 
   const stats = soCenterStats || {
@@ -276,10 +281,11 @@ function SOCenterDashboard() {
 export default function Dashboard() {
   const { user } = useAuth();
 
-  // Fetch real dashboard stats from Supabase (NO DEMO DATA)
+  // Fetch real dashboard stats with auto-refresh
   const { data: stats } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
+    queryKey: ['/api/dashboard/stats', user?.role],
     queryFn: async () => {
+      console.log('🔄 Fetching dashboard stats for user:', user?.role);
       const token = localStorage.getItem('auth_token');
       const response = await fetch('/api/dashboard/stats', {
         headers: {
@@ -289,9 +295,13 @@ export default function Dashboard() {
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard stats');
       }
-      return response.json();
+      const data = await response.json();
+      console.log('📊 Dashboard stats received:', data);
+      return data;
     },
     enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 0, // Always consider data stale to ensure fresh updates
   });
 
   // No fallback data - only use real Supabase data
