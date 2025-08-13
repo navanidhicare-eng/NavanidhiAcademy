@@ -80,6 +80,50 @@ export default function AdminStructure() {
     return chapters.find((c: any) => c.id === chapterId)?.name || 'Unknown';
   };
 
+  // Delete chapter mutation
+  const deleteChapterMutation = useMutation({
+    mutationFn: async (chapterId: string) => {
+      return apiRequest('DELETE', `/api/admin/chapters/${chapterId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Chapter Deleted',
+        description: 'Chapter and all its topics have been successfully deleted.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/chapters'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
+      setSelectedChapter(''); // Reset selection
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete chapter. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete topic mutation
+  const deleteTopicMutation = useMutation({
+    mutationFn: async (topicId: string) => {
+      return apiRequest('DELETE', `/api/admin/topics/${topicId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Topic Deleted',
+        description: 'Topic has been successfully deleted.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete topic. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const resetSelections = (fromStep: number) => {
     if (fromStep <= 1) {
       setSelectedClass('');
@@ -129,17 +173,53 @@ export default function AdminStructure() {
                     chapters.map((chapter: any) => (
                       <div 
                         key={chapter.id} 
-                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-3 border rounded-lg transition-colors ${
                           selectedChapter === chapter.id 
                             ? 'bg-blue-50 border-blue-300' 
                             : 'bg-gray-50 hover:bg-gray-100'
                         }`}
-                        onClick={() => setSelectedChapter(chapter.id)}
                       >
-                        <h3 className="font-medium">{chapter.name}</h3>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {topics.filter((t: any) => t.chapterId === chapter.id).length} topics
-                        </p>
+                        <div className="flex items-center justify-between">
+                          <div 
+                            className="flex-1 cursor-pointer"
+                            onClick={() => setSelectedChapter(chapter.id)}
+                          >
+                            <h3 className="font-medium">{chapter.name}</h3>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {topics.filter((t: any) => t.chapterId === chapter.id).length} topics
+                            </p>
+                          </div>
+                          <div className="flex space-x-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Edit chapter logic
+                                toast({
+                                  title: 'Edit Chapter',
+                                  description: 'Edit functionality will be implemented soon.',
+                                });
+                              }}
+                              className="h-7 w-7 p-0"
+                            >
+                              <FileText size={12} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete "${chapter.name}"? This will also delete all topics in this chapter.`)) {
+                                  deleteChapterMutation.mutate(chapter.id);
+                                }
+                              }}
+                              className="h-7 w-7 p-0"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}
@@ -184,19 +264,51 @@ export default function AdminStructure() {
                       topics.filter((t: any) => t.chapterId === selectedChapter).map((topic: any) => (
                         <div key={topic.id} className="p-3 border rounded-lg bg-white">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium">{topic.name}</h3>
-                            <div className="flex space-x-1">
-                              {topic.isImportant && (
-                                <Badge variant="destructive" className="text-xs">IMP</Badge>
-                              )}
-                              {topic.isModerate && (
-                                <Badge variant="secondary" className="text-xs">MOD</Badge>
-                              )}
+                            <div className="flex-1">
+                              <h3 className="font-medium">{topic.name}</h3>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Order: {topic.orderIndex || 0}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex space-x-1">
+                                {topic.isImportant && (
+                                  <Badge variant="destructive" className="text-xs">IMP</Badge>
+                                )}
+                                {topic.isModerate && (
+                                  <Badge variant="secondary" className="text-xs">MOD</Badge>
+                                )}
+                              </div>
+                              <div className="flex space-x-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    // Edit topic logic
+                                    toast({
+                                      title: 'Edit Topic',
+                                      description: 'Edit functionality will be implemented soon.',
+                                    });
+                                  }}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  <FileText size={10} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete "${topic.name}"?`)) {
+                                      deleteTopicMutation.mutate(topic.id);
+                                    }
+                                  }}
+                                  className="h-6 w-6 p-0"
+                                >
+                                  ×
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Order: {topic.orderIndex || 0}
-                          </p>
                         </div>
                       ))
                     )}
