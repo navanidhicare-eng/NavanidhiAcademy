@@ -96,6 +96,7 @@ const navigation: NavItem[] = [
       { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard },
       { title: 'Exam Management', href: '/admin/exam-management', icon: Award },
       { title: 'Products', href: '/admin/products', icon: Package },
+      { title: 'Addresses', href: '/admin/addresses', icon: Building },
       { title: 'Announcements', href: '/admin/announcements', icon: Bell },
       { title: 'Approvals', href: '/admin/approvals', icon: CheckCircle },
     ],
