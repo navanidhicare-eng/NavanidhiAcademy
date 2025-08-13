@@ -68,8 +68,6 @@ const navigation: NavItem[] = [
       { title: 'Exam Management', href: '/exam-management', icon: Award, roles: ['so_center'] },
       { title: 'SO Center Exams', href: '/so-center/exams', icon: ClipboardList, roles: ['so_center'] },
       { title: 'Exam Results', href: '/so-center/exam-results', icon: BarChart3, roles: ['so_center'] },
-      { title: 'Academic Structure', href: '/admin/structure', icon: BookOpen },
-      { title: 'Class & Subject Management', href: '/admin/class-subject-management', icon: Plus },
     ],
   },
   {
