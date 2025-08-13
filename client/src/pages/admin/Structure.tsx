@@ -95,8 +95,8 @@ export default function AdminStructure() {
 
   return (
     <DashboardLayout
-      title="Academic Structure"
-      subtitle="Build your academic hierarchy: Class → Subject → Chapter → Topic"
+      title="Chapters and Topics Managing"
+      subtitle="Manage chapters and their topics effectively"
     >
       <div className="space-y-6">
         {/* Content Management */}

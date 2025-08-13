@@ -93,7 +93,7 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Users', href: '/admin/users', icon: Users },
       { title: 'SO Centers', href: '/admin/centers', icon: Building },
-      { title: 'Academic Structure', href: '/admin/structure', icon: School },
+      { title: 'Chapters and Topics Managing', href: '/admin/structure', icon: School },
       { title: 'All Students', href: '/admin/students', icon: GraduationCap },
       { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard },
       { title: 'Exam Management', href: '/admin/exam-management', icon: Award },
