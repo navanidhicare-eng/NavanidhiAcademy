@@ -1479,56 +1479,6 @@ export class DrizzleStorage implements IStorage {
         productSalesChart: []
       };
     }
-          eq(schema.attendance.date, today.toISOString().split('T')[0])
-        )
-      );
-
-    const attendanceData = todayAttendanceQuery[0];
-    const todayAttendance = attendanceData?.total > 0 
-      ? Math.round((attendanceData.present / attendanceData.total) * 100) 
-      : 0;
-
-    // Get product sales for this month
-    const productSalesQuery = await db.select({
-      amount: schema.productOrders.amount
-    }).from(schema.productOrders)
-      .where(
-        and(
-          eq(schema.productOrders.soCenterId, soCenterId),
-          gte(schema.productOrders.createdAt, thisMonth)
-        )
-      );
-
-    const thisMonthProductSales = productSalesQuery.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-
-    // Generate sample chart data
-    const collectionChart = Array.from({ length: 30 }, (_, i) => ({
-      day: i + 1,
-      collection: Math.floor(Math.random() * 5000) + 1000
-    }));
-
-    const attendanceChart = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
-      day,
-      attendance: Math.floor(Math.random() * 30) + 70
-    }));
-
-    const productSalesChart = [
-      { product: 'Books', sales: Math.floor(Math.random() * 15000) + 5000 },
-      { product: 'Stationery', sales: Math.floor(Math.random() * 8000) + 2000 },
-      { product: 'Digital', sales: Math.floor(Math.random() * 12000) + 3000 },
-      { product: 'Exam Prep', sales: Math.floor(Math.random() * 20000) + 8000 }
-    ];
-
-    return {
-      newStudentsThisMonth: parseInt(newStudentsThisMonth[0]?.count) || 0,
-      thisMonthCollection,
-      todayCollection,
-      todayAttendance,
-      thisMonthProductSales,
-      collectionChart,
-      attendanceChart,
-      productSalesChart
-    };
   }
 
   async getUnassignedManagers(): Promise<User[]> {
