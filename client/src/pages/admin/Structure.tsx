@@ -99,131 +99,8 @@ export default function AdminStructure() {
       subtitle="Build your academic hierarchy: Class → Subject → Chapter → Topic"
     >
       <div className="space-y-6">
-        {/* Progress Indicator */}
-        <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
-          <CardHeader>
-            <CardTitle className="text-lg">Academic Content Workflow</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-4">
-              <div className={`flex items-center space-x-2 ${selectedClass ? 'text-green-600' : 'text-gray-400'}`}>
-                {selectedClass ? <CheckCircle size={20} /> : <BookOpen size={20} />}
-                <span className="font-medium">1. Select Class</span>
-              </div>
-              <ArrowRight className="text-gray-400" size={16} />
-              <div className={`flex items-center space-x-2 ${selectedSubject ? 'text-green-600' : 'text-gray-400'}`}>
-                {selectedSubject ? <CheckCircle size={20} /> : <FileText size={20} />}
-                <span className="font-medium">2. Select Subject</span>
-              </div>
-              <ArrowRight className="text-gray-400" size={16} />
-              <div className={`flex items-center space-x-2 ${selectedChapter ? 'text-green-600' : 'text-gray-400'}`}>
-                {selectedChapter ? <CheckCircle size={20} /> : <List size={20} />}
-                <span className="font-medium">3. Add Content</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Step 1: Class Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <BookOpen size={20} />
-              <span>Step 1: Select Class</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label>Choose Class *</Label>
-                <Select 
-                  value={selectedClass} 
-                  onValueChange={(value) => {
-                    setSelectedClass(value);
-                    resetSelections(2);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a class to start building content" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classesLoading ? (
-                      <SelectItem value="loading" disabled>Loading classes...</SelectItem>
-                    ) : classes.length === 0 ? (
-                      <SelectItem value="no-classes" disabled>No classes found</SelectItem>
-                    ) : (
-                      classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              {selectedClass && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-700">
-                    ✅ Class selected: <strong>{getClassName(selectedClass)}</strong>
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Step 2: Subject Selection */}
-        {selectedClass && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <FileText size={20} />
-                <span>Step 2: Select Subject</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label>Choose Subject for {getClassName(selectedClass)} *</Label>
-                  <Select 
-                    value={selectedSubject} 
-                    onValueChange={(value) => {
-                      setSelectedSubject(value);
-                      resetSelections(3);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a subject assigned to this class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjectsLoading ? (
-                        <SelectItem value="loading" disabled>Loading subjects...</SelectItem>
-                      ) : filteredSubjects.length === 0 ? (
-                        <SelectItem value="no-subjects" disabled>No subjects found for this class</SelectItem>
-                      ) : (
-                        filteredSubjects.map((subject: any) => (
-                          <SelectItem key={subject.id} value={subject.id}>
-                            {subject.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {selectedSubject && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-700">
-                      ✅ Subject selected: <strong>{getSubjectName(selectedSubject)}</strong> for <strong>{getClassName(selectedClass)}</strong>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3: Content Management */}
-        {selectedSubject && (
+        {/* Content Management */}
+        {(
           <div className="grid gap-6 md:grid-cols-2">
             {/* Chapter Management */}
             <Card>
@@ -243,13 +120,13 @@ export default function AdminStructure() {
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {chaptersLoading ? (
                     <div className="text-center py-4">Loading chapters...</div>
-                  ) : filteredChapters.length === 0 ? (
+                  ) : chapters.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <List className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                       <p>No chapters found. Add your first chapter!</p>
                     </div>
                   ) : (
-                    filteredChapters.map((chapter: any) => (
+                    chapters.map((chapter: any) => (
                       <div 
                         key={chapter.id} 
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${
@@ -298,13 +175,13 @@ export default function AdminStructure() {
                   <div className="space-y-3 max-h-64 overflow-y-auto">
                     {topicsLoading ? (
                       <div className="text-center py-4">Loading topics...</div>
-                    ) : filteredTopics.length === 0 ? (
+                    ) : topics.filter((t: any) => t.chapterId === selectedChapter).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                         <p>No topics found for {getChapterName(selectedChapter)}. Add your first topic!</p>
                       </div>
                     ) : (
-                      filteredTopics.map((topic: any) => (
+                      topics.filter((t: any) => t.chapterId === selectedChapter).map((topic: any) => (
                         <div key={topic.id} className="p-3 border rounded-lg bg-white">
                           <div className="flex items-center justify-between">
                             <h3 className="font-medium">{topic.name}</h3>
@@ -331,26 +208,14 @@ export default function AdminStructure() {
         )}
 
         {/* Current Selection Summary */}
-        {(selectedClass || selectedSubject || selectedChapter) && (
+        {selectedChapter && (
           <Card className="bg-gray-50">
             <CardContent className="pt-6">
               <h3 className="font-medium mb-3">Current Selection:</h3>
               <div className="flex flex-wrap gap-2">
-                {selectedClass && (
-                  <Badge variant="outline" className="bg-blue-100">
-                    Class: {getClassName(selectedClass)}
-                  </Badge>
-                )}
-                {selectedSubject && (
-                  <Badge variant="outline" className="bg-green-100">
-                    Subject: {getSubjectName(selectedSubject)}
-                  </Badge>
-                )}
-                {selectedChapter && (
-                  <Badge variant="outline" className="bg-purple-100">
-                    Chapter: {getChapterName(selectedChapter)}
-                  </Badge>
-                )}
+                <Badge variant="outline" className="bg-purple-100">
+                  Chapter: {getChapterName(selectedChapter)}
+                </Badge>
               </div>
             </CardContent>
           </Card>
