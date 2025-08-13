@@ -1371,86 +1371,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      // Get comprehensive real progress data with tuition_progress table
-      const progressQuery = `
-        SELECT 
-          tp.id,
-          tp.status,
-          tp.completed_date,
-          t.id as topic_id,
-          t.name as topic_name,
-          t.is_moderate,
-          t.is_important,
-          c.id as chapter_id,
-          c.name as chapter_name,
-          s.id as subject_id,
-          s.name as subject_name,
-          tp.created_at,
-          tp.updated_at
-        FROM tuition_progress tp
-        JOIN topics t ON tp.topic_id = t.id
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects s ON c.subject_id = s.id
-        WHERE tp.student_id = $1
-        ORDER BY s.name, c.name, t.name
-      `;
+      console.log(`🔍 Fetching progress for student: ${student.name} (${student.id}), Class: ${student.classId}`);
 
-      // Get all topics for the student's class (including pending ones)
-      const allTopicsQuery = `
-        SELECT 
-          t.id as topic_id,
-          t.name as topic_name,
-          t.is_moderate,
-          t.is_important,
-          c.id as chapter_id,
-          c.name as chapter_name,
-          s.id as subject_id,
-          s.name as subject_name,
-          tp.status,
-          tp.completed_date
-        FROM topics t
-        JOIN chapters c ON t.chapter_id = c.id
-        JOIN subjects s ON c.subject_id = s.id
-        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1
-        WHERE s.class_id = $2 AND t.is_active = true
-        ORDER BY s.name, c.name, t.order_index, t.name
-      `;
+      // Get all topics for the student's class with their progress status using Drizzle
+      const allTopicsResults = await db
+        .select({
+          topic_id: schema.topics.id,
+          topic_name: schema.topics.name,
+          is_moderate: schema.topics.isModerate,
+          is_important: schema.topics.isImportant,
+          chapter_id: schema.chapters.id,
+          chapter_name: schema.chapters.name,
+          subject_id: schema.subjects.id,
+          subject_name: schema.subjects.name,
+          status: schema.tuitionProgress.status,
+          completed_date: schema.tuitionProgress.completedDate
+        })
+        .from(schema.topics)
+        .innerJoin(schema.chapters, eq(schema.topics.chapterId, schema.chapters.id))
+        .innerJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
+        .leftJoin(
+          schema.tuitionProgress, 
+          and(
+            eq(schema.tuitionProgress.topicId, schema.topics.id),
+            eq(schema.tuitionProgress.studentId, student.id)
+          )
+        )
+        .where(
+          and(
+            eq(schema.subjects.classId, student.classId || ""),
+            eq(schema.topics.isActive, true)
+          )
+        )
+        .orderBy(schema.subjects.name, schema.chapters.name, schema.topics.orderIndex, schema.topics.name);
 
-      // Get attendance for current and previous month
-      const attendanceQuery = `
-        SELECT 
-          date,
-          status
-        FROM attendance
-        WHERE student_id = $1 
-        AND date >= $2 
-        AND date <= CURRENT_DATE
-        ORDER BY date DESC
-      `;
+      console.log(`✅ Found ${allTopicsResults.length} topics for student's class`);
 
-      // Get recent exam results
-      const examResultsQuery = `
-        SELECT 
-          er.id,
-          er.marks_obtained,
-          er.answered_questions,
-          er.created_at,
-          e.title as exam_title,
-          e.total_marks,
-          e.exam_date,
-          e.description
-        FROM exam_results er
-        JOIN exams e ON er.exam_id = e.id
-        WHERE er.student_id = $1
-        ORDER BY e.exam_date DESC, er.created_at DESC
-        LIMIT 10
-      `;
+      // Get attendance data using Drizzle
+      const attendanceResults = await db
+        .select({
+          date: schema.attendance.date,
+          status: schema.attendance.status
+        })
+        .from(schema.attendance)
+        .where(
+          eq(schema.attendance.studentId, student.id)
+        )
+        .orderBy(desc(schema.attendance.date));
 
-      const [allTopicsResults, attendanceResults, examResults] = await Promise.all([
-        executeRawQuery(allTopicsQuery, [student.id, student.classId]),
-        executeRawQuery(attendanceQuery, [student.id, previousMonthStart.toISOString().split('T')[0]]),
-        executeRawQuery(examResultsQuery, [student.id])
-      ]);
+      console.log(`✅ Found ${attendanceResults.length} attendance records`);
+
+      // Get exam results using Drizzle
+      const examResults = await db
+        .select({
+          id: schema.examResults.id,
+          marks_obtained: schema.examResults.marksObtained,
+          answered_questions: schema.examResults.answeredQuestions,
+          created_at: schema.examResults.createdAt,
+          exam_title: schema.exams.title,
+          total_marks: schema.exams.totalMarks,
+          exam_date: schema.exams.examDate,
+          description: schema.exams.description
+        })
+        .from(schema.examResults)
+        .innerJoin(schema.exams, eq(schema.examResults.examId, schema.exams.id))
+        .where(eq(schema.examResults.studentId, student.id))
+        .orderBy(desc(schema.exams.examDate), desc(schema.examResults.createdAt))
+        .limit(10);
+
+      console.log(`✅ Found ${examResults.length} exam results`);
 
       // Process attendance data
       const currentMonthAttendance = attendanceResults.filter(a => 
@@ -1532,7 +1521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         student: {
           id: student.id,
           name: student.name,
-          className: student.className,
+          className: student.classId,
           studentId: student.studentId
         },
         progressStats: {
