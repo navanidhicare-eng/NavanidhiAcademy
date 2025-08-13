@@ -1880,6 +1880,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Consolidated location data endpoint
+  app.get("/api/locations/all", authenticateToken, async (req, res) => {
+    try {
+      const [states, districts, mandals, villages] = await Promise.all([
+        storage.getAllStates(),
+        storage.getAllDistricts(),
+        storage.getAllMandals(),
+        storage.getAllVillages()
+      ]);
+
+      res.json({
+        states,
+        districts,
+        mandals,
+        villages,
+      });
+    } catch (error) {
+      console.error('Error fetching location data:', error);
+      res.status(500).json({ message: 'Error fetching location data', error: error.message });
+    }
+  });
+
   // Address hierarchy endpoints
   app.get("/api/admin/addresses/states", authenticateToken, async (req, res) => {
     try {
