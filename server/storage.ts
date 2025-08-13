@@ -1485,9 +1485,46 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteSoCenter(id: string): Promise<void> {
-    await db.update(schema.soCenters)
-      .set({ isActive: false })
-      .where(eq(schema.soCenters.id, id));
+    return await db.transaction(async (tx) => {
+      // Get SO Center details first
+      const [soCenter] = await tx.select()
+        .from(schema.soCenters)
+        .where(eq(schema.soCenters.id, id));
+
+      if (!soCenter) {
+        throw new Error('SO Center not found');
+      }
+
+      // Check if SO Center has any active students
+      const students = await tx.select()
+        .from(schema.students)
+        .where(and(
+          eq(schema.students.soCenterId, id),
+          eq(schema.students.isActive, true)
+        ));
+
+      if (students.length > 0) {
+        throw new Error(`Cannot delete SO Center with ${students.length} active students. Please transfer or deactivate students first.`);
+      }
+
+      // Delete related data first
+      await tx.delete(schema.nearbySchools).where(eq(schema.nearbySchools.soCenterId, id));
+      await tx.delete(schema.nearbyTuitions).where(eq(schema.nearbyTuitions.soCenterId, id));
+      await tx.delete(schema.soCenterEquipment).where(eq(schema.soCenterEquipment.soCenterId, id));
+
+      // Delete wallet transactions
+      await tx.delete(schema.walletTransactions).where(eq(schema.walletTransactions.soCenterId, id));
+
+      // Delete the SO Center record completely
+      await tx.delete(schema.soCenters).where(eq(schema.soCenters.id, id));
+
+      // Delete associated user account if exists
+      if (soCenter.email) {
+        await tx.delete(schema.users).where(eq(schema.users.email, soCenter.email));
+      }
+
+      console.log('✅ SO Center deleted permanently:', soCenter.centerId);
+    });
   }
 
   async deleteSoCenterByUserId(userId: string): Promise<void> {

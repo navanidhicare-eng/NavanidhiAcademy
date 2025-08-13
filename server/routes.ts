@@ -3285,11 +3285,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      await storage.deleteSoCenter(req.params.id);
+
+      const centerId = req.params.id;
+      console.log('🗑️ Admin attempting to delete SO Center:', centerId);
+
+      await storage.deleteSoCenter(centerId);
+      
+      console.log('✅ SO Center deletion completed successfully');
       res.json({ message: 'SO Center deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting SO Center:', error);
-      res.status(500).json({ message: 'Failed to delete SO Center' });
+    } catch (error: any) {
+      console.error('❌ Error deleting SO Center:', error);
+      
+      // Provide specific error messages
+      if (error.message.includes('active students')) {
+        res.status(400).json({ message: error.message });
+      } else if (error.message.includes('not found')) {
+        res.status(404).json({ message: 'SO Center not found' });
+      } else {
+        res.status(500).json({ message: 'Failed to delete SO Center' });
+      }
     }
   });
 

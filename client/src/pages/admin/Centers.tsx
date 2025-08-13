@@ -31,11 +31,11 @@ export default function AdminCenters() {
   const queryClient = useQueryClient();
 
   // Fetch real SO Centers data from API
-  const { data: centers = [], isLoading } = useQuery({
+  const { data: centers = [], isLoading, refetch: refetchCenters } = useQuery({
     queryKey: ['/api/admin/so-centers'],
   });
 
-  // Delete center mutation
+  // Delete center mutation (This mutation is not used in the handleDeleteCenter, but kept for completeness)
   const deleteCenterMutation = useMutation({
     mutationFn: async (id: string) => {
       return apiRequest('DELETE', `/api/admin/so-centers/${id}`);
@@ -74,15 +74,40 @@ export default function AdminCenters() {
     setEditingCenter(center);
   };
 
-  const handleDeleteCenter = (center: any) => {
-    const confirmation = prompt('Please type "Navanidhi Academy" to confirm deletion:');
-    if (confirmation === 'Navanidhi Academy') {
-      deleteCenterMutation.mutate(center.id);
-    } else if (confirmation !== null) {
+  // Updated handleDeleteCenter function
+  const handleDeleteCenter = async (centerId: string) => {
+    const center = centers.find(c => c.id === centerId);
+    const centerName = center?.name || 'this SO Center';
+
+    if (!confirm(`Are you sure you want to permanently delete "${centerName}"?\n\nThis action cannot be undone and will:\n- Remove all SO Center data\n- Delete associated user account\n- Remove related records\n\nNote: SO Centers with active students cannot be deleted.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/so-centers/${centerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `SO Center "${centerName}" deleted successfully`,
+        });
+        refetchCenters();
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete SO Center');
+      }
+    } catch (error: any) {
+      console.error('Error deleting SO Center:', error);
       toast({
-        title: 'Deletion Cancelled',
-        description: 'Incorrect confirmation text. Deletion cancelled.',
-        variant: 'destructive',
+        title: "Delete Failed",
+        description: error.message || "Failed to delete SO Center",
+        variant: "destructive",
       });
     }
   };
@@ -162,7 +187,7 @@ export default function AdminCenters() {
                             {center.isActive ? 'ACTIVE' : 'INACTIVE'}
                           </Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                           <div className="flex items-center space-x-2">
                             <MapPin size={16} className="text-gray-400" />
@@ -198,7 +223,7 @@ export default function AdminCenters() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex space-x-2">
                       <Button 
                         variant="ghost" 
@@ -219,7 +244,7 @@ export default function AdminCenters() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => handleDeleteCenter(center)}
+                        onClick={() => handleDeleteCenter(center.id)}
                         disabled={deleteCenterMutation.isPending}
                         className="hover:bg-red-50"
                       >
@@ -230,7 +255,7 @@ export default function AdminCenters() {
                 </CardContent>
               </Card>
             ))}
-            
+
             {filteredCenters.length === 0 && (
               <Card>
                 <CardContent className="p-8 text-center">
@@ -242,7 +267,7 @@ export default function AdminCenters() {
           </div>
         )}
       </div>
-      
+
       <AddSoCenterModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)}
@@ -266,7 +291,7 @@ export default function AdminCenters() {
               Complete information about {selectedCenter?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedCenter && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-6">
@@ -280,7 +305,7 @@ export default function AdminCenters() {
                     <p><span className="font-medium">Address:</span> {selectedCenter.address || 'N/A'}</p>
                   </div>
                 </div>
-                
+
                 <div>
                   <h3 className="font-semibold mb-3">Financial Information</h3>
                   <div className="space-y-2 text-sm">
@@ -297,7 +322,7 @@ export default function AdminCenters() {
                   </div>
                 </div>
               </div>
-              
+
               {(selectedCenter.ownerName || selectedCenter.owner_name) && (
                 <div>
                   <h3 className="font-semibold mb-3">Property Owner Information</h3>
