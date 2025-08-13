@@ -35,7 +35,7 @@ export default function ClassSubjectManagement() {
   });
 
   // Filter subjects based on selected class for viewing
-  const filteredSubjects = selectedClassForView 
+  const filteredSubjects = selectedClassForView && selectedClassForView !== 'all'
     ? allSubjects.filter((subject: any) => subject.classId === selectedClassForView)
     : allSubjects;
 
@@ -263,7 +263,7 @@ export default function ClassSubjectManagement() {
                       <SelectValue placeholder="Select class to filter" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Classes</SelectItem>
+                      <SelectItem value="all">All Classes</SelectItem>
                       {classes.map((cls: any) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
@@ -280,7 +280,7 @@ export default function ClassSubjectManagement() {
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>
-                      {selectedClassForView 
+                      {selectedClassForView && selectedClassForView !== 'all'
                         ? `No subjects found for ${getClassName(selectedClassForView)}` 
                         : "No subjects found. Add your first subject!"
                       }
