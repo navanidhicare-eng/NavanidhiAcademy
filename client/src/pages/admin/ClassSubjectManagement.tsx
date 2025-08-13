@@ -31,6 +31,12 @@ export default function ClassSubjectManagement() {
   const [editSubjectName, setEditSubjectName] = useState('');
   const [editSelectedClass, setEditSelectedClass] = useState('');
 
+  // States for editing class
+  const [isEditClassModalOpen, setIsEditClassModalOpen] = useState(false);
+  const [editingClass, setEditingClass] = useState<any>(null);
+  const [editClassName, setEditClassName] = useState('');
+  const [editClassDescription, setEditClassDescription] = useState('');
+
   // Fetch classes and subjects
   const { data: classes = [], isLoading: classesLoading } = useQuery({
     queryKey: ['/api/classes'],
@@ -121,6 +127,76 @@ export default function ClassSubjectManagement() {
     },
   });
 
+  // Edit class mutation
+  const editClassMutation = useMutation({
+    mutationFn: async (classData: { id: string; name: string; description: string }) => {
+      return apiRequest('PUT', `/api/admin/classes/${classData.id}`, {
+        name: classData.name,
+        description: classData.description
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: `Class "${editClassName}" updated successfully`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
+      setIsEditClassModalOpen(false);
+      setEditingClass(null);
+      setEditClassName('');
+      setEditClassDescription('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update class',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete class mutation
+  const deleteClassMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/classes/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Class deleted successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/classes'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete class',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Delete subject mutation
+  const deleteSubjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/admin/subjects/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Subject deleted successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subjects'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete subject',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleAddClass = () => {
     if (!newClassName.trim()) {
       toast({
@@ -174,6 +250,30 @@ export default function ClassSubjectManagement() {
       id: editingSubject.id,
       name: editSubjectName.trim(),
       classId: editSelectedClass,
+    });
+  };
+
+  const handleEditClass = (cls: any) => {
+    setEditingClass(cls);
+    setEditClassName(cls.name);
+    setEditClassDescription(cls.description || '');
+    setIsEditClassModalOpen(true);
+  };
+
+  const handleUpdateClass = () => {
+    if (!editClassName.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter class name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    editClassMutation.mutate({
+      id: editingClass.id,
+      name: editClassName.trim(),
+      description: editClassDescription.trim(),
     });
   };
 
@@ -248,11 +348,34 @@ export default function ClassSubjectManagement() {
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {classes.map((cls: any) => (
-                      <div key={cls.id} className="p-3 border rounded-lg">
-                        <h3 className="font-semibold">{cls.name}</h3>
-                        {cls.description && (
-                          <p className="text-sm text-gray-600">{cls.description}</p>
-                        )}
+                      <div key={cls.id} className="p-3 border rounded-lg flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">{cls.name}</h3>
+                          {cls.description && (
+                            <p className="text-sm text-gray-600">{cls.description}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClass(cls)}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this class?')) {
+                                deleteClassMutation.mutate(cls.id);
+                              }
+                            }}
+                            disabled={deleteClassMutation.isPending}
+                          >
+                            <ArrowRightLeft className="w-4 h-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -389,9 +512,20 @@ export default function ClassSubjectManagement() {
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                               </svg>
                             </div>
-                            <div className="text-gray-500 hover:text-blue-600">
-                              <Edit2 className="w-4 h-4" />
-                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this subject?')) {
+                                  deleteSubjectMutation.mutate(subject.id);
+                                }
+                              }}
+                              disabled={deleteSubjectMutation.isPending}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <ArrowRightLeft className="w-4 h-4" />
+                            </Button>
                           </div>
                         </div>
                         <div className="mt-2 text-xs text-gray-500 bg-yellow-50 px-2 py-1 rounded flex items-center">
@@ -443,6 +577,41 @@ export default function ClassSubjectManagement() {
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdateSubject} disabled={editSubjectMutation.isPending}>
               {editSubjectMutation.isPending ? 'Updating...' : 'Update Subject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Class Modal */}
+      <Dialog open={isEditClassModalOpen} onOpenChange={setIsEditClassModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Class: {editingClass?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="editClassName">Class Name *</Label>
+              <Input
+                id="editClassName"
+                value={editClassName}
+                onChange={(e) => setEditClassName(e.target.value)}
+                placeholder="e.g., Class 10, Grade 5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="editClassDescription">Description</Label>
+              <Input
+                id="editClassDescription"
+                value={editClassDescription}
+                onChange={(e) => setEditClassDescription(e.target.value)}
+                placeholder="Optional description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditClassModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateClass} disabled={editClassMutation.isPending}>
+              {editClassMutation.isPending ? 'Updating...' : 'Update Class'}
             </Button>
           </DialogFooter>
         </DialogContent>
