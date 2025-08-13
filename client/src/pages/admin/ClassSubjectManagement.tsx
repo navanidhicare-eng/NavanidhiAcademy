@@ -23,15 +23,21 @@ export default function ClassSubjectManagement() {
   // States for adding subject
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedClassForSubject, setSelectedClassForSubject] = useState('');
+  const [selectedClassForView, setSelectedClassForView] = useState('');
 
   // Fetch classes and subjects
   const { data: classes = [], isLoading: classesLoading } = useQuery({
     queryKey: ['/api/classes'],
   });
 
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+  const { data: allSubjects = [], isLoading: subjectsLoading } = useQuery({
     queryKey: ['/api/admin/subjects'],
   });
+
+  // Filter subjects based on selected class for viewing
+  const filteredSubjects = selectedClassForView 
+    ? allSubjects.filter((subject: any) => subject.classId === selectedClassForView)
+    : allSubjects;
 
   // Add class mutation
   const addClassMutation = useMutation({
@@ -250,19 +256,39 @@ export default function ClassSubjectManagement() {
             {/* Existing Subjects List */}
             <Card>
               <CardHeader>
-                <CardTitle>Existing Subjects</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Existing Subjects</span>
+                  <Select value={selectedClassForView} onValueChange={setSelectedClassForView}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select class to filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Classes</SelectItem>
+                      {classes.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {subjectsLoading ? (
                   <div className="text-center py-4">Loading subjects...</div>
-                ) : subjects.length === 0 ? (
+                ) : filteredSubjects.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>No subjects found. Add your first subject!</p>
+                    <p>
+                      {selectedClassForView 
+                        ? `No subjects found for ${getClassName(selectedClassForView)}` 
+                        : "No subjects found. Add your first subject!"
+                      }
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {subjects.map((subject: any) => (
+                    {filteredSubjects.map((subject: any) => (
                       <div key={subject.id} className="p-3 border rounded-lg">
                         <h3 className="font-semibold">{subject.name}</h3>
                         <p className="text-sm text-blue-600">
