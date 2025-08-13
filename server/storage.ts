@@ -1376,7 +1376,7 @@ export class DrizzleStorage implements IStorage {
 
       // Get payments with raw SQL to avoid stack overflow
       const paymentsResult = await sql`
-        SELECT p.amount, p.created_at, p.date
+        SELECT p.amount, p.created_at
         FROM payments p
         INNER JOIN students s ON p.student_id = s.id
         WHERE s.so_center_id = ${soCenterId}
