@@ -1411,40 +1411,89 @@ export class DrizzleStorage implements IStorage {
         ? Math.round((parseInt(attendanceResult.present) / parseInt(attendanceResult.total)) * 100)
         : 0;
 
-      // Generate mock product sales for now
-      const thisMonthProductSales = Math.floor(Math.random() * 50000) + 10000;
+      // Get real product sales data from orders/transactions
+      const productSalesResult = await sql`
+        SELECT COALESCE(SUM(po.amount::numeric), 0) as total_sales
+        FROM product_orders po
+        WHERE po.so_center_id = ${soCenterId}
+        AND po.created_at >= ${thisMonth.toISOString()}
+      `;
 
-      // Generate chart data
+      const thisMonthProductSales = parseFloat(productSalesResult[0]?.total_sales || '0');
+
+      // Get real last 7 days collection data
       const collectionChart = [];
-      const attendanceChart = [];
-      const productSalesChart = [];
-
-      // Last 7 days collection
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
+        const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+        const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).toISOString();
+
+        const [dayCollection] = await sql`
+          SELECT COALESCE(SUM(p.amount::numeric), 0) as daily_collection
+          FROM payments p
+          INNER JOIN students s ON p.student_id = s.id
+          WHERE s.so_center_id = ${soCenterId}
+          AND p.created_at >= ${startOfDay}
+          AND p.created_at < ${endOfDay}
+        `;
+
         collectionChart.push({
           day: date.getDate(),
-          collection: Math.floor(Math.random() * 5000) + 1000
+          collection: parseFloat(dayCollection?.daily_collection || '0')
         });
       }
 
-      // Last 7 days attendance
+      // Get real last 7 days attendance data
+      const attendanceChart = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        const [dayAttendance] = await sql`
+          SELECT 
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present,
+            COUNT(*) as total
+          FROM attendance a
+          INNER JOIN students s ON a.student_id = s.id
+          WHERE s.so_center_id = ${soCenterId}
+          AND a.date = ${dateStr}
+        `;
+
+        const attendancePercentage = parseInt(dayAttendance?.total || '0') > 0 
+          ? Math.round((parseInt(dayAttendance.present || '0') / parseInt(dayAttendance.total || '1')) * 100)
+          : 0;
+
         attendanceChart.push({
           day: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()],
-          attendance: Math.floor(Math.random() * 30) + 70
+          attendance: attendancePercentage
         });
       }
 
-      // Product sales chart
-      productSalesChart.push(
-        { product: 'Books', sales: Math.floor(Math.random() * 15000) + 5000 },
-        { product: 'Stationery', sales: Math.floor(Math.random() * 10000) + 3000 },
-        { product: 'Exam Prep', sales: Math.floor(Math.random() * 20000) + 8000 }
-      );
+      // Get real product sales breakdown by category
+      const productSalesBreakdown = await sql`
+        SELECT 
+          po.product_category,
+          COALESCE(SUM(po.amount::numeric), 0) as category_sales
+        FROM product_orders po
+        WHERE po.so_center_id = ${soCenterId}
+        AND po.created_at >= ${thisMonth.toISOString()}
+        GROUP BY po.product_category
+        ORDER BY category_sales DESC
+      `;
+
+      const productSalesChart = productSalesBreakdown.length > 0 
+        ? productSalesBreakdown.map(item => ({
+            product: item.product_category || 'Other',
+            sales: parseFloat(item.category_sales || '0')
+          }))
+        : [
+            { product: 'Books', sales: 0 },
+            { product: 'Stationery', sales: 0 },
+            { product: 'Digital Content', sales: 0 },
+            { product: 'Exam Prep', sales: 0 }
+          ];
 
       const stats = {
         newStudentsThisMonth,
@@ -1457,11 +1506,15 @@ export class DrizzleStorage implements IStorage {
         productSalesChart
       };
 
-      console.log('✅ SO Center dashboard stats calculated successfully:', {
+      console.log('✅ SO Center dashboard stats calculated with real data:', {
         newStudentsThisMonth,
         thisMonthCollection,
         todayCollection,
-        todayAttendance
+        todayAttendance,
+        thisMonthProductSales,
+        collectionChartDays: collectionChart.length,
+        attendanceChartDays: attendanceChart.length,
+        productCategories: productSalesChart.length
       });
 
       return stats;
