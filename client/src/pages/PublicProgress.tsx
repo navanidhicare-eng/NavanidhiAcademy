@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRoute } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GraduationCap, CheckCircle, Clock, MessageSquare, Shield, Calendar, Award, Target, BookOpen, Users, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
 export default function PublicProgress() {
   const [, params] = useRoute('/progress/:qrCode');
@@ -18,6 +19,10 @@ export default function PublicProgress() {
     },
     enabled: !!qrCode,
   });
+
+  // State for dropdown selections
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedExam, setSelectedExam] = useState('');
 
   if (isLoading) {
     return (
@@ -59,335 +64,283 @@ export default function PublicProgress() {
     overallProgress: 0
   };
 
+  // Helper to get pending topics for a selected subject
+  const getPendingTopicsForSubject = () => {
+    if (!selectedSubject) return [];
+    const subject = subjectProgress.find(subj => subj.name === selectedSubject);
+    return subject?.pendingTopics || [];
+  };
+
+  // Helper to get details of the selected exam
+  const getSelectedExamResult = () => {
+    return examResults.find(exam => exam.examTitle === selectedExam);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-emerald-800 to-teal-700">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header with enhanced design */}
-          <div className="text-center mb-8">
-            <div className="relative mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg">
-                <GraduationCap className="text-white text-3xl" size={40} />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Student Header */}
+        <Card className="overflow-hidden shadow-xl border-0">
+          <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold">
+                  {getInitials(student.name)}
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">{student.name}</h1>
+                  <p className="text-green-100">
+                    Student ID: {student.studentId} • Class: {student.className}
+                  </p>
+                </div>
               </div>
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
+              <div className="text-right">
+                <Shield className="w-8 h-8 mb-2" />
+                <p className="text-sm text-green-100">Navanidhi Academy</p>
+              </div>
             </div>
-            <h1 className="text-4xl font-bold text-white mb-3">Student Progress Report</h1>
-            <p className="text-gray-200 text-lg">Real-time academic progress tracking powered by Navanidhi Academy</p>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Attendance Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                  Attendance Record
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Last Month Attendance */}
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <h3 className="font-semibold text-blue-800 mb-2">Last Month ({attendance?.previousMonth?.monthName})</h3>
+                  <div className="flex justify-between items-center">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-600">{attendance?.previousMonth?.present || 0}</div>
+                      <div className="text-sm text-blue-600">Present Days</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">{attendance?.previousMonth?.absent || 0}</div>
+                      <div className="text-sm text-red-600">Absent Days</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-600">{attendance?.previousMonth?.total || 0}</div>
+                      <div className="text-sm text-gray-600">Total Days</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Current Month Attendance */}
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <h3 className="font-semibold text-green-800 mb-2">This Month ({attendance?.currentMonth?.monthName})</h3>
+                  <div className="flex justify-between items-center">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{attendance?.currentMonth?.present || 0}</div>
+                      <div className="text-sm text-green-600">Present Days</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-red-600">{attendance?.currentMonth?.absent || 0}</div>
+                      <div className="text-sm text-red-600">Absent Days</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-600">{attendance?.currentMonth?.total || 0}</div>
+                      <div className="text-sm text-gray-600">Total Days</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Topics Progress Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-green-600" />
+                  Topics Progress
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Overall Stats */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{totalTopics}</div>
+                    <div className="text-sm text-green-600">Total Topics</div>
+                  </div>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{completedTopics}</div>
+                    <div className="text-sm text-blue-600">Completed</div>
+                  </div>
+                  <div className="text-center p-3 bg-orange-50 rounded-lg">
+                    <div className="text-2xl font-bold text-orange-600">{pendingTopics}</div>
+                    <div className="text-sm text-orange-600">Pending</div>
+                  </div>
+                </div>
+
+                {/* Pending Topics Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    View Pending Topics by Subject:
+                  </label>
+                  <select 
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjectProgress.map((subject) => (
+                      <option key={subject.id} value={subject.name}>
+                        {subject.name} ({subject.pendingTopics?.length || 0} pending)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Show Pending Topics */}
+                {selectedSubject && (
+                  <div className="mt-4">
+                    <h4 className="font-medium text-gray-800 mb-2">Pending Topics in {selectedSubject}:</h4>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {getPendingTopicsForSubject().map((topic, index) => (
+                        <div key={index} className="p-3 bg-orange-50 rounded-md border-l-4 border-orange-400">
+                          <div className="font-medium text-orange-800">{topic.name}</div>
+                          <div className="text-sm text-orange-600">Chapter: {topic.chapterName}</div>
+                          {topic.isImportant && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-1">
+                              Important
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Enhanced Student Info Card */}
-          <Card className="mb-8 shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
-            <CardContent className="p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-6">
-                  <div className="relative">
-                    <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white font-bold text-2xl">
-                        {getInitials(student.name)}
-                      </span>
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                      <CheckCircle size={14} className="text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h2 className="text-3xl font-bold text-gray-900 mb-1">{student.name}</h2>
-                    <p className="text-gray-600 font-medium">{student.className || 'Academic Student'}</p>
-                    <p className="text-sm text-gray-500 mt-1 flex items-center">
-                      <Clock size={14} className="mr-1" />
-                      ID: {student.studentId} • Last updated: {new Date().toLocaleDateString()}
-                    </p>
-                  </div>
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Exam Results Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-green-600" />
+                  Exam Results
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Exam Selection Dropdown */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Exam:
+                  </label>
+                  <select 
+                    value={selectedExam}
+                    onChange={(e) => setSelectedExam(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  >
+                    <option value="">Select Exam</option>
+                    {examResults.map((exam, index) => (
+                      <option key={index} value={exam.examTitle}>
+                        {exam.examTitle} - {exam.percentage}%
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="text-right">
-                  <div className="relative">
-                    <div className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                      {overallProgress}%
-                    </div>
-                    <p className="text-gray-600 font-medium">Overall Progress</p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Enhanced Progress Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center p-6 bg-gradient-to-br from-green-100 to-emerald-100 border border-green-200 rounded-xl shadow-sm">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <CheckCircle className="text-white" size={24} />
+                {/* Show Selected Exam Details */}
+                {selectedExam && getSelectedExamResult() && (
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <h4 className="font-semibold text-blue-800 mb-3">{getSelectedExamResult().examTitle}</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 bg-white rounded-md">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {getSelectedExamResult().marksObtained}
+                        </div>
+                        <div className="text-sm text-blue-600">Marks Obtained</div>
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-md">
+                        <div className="text-2xl font-bold text-gray-600">
+                          {getSelectedExamResult().totalMarks}
+                        </div>
+                        <div className="text-sm text-gray-600">Total Marks</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 p-3 bg-white rounded-md text-center">
+                      <div className="text-3xl font-bold text-green-600">
+                        {getSelectedExamResult().percentage}%
+                      </div>
+                      <div className="text-sm text-green-600">Percentage</div>
+                    </div>
+                    {getSelectedExamResult().examDate && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        Exam Date: {new Date(getSelectedExamResult().examDate).toLocaleDateString()}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-3xl font-bold text-green-700 mb-1">{completedTopics}</div>
-                  <p className="text-gray-700 font-medium">Topics Completed</p>
-                </div>
-                <div className="text-center p-6 bg-gradient-to-br from-orange-100 to-yellow-100 border border-orange-200 rounded-xl shadow-sm">
-                  <div className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Clock className="text-white" size={24} />
-                  </div>
-                  <div className="text-3xl font-bold text-orange-700 mb-1">{pendingTopics}</div>
-                  <p className="text-gray-700 font-medium">Topics Pending</p>
-                </div>
-                <div className="text-center p-6 bg-gradient-to-br from-blue-100 to-indigo-100 border border-blue-200 rounded-xl shadow-sm">
-                  <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <GraduationCap className="text-white" size={24} />
-                  </div>
-                  <div className="text-3xl font-bold text-blue-700 mb-1">{totalTopics}</div>
-                  <p className="text-gray-700 font-medium">Total Topics</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                )}
 
-          {/* Attendance Section */}
-          {attendance && (
-            <Card className="mb-8 shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                    <Calendar className="text-white" size={20} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Attendance Record</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Current Month */}
-                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-                      <TrendingUp size={18} className="mr-2" />
-                      {attendance.currentMonth.monthName}
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Present Days</span>
-                        <span className="font-bold text-green-600 text-lg">{attendance.currentMonth.present}</span>
+                {/* All Exam Results List */}
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-2">All Exam Results:</h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {examResults.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        No exam results available
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Absent Days</span>
-                        <span className="font-bold text-red-600 text-lg">{attendance.currentMonth.absent}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-t pt-2">
-                        <span className="text-gray-700 font-medium">Total Days</span>
-                        <span className="font-bold text-blue-600 text-lg">{attendance.currentMonth.total}</span>
-                      </div>
-                      {attendance.currentMonth.total > 0 && (
-                        <div className="mt-3">
-                          <div className="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Attendance Rate</span>
-                            <span>{Math.round((attendance.currentMonth.present / attendance.currentMonth.total) * 100)}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300" 
-                              style={{width: `${(attendance.currentMonth.present / attendance.currentMonth.total) * 100}%`}}
-                            ></div>
+                    ) : (
+                      examResults.map((exam, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded-md border">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="font-medium text-gray-800">{exam.examTitle}</div>
+                              <div className="text-sm text-gray-600">
+                                {exam.marksObtained}/{exam.totalMarks} marks
+                              </div>
+                              {exam.examDate && (
+                                <div className="text-xs text-gray-500">
+                                  {new Date(exam.examDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className={`text-lg font-bold ${
+                                exam.percentage >= 80 ? 'text-green-600' :
+                                exam.percentage >= 60 ? 'text-blue-600' :
+                                exam.percentage >= 35 ? 'text-orange-600' : 'text-red-600'
+                              }`}>
+                                {exam.percentage}%
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Previous Month */}
-                  <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                      <Calendar size={18} className="mr-2" />
-                      {attendance.previousMonth.monthName}
-                    </h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Present Days</span>
-                        <span className="font-bold text-green-600 text-lg">{attendance.previousMonth.present}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-700">Absent Days</span>
-                        <span className="font-bold text-red-600 text-lg">{attendance.previousMonth.absent}</span>
-                      </div>
-                      <div className="flex justify-between items-center border-t pt-2">
-                        <span className="text-gray-700 font-medium">Total Days</span>
-                        <span className="font-bold text-gray-600 text-lg">{attendance.previousMonth.total}</span>
-                      </div>
-                      {attendance.previousMonth.total > 0 && (
-                        <div className="mt-3">
-                          <div className="flex justify-between text-sm text-gray-600 mb-1">
-                            <span>Attendance Rate</span>
-                            <span>{Math.round((attendance.previousMonth.present / attendance.previousMonth.total) * 100)}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-gradient-to-r from-gray-500 to-slate-500 h-2 rounded-full transition-all duration-300" 
-                              style={{width: `${(attendance.previousMonth.present / attendance.previousMonth.total) * 100}%`}}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {/* Exam Results Section */}
-          {examResults.length > 0 && (
-            <Card className="mb-8 shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                    <Award className="text-white" size={20} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Recent Exam Results</h3>
-                </div>
-                
-                <div className="space-y-4">
-                  {examResults.slice(0, 5).map((exam: any) => (
-                    <div key={exam.id} className="border border-gray-200 rounded-lg p-4 bg-gradient-to-r from-purple-50 to-pink-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-900 text-lg">{exam.examTitle}</h4>
-                        <div className="flex items-center space-x-3">
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            exam.percentage >= 80 ? 'bg-green-100 text-green-800' :
-                            exam.percentage >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {exam.percentage}%
-                          </span>
-                          <span className="text-gray-600 text-sm">
-                            {exam.marksObtained}/{exam.totalMarks}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <span>Exam Date: {new Date(exam.examDate).toLocaleDateString()}</span>
-                        <span className="capitalize">Status: {exam.answeredQuestions.replace('_', ' ')}</span>
-                      </div>
-                      {exam.description && (
-                        <p className="text-sm text-gray-600 mt-2">{exam.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Subject-wise Progress Sections */}
-          {subjectProgress.length > 0 && (
-            <div className="space-y-6">
-              {subjectProgress.map((subject: any) => (
-                <Card key={subject.id} className="shadow-xl border-0 bg-white/95 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                        <BookOpen className="text-white" size={20} />
-                      </div>
-                      <h3 className="text-2xl font-bold text-gray-900">{subject.name}</h3>
-                      <div className="ml-auto flex items-center space-x-4">
-                        <span className="text-sm text-gray-600">
-                          {subject.completedTopics.length} completed, {subject.pendingTopics.length} pending
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Completed Topics Section */}
-                    {subject.completedTopics.length > 0 && (
-                      <div className="mb-8">
-                        <h4 className="text-lg font-semibold text-green-700 mb-4 flex items-center">
-                          <CheckCircle size={18} className="mr-2" />
-                          Completed Topics ({subject.completedTopics.length})
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {subject.completedTopics.map((topic: any) => (
-                            <div key={topic.id} className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="font-medium text-green-800">{topic.name}</span>
-                                  <p className="text-xs text-green-600 mt-1">{topic.chapterName}</p>
-                                  {topic.completedDate && (
-                                    <p className="text-xs text-gray-500 mt-1">
-                                      Completed: {new Date(topic.completedDate).toLocaleDateString()}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  {topic.isImportant && (
-                                    <Target size={14} className="text-red-500" title="Important Topic" />
-                                  )}
-                                  {topic.isModerate && (
-                                    <Users size={14} className="text-yellow-500" title="Moderate Difficulty" />
-                                  )}
-                                  <CheckCircle className="text-green-500" size={16} />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Pending Topics Section */}
-                    {subject.pendingTopics.length > 0 && (
-                      <div>
-                        <h4 className="text-lg font-semibold text-orange-700 mb-4 flex items-center">
-                          <Clock size={18} className="mr-2" />
-                          Pending Topics ({subject.pendingTopics.length})
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          {subject.pendingTopics.map((topic: any) => (
-                            <div key={topic.id} className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <span className="font-medium text-orange-800">{topic.name}</span>
-                                  <p className="text-xs text-orange-600 mt-1">{topic.chapterName}</p>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  {topic.isImportant && (
-                                    <Target size={14} className="text-red-500" title="Important Topic" />
-                                  )}
-                                  {topic.isModerate && (
-                                    <Users size={14} className="text-yellow-500" title="Moderate Difficulty" />
-                                  )}
-                                  <Clock className="text-orange-500" size={16} />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Enhanced Footer */}
-          <div className="text-center mt-12 py-8">
-            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center mr-3">
-                  <Shield className="text-white" size={16} />
-                </div>
-                <p className="text-gray-700 font-medium text-lg">
-                  Powered by Navanidhi Academy - Real-time Progress Tracking
-                </p>
-              </div>
-              <p className="text-gray-600 mb-3">
-                This progress report is automatically updated as your child learns new topics
-              </p>
-              <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                  Secure & Private
-                </span>
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                  Real-time Updates
-                </span>
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
-                  Parent Access
-                </span>
-              </div>
-            </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <Card className="text-center p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <div className="flex items-center justify-center space-x-2 mb-2">
+            <Shield className="w-5 h-5 text-green-600" />
+            <span className="font-semibold text-green-800">Navanidhi Academy</span>
+          </div>
+          <p className="text-sm text-green-700">
+            Empowering students through quality education and continuous progress tracking
+          </p>
+          <div className="mt-4 flex items-center justify-center space-x-4 text-xs text-green-600">
+            <span>📊 Real-time Progress</span>
+            <span>🏆 Performance Tracking</span>
+            <span>📱 Mobile Friendly</span>
+          </div>
+        </Card>
       </div>
     </div>
   );
