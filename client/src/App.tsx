@@ -24,8 +24,8 @@ import StudentsAdmin from "@/pages/StudentsAdmin";
 import AdminUsers from "@/pages/admin/Users";
 import AdminRoles from "@/pages/admin/Roles";
 import AdminAddresses from "@/pages/admin/Addresses";
-import AdminStructure from "@/pages/admin/Structure";
-import AdminCenters from "@/pages/admin/Centers";
+import AdminStructure from '@/pages/admin/Structure';
+import AdminCenters from '@/pages/admin/Centers';
 import AdminAllStudents from "@/pages/admin/AllStudents";
 import AdminAllPayments from "@/pages/admin/AllPayments";
 import AdminFees from "@/pages/admin/Fees";
@@ -49,11 +49,12 @@ import CoursePurchases from "@/pages/admin/CoursePurchases";
 import TopicsManagement from "@/pages/admin/TopicsManagement";
 import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
 import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
+import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -64,11 +65,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  
+
   if (!isAuthenticated) {
     return <LoginForm />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -77,7 +78,7 @@ function Router() {
     <Switch>
       {/* Public route for QR code progress */}
       <Route path="/progress/:qrCode" component={PublicProgress} />
-      
+
       {/* Protected routes */}
       <Route path="/login" component={LoginForm} />
       <Route path="/">
@@ -171,18 +172,15 @@ function Router() {
           <Settings />
         </ProtectedRoute>
       </Route>
-      
+
       {/* Admin routes */}
       <Route path="/admin/users">
         <ProtectedRoute>
           <AdminUsers />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/structure">
-        <ProtectedRoute>
-          <AdminStructure />
-        </ProtectedRoute>
-      </Route>
+      <Route path="/admin/structure" element={<AdminStructure />} />
+              <Route path="/admin/class-subject-management" element={<ClassSubjectManagement />} />
       <Route path="/admin/centers">
         <ProtectedRoute>
           <AdminCenters />
@@ -275,7 +273,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
-      
+
       {/* New Features: Topics Management & Dropout Requests */}
       <Route path="/admin/topics-management">
         <ProtectedRoute>
@@ -292,7 +290,7 @@ function Router() {
           <StudentDropoutRequests />
         </ProtectedRoute>
       </Route>
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,7 +29,8 @@ import {
   CheckCircle,
   Package,
   ShoppingCart,
-  X
+  X,
+  Plus
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -68,6 +68,8 @@ const navigation: NavItem[] = [
       { title: 'Exam Management', href: '/exam-management', icon: Award, roles: ['so_center'] },
       { title: 'SO Center Exams', href: '/so-center/exams', icon: ClipboardList, roles: ['so_center'] },
       { title: 'Exam Results', href: '/so-center/exam-results', icon: BarChart3, roles: ['so_center'] },
+      { title: 'Academic Structure', href: '/admin/structure', icon: BookOpen },
+      { title: 'Class & Subject Management', href: '/admin/class-subject-management', icon: Plus },
     ],
   },
   {
@@ -115,8 +117,8 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   const toggleExpanded = (title: string) => {
-    setExpandedItems(prev => 
-      prev.includes(title) 
+    setExpandedItems(prev =>
+      prev.includes(title)
         ? prev.filter(item => item !== title)
         : [...prev, title]
     );
