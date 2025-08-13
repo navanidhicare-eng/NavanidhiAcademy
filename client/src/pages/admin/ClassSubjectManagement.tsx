@@ -22,7 +22,7 @@ export default function ClassSubjectManagement() {
 
   // States for adding subject
   const [newSubjectName, setNewSubjectName] = useState('');
-  const [selectedClassForSubject, setSelectedClassForSubject] = useState('');
+  const [selectedClassesForSubject, setSelectedClassesForSubject] = useState<string[]>([]);
   const [selectedClassForView, setSelectedClassForView] = useState('');
 
   // States for editing subject
@@ -70,18 +70,18 @@ export default function ClassSubjectManagement() {
 
   // Add subject mutation
   const addSubjectMutation = useMutation({
-    mutationFn: async (subjectData: { name: string; classId: string }) => {
+    mutationFn: async (subjectData: { name: string; classIds: string[] }) => {
       return apiRequest('POST', '/api/admin/subjects', subjectData);
     },
     onSuccess: () => {
-      const className = getClassName(selectedClassForSubject);
+      const classNames = selectedClassesForSubject.map(classId => getClassName(classId)).join(', ');
       toast({
         title: 'Success',
-        description: `Subject "${newSubjectName}" successfully connected to ${className}`,
+        description: `Subject "${newSubjectName}" successfully connected to: ${classNames}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/subjects'] });
       setNewSubjectName('');
-      setSelectedClassForSubject('');
+      setSelectedClassesForSubject([]);
     },
     onError: (error: any) => {
       toast({
@@ -138,10 +138,10 @@ export default function ClassSubjectManagement() {
   };
 
   const handleAddSubject = () => {
-    if (!newSubjectName.trim() || !selectedClassForSubject) {
+    if (!newSubjectName.trim() || selectedClassesForSubject.length === 0) {
       toast({
         title: 'Error',
-        description: 'Please enter subject name and select a class',
+        description: 'Please enter subject name and select at least one class',
         variant: 'destructive',
       });
       return;
@@ -149,7 +149,7 @@ export default function ClassSubjectManagement() {
 
     addSubjectMutation.mutate({
       name: newSubjectName.trim(),
-      classId: selectedClassForSubject,
+      classIds: selectedClassesForSubject,
     });
   };
 
@@ -283,19 +283,32 @@ export default function ClassSubjectManagement() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="classSelect">Select Class *</Label>
-                  <Select value={selectedClassForSubject} onValueChange={setSelectedClassForSubject}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>
+                  <Label>Select Classes * (Choose multiple classes for this subject)</Label>
+                  <div className="border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
+                    {classes.map((cls: any) => (
+                      <div key={cls.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`class-${cls.id}`}
+                          checked={selectedClassesForSubject.includes(cls.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedClassesForSubject([...selectedClassesForSubject, cls.id]);
+                            } else {
+                              setSelectedClassesForSubject(selectedClassesForSubject.filter(id => id !== cls.id));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <Label htmlFor={`class-${cls.id}`} className="text-sm">
                           {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Selected: {selectedClassesForSubject.length} class{selectedClassesForSubject.length !== 1 ? 'es' : ''}
+                  </div>
                 </div>
                 <Button
                   onClick={handleAddSubject}
@@ -354,11 +367,20 @@ export default function ClassSubjectManagement() {
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
                             <h3 className="font-semibold text-lg text-gray-800">{subject.name}</h3>
-                            <div className="flex items-center mt-2">
-                              <BookOpen className="w-4 h-4 text-blue-600 mr-2" />
-                              <span className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
-                                Connected to: {getClassName(subject.classId)}
-                              </span>
+                            <div className="flex items-start mt-2">
+                              <BookOpen className="w-4 h-4 text-blue-600 mr-2 mt-0.5" />
+                              <div className="flex flex-wrap gap-1">
+                                {Array.isArray(subject.connectedClasses) ? 
+                                  subject.connectedClasses.map((className: string, index: number) => (
+                                    <span key={index} className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                                      {className}
+                                    </span>
+                                  )) :
+                                  <span className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                                    Connected to: {getClassName(subject.classId)}
+                                  </span>
+                                }
+                              </div>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -374,7 +396,7 @@ export default function ClassSubjectManagement() {
                         </div>
                         <div className="mt-2 text-xs text-gray-500 bg-yellow-50 px-2 py-1 rounded flex items-center">
                           <ArrowRightLeft className="w-3 h-3 mr-1" />
-                          Click to reassign to different class
+                          Click to modify class connections
                         </div>
                       </div>
                     ))}

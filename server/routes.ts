@@ -1677,11 +1677,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all subjects
+  // Get all subjects grouped by name
   app.get("/api/subjects", authenticateToken, async (req, res) => {
     try {
-      const subjects = await storage.getAllSubjects();
-      res.json(subjects);
+      const allSubjects = await storage.getAllSubjects();
+      
+      // Group subjects by name to show multiple class connections
+      const groupedSubjects = allSubjects.reduce((acc: any[], subject: any) => {
+        const existingSubject = acc.find(s => s.name === subject.name);
+        if (existingSubject) {
+          existingSubject.connectedClasses.push(subject.className || 'Unknown Class');
+          existingSubject.classIds.push(subject.classId);
+        } else {
+          acc.push({
+            id: subject.id,
+            name: subject.name,
+            connectedClasses: [subject.className || 'Unknown Class'],
+            classIds: [subject.classId],
+            classId: subject.classId // Keep for backward compatibility
+          });
+        }
+        return acc;
+      }, []);
+      
+      res.json(groupedSubjects);
     } catch (error) {
       console.error('Error fetching all subjects:', error);
       res.status(500).json({ message: "Failed to fetch subjects" });
@@ -3121,12 +3140,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
-      const subjectData = insertSubjectSchema.parse(req.body);
-      const newSubject = await storage.createSubject(subjectData);
-      res.status(201).json(newSubject);
+      
+      const { name, classIds } = req.body;
+      
+      if (!name || !classIds || !Array.isArray(classIds) || classIds.length === 0) {
+        return res.status(400).json({ message: 'Subject name and at least one class ID required' });
+      }
+
+      // Create separate subject entries for each class
+      const createdSubjects = [];
+      for (const classId of classIds) {
+        const subjectData = { name, classId };
+        const newSubject = await storage.createSubject(subjectData);
+        createdSubjects.push(newSubject);
+      }
+      
+      res.status(201).json({ 
+        message: `Subject "${name}" connected to ${classIds.length} classes`,
+        subjects: createdSubjects 
+      });
     } catch (error) {
-      console.error('Error creating subject:', error);
-      res.status(500).json({ message: 'Failed to create subject' });
+      console.error('Error creating subjects:', error);
+      res.status(500).json({ message: 'Failed to create subjects' });
     }
   });
 
