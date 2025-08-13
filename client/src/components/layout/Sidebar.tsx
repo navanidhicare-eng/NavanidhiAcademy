@@ -92,6 +92,7 @@ const navigation: NavItem[] = [
       { title: 'Users', href: '/admin/users', icon: Users },
       { title: 'SO Centers', href: '/admin/centers', icon: Building },
       { title: 'Chapters and Topics Managing', href: '/admin/structure', icon: School },
+      { title: 'Class & Subject Management', href: '/admin/class-subject-management', icon: Plus },
       { title: 'All Students', href: '/admin/students', icon: GraduationCap },
       { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard },
       { title: 'Exam Management', href: '/admin/exam-management', icon: Award },
