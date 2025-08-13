@@ -1259,14 +1259,11 @@ export class DrizzleStorage implements IStorage {
 
   // Enhanced SO Center methods with sequential number gap detection
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
-    // Get all existing center IDs and emails
-    const centers = await db.select({
-      centerId: schema.soCenters.centerId
-    }).from(schema.soCenters);
+    console.log('🔧 Generating next available SO Center ID...');
 
-    const users = await db.select({
-      email: schema.users.email
-    }).from(schema.users).where(like(schema.users.email, 'nnasoc%@navanidhi.org'));
+    // Get all existing centers and users with so_center role to check for conflicts
+    const centers = await db.select().from(schema.soCenters);
+    const users = await storage.getUsersByRole('so_center');
 
     console.log('Existing center IDs:', centers.map(c => c.centerId));
     console.log('Existing SO Center emails:', users.map(u => u.email));
@@ -1296,11 +1293,8 @@ export class DrizzleStorage implements IStorage {
 
     console.log('Existing SO Center numbers:', Array.from(existingNumbers).sort((a, b) => a - b));
 
-    // Find the first available number starting from 1
-    let nextNumber = 1;
-    while (existingNumbers.has(nextNumber)) {
-      nextNumber++;
-    }
+    // Find the next number (should be total count + 1 for sequential IDs)
+    const nextNumber = existingNumbers.size + 1;
 
     const centerId = `NNASOC${String(nextNumber).padStart(5, '0')}`;
     const email = `nnasoc${String(nextNumber).padStart(5, '0')}@navanidhi.org`;
@@ -1380,7 +1374,7 @@ export class DrizzleStorage implements IStorage {
     // Get payments for this month and today
     const paymentsQuery = await db.select({
       amount: schema.payments.amount,
-      date: schema.payments.createdAt
+      date: schema.payments.date
     }).from(schema.payments)
       .innerJoin(schema.students, eq(schema.payments.studentId, schema.students.id))
       .where(
