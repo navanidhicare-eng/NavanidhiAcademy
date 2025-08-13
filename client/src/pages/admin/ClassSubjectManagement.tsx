@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -10,20 +9,27 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, BookOpen, FileText } from 'lucide-react';
+import { Plus, BookOpen, FileText, Edit2, ArrowRightLeft } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 export default function ClassSubjectManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // States for adding class
   const [newClassName, setNewClassName] = useState('');
   const [newClassDescription, setNewClassDescription] = useState('');
-  
+
   // States for adding subject
   const [newSubjectName, setNewSubjectName] = useState('');
   const [selectedClassForSubject, setSelectedClassForSubject] = useState('');
   const [selectedClassForView, setSelectedClassForView] = useState('');
+
+  // States for editing subject
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<any>(null);
+  const [editSubjectName, setEditSubjectName] = useState('');
+  const [editSelectedClass, setEditSelectedClass] = useState('');
 
   // Fetch classes and subjects
   const { data: classes = [], isLoading: classesLoading } = useQuery({
@@ -68,9 +74,10 @@ export default function ClassSubjectManagement() {
       return apiRequest('POST', '/api/admin/subjects', subjectData);
     },
     onSuccess: () => {
+      const className = getClassName(selectedClassForSubject);
       toast({
         title: 'Success',
-        description: 'Subject added successfully',
+        description: `Subject "${newSubjectName}" successfully connected to ${className}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/subjects'] });
       setNewSubjectName('');
@@ -80,6 +87,35 @@ export default function ClassSubjectManagement() {
       toast({
         title: 'Error',
         description: error.message || 'Failed to add subject',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Edit subject mutation
+  const editSubjectMutation = useMutation({
+    mutationFn: async (subjectData: { id: string; name: string; classId: string }) => {
+      return apiRequest('PUT', `/api/admin/subjects/${subjectData.id}`, {
+        name: subjectData.name,
+        classId: subjectData.classId
+      });
+    },
+    onSuccess: () => {
+      const className = getClassName(editSelectedClass);
+      toast({
+        title: 'Success',
+        description: `Subject "${editSubjectName}" successfully reassigned to ${className}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/subjects'] });
+      setIsEditModalOpen(false);
+      setEditingSubject(null);
+      setEditSubjectName('');
+      setEditSelectedClass('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update subject',
         variant: 'destructive',
       });
     },
@@ -114,6 +150,30 @@ export default function ClassSubjectManagement() {
     addSubjectMutation.mutate({
       name: newSubjectName.trim(),
       classId: selectedClassForSubject,
+    });
+  };
+
+  const handleEditSubject = (subject: any) => {
+    setEditingSubject(subject);
+    setEditSubjectName(subject.name);
+    setEditSelectedClass(subject.classId);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateSubject = () => {
+    if (!editSubjectName.trim() || !editSelectedClass) {
+      toast({
+        title: 'Error',
+        description: 'Please enter subject name and select a class',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    editSubjectMutation.mutate({
+      id: editingSubject.id,
+      name: editSubjectName.trim(),
+      classId: editSelectedClass,
     });
   };
 
@@ -161,8 +221,8 @@ export default function ClassSubjectManagement() {
                     onChange={(e) => setNewClassDescription(e.target.value)}
                   />
                 </div>
-                <Button 
-                  onClick={handleAddClass} 
+                <Button
+                  onClick={handleAddClass}
                   disabled={addClassMutation.isPending}
                   className="w-full"
                 >
@@ -237,8 +297,8 @@ export default function ClassSubjectManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button 
-                  onClick={handleAddSubject} 
+                <Button
+                  onClick={handleAddSubject}
                   disabled={addSubjectMutation.isPending || classes.length === 0}
                   className="w-full"
                 >
@@ -281,19 +341,41 @@ export default function ClassSubjectManagement() {
                     <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <p>
                       {selectedClassForView && selectedClassForView !== 'all'
-                        ? `No subjects found for ${getClassName(selectedClassForView)}` 
+                        ? `No subjects found for ${getClassName(selectedClassForView)}`
                         : "No subjects found. Add your first subject!"
                       }
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
                     {filteredSubjects.map((subject: any) => (
-                      <div key={subject.id} className="p-3 border rounded-lg">
-                        <h3 className="font-semibold">{subject.name}</h3>
-                        <p className="text-sm text-blue-600">
-                          Class: {getClassName(subject.classId)}
-                        </p>
+                      <div key={subject.id} className="p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 hover:shadow-md transition-shadow cursor-pointer"
+                           onClick={() => handleEditSubject(subject)}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg text-gray-800">{subject.name}</h3>
+                            <div className="flex items-center mt-2">
+                              <BookOpen className="w-4 h-4 text-blue-600 mr-2" />
+                              <span className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
+                                Connected to: {getClassName(subject.classId)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="text-green-600">
+                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="text-gray-500 hover:text-blue-600">
+                              <Edit2 className="w-4 h-4" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500 bg-yellow-50 px-2 py-1 rounded flex items-center">
+                          <ArrowRightLeft className="w-3 h-3 mr-1" />
+                          Click to reassign to different class
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -303,6 +385,46 @@ export default function ClassSubjectManagement() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Subject Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subject: {editingSubject?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label htmlFor="editSubjectName">Subject Name *</Label>
+              <Input
+                id="editSubjectName"
+                value={editSubjectName}
+                onChange={(e) => setEditSubjectName(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="editClassSelect">Select Class *</Label>
+              <Select value={editSelectedClass} onValueChange={setEditSelectedClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((cls: any) => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateSubject} disabled={editSubjectMutation.isPending}>
+              {editSubjectMutation.isPending ? 'Updating...' : 'Update Subject'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
