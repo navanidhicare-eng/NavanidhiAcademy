@@ -51,7 +51,6 @@ import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
 import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -179,8 +178,16 @@ function Router() {
           <AdminUsers />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/structure" element={<AdminStructure />} />
-              <Route path="/admin/class-subject-management" element={<ClassSubjectManagement />} />
+      <Route path="/admin/structure">
+        <ProtectedRoute>
+          <AdminStructure />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/class-subject-management">
+        <ProtectedRoute>
+          <ClassSubjectManagement />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/centers">
         <ProtectedRoute>
           <AdminCenters />
