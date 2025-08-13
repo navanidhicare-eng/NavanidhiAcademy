@@ -32,7 +32,7 @@ export default function AdminStructure() {
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [isChapterModalOpen, setIsChapterModalOpen] = useState(false);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
-  
+
   // Filter and search states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState('all');
@@ -220,7 +220,7 @@ export default function AdminStructure() {
               />
             </div>
           </div>
-          
+
           {activeTab !== 'classes' && (
             <div className="flex gap-2">
               <Select value={selectedClassFilter} onValueChange={setSelectedClassFilter}>
@@ -508,7 +508,7 @@ export default function AdminStructure() {
           </Card>
         </TabsContent>
       </Tabs>
-      
+
       <AddClassModal 
         isOpen={isClassModalOpen} 
         onClose={() => setIsClassModalOpen(false)} 
