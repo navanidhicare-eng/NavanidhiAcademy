@@ -152,7 +152,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       monthlyRentDate: '',
       monthlyInternetDate: '',
       capacity: '',
-      facilities: [''],
+      facilities: [],
       admissionFeeApplicable: 'applicable',
     },
   });
@@ -202,7 +202,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         internetServiceProvider: data.internetServiceProvider,
         roomSize: data.roomSize,
         capacity: parseInt(data.capacity),
-        facilities: facilities.map(f => f.facilityName).filter(name => name.trim() !== ''),
+        facilities: facilities.map(f => f.facilityName).filter(name => name && name.trim() !== ''),
         nearbySchools: nearbySchools,
         nearbyTuitions: nearbyTuitions,
         equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
@@ -727,9 +727,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                         const updated = [...facilities];
                         updated[index].facilityName = e.target.value;
                         setFacilities(updated);
-                        // Update form value for validation
-                        const facilityNames = updated.map(f => f.facilityName).filter(name => name.trim() !== '');
-                        form.setValue('facilities', facilityNames);
+                        // Update form value for validation - ensure no empty strings
+                        const facilityNames = updated.map(f => f.facilityName).filter(name => name && name.trim() !== '');
+                        form.setValue('facilities', facilityNames.length > 0 ? facilityNames : ['']);
                       }}
                     />
                   </div>
@@ -741,9 +741,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                       onClick={() => {
                         const updated = facilities.filter((_, i) => i !== index);
                         setFacilities(updated);
-                        // Update form value for validation
-                        const facilityNames = updated.map(f => f.facilityName).filter(name => name.trim() !== '');
-                        form.setValue('facilities', facilityNames);
+                        // Update form value for validation - ensure no empty strings
+                        const facilityNames = updated.map(f => f.facilityName).filter(name => name && name.trim() !== '');
+                        form.setValue('facilities', facilityNames.length > 0 ? facilityNames : ['']);
                       }}
                     >
                       Remove
