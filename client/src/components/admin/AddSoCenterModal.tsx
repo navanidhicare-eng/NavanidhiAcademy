@@ -70,11 +70,11 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [generatedCenterId, setGeneratedCenterId] = useState('');
   const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
   const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
-  const [facilities, setFacilities] = useState<{facilityName: string}[]>([]);
+  const [facilities, setFacilities] = useState<{facilityName: string}[]>([{facilityName: ''}]);
   const [equipment, setEquipment] = useState<{itemName: string; serialNumber: string; warrantyYears: string; purchaseDate: string; brandName: string}[]>([]);
 
   // Generate next Center ID when modal opens - PRODUCTION READY
-  const { data: nextCenterId = '' } = useQuery({
+  const { data: nextCenterId = '', isLoading: centerIdLoading } = useQuery({
     queryKey: ['/api/admin/so-centers/next-id'],
     enabled: isOpen,
   });
@@ -82,51 +82,52 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
 
   // Fetch unassigned managers only
-  const { data: availableManagers = [] } = useQuery<any[]>({
+  const { data: availableManagers = [], isLoading: managersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/users/unassigned-managers'],
     enabled: isOpen,
   });
 
   // Fetch address hierarchy data from database
-  const { data: states = [] } = useQuery<any[]>({
+  const { data: states = [], isLoading: statesLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
+    enabled: isOpen,
   });
 
-  const { data: districts = [] } = useQuery<any[]>({
+  const { data: districts = [], isLoading: districtsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts', selectedState],
     queryFn: async () => {
       if (!selectedState) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
       return await response.json();
     },
-    enabled: !!selectedState,
+    enabled: !!selectedState && isOpen,
   });
 
-  const { data: mandals = [] } = useQuery<any[]>({
+  const { data: mandals = [], isLoading: mandalsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     queryFn: async () => {
       if (!selectedDistrict) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
       return await response.json();
     },
-    enabled: !!selectedDistrict,
+    enabled: !!selectedDistrict && isOpen,
   });
 
-  const { data: villages = [] } = useQuery<any[]>({
+  const { data: villages = [], isLoading: villagesLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     queryFn: async () => {
       if (!selectedMandal) return [];
       const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
       return await response.json();
     },
-    enabled: !!selectedMandal,
+    enabled: !!selectedMandal && isOpen,
   });
 
   const form = useForm<AddSoCenterFormData>({
     resolver: zodResolver(addSoCenterSchema),
     defaultValues: {
       name: '',
-      email: nextCenterId ? `${(nextCenterId as string).toLowerCase()}@navanidhi.org` : '',
+      email: '',
       address: '',
       villageId: '',
       phone: '',
@@ -143,10 +144,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       rentalAdvance: '',
       dateOfHouseTaken: '',
       monthlyRentDate: '',
-
       monthlyInternetDate: '',
       capacity: '',
-      facilities: [],
+      facilities: [''],
       admissionFeeApplicable: 'applicable',
     },
   });
@@ -227,6 +227,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     createSoCenterMutation.mutate(data);
   };
 
+  // Check if essential data is still loading
+  const isLoading = centerIdLoading || statesLoading || managersLoading;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
@@ -238,6 +241,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             Add New SO Center - Complete Registration
           </DialogTitle>
         </DialogHeader>
+        
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mr-4"></div>
+            <span className="text-green-700">Loading form data...</span>
+          </div>
+        ) : (
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -1031,6 +1041,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             </div>
           </form>
         </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
