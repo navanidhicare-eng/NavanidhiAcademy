@@ -1261,14 +1261,11 @@ export class DrizzleStorage implements IStorage {
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
     console.log('🔧 Generating next available SO Center ID...');
 
-    // Get all existing SO Centers
+    // Get all existing centers and users with so_center role to check for conflicts
     const centers = await db.select().from(schema.soCenters);
+    const users = await getUsersByRole('so_center');
+
     console.log('Existing center IDs:', centers.map(c => c.centerId));
-
-    // Get all users with SO Center role
-    const users = await db.select().from(schema.users)
-      .where(eq(schema.users.role, 'so_center'));
-
     console.log('Existing SO Center emails:', users.map(u => u.email));
 
     // Extract numeric parts from both center IDs and emails
