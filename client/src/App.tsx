@@ -35,6 +35,7 @@ import AdminTeachers from "@/pages/admin/Teachers";
 import AdminAttendance from "@/pages/admin/Attendance";
 import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminApprovals from "@/pages/admin/Approvals";
+import AdminProducts from "@/pages/admin/Products";
 
 import AdminProducts from "@/pages/admin/Products";
 import AdminStudents from "@/pages/admin/Students";
@@ -44,7 +45,7 @@ import SoCenterExamManagement from "@/pages/so-center/ExamManagement";
 import SoCenterExams from "@/pages/so-center/SoCenterExams";
 import ExamResults from "@/pages/so-center/ExamResults";
 import PostExamResult from "@/pages/so-center/PostExamResult";
-import Products from "@/pages/Products";
+
 import CoursePurchases from "@/pages/admin/CoursePurchases";
 import TopicsManagement from "@/pages/admin/TopicsManagement";
 import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
@@ -134,7 +135,7 @@ function Router() {
       </Route>
       <Route path="/products">
         <ProtectedRoute>
-          <Products />
+          <AdminProducts />
         </ProtectedRoute>
       </Route>
       <Route path="/so-center/dashboard">
