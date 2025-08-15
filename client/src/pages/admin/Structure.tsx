@@ -175,7 +175,7 @@ export default function AdminStructure() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All Classes</SelectItem>
-                    {classes.map((cls: any) => (
+                    {classes.filter((cls: any) => cls.id && cls.name).map((cls: any) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         {cls.name}
                       </SelectItem>
@@ -199,7 +199,7 @@ export default function AdminStructure() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All Subjects</SelectItem>
-                    {filteredSubjects.map((subject: any) => (
+                    {filteredSubjects.filter((subject: any) => subject.id && subject.name).map((subject: any) => (
                       <SelectItem key={subject.id} value={subject.id}>
                         {subject.name}
                       </SelectItem>
@@ -220,11 +220,13 @@ export default function AdminStructure() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">All Chapters</SelectItem>
-                    {chapters.filter((ch: any) => !selectedSubject || ch.subjectId === selectedSubject).map((chapter: any) => (
-                      <SelectItem key={chapter.id} value={chapter.id}>
-                        {chapter.name}
-                      </SelectItem>
-                    ))}
+                    {chapters
+                      .filter((ch: any) => ch.id && ch.name && (!selectedSubject || ch.subjectId === selectedSubject))
+                      .map((chapter: any) => (
+                        <SelectItem key={chapter.id} value={chapter.id}>
+                          {chapter.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
