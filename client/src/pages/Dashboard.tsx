@@ -17,9 +17,20 @@ import {
   UserPlus,
   ShoppingCart,
   UserCheck,
-  BookOpen
+  BookOpen,
+  DollarSign,
+  GraduationCap,
+  FileText
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+
+// Helper function to format currency
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+  }).format(amount);
+};
 
 // SO Center Dashboard Component with Key Metrics
 function SOCenterDashboard() {
@@ -105,7 +116,7 @@ function SOCenterDashboard() {
           trend="+12% from last month"
           color="primary"
         />
-        
+
         <SOStatCard
           title="This Month Collection"
           value={`₹${stats.thisMonthCollection.toLocaleString()}`}
@@ -113,7 +124,7 @@ function SOCenterDashboard() {
           trend="+8% from last month"
           color="green"
         />
-        
+
         <SOStatCard
           title="Today Collection"
           value={`₹${stats.todayCollection.toLocaleString()}`}
@@ -121,7 +132,7 @@ function SOCenterDashboard() {
           trend="Last 24 hours"
           color="blue"
         />
-        
+
         <SOStatCard
           title="Today Attendance"
           value={`${stats.todayAttendance}%`}
@@ -310,6 +321,23 @@ export default function Dashboard() {
     paymentsThisMonth: 0,
     topicsCompleted: 0,
     walletBalance: 0,
+    newStudentsThisMonth: 0,
+    yearlyRevenue: 0,
+    totalTopics: 0,
+    totalSoCenters: 0,
+    totalWalletBalance: 0,
+    totalTeachers: 0,
+    totalClasses: 0,
+    totalSubjects: 0,
+    attendanceRate: 0,
+    studentsWithAttendance: 0,
+    totalExams: 0,
+    averageExamScore: 0,
+    totalProducts: 0,
+    homeworkCompleted: 0,
+    totalSales: 0,
+    monthlyRevenue: 0,
+    totalCommission: 0,
   };
 
   const StatCard = ({ 
@@ -352,7 +380,7 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard">
       <AnnouncementsPopup />
-      
+
       <div className="p-6 space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
@@ -365,37 +393,214 @@ export default function Dashboard() {
 
         {/* General Stats for all users except SO Center */}
         {user?.role !== 'so_center' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard
-              title="Total Students"
-              value={displayStats.totalStudents}
-              icon={Users}
-              trend="+12% from last month"
-              color="primary"
-            />
-            
-            <StatCard
-              title="Payments This Month"
-              value={`₹${(displayStats.paymentsThisMonth || 0).toLocaleString()}`}
-              icon={IndianRupee}
-              trend="+8% from last month"
-              color="secondary"
-            />
-            
-            <StatCard
-              title="Topics Completed"
-              value={displayStats.topicsCompleted}
-              icon={CheckCircle}
-              trend="+25% this week"
-              color="accent"
-            />
-            
-            <StatCard
-              title="Wallet Balance"
-              value={`₹${(displayStats.walletBalance || 0).toLocaleString()}`}
-              icon={Wallet}
-              color="purple-600"
-            />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {user?.role === 'admin' ? (
+              <>
+                {/* Admin Dashboard Cards */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalStudents}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {displayStats.newStudentsThisMonth || 0} new this month
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.paymentsThisMonth)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Yearly: {formatCurrency(displayStats.yearlyRevenue || 0)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Academic Progress</CardTitle>
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.topicsCompleted}</div>
+                    <p className="text-xs text-muted-foreground">
+                      of {displayStats.totalTopics || 0} total topics
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">SO Centers</CardTitle>
+                    <Building className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalSoCenters}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {formatCurrency(displayStats.totalWalletBalance || 0)} total balance
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Additional Admin Metrics Row */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Teachers</CardTitle>
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalTeachers}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {displayStats.totalClasses || 0} classes, {displayStats.totalSubjects || 0} subjects
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.attendanceRate || 0}%</div>
+                    <p className="text-xs text-muted-foreground">
+                      {displayStats.studentsWithAttendance || 0} students this month
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Exams</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalExams}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg Score: {displayStats.averageExamScore || 0}%
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Products</CardTitle>
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalProducts}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {displayStats.homeworkCompleted || 0} homework completed
+                    </p>
+                  </CardContent>
+                </Card>
+              </>
+            ) : user?.role === 'agent' ? (
+              <>
+                {/* Agent Dashboard Cards */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Product Sales</CardTitle>
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalSales || 0}</div>
+                    <p className="text-xs text-muted-foreground">
+                      This month
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.monthlyRevenue || 0)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Course sales revenue
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Commission Earned</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.totalCommission || 0)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total commission earned
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Available Balance</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.walletBalance || 0)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Ready for withdrawal
+                    </p>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+                {/* Default Cards for other roles */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.totalStudents}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Active students
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Monthly Payments</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.paymentsThisMonth)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      This month
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Topics Completed</CardTitle>
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{displayStats.topicsCompleted}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Learning progress
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">System Balance</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(displayStats.walletBalance || 0)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total system funds
+                    </p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         )}
 

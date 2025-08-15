@@ -1788,7 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard stats endpoint - REAL DATA FOR ALL ROLES
+  // Dashboard stats endpoint - COMPREHENSIVE REAL DATA FROM SUPABASE
   app.get("/api/dashboard/stats", authenticateToken, async (req, res) => {
     try {
       if (!req.user) {
@@ -1800,15 +1800,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let stats = {};
 
       if (req.user.role === 'so_center') {
-        // Get SO Center specific stats
+        // Get SO Center specific real stats from Supabase
         const soCenter = await storage.getSoCenterByEmail(req.user.email);
         if (soCenter) {
-          const soCenterStats = await storage.getSoCenterDashboardStats(soCenter.id);
+          const [studentsCount, monthlyPayments, topicsProgress, attendanceStats] = await Promise.all([
+            // Real student count for this SO Center
+            sql`SELECT COUNT(*) as count FROM students WHERE so_center_id = ${soCenter.id} AND is_active = true`,
+            
+            // Real monthly payments for this SO Center
+            sql`
+              SELECT COALESCE(SUM(CAST(p.amount AS NUMERIC)), 0) as total
+              FROM payments p
+              INNER JOIN students s ON p.student_id = s.id
+              WHERE s.so_center_id = ${soCenter.id} 
+              AND p.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+            `,
+            
+            // Real topics completed by students in this SO Center
+            sql`
+              SELECT COUNT(*) as count 
+              FROM tuition_progress tp
+              INNER JOIN students s ON tp.student_id = s.id
+              WHERE s.so_center_id = ${soCenter.id} AND tp.status = 'learned'
+            `,
+            
+            // Real attendance stats for this month
+            sql`
+              SELECT 
+                COUNT(CASE WHEN a.status = 'present' THEN 1 END) as present_count,
+                COUNT(*) as total_records
+              FROM attendance a
+              INNER JOIN students s ON a.student_id = s.id
+              WHERE s.so_center_id = ${soCenter.id}
+              AND a.date >= DATE_TRUNC('month', CURRENT_DATE)
+            `
+          ]);
+
           stats = {
-            totalStudents: await sql`SELECT COUNT(*) as count FROM students WHERE so_center_id = ${soCenter.id}`.then(r => parseInt(r[0]?.count || '0')),
-            paymentsThisMonth: soCenterStats.thisMonthCollection,
-            topicsCompleted: Math.floor(Math.random() * 100) + 50, // Mock data for now
+            totalStudents: parseInt(studentsCount[0]?.count || '0'),
+            paymentsThisMonth: parseFloat(monthlyPayments[0]?.total || '0'),
+            topicsCompleted: parseInt(topicsProgress[0]?.count || '0'),
             walletBalance: parseFloat(soCenter.walletBalance || '0'),
+            attendanceRate: attendanceStats[0]?.total_records > 0 
+              ? Math.round((parseInt(attendanceStats[0]?.present_count || '0') / parseInt(attendanceStats[0]?.total_records || '1')) * 100)
+              : 0,
           };
         } else {
           stats = {
@@ -1816,41 +1851,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
             paymentsThisMonth: 0,
             topicsCompleted: 0,
             walletBalance: 0,
+            attendanceRate: 0,
           };
         }
       } else if (req.user.role === 'agent') {
-        // Agent specific stats
+        // Agent specific real stats from Supabase
+        const [productSales, commissionEarnings, walletBalance] = await Promise.all([
+          // Real product sales by this agent
+          sql`
+            SELECT COUNT(*) as sales_count, COALESCE(SUM(CAST(course_price AS NUMERIC)), 0) as total_sales
+            FROM product_purchases 
+            WHERE agent_id = ${req.user.userId}
+            AND created_at >= DATE_TRUNC('month', CURRENT_DATE)
+          `,
+          
+          // Real commission earnings
+          sql`
+            SELECT COALESCE(SUM(CAST(commission_amount AS NUMERIC)), 0) as total_commission
+            FROM product_purchases 
+            WHERE agent_id = ${req.user.userId}
+          `,
+          
+          // Real wallet balance
+          sql`
+            SELECT 
+              COALESCE(commission_wallet_balance, 0) as commission_balance,
+              COALESCE(course_wallet_balance, 0) as course_balance,
+              COALESCE(total_earnings, 0) as total_earnings
+            FROM wallets 
+            WHERE user_id = ${req.user.userId}
+          `
+        ]);
+
         stats = {
-          totalStudents: await sql`SELECT COUNT(*) as count FROM students`.then(r => parseInt(r[0]?.count || '0')),
-          paymentsThisMonth: await sql`
-            SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) as total
-            FROM payments 
-            WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)
-          `.then(r => parseFloat(r[0]?.total || '0')),
-          topicsCompleted: Math.floor(Math.random() * 200) + 100,
-          walletBalance: Math.floor(Math.random() * 10000) + 5000,
+          totalSales: parseInt(productSales[0]?.sales_count || '0'),
+          monthlyRevenue: parseFloat(productSales[0]?.total_sales || '0'),
+          totalCommission: parseFloat(commissionEarnings[0]?.total_commission || '0'),
+          walletBalance: parseFloat(walletBalance[0]?.commission_balance || '0'),
+          courseWalletBalance: parseFloat(walletBalance[0]?.course_balance || '0'),
         };
       } else {
-        // Admin and other roles - global stats
-        const results = await sql`
-          SELECT 
-            (SELECT COUNT(*) FROM students) as total_students,
-            (SELECT COUNT(*) FROM so_centers) as total_so_centers,
-            (SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) 
-             FROM payments 
-             WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as monthly_revenue,
-            (SELECT COUNT(*) 
-             FROM students 
-             WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as new_students_this_month
-        `;
+        // Admin and other roles - comprehensive global stats from Supabase
+        const [basicStats, paymentStats, progressStats, attendanceStats, examStats] = await Promise.all([
+          // Basic counts
+          sql`
+            SELECT 
+              (SELECT COUNT(*) FROM students WHERE is_active = true) as total_students,
+              (SELECT COUNT(*) FROM so_centers) as total_so_centers,
+              (SELECT COUNT(*) FROM users WHERE role = 'teacher') as total_teachers,
+              (SELECT COUNT(*) FROM classes WHERE is_active = true) as total_classes,
+              (SELECT COUNT(*) FROM subjects WHERE is_active = true) as total_subjects,
+              (SELECT COUNT(*) FROM products WHERE is_active = true) as total_products
+          `,
+          
+          // Payment and revenue stats
+          sql`
+            SELECT 
+              (SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) 
+               FROM payments 
+               WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as monthly_revenue,
+              (SELECT COALESCE(SUM(CAST(amount AS NUMERIC)), 0) 
+               FROM payments 
+               WHERE created_at >= DATE_TRUNC('year', CURRENT_DATE)) as yearly_revenue,
+              (SELECT COUNT(*) 
+               FROM students 
+               WHERE created_at >= DATE_TRUNC('month', CURRENT_DATE)) as new_students_this_month,
+              (SELECT COALESCE(SUM(CAST(wallet_balance AS NUMERIC)), 0)
+               FROM so_centers) as total_so_center_balance
+          `,
+          
+          // Academic progress stats
+          sql`
+            SELECT 
+              (SELECT COUNT(*) FROM tuition_progress WHERE status = 'learned') as topics_completed,
+              (SELECT COUNT(*) FROM topics WHERE is_active = true) as total_topics,
+              (SELECT COUNT(*) FROM homework_activities WHERE status = 'completed') as homework_completed,
+              (SELECT COUNT(*) FROM homework_activities) as total_homework
+          `,
+          
+          // Attendance stats for current month
+          sql`
+            SELECT 
+              COUNT(CASE WHEN status = 'present' THEN 1 END) as present_count,
+              COUNT(*) as total_attendance_records,
+              COUNT(DISTINCT student_id) as students_with_attendance
+            FROM attendance 
+            WHERE date >= DATE_TRUNC('month', CURRENT_DATE)
+          `,
+          
+          // Exam and assessment stats
+          sql`
+            SELECT 
+              (SELECT COUNT(*) FROM exams WHERE is_active = true) as total_exams,
+              (SELECT COUNT(*) FROM exam_results) as total_exam_results,
+              (SELECT COALESCE(AVG(CAST(marks_obtained AS NUMERIC)), 0) FROM exam_results) as avg_exam_score
+          `
+        ]);
 
-        const statsData = results[0] || {};
+        const basic = basicStats[0] || {};
+        const payments = paymentStats[0] || {};
+        const progress = progressStats[0] || {};
+        const attendance = attendanceStats[0] || {};
+        const exams = examStats[0] || {};
+
         stats = {
-          totalStudents: parseInt(statsData.total_students) || 0,
-          totalSoCenters: parseInt(statsData.total_so_centers) || 0,
-          paymentsThisMonth: parseFloat(statsData.monthly_revenue) || 0,
-          topicsCompleted: Math.floor(Math.random() * 500) + 200,
-          walletBalance: Math.floor(Math.random() * 50000) + 25000,
+          // Student and center metrics
+          totalStudents: parseInt(basic.total_students) || 0,
+          totalSoCenters: parseInt(basic.total_so_centers) || 0,
+          totalTeachers: parseInt(basic.total_teachers) || 0,
+          newStudentsThisMonth: parseInt(payments.new_students_this_month) || 0,
+          
+          // Financial metrics
+          paymentsThisMonth: parseFloat(payments.monthly_revenue) || 0,
+          yearlyRevenue: parseFloat(payments.yearly_revenue) || 0,
+          totalWalletBalance: parseFloat(payments.total_so_center_balance) || 0,
+          
+          // Academic metrics
+          totalClasses: parseInt(basic.total_classes) || 0,
+          totalSubjects: parseInt(basic.total_subjects) || 0,
+          topicsCompleted: parseInt(progress.topics_completed) || 0,
+          totalTopics: parseInt(progress.total_topics) || 0,
+          homeworkCompleted: parseInt(progress.homework_completed) || 0,
+          
+          // Performance metrics
+          attendanceRate: attendance.total_attendance_records > 0 
+            ? Math.round((parseInt(attendance.present_count || '0') / parseInt(attendance.total_attendance_records || '1')) * 100)
+            : 0,
+          studentsWithAttendance: parseInt(attendance.students_with_attendance) || 0,
+          
+          // Assessment metrics
+          totalExams: parseInt(exams.total_exams) || 0,
+          examResultsCount: parseInt(exams.total_exam_results) || 0,
+          averageExamScore: Math.round(parseFloat(exams.avg_exam_score) || 0),
+          
+          // Product metrics
+          totalProducts: parseInt(basic.total_products) || 0,
         };
       }
 
