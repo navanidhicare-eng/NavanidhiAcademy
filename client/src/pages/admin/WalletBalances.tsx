@@ -56,6 +56,17 @@ interface WalletTransaction {
   status?: string;
 }
 
+// Define interface for agent specific metrics
+interface AgentMetrics {
+  lastMonthSales: number;
+  presentWalletBalance: number;
+  thisMonthCollection: number;
+  thisMonthTransactionCount: number;
+  courseWalletBalance: number;
+  todayCollections: number;
+  todayTransactionCount: number;
+}
+
 function WalletBalances() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSOCenter, setSelectedSOCenter] = useState<SOCenter | null>(null);
@@ -90,6 +101,26 @@ function WalletBalances() {
       return apiRequest('GET', `/api/admin/wallet/${selectedAgent.id}`);
     },
     enabled: !!selectedAgent,
+  });
+
+  // Fetch Agent metrics
+  const { data: agentMetrics, isLoading: loadingAgentMetrics } = useQuery<AgentMetrics>({
+    queryKey: ['/api/admin/agent-metrics', selectedAgent?.id],
+    queryFn: async () => {
+      if (!selectedAgent) return null;
+      return apiRequest('GET', `/api/admin/agent-metrics/${selectedAgent.id}`);
+    },
+    enabled: !!selectedAgent,
+  });
+  
+  // Fetch SO Center metrics
+  const { data: soCenterMetrics, isLoading: loadingSoCenterMetrics } = useQuery<WalletMetrics>({
+    queryKey: ['/api/admin/so-center-metrics', selectedSOCenter?.id],
+    queryFn: async () => {
+      if (!selectedSOCenter) return null;
+      return apiRequest('GET', `/api/admin/so-center-metrics/${selectedSOCenter.id}`);
+    },
+    enabled: !!selectedSOCenter,
   });
 
   const formatCurrency = (amount: string | number) => {
@@ -280,7 +311,7 @@ function WalletBalances() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {loadingSOWallet ? (
+                      {loadingSoCenterMetrics ? (
                         <div className="grid grid-cols-2 gap-4">
                           {Array.from({ length: 6 }).map((_, i) => (
                             <div key={i} className="p-4 border rounded-lg animate-pulse">
@@ -293,13 +324,13 @@ function WalletBalances() {
                         <div className="grid grid-cols-2 gap-4">
                           <MetricsCard
                             title="Last Month Collections"
-                            amount={Math.random() * 50000}
+                            amount={soCenterMetrics?.lastMonthCollections || 0}
                             icon={TrendingUp}
                             trend="+12% from prev month"
                           />
                           <MetricsCard
                             title="Last Month Pending"
-                            amount={Math.random() * 20000}
+                            amount={soCenterMetrics?.lastMonthPending || 0}
                             icon={TrendingDown}
                             trend="-5% from prev month"
                             trendColor="text-red-600"
@@ -311,20 +342,20 @@ function WalletBalances() {
                           />
                           <MetricsCard
                             title="This Month Collection"
-                            amount={Math.random() * 30000}
+                            amount={soCenterMetrics?.thisMonthCollection || 0}
                             icon={DollarSign}
                             trend="+8% vs last month"
                           />
                           <MetricsCard
                             title="This Month Pending"
-                            amount={Math.random() * 15000}
+                            amount={soCenterMetrics?.thisMonthPending || 0}
                             icon={Calendar}
                             trend="-3% vs last month"
                             trendColor="text-red-600"
                           />
                           <MetricsCard
                             title="Today Collections"
-                            amount={Math.random() * 5000}
+                            amount={soCenterMetrics?.todayCollections || 0}
                             icon={TrendingUp}
                             trend="₹2,500 since morning"
                           />
@@ -435,7 +466,7 @@ function WalletBalances() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {loadingAgentWallet ? (
+                      {loadingAgentWallet || loadingAgentMetrics ? (
                         <div className="grid grid-cols-2 gap-4">
                           {Array.from({ length: 6 }).map((_, i) => (
                             <div key={i} className="p-4 border rounded-lg animate-pulse">
@@ -448,40 +479,34 @@ function WalletBalances() {
                         <div className="grid grid-cols-2 gap-4">
                           <MetricsCard
                             title="Last Month Collections"
-                            amount={Math.random() * 25000}
-                            icon={TrendingUp}
-                            trend="+15% from prev month"
-                          />
-                          <MetricsCard
-                            title="Last Month Pending"
-                            amount={Math.random() * 10000}
+                            amount={agentMetrics?.lastMonthSales || 0}
                             icon={TrendingDown}
-                            trend="-8% from prev month"
-                            trendColor="text-red-600"
+                            trend="Course sales"
+                            trendColor="text-blue-600"
                           />
                           <MetricsCard
-                            title="Present Wallet Balance"
-                            amount={Math.random() * 15000}
+                            title="Commission Wallet"
+                            amount={agentMetrics?.presentWalletBalance || 0}
                             icon={Wallet}
                           />
                           <MetricsCard
-                            title="This Month Collection"
-                            amount={Math.random() * 18000}
+                            title="This Month Commissions"
+                            amount={agentMetrics?.thisMonthCollection || 0}
                             icon={DollarSign}
-                            trend="+10% vs last month"
+                            trend={`${agentMetrics?.thisMonthTransactionCount || 0} transactions`}
                           />
                           <MetricsCard
-                            title="This Month Pending"
-                            amount={Math.random() * 8000}
+                            title="Course Wallet Balance"
+                            amount={agentMetrics?.courseWalletBalance || 0}
                             icon={Calendar}
-                            trend="-2% vs last month"
-                            trendColor="text-red-600"
+                            trend="Total course value"
+                            trendColor="text-blue-600"
                           />
                           <MetricsCard
-                            title="Today Collections"
-                            amount={Math.random() * 2500}
+                            title="Today Commissions"
+                            amount={agentMetrics?.todayCollections || 0}
                             icon={TrendingUp}
-                            trend="₹1,200 since morning"
+                            trend={`${agentMetrics?.todayTransactionCount || 0} transactions today`}
                           />
                         </div>
                       )}

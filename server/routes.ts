@@ -1893,15 +1893,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Admin and other roles - comprehensive global stats from Supabase
         const [basicStats, paymentStats, progressStats, attendanceStats, examStats] = await Promise.all([
-          // Basic counts
+          // Basic counts (handle missing is_active columns gracefully)
           sql`
             SELECT 
-              (SELECT COUNT(*) FROM students WHERE is_active = true) as total_students,
+              (SELECT COUNT(*) FROM students WHERE COALESCE(is_active, true) = true) as total_students,
               (SELECT COUNT(*) FROM so_centers) as total_so_centers,
               (SELECT COUNT(*) FROM users WHERE role = 'teacher') as total_teachers,
-              (SELECT COUNT(*) FROM classes WHERE is_active = true) as total_classes,
-              (SELECT COUNT(*) FROM subjects WHERE is_active = true) as total_subjects,
-              (SELECT COUNT(*) FROM products WHERE is_active = true) as total_products
+              (SELECT COUNT(*) FROM classes WHERE COALESCE(is_active, true) = true) as total_classes,
+              (SELECT COUNT(*) FROM subjects WHERE COALESCE(is_active, true) = true) as total_subjects,
+              (SELECT COUNT(*) FROM products WHERE COALESCE(is_active, true) = true) as total_products
           `,
           
           // Payment and revenue stats
@@ -1920,11 +1920,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                FROM so_centers) as total_so_center_balance
           `,
           
-          // Academic progress stats
+          // Academic progress stats (handle missing is_active columns gracefully)
           sql`
             SELECT 
               (SELECT COUNT(*) FROM tuition_progress WHERE status = 'learned') as topics_completed,
-              (SELECT COUNT(*) FROM topics WHERE is_active = true) as total_topics,
+              (SELECT COUNT(*) FROM topics WHERE COALESCE(is_active, true) = true) as total_topics,
               (SELECT COUNT(*) FROM homework_activities WHERE status = 'completed') as homework_completed,
               (SELECT COUNT(*) FROM homework_activities) as total_homework
           `,
@@ -1939,10 +1939,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             WHERE date >= DATE_TRUNC('month', CURRENT_DATE)
           `,
           
-          // Exam and assessment stats
+          // Exam and assessment stats (handle missing is_active columns gracefully)
           sql`
             SELECT 
-              (SELECT COUNT(*) FROM exams WHERE is_active = true) as total_exams,
+              (SELECT COUNT(*) FROM exams WHERE COALESCE(is_active, true) = true) as total_exams,
               (SELECT COUNT(*) FROM exam_results) as total_exam_results,
               (SELECT COALESCE(AVG(CAST(marks_obtained AS NUMERIC)), 0) FROM exam_results) as avg_exam_score
           `
@@ -1994,6 +1994,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Dashboard stats error:', error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Get SO Center wallet metrics with real data
+  app.get("/api/admin/so-center/:centerId/metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const centerId = req.params.centerId;
+      
+      // Get current month and last month date ranges
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Get SO Center details
+      const soCenter = await storage.getSoCenter(centerId);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      // Calculate real metrics from payments table
+      const [lastMonthPayments] = await sql`
+        SELECT 
+          COALESCE(SUM(CAST(p.amount AS NUMERIC)), 0) as total_collected,
+          COUNT(*) as payment_count
+        FROM payments p
+        INNER JOIN students s ON p.student_id = s.id
+        WHERE s.so_center_id = ${centerId}
+        AND p.created_at >= ${lastMonthStart.toISOString()}
+        AND p.created_at < ${currentMonthStart.toISOString()}
+      `;
+
+      const [thisMonthPayments] = await sql`
+        SELECT 
+          COALESCE(SUM(CAST(p.amount AS NUMERIC)), 0) as total_collected,
+          COUNT(*) as payment_count
+        FROM payments p
+        INNER JOIN students s ON p.student_id = s.id
+        WHERE s.so_center_id = ${centerId}
+        AND p.created_at >= ${currentMonthStart.toISOString()}
+      `;
+
+      const [todayPayments] = await sql`
+        SELECT 
+          COALESCE(SUM(CAST(p.amount AS NUMERIC)), 0) as total_collected,
+          COUNT(*) as payment_count
+        FROM payments p
+        INNER JOIN students s ON p.student_id = s.id
+        WHERE s.so_center_id = ${centerId}
+        AND p.created_at >= ${todayStart.toISOString()}
+      `;
+
+      // Calculate pending amounts
+      const [lastMonthPending] = await sql`
+        SELECT 
+          COALESCE(SUM(CAST(s.pending_amount AS NUMERIC)), 0) as total_pending
+        FROM students s
+        WHERE s.so_center_id = ${centerId}
+        AND s.created_at >= ${lastMonthStart.toISOString()}
+        AND s.created_at < ${currentMonthStart.toISOString()}
+        AND COALESCE(s.is_active, true) = true
+      `;
+
+      const [thisMonthPending] = await sql`
+        SELECT 
+          COALESCE(SUM(CAST(s.pending_amount AS NUMERIC)), 0) as total_pending
+        FROM students s
+        WHERE s.so_center_id = ${centerId}
+        AND COALESCE(s.is_active, true) = true
+      `;
+
+      const metrics = {
+        lastMonthCollections: parseFloat(lastMonthPayments.total_collected || '0'),
+        lastMonthPending: parseFloat(lastMonthPending.total_pending || '0'),
+        thisMonthCollection: parseFloat(thisMonthPayments.total_collected || '0'),
+        thisMonthPending: parseFloat(thisMonthPending.total_pending || '0'),
+        todayCollections: parseFloat(todayPayments.total_collected || '0'),
+        presentWalletBalance: parseFloat(soCenter.walletBalance || '0'),
+        lastMonthPaymentCount: parseInt(lastMonthPayments.payment_count || '0'),
+        thisMonthPaymentCount: parseInt(thisMonthPayments.payment_count || '0'),
+        todayPaymentCount: parseInt(todayPayments.payment_count || '0')
+      };
+
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching SO Center metrics:', error);
+      res.status(500).json({ message: "Failed to fetch SO Center metrics" });
+    }
+  });
+
+  // Get Agent wallet metrics with real data
+  app.get("/api/admin/agent/:agentId/metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const agentId = req.params.agentId;
+      
+      // Get current month and last month date ranges
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      // Get agent wallet
+      const [agentWallet] = await sql`
+        SELECT * FROM wallets WHERE user_id = ${agentId} LIMIT 1
+      `;
+
+      // Calculate real metrics from wallet transactions
+      const [lastMonthTransactions] = await sql`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'commission_earned' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as commissions,
+          COALESCE(SUM(CASE WHEN type = 'course_purchase' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as sales,
+          COUNT(CASE WHEN type = 'commission_earned' THEN 1 END) as commission_count
+        FROM wallet_transactions
+        WHERE user_id = ${agentId}
+        AND created_at >= ${lastMonthStart.toISOString()}
+        AND created_at < ${currentMonthStart.toISOString()}
+      `;
+
+      const [thisMonthTransactions] = await sql`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'commission_earned' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as commissions,
+          COALESCE(SUM(CASE WHEN type = 'course_purchase' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as sales,
+          COUNT(CASE WHEN type = 'commission_earned' THEN 1 END) as commission_count
+        FROM wallet_transactions
+        WHERE user_id = ${agentId}
+        AND created_at >= ${currentMonthStart.toISOString()}
+      `;
+
+      const [todayTransactions] = await sql`
+        SELECT 
+          COALESCE(SUM(CASE WHEN type = 'commission_earned' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as commissions,
+          COALESCE(SUM(CASE WHEN type = 'course_purchase' THEN CAST(amount AS NUMERIC) ELSE 0 END), 0) as sales,
+          COUNT(CASE WHEN type = 'commission_earned' THEN 1 END) as commission_count
+        FROM wallet_transactions
+        WHERE user_id = ${agentId}
+        AND created_at >= ${todayStart.toISOString()}
+      `;
+
+      const metrics = {
+        lastMonthCollections: parseFloat(lastMonthTransactions.commissions || '0'),
+        lastMonthSales: parseFloat(lastMonthTransactions.sales || '0'),
+        thisMonthCollection: parseFloat(thisMonthTransactions.commissions || '0'),
+        thisMonthSales: parseFloat(thisMonthTransactions.sales || '0'),
+        todayCollections: parseFloat(todayTransactions.commissions || '0'),
+        presentWalletBalance: parseFloat(agentWallet?.commission_wallet_balance || '0'),
+        courseWalletBalance: parseFloat(agentWallet?.course_wallet_balance || '0'),
+        totalEarnings: parseFloat(agentWallet?.total_earnings || '0'),
+        lastMonthTransactionCount: parseInt(lastMonthTransactions.commission_count || '0'),
+        thisMonthTransactionCount: parseInt(thisMonthTransactions.commission_count || '0'),
+        todayTransactionCount: parseInt(todayTransactions.commission_count || '0')
+      };
+
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching Agent metrics:', error);
+      res.status(500).json({ message: "Failed to fetch Agent metrics" });
     }
   });
 
