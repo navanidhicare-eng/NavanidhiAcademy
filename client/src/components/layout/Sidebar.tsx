@@ -192,6 +192,25 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   const { isMobile } = useScreenSize();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
+  const isItemVisible = (item: NavItem) => {
+    if (!item.roles) return true;
+    return item.roles.includes(user?.role || '');
+  };
+
+  const isActive = (href: string) => {
+    return location === href || location.startsWith(href + '/');
+  };
+
+  const isParentActive = (item: NavItem) => {
+    if (item.href && isActive(item.href)) return true;
+    if (item.children) {
+      return item.children.some(child => 
+        isItemVisible(child) && child.href && isActive(child.href)
+      );
+    }
+    return false;
+  };
+
   // Auto-expand parent menu if current page is a submenu item
   useState(() => {
     navigation.forEach(item => {
@@ -228,25 +247,6 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
-  };
-
-  const isItemVisible = (item: NavItem) => {
-    if (!item.roles) return true;
-    return item.roles.includes(user?.role || '');
-  };
-
-  const isActive = (href: string) => {
-    return location === href || location.startsWith(href + '/');
-  };
-
-  const isParentActive = (item: NavItem) => {
-    if (item.href && isActive(item.href)) return true;
-    if (item.children) {
-      return item.children.some(child => 
-        isItemVisible(child) && child.href && isActive(child.href)
-      );
-    }
-    return false;
   };
 
   const renderNavItem = (item: NavItem, level = 0) => {
