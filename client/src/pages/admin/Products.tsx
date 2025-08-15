@@ -156,11 +156,15 @@ function AdminProducts() {
   return (
     <DashboardLayout 
       title="Products Management" 
-      subtitle="Manage products and commission settings"
+      subtitle="Create, manage, and optimize your product portfolio with real-time analytics"
       showAddButton={true}
       onAddClick={() => setIsCreateOpen(true)}
       addButtonText="Add Product"
     >
+      <div className="relative overflow-hidden">
+        {/* Floating background elements */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-float-slow"></div>
+        <div className="absolute top-32 right-0 w-80 h-80 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-float-slower"></div>
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -175,34 +179,45 @@ function AdminProducts() {
         </DialogContent>
       </Dialog>
 
-      {/* Products Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+      {/* Products Grid with premium animations */}
+      <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="animate-pulse-premium bg-gradient-to-br from-gray-100 to-gray-200 border-0 shadow-lg">
                 <CardHeader>
-                  <div className="h-6 bg-gray-200 rounded"></div>
-                  <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-6 bg-gray-300 rounded-full animate-shimmer"></div>
+                  <div className="h-4 bg-gray-300 rounded-full w-2/3 animate-shimmer"></div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <div className="h-4 bg-gray-200 rounded"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-300 rounded-full animate-shimmer"></div>
+                    <div className="h-4 bg-gray-300 rounded-full w-1/2 animate-shimmer"></div>
                   </div>
                 </CardContent>
               </Card>
             ))
           ) : products.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-16 text-gray-500">
-              <Package className="h-16 w-16 mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">No Products Found</h3>
-              <p className="text-sm text-center max-w-md">
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-gray-500 animate-fade-in-up">
+              <div className="relative">
+                <Package className="h-20 w-20 mb-6 opacity-30 animate-float-slow" />
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-xl"></div>
+              </div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">No Products Found</h3>
+              <p className="text-lg text-center max-w-md leading-relaxed">
                 Start by creating your first product to enable commission-based sales for SO centers.
               </p>
+              <Button 
+                onClick={() => setIsCreateOpen(true)}
+                className="mt-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Product
+              </Button>
             </div>
           ) : (
-            products.map((product) => (
-              <Card key={product.id} className={`group hover:shadow-lg transition-all duration-200 border-l-4 ${product.isActive ? 'border-l-green-500 bg-gradient-to-r from-white to-green-50/30' : 'border-l-red-500 bg-gradient-to-r from-white to-red-50/30'}`}>
+            products.map((product, index) => (
+              <Card key={product.id} className={`group relative overflow-hidden transition-all duration-500 border-0 shadow-lg hover:shadow-2xl hover:-translate-y-2 transform hover:scale-105 animate-slide-up-stagger ${product.isActive ? 'bg-gradient-to-br from-white via-green-50/20 to-emerald-50/30' : 'bg-gradient-to-br from-white via-red-50/20 to-rose-50/30'}`}
+                    style={{ animationDelay: `${index * 100}ms` }}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -292,6 +307,7 @@ function AdminProducts() {
               </Card>
             ))
         )}
+      </div>
       </div>
     </DashboardLayout>
   );
