@@ -22,6 +22,7 @@ import {
   Wallet,
   Package,
   ClipboardCheck,
+  ClipboardList,
   Target,
   UserCheck,
   Award,
