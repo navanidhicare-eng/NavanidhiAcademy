@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,12 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { 
-  BookOpen, 
-  CheckCircle2, 
-  Clock, 
-  Users, 
-  Target, 
+import {
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Users,
+  Target,
   Award,
   Calendar,
   PlusCircle,
@@ -345,7 +344,7 @@ export function EnhancedProgressTracker() {
 
     if (homeworkStatus === 'not_completed' && !notCompletedReason.trim()) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Please provide a reason for not completing homework",
         variant: "destructive",
       });
@@ -361,7 +360,7 @@ export function EnhancedProgressTracker() {
     };
 
     setHomeworkActivities([...homeworkActivities, newActivity]);
-    
+
     // Reset form after adding
     setSelectedStudentHomework('');
     setHomeworkStatus('');
@@ -439,8 +438,8 @@ export function EnhancedProgressTracker() {
                   <h3 className="font-medium text-blue-900 mb-3">Step 1: Select Class</h3>
                   <div className="space-y-2">
                     <Label>Class *</Label>
-                    <Select 
-                      value={selectedClassHomework} 
+                    <Select
+                      value={selectedClassHomework}
                       onValueChange={(value) => {
                         setSelectedClassHomework(value);
                         setSelectedStudentHomework(''); // Reset student when class changes
@@ -459,11 +458,13 @@ export function EnhancedProgressTracker() {
                             Loading classes...
                           </SelectItem>
                         ) : classes.length === 0 ? (
-                          <SelectItem value="no-classes" disabled>
+                          <SelectItem value="no-classes-available" disabled>
                             No classes available
                           </SelectItem>
                         ) : (
-                          classes.map((classItem: Class) => (
+                          classes
+                            .filter((classItem: Class) => classItem.id && classItem.id.trim() !== '')
+                            .map((classItem: Class) => (
                             <SelectItem key={classItem.id} value={classItem.id}>
                               <div className="flex items-center gap-2">
                                 <GraduationCap className="h-4 w-4" />
@@ -483,8 +484,8 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-green-900 mb-3">Step 2: Select Student from that Class</h3>
                     <div className="space-y-2">
                       <Label>Student *</Label>
-                      <Select 
-                        value={selectedStudentHomework} 
+                      <Select
+                        value={selectedStudentHomework}
                         onValueChange={(value) => {
                           setSelectedStudentHomework(value);
                           setHomeworkStatus(''); // Reset status when student changes
@@ -494,8 +495,8 @@ export function EnhancedProgressTracker() {
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            isLoadingStudentsHomework 
-                              ? "Loading students..." 
+                            isLoadingStudentsHomework
+                              ? "Loading students..."
                               : "Then, select the student from that class"
                           } />
                         </SelectTrigger>
@@ -531,8 +532,8 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-purple-900 mb-3">Step 3: Select Homework Status</h3>
                     <div className="space-y-3">
                       <Label>Homework Status *</Label>
-                      <Select 
-                        value={homeworkStatus} 
+                      <Select
+                        value={homeworkStatus}
                         onValueChange={(value) => {
                           setHomeworkStatus(value);
                           setCompletionMethod(''); // Reset completion method
@@ -635,11 +636,11 @@ export function EnhancedProgressTracker() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-4 pt-4">
-                  <Button 
+                  <Button
                     onClick={handleAddHomeworkActivity}
                     disabled={
-                      !selectedStudentHomework || 
-                      !homeworkStatus || 
+                      !selectedStudentHomework ||
+                      !homeworkStatus ||
                       (homeworkStatus === 'completed' && !completionMethod) ||
                       (homeworkStatus === 'not_completed' && !notCompletedReason.trim())
                     }
@@ -649,7 +650,7 @@ export function EnhancedProgressTracker() {
                     Add Homework Activity
                   </Button>
 
-                  <Button 
+                  <Button
                     onClick={handleSubmitHomework}
                     disabled={homeworkActivities.length === 0 || homeworkMutation.isPending}
                   >
@@ -665,7 +666,7 @@ export function EnhancedProgressTracker() {
                     <div className="space-y-2">
                       {homeworkActivities.map((activity, index) => {
                         const student = filteredStudentsHomework.find(s => s.id === activity.studentId);
-                        
+
                         return (
                           <div key={index} className="flex items-center justify-between p-3 bg-muted rounded border">
                             <div className="flex items-center gap-3">
@@ -683,7 +684,7 @@ export function EnhancedProgressTracker() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setHomeworkActivities(activities => 
+                              onClick={() => setHomeworkActivities(activities =>
                                 activities.filter((_, i) => i !== index)
                               )}
                             >
@@ -719,10 +720,10 @@ export function EnhancedProgressTracker() {
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-blue-600" />
                   <span className="text-lg font-medium text-blue-900">
-                    {new Date().toLocaleDateString('en-GB', { 
-                      day: '2-digit', 
-                      month: '2-digit', 
-                      year: 'numeric' 
+                    {new Date().toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric'
                     })}
                   </span>
                 </div>
@@ -735,8 +736,8 @@ export function EnhancedProgressTracker() {
                   <h3 className="font-medium text-blue-900 mb-3">Step 1: Select Class</h3>
                   <div className="space-y-2">
                     <Label>Class *</Label>
-                    <Select 
-                      value={selectedClassTopic} 
+                    <Select
+                      value={selectedClassTopic}
                       onValueChange={(value) => {
                         setSelectedClassTopic(value);
                         setSelectedStudentTopic(''); // Reset dependent selections
@@ -755,11 +756,13 @@ export function EnhancedProgressTracker() {
                             Loading classes...
                           </SelectItem>
                         ) : classes.length === 0 ? (
-                          <SelectItem value="no-classes" disabled>
+                          <SelectItem value="no-classes-available" disabled>
                             No classes available
                           </SelectItem>
                         ) : (
-                          classes.map((classItem: Class) => (
+                          classes
+                            .filter((classItem: Class) => classItem.id && classItem.id.trim() !== '')
+                            .map((classItem: Class) => (
                             <SelectItem key={classItem.id} value={classItem.id}>
                               <div className="flex items-center gap-2">
                                 <GraduationCap className="h-4 w-4" />
@@ -779,14 +782,14 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-green-900 mb-3">Step 2: Select Student from that Class</h3>
                     <div className="space-y-2">
                       <Label>Student *</Label>
-                      <Select 
-                        value={selectedStudentTopic} 
+                      <Select
+                        value={selectedStudentTopic}
                         onValueChange={setSelectedStudentTopic}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            isLoadingStudentsTopic 
-                              ? "Loading students..." 
+                            isLoadingStudentsTopic
+                              ? "Loading students..."
                               : "Then, select the student from that class"
                           } />
                         </SelectTrigger>
@@ -822,8 +825,8 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-purple-900 mb-3">Step 3: Select Subject for that Class</h3>
                     <div className="space-y-2">
                       <Label>Subject *</Label>
-                      <Select 
-                        value={selectedSubject} 
+                      <Select
+                        value={selectedSubject}
                         onValueChange={(value) => {
                           setSelectedSubject(value);
                           setSelectedChapter(''); // Reset dependent selections
@@ -832,8 +835,8 @@ export function EnhancedProgressTracker() {
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            isLoadingSubjects 
-                              ? "Loading subjects..." 
+                            isLoadingSubjects
+                              ? "Loading subjects..."
                               : "Then, select the subject assigned to that class"
                           } />
                         </SelectTrigger>
@@ -869,8 +872,8 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-yellow-900 mb-3">Step 4: Select Chapter for that Subject</h3>
                     <div className="space-y-2">
                       <Label>Chapter *</Label>
-                      <Select 
-                        value={selectedChapter} 
+                      <Select
+                        value={selectedChapter}
                         onValueChange={(value) => {
                           setSelectedChapter(value);
                           setSelectedTopic(''); // Reset dependent selection
@@ -878,8 +881,8 @@ export function EnhancedProgressTracker() {
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            isLoadingChapters 
-                              ? "Loading chapters..." 
+                            isLoadingChapters
+                              ? "Loading chapters..."
                               : "Then, select the chapter for that subject"
                           } />
                         </SelectTrigger>
@@ -915,14 +918,14 @@ export function EnhancedProgressTracker() {
                     <h3 className="font-medium text-orange-900 mb-3">Step 5: Select Topic for that Chapter</h3>
                     <div className="space-y-2">
                       <Label>Topic *</Label>
-                      <Select 
-                        value={selectedTopic} 
+                      <Select
+                        value={selectedTopic}
                         onValueChange={setSelectedTopic}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            isLoadingTopics 
-                              ? "Loading topics..." 
+                            isLoadingTopics
+                              ? "Loading topics..."
                               : "Finally, select the topic for that chapter"
                           } />
                         </SelectTrigger>
@@ -969,11 +972,11 @@ export function EnhancedProgressTracker() {
                 {/* Action Button */}
                 {selectedTopic && (
                   <div className="flex items-center justify-between pt-4">
-                    <Button 
+                    <Button
                       onClick={handleCompleteTopics}
                       disabled={
-                        !selectedStudentTopic || 
-                        !selectedTopic || 
+                        !selectedStudentTopic ||
+                        !selectedTopic ||
                         completedTopics.includes(selectedTopic) ||
                         topicCompletionMutation.isPending
                       }

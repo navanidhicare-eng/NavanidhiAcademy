@@ -395,11 +395,13 @@ export default function StudentDropoutRequests() {
                         Loading classes...
                       </SelectItem>
                     ) : classes.length === 0 ? (
-                      <SelectItem value="no-classes" disabled>
+                      <SelectItem value="no-classes-available" disabled>
                         No classes available
                       </SelectItem>
                     ) : (
-                      classes.map((classItem: Class) => (
+                      classes
+                        .filter((classItem: Class) => classItem.id && classItem.id.trim() !== '')
+                        .map((classItem: Class) => (
                         <SelectItem key={classItem.id} value={classItem.id}>
                           {classItem.name}
                         </SelectItem>

@@ -70,8 +70,8 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [generatedCenterId, setGeneratedCenterId] = useState('');
   const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
   const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
-  const [facilities, setFacilities] = useState<{facilityName: string}[]>([{facilityName: ''}]);
-  const [equipment, setEquipment] = useState<{itemName: string; serialNumber: string; warrantyYears: string; purchaseDate: string; brandName: string}[]>([]);
+  const [facilities, setFacilities] = useState([{facilityName: ''}]);
+  const [equipment, setEquipment] = useState([{itemName: '', serialNumber: '', warrantyYears: '', purchaseDate: '', brandName: ''}]);
 
   // Generate next Center ID when modal opens - PRODUCTION READY
   const { data: nextCenterIdResponse, isLoading: centerIdLoading } = useQuery({
@@ -247,14 +247,14 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             Add New SO Center - Complete Registration
           </DialogTitle>
         </DialogHeader>
-        
+
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mr-4"></div>
             <span className="text-green-700">Loading form data...</span>
           </div>
         ) : (
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Center ID Display - Compact */}
@@ -307,7 +307,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             {/* Basic Center Information */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-green-800 border-b border-green-200 pb-2">Basic Information</h3>
-              
+
               <FormField
                 control={form.control}
                 name="name"
@@ -387,7 +387,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             {/* Address Information */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-green-800 border-b border-green-200 pb-2">Location Details</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="state" className="text-sm text-green-700">State</Label>
@@ -491,7 +491,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   <FormItem>
                     <FormLabel>Landmarks</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nearby landmarks or reference points" {...field} />
+                      <Input placeholder="Nearby reference points" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -502,7 +502,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             {/* Property Owner Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Property Details</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -539,9 +539,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                 name="ownerPhone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>House Owner Name & Conditions</FormLabel>
+                    <FormLabel>House Owner Phone</FormLabel>
                     <FormControl>
-                      <Input placeholder="Owner name, special conditions, requirements" {...field} />
+                      <Input placeholder="Enter owner phone number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -673,7 +673,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             {/* Center Management */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Center Management</h3>
-              
+
               <FormField
                 control={form.control}
                 name="managerId"
@@ -715,7 +715,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   Add Facility
                 </Button>
               </div>
-              
+
               {facilities.map((facility, index) => (
                 <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
                   <div className="flex-1">
@@ -729,7 +729,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                         setFacilities(updated);
                         // Update form value for validation - ensure no empty strings
                         const facilityNames = updated.map(f => f.facilityName).filter(name => name && name.trim() !== '');
-                        form.setValue('facilities', facilityNames.length > 0 ? facilityNames : ['']);
+                        form.setValue('facilities', facilityNames);
                       }}
                     />
                   </div>
@@ -743,7 +743,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                         setFacilities(updated);
                         // Update form value for validation - ensure no empty strings
                         const facilityNames = updated.map(f => f.facilityName).filter(name => name && name.trim() !== '');
-                        form.setValue('facilities', facilityNames.length > 0 ? facilityNames : ['']);
+                        form.setValue('facilities', facilityNames);
                       }}
                     >
                       Remove
@@ -751,13 +751,13 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   )}
                 </div>
               ))}
-              
+
               {facilities.length === 0 && (
                 <div className="text-center py-4 text-gray-500">
                   Click "Add Facility" to add facilities available at this center
                 </div>
               )}
-              
+
               {form.formState.errors.facilities && (
                 <p className="text-sm text-red-600 mt-2">
                   {form.formState.errors.facilities.message}
@@ -778,7 +778,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   Add Equipment
                 </Button>
               </div>
-              
+
               {equipment.map((item, index) => (
                 <div key={index} className="p-4 border rounded-lg space-y-3">
                   <div className="flex items-center justify-between">
@@ -797,7 +797,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                       </Button>
                     )}
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Item Name</Label>
@@ -824,7 +824,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label>Warranty Years</Label>
@@ -866,7 +866,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                       />
                     </div>
                   </div>
-                  
+
                   {item.purchaseDate && item.warrantyYears && (
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <p className="text-sm text-blue-700">
@@ -891,7 +891,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   )}
                 </div>
               ))}
-              
+
               {equipment.length === 0 && (
                 <div className="text-center py-4 text-gray-500">
                   Click "Add Equipment" to register equipment for this center
@@ -912,7 +912,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   Add School
                 </Button>
               </div>
-              
+
               {nearbySchools.map((school, index) => (
                 <div key={index} className="grid grid-cols-3 gap-4 p-4 border rounded-lg">
                   <div>
@@ -977,7 +977,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
                   Add Tuition
                 </Button>
               </div>
-              
+
               {nearbyTuitions.map((tuition, index) => (
                 <div key={index} className="grid grid-cols-2 gap-4 p-4 border rounded-lg">
                   <div>
