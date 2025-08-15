@@ -50,6 +50,7 @@ import TopicsManagement from "@/pages/admin/TopicsManagement";
 import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
 import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
+import AdminProgressTracking from '@/pages/admin/ProgressTracking';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -208,11 +209,12 @@ function Router() {
           <AdminAllPayments />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/academic-dashboard">
-        <ProtectedRoute>
-          <AcademicDashboard />
-        </ProtectedRoute>
-      </Route>
+      <Route path="/admin/academic-dashboard" component={() => <AcademicDashboard />} />
+          <Route path="/admin/attendance" component={() => <Attendance />} />
+          <Route path="/admin/course-purchases" component={() => <CoursePurchases />} />
+          <Route path="/admin/topics-management" component={() => <TopicsManagement />} />
+          <Route path="/admin/progress-tracking" component={() => <AdminProgressTracking />} />
+          <Route path="/admin/dropout-requests" component={() => <DropoutRequestsManagement />} />
       <Route path="/admin/exam-management">
         <ProtectedRoute>
           <ExamManagement />

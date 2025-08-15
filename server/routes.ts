@@ -4630,6 +4630,280 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin Progress Tracking - SO Center Overview
+  app.get("/api/admin/progress-tracking/centers", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'super_admin')) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const { stateId, districtId, mandalId, villageId, centerId } = req.query;
+
+      let query = `
+        SELECT 
+          sc.id as so_center_id,
+          sc.name as center_name,
+          sc.center_id as center_code,
+          COUNT(DISTINCT s.id) as total_students,
+          COUNT(DISTINCT t.id) as total_topics,
+          COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.id END) as completed_topics,
+          COALESCE(
+            (COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.id END) * 100.0) / 
+            NULLIF(COUNT(DISTINCT t.id), 0), 0
+          ) as completion_percentage,
+          COALESCE(
+            (COUNT(CASE WHEN ha.status = 'completed' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(ha.id), 0), 0
+          ) as homework_completion_percentage,
+          MAX(COALESCE(tp.updated_at, ha.created_at)) as last_updated
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN subjects sub ON c.id = sub.class_id
+        LEFT JOIN chapters ch ON sub.id = ch.subject_id
+        LEFT JOIN topics t ON ch.id = t.chapter_id
+        LEFT JOIN tuition_progress tp ON s.id = tp.student_id AND t.id = tp.topic_id
+        LEFT JOIN homework_activities ha ON s.id = ha.student_id
+      `;
+
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      // Add location filters
+      if (villageId) {
+        query += ` WHERE sc.village_id = $${paramIndex}`;
+        params.push(villageId);
+        paramIndex++;
+      } else if (mandalId) {
+        query += `
+          LEFT JOIN villages v ON sc.village_id = v.id
+          WHERE v.mandal_id = $${paramIndex}
+        `;
+        params.push(mandalId);
+        paramIndex++;
+      } else if (districtId) {
+        query += `
+          LEFT JOIN villages v ON sc.village_id = v.id
+          LEFT JOIN mandals m ON v.mandal_id = m.id
+          WHERE m.district_id = $${paramIndex}
+        `;
+        params.push(districtId);
+        paramIndex++;
+      } else if (stateId) {
+        query += `
+          LEFT JOIN villages v ON sc.village_id = v.id
+          LEFT JOIN mandals m ON v.mandal_id = m.id
+          LEFT JOIN districts d ON m.district_id = d.id
+          WHERE d.state_id = $${paramIndex}
+        `;
+        params.push(stateId);
+        paramIndex++;
+      } else {
+        query += ` WHERE 1=1`;
+      }
+
+      if (centerId) {
+        query += ` AND sc.id = $${paramIndex}`;
+        params.push(centerId);
+        paramIndex++;
+      }
+
+      query += `
+        GROUP BY sc.id, sc.name, sc.center_id
+        ORDER BY sc.name ASC
+      `;
+
+      const results = await executeRawQuery(query, params);
+      
+      const progressData = results.map((row: any) => ({
+        soCenterId: row.so_center_id,
+        centerName: row.center_name,
+        centerCode: row.center_code,
+        totalStudents: parseInt(row.total_students) || 0,
+        totalTopics: parseInt(row.total_topics) || 0,
+        completedTopics: parseInt(row.completed_topics) || 0,
+        completionPercentage: parseFloat(row.completion_percentage) || 0,
+        homeworkCompletionPercentage: parseFloat(row.homework_completion_percentage) || 0,
+        lastUpdated: row.last_updated || null
+      }));
+
+      res.json(progressData);
+    } catch (error: any) {
+      console.error('❌ Error fetching admin center progress:', error);
+      res.status(500).json({ message: 'Failed to fetch center progress data' });
+    }
+  });
+
+  // Admin Progress Tracking - Student Progress
+  app.get("/api/admin/progress-tracking/students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'super_admin')) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const { centerId, classId, search } = req.query;
+
+      let query = `
+        SELECT 
+          s.id as student_id,
+          s.name as student_name,
+          s.student_id as student_code,
+          c.id as class_id,
+          c.name as class_name,
+          sc.id as so_center_id,
+          sc.name as center_name,
+          COUNT(DISTINCT t.id) as total_topics,
+          COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.id END) as completed_topics,
+          COALESCE(
+            (COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.id END) * 100.0) / 
+            NULLIF(COUNT(DISTINCT t.id), 0), 0
+          ) as completion_percentage,
+          COALESCE(
+            (COUNT(CASE WHEN ha.status = 'completed' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(ha.id), 0), 0
+          ) as homework_completion_percentage,
+          MAX(COALESCE(tp.updated_at, ha.created_at)) as last_activity
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN subjects sub ON c.id = sub.class_id
+        LEFT JOIN chapters ch ON sub.id = ch.subject_id
+        LEFT JOIN topics t ON ch.id = t.chapter_id
+        LEFT JOIN tuition_progress tp ON s.id = tp.student_id AND t.id = tp.topic_id
+        LEFT JOIN homework_activities ha ON s.id = ha.student_id
+        WHERE s.is_active = true
+      `;
+
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (centerId) {
+        query += ` AND s.so_center_id = $${paramIndex}`;
+        params.push(centerId);
+        paramIndex++;
+      }
+
+      if (classId) {
+        query += ` AND s.class_id = $${paramIndex}`;
+        params.push(classId);
+        paramIndex++;
+      }
+
+      if (search) {
+        query += ` AND (s.name ILIKE $${paramIndex} OR s.student_id ILIKE $${paramIndex})`;
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      query += `
+        GROUP BY s.id, s.name, s.student_id, c.id, c.name, sc.id, sc.name
+        ORDER BY s.name ASC
+      `;
+
+      const results = await executeRawQuery(query, params);
+      
+      const progressData = results.map((row: any) => ({
+        studentId: row.student_id,
+        studentName: row.student_name,
+        studentCode: row.student_code,
+        classId: row.class_id,
+        className: row.class_name,
+        soCenterId: row.so_center_id,
+        centerName: row.center_name,
+        totalTopics: parseInt(row.total_topics) || 0,
+        completedTopics: parseInt(row.completed_topics) || 0,
+        completionPercentage: parseFloat(row.completion_percentage) || 0,
+        homeworkCompletionPercentage: parseFloat(row.homework_completion_percentage) || 0,
+        lastActivity: row.last_activity || null
+      }));
+
+      res.json(progressData);
+    } catch (error: any) {
+      console.error('❌ Error fetching admin student progress:', error);
+      res.status(500).json({ message: 'Failed to fetch student progress data' });
+    }
+  });
+
+  // Admin Progress Tracking - Topic Analysis
+  app.get("/api/admin/progress-tracking/topics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'super_admin')) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+
+      const { classId, subjectId, chapterId, centerId } = req.query;
+
+      if (!classId || !subjectId) {
+        return res.status(400).json({ message: 'Class ID and Subject ID are required' });
+      }
+
+      let query = `
+        SELECT 
+          t.id as topic_id,
+          t.name as topic_name,
+          t.is_important,
+          t.is_moderate,
+          ch.id as chapter_id,
+          ch.name as chapter_name,
+          sub.id as subject_id,
+          sub.name as subject_name,
+          COUNT(DISTINCT s.id) as total_students,
+          COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN s.id END) as completed_students,
+          COALESCE(
+            (COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN s.id END) * 100.0) / 
+            NULLIF(COUNT(DISTINCT s.id), 0), 0
+          ) as completion_percentage
+        FROM topics t
+        LEFT JOIN chapters ch ON t.chapter_id = ch.id
+        LEFT JOIN subjects sub ON ch.subject_id = sub.id
+        LEFT JOIN students s ON sub.class_id = s.class_id AND s.is_active = true
+        LEFT JOIN tuition_progress tp ON s.id = tp.student_id AND t.id = tp.topic_id
+        WHERE sub.class_id = $1 AND sub.id = $2
+      `;
+
+      const params: any[] = [classId, subjectId];
+      let paramIndex = 3;
+
+      if (chapterId) {
+        query += ` AND ch.id = $${paramIndex}`;
+        params.push(chapterId);
+        paramIndex++;
+      }
+
+      if (centerId) {
+        query += ` AND s.so_center_id = $${paramIndex}`;
+        params.push(centerId);
+        paramIndex++;
+      }
+
+      query += `
+        GROUP BY t.id, t.name, t.is_important, t.is_moderate, ch.id, ch.name, sub.id, sub.name
+        ORDER BY ch.name ASC, t.name ASC
+      `;
+
+      const results = await executeRawQuery(query, params);
+      
+      const progressData = results.map((row: any) => ({
+        topicId: row.topic_id,
+        topicName: row.topic_name,
+        isImportant: row.is_important || false,
+        isModerate: row.is_moderate || false,
+        chapterId: row.chapter_id,
+        chapterName: row.chapter_name,
+        subjectId: row.subject_id,
+        subjectName: row.subject_name,
+        totalStudents: parseInt(row.total_students) || 0,
+        completedStudents: parseInt(row.completed_students) || 0,
+        completionPercentage: parseFloat(row.completion_percentage) || 0
+      }));
+
+      res.json(progressData);
+    } catch (error: any) {
+      console.error('❌ Error fetching admin topic progress:', error);
+      res.status(500).json({ message: 'Failed to fetch topic progress data' });
+    }
+  });
+
   app.get("/api/admin/progress-tracking", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'so_center') {

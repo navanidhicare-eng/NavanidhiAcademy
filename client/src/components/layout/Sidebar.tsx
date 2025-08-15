@@ -30,7 +30,8 @@ import {
   Package,
   ShoppingCart,
   X,
-  Plus
+  Plus,
+  Target
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -113,6 +114,7 @@ const navigation: NavItem[] = [
       { title: 'Addresses', href: '/admin/addresses', icon: Building },
       { title: 'Announcements', href: '/admin/announcements', icon: Bell },
       { title: 'Approvals', href: '/admin/approvals', icon: CheckCircle },
+      { title: 'Progress Tracking', href: '/admin/progress-tracking', icon: Target },
     ],
   },
   {
