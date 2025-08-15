@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Structure() {
+function AdminStructure() {
   return (
     <div>
       <h1>Structure Page</h1>
@@ -9,4 +9,4 @@ function Structure() {
   );
 }
 
-export default Structure;
+export default AdminStructure;
