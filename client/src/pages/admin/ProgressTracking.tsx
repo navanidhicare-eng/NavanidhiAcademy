@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -11,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { 
-  Target, Users, School, Building, BookOpen, CheckCircle, Clock, 
+import {
+  Target, Users, School, Building, BookOpen, CheckCircle, Clock,
   TrendingUp, BarChart3, Filter, Search, Calendar, AlertCircle,
   MapPin, GraduationCap, User, Brain, Award
 } from 'lucide-react';
@@ -306,26 +305,16 @@ export default function AdminProgressTracking() {
   });
 
   // Reset functions for hierarchical dropdowns
-  const resetChildDropdowns = (level: string) => {
-    switch(level) {
-      case 'state':
-        setSelectedDistrict('');
-        setSelectedMandal('');
-        setSelectedVillage('');
-        setSelectedCenter('');
-        break;
-      case 'district':
-        setSelectedMandal('');
-        setSelectedVillage('');
-        setSelectedCenter('');
-        break;
-      case 'mandal':
-        setSelectedVillage('');
-        setSelectedCenter('');
-        break;
-      case 'village':
-        setSelectedCenter('');
-        break;
+  const resetChildDropdowns = (level: 'state' | 'district' | 'mandal') => {
+    if (level === 'state') {
+      setSelectedDistrict('all-districts');
+      setSelectedMandal('all-mandals');
+      setSelectedCenter('');
+    } else if (level === 'district') {
+      setSelectedMandal('all-mandals');
+      setSelectedCenter('');
+    } else if (level === 'mandal') {
+      setSelectedCenter('');
     }
   };
 
@@ -489,14 +478,14 @@ export default function AdminProgressTracking() {
                     <span className="text-sm text-muted-foreground">Students</span>
                     <span className="font-medium">{center.totalStudents}</span>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Topic Progress</span>
                       <span className="font-medium">{center.completionPercentage.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all ${getStatusColor(center.completionPercentage)}`}
                         style={{ width: `${Math.min(center.completionPercentage, 100)}%` }}
                       />
@@ -509,7 +498,7 @@ export default function AdminProgressTracking() {
                       <span className="font-medium">{center.homeworkCompletionPercentage.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full transition-all ${getStatusColor(center.homeworkCompletionPercentage)}`}
                         style={{ width: `${Math.min(center.homeworkCompletionPercentage, 100)}%` }}
                       />
@@ -641,7 +630,7 @@ export default function AdminProgressTracking() {
                           <td className="border-b px-4 py-3 text-center">
                             <div className="flex flex-col items-center gap-1">
                               <div className="w-full bg-muted rounded-full h-2 max-w-[80px]">
-                                <div 
+                                <div
                                   className={`h-2 rounded-full ${getStatusColor(student.completionPercentage)}`}
                                   style={{ width: `${Math.min(student.completionPercentage, 100)}%` }}
                                 />
@@ -657,7 +646,7 @@ export default function AdminProgressTracking() {
                           <td className="border-b px-4 py-3 text-center">
                             <div className="flex flex-col items-center gap-1">
                               <div className="w-full bg-muted rounded-full h-2 max-w-[80px]">
-                                <div 
+                                <div
                                   className={`h-2 rounded-full ${getStatusColor(student.homeworkCompletionPercentage)}`}
                                   style={{ width: `${Math.min(student.homeworkCompletionPercentage, 100)}%` }}
                                 />
@@ -716,6 +705,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Class" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">All Classes</SelectItem>
                       {(classes as Class[]).map((cls: Class) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
@@ -735,6 +725,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Subject" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">All Subjects</SelectItem>
                       {(subjects as Subject[]).filter(s => s.classId === selectedClass).map((subject: Subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
                           {subject.name}
@@ -751,6 +742,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Chapter" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="">All Chapters</SelectItem>
                       {(chapters as Chapter[]).filter(c => c.subjectId === selectedSubject).map((chapter: Chapter) => (
                         <SelectItem key={chapter.id} value={chapter.id}>
                           {chapter.name}
@@ -818,7 +810,7 @@ export default function AdminProgressTracking() {
                             <span className="font-medium">{topic.completionPercentage.toFixed(1)}%</span>
                           </div>
                           <div className="w-full bg-muted rounded-full h-3">
-                            <div 
+                            <div
                               className={`h-3 rounded-full transition-all ${getStatusColor(topic.completionPercentage)}`}
                               style={{ width: `${Math.min(topic.completionPercentage, 100)}%` }}
                             />
