@@ -55,6 +55,7 @@ const navigation: NavItem[] = [
   {
     title: 'Students',
     icon: Users,
+    roles: ['so_center'],
     children: [
       { title: 'All Students', href: '/students', icon: Users },
       { title: 'Progress Tracking', href: '/progress', icon: TrendingUp },
