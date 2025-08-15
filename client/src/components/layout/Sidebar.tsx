@@ -73,17 +73,13 @@ const navigation: NavItem[] = [
       { title: 'Exam Results', href: '/so-center/exam-results', icon: BarChart3, roles: ['so_center'] },
       { title: 'Admin Exam Management', href: '/admin/exam-management', icon: Award, roles: ['admin', 'super_admin'] },
       { title: 'Academic Dashboard', href: '/admin/academic-dashboard', icon: BarChart3, roles: ['admin', 'super_admin'] },
-      { title: 'Topics Management', href: '/admin/topics-management', icon: BookOpen, roles: ['admin', 'super_admin'] },
     ],
   },
   {
     title: 'Finance',
     icon: DollarSign,
     children: [
-      { title: 'Fee Payments', href: '/fee-payments', icon: CreditCard },
-      { title: 'Wallet', href: '/wallet', icon: DollarSign, roles: ['so_center', 'agent'] },
       { title: 'Expenses', href: '/expenses', icon: FileText, roles: ['so_center'] },
-      { title: 'SO Center Wallet', href: '/so-center/wallet', icon: DollarSign, roles: ['admin', 'super_admin'] },
       { title: 'Admin Expenses', href: '/admin/expenses', icon: FileText, roles: ['admin', 'super_admin'] },
       { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard, roles: ['admin', 'super_admin'] },
       { title: 'Fee Structures', href: '/admin/fees', icon: DollarSign, roles: ['admin', 'super_admin'] },
@@ -135,12 +131,6 @@ const navigation: NavItem[] = [
     title: 'All Students',
     href: '/admin/students',
     icon: GraduationCap,
-    roles: ['admin', 'super_admin'],
-  },
-  {
-    title: 'Attendance Management',
-    href: '/admin/attendance',
-    icon: Calendar,
     roles: ['admin', 'super_admin'],
   },
   {
@@ -234,7 +224,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
   const handleNavigation = (href: string) => {
     setLocation(href);
-    
+
     // Keep parent menu expanded if navigating to a child item
     navigation.forEach(item => {
       if (item.children && item.children.some(child => child.href === href)) {
@@ -243,7 +233,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         }
       }
     });
-    
+
     if (isMobile && onMobileClose) {
       onMobileClose();
     }

@@ -222,7 +222,7 @@ function AdminProducts() {
                     </div>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   {/* Price and Commission */}
                   <div className="grid grid-cols-2 gap-3">
@@ -264,7 +264,7 @@ function AdminProducts() {
                         {product.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
-                    
+
                     <Dialog open={editingProduct?.id === product.id} onOpenChange={(open) => !open && setEditingProduct(null)}>
                       <DialogTrigger asChild>
                         <Button 
@@ -325,7 +325,7 @@ function ProductForm({ form, onSubmit, isLoading, isEditing }: ProductFormProps)
               </FormItem>
             )}
           />
-          
+
           <FormField
             control={form.control}
             name="price"
