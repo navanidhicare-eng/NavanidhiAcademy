@@ -74,10 +74,16 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const [equipment, setEquipment] = useState<{itemName: string; serialNumber: string; warrantyYears: string; purchaseDate: string; brandName: string}[]>([]);
 
   // Generate next Center ID when modal opens - PRODUCTION READY
-  const { data: nextCenterId = '', isLoading: centerIdLoading } = useQuery({
+  const { data: nextCenterIdResponse, isLoading: centerIdLoading } = useQuery({
     queryKey: ['/api/admin/so-centers/next-id'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/admin/so-centers/next-id');
+      return await response.json();
+    },
     enabled: isOpen,
   });
+
+  const nextCenterId = nextCenterIdResponse?.centerId || '';
 
 
 
@@ -154,7 +160,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   // Auto-fill email when center ID is generated
   useEffect(() => {
     if (nextCenterId) {
-      const autoEmail = `${(nextCenterId as string).toLowerCase()}@navanidhi.org`;
+      const autoEmail = `${nextCenterId.toLowerCase()}@navanidhi.org`;
       form.setValue('email', autoEmail);
     }
   }, [nextCenterId, form]);
@@ -255,7 +261,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             <div className="bg-gradient-to-r from-green-100 to-emerald-100 p-4 rounded-xl border border-green-200">
               <div className="text-center">
                 <h3 className="text-sm font-medium text-green-700 mb-1">Generated Center ID</h3>
-                <p className="text-xl font-bold text-green-800">{(nextCenterId as string) || 'Loading...'}</p>
+                <p className="text-xl font-bold text-green-800">{nextCenterId || 'Loading...'}</p>
                 <p className="text-xs text-green-600 mt-1">Login Password: 12345678</p>
               </div>
             </div>
@@ -1006,7 +1012,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-800">
                 <strong>Important:</strong> 
-                • The center will be created with ID <strong>{(nextCenterId as string) || 'Generating...'}</strong> and default password <strong>12345678</strong><br/>
+                • The center will be created with ID <strong>{nextCenterId || 'Generating...'}</strong> and default password <strong>12345678</strong><br/>
                 • The center will be required to change password on first login<br/>
                 • Manager can be assigned now or later and can be reassigned if needed<br/>
                 • All selected facilities will be displayed to students and parents
