@@ -105,22 +105,22 @@ function AddExamModal({ isOpen, onClose, editingExam }: AddExamModalProps) {
   };
 
   // Fetch real data from Supabase
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
+  const { data: classes = [], isLoading: classesLoading } = useQuery<any[]>({
     queryKey: ['/api/classes'],
     enabled: isOpen,
   });
 
-  const { data: subjects = [], isLoading: subjectsLoading } = useQuery({
+  const { data: subjects = [], isLoading: subjectsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/subjects'],
     enabled: isOpen,
   });
 
-  const { data: chapters = [], isLoading: chaptersLoading } = useQuery({
+  const { data: chapters = [], isLoading: chaptersLoading } = useQuery<any[]>({
     queryKey: ['/api/chapters'],
     enabled: isOpen,
   });
 
-  const { data: soCenters = [], isLoading: soCentersLoading } = useQuery({
+  const { data: soCenters = [], isLoading: soCentersLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/so-centers'],
     enabled: isOpen,
   });
@@ -704,7 +704,7 @@ export default function ExamManagement() {
   const [selectedVillage, setSelectedVillage] = useState('all-villages');
 
   // Fetch real exams data from Supabase
-  const { data: exams = [], isLoading: examsLoading, refetch: refetchExams } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, refetch: refetchExams } = useQuery<any[]>({
     queryKey: ['/api/admin/exams'],
   });
 
@@ -730,32 +730,32 @@ export default function ExamManagement() {
   });
 
   // Fetch real stats from Supabase
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [] } = useQuery<any[]>({
     queryKey: ['/api/classes'],
   });
 
-  const { data: subjects = [] } = useQuery({
+  const { data: subjects = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/subjects'],
   });
 
-  const { data: soCenters = [] } = useQuery({
+  const { data: soCenters = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/so-centers'],
   });
 
   // Location data queries
-  const { data: states = [] } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
   });
 
-  const { data: districts = [] } = useQuery({
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts'],
   });
 
-  const { data: mandals = [] } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals'],
   });
 
-  const { data: villages = [] } = useQuery({
+  const { data: villages = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages'],
   });
 

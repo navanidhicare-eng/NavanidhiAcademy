@@ -373,7 +373,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All States" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All States</SelectItem>
+                      <SelectItem value="all-states">All States</SelectItem>
                       {(states as State[]).map((state: State) => (
                         <SelectItem key={state.id} value={state.id}>
                           {state.name}
@@ -393,7 +393,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Districts" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Districts</SelectItem>
+                      <SelectItem value="all-districts">All Districts</SelectItem>
                       {(districts as District[]).map((district: District) => (
                         <SelectItem key={district.id} value={district.id}>
                           {district.name}
@@ -413,7 +413,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Mandals" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Mandals</SelectItem>
+                      <SelectItem value="all-mandals">All Mandals</SelectItem>
                       {(mandals as Mandal[]).map((mandal: Mandal) => (
                         <SelectItem key={mandal.id} value={mandal.id}>
                           {mandal.name}
@@ -433,7 +433,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Villages" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Villages</SelectItem>
+                      <SelectItem value="all-villages">All Villages</SelectItem>
                       {(villages as Village[]).map((village: Village) => (
                         <SelectItem key={village.id} value={village.id}>
                           {village.name}
@@ -450,7 +450,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Centers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Centers</SelectItem>
+                      <SelectItem value="all-centers">All Centers</SelectItem>
                       {(centers as SoCenter[]).map((center: SoCenter) => (
                         <SelectItem key={center.id} value={center.id}>
                           {center.name}
@@ -548,7 +548,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Centers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Centers</SelectItem>
+                      <SelectItem value="all-centers">All Centers</SelectItem>
                       {(centers as SoCenter[]).map((center: SoCenter) => (
                         <SelectItem key={center.id} value={center.id}>
                           {center.name}
@@ -565,7 +565,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Classes" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Classes</SelectItem>
+                      <SelectItem value="all-classes">All Classes</SelectItem>
                       {(classes as Class[]).map((cls: Class) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
@@ -705,7 +705,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Class" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Classes</SelectItem>
+                      <SelectItem value="all-classes">All Classes</SelectItem>
                       {(classes as Class[]).map((cls: Class) => (
                         <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
@@ -725,7 +725,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Subjects</SelectItem>
+                      <SelectItem value="all-subjects">All Subjects</SelectItem>
                       {(subjects as Subject[]).filter(s => s.classId === selectedClass).map((subject: Subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
                           {subject.name}
@@ -742,7 +742,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="Select Chapter" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Chapters</SelectItem>
+                      <SelectItem value="all-chapters">All Chapters</SelectItem>
                       {(chapters as Chapter[]).filter(c => c.subjectId === selectedSubject).map((chapter: Chapter) => (
                         <SelectItem key={chapter.id} value={chapter.id}>
                           {chapter.name}
@@ -759,7 +759,7 @@ export default function AdminProgressTracking() {
                       <SelectValue placeholder="All Centers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Centers</SelectItem>
+                      <SelectItem value="all-centers">All Centers</SelectItem>
                       {(centers as SoCenter[]).map((center: SoCenter) => (
                         <SelectItem key={center.id} value={center.id}>
                           {center.name}

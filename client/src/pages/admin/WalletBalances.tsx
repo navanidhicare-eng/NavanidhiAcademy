@@ -108,7 +108,8 @@ function WalletBalances() {
     queryKey: ['/api/admin/agent-metrics', selectedAgent?.id],
     queryFn: async () => {
       if (!selectedAgent) return null;
-      return apiRequest('GET', `/api/admin/agent-metrics/${selectedAgent.id}`);
+      const response = await apiRequest('GET', `/api/admin/agent-metrics/${selectedAgent.id}`);
+      return await response.json();
     },
     enabled: !!selectedAgent,
   });
@@ -118,7 +119,8 @@ function WalletBalances() {
     queryKey: ['/api/admin/so-center-metrics', selectedSOCenter?.id],
     queryFn: async () => {
       if (!selectedSOCenter) return null;
-      return apiRequest('GET', `/api/admin/so-center-metrics/${selectedSOCenter.id}`);
+      const response = await apiRequest('GET', `/api/admin/so-center-metrics/${selectedSOCenter.id}`);
+      return await response.json();
     },
     enabled: !!selectedSOCenter,
   });

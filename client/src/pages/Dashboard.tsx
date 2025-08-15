@@ -25,7 +25,7 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 // Helper function to format currency
-const formatCurrency = (amount) => {
+const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -648,7 +648,6 @@ export default function Dashboard() {
             </Card>
           </div>
         )}
-      </div>
       </div>
     </DashboardLayout>
   );
