@@ -36,8 +36,6 @@ import AdminAttendance from "@/pages/admin/Attendance";
 import AdminAnnouncements from "@/pages/admin/Announcements";
 import AdminApprovals from "@/pages/admin/Approvals";
 import AdminProducts from "@/pages/admin/Products";
-
-import AdminProducts from "@/pages/admin/Products";
 import AdminStudents from "@/pages/admin/Students";
 import AcademicDashboard from "@/pages/admin/AcademicDashboard";
 import ExamManagement from "@/pages/admin/ExamManagement";
