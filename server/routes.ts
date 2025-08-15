@@ -4248,6 +4248,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get student payment history
+  app.get("/api/students/:studentId/payments", authenticateToken, async (req, res) => {
+    try {
+      const studentId = req.params.studentId;
+      
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const payments = await db
+        .select({
+          id: schema.payments.id,
+          amount: schema.payments.amount,
+          paymentMethod: schema.payments.paymentMethod,
+          description: schema.payments.description,
+          month: schema.payments.month,
+          year: schema.payments.year,
+          receiptNumber: schema.payments.receiptNumber,
+          transactionId: schema.payments.transactionId,
+          createdAt: schema.payments.createdAt,
+        })
+        .from(schema.payments)
+        .where(eq(schema.payments.studentId, studentId))
+        .orderBy(desc(schema.payments.createdAt));
+
+      res.json(payments);
+    } catch (error) {
+      console.error('Error fetching student payment history:', error);
+      res.status(500).json({ message: 'Failed to fetch payment history' });
+    }
+  });
+
   // Get single student details by ID for admin
   app.get("/api/students/:studentId", authenticateToken, async (req, res) => {
     try {

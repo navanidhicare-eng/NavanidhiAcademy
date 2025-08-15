@@ -28,6 +28,7 @@ import AdminStructure from '@/pages/admin/Structure';
 import AdminCenters from '@/pages/admin/Centers';
 import AdminAllStudents from "@/pages/admin/AllStudents";
 import AdminAllPayments from "@/pages/admin/AllPayments";
+import StudentBalanceDues from '@/pages/admin/StudentBalanceDues';
 import AdminFees from "@/pages/admin/Fees";
 import AdminExpenses from "@/pages/admin/Expenses";
 import AdminAcademics from "@/pages/admin/Academics";
@@ -224,6 +225,11 @@ function Router() {
       <Route path="/admin/all-payments">
         <ProtectedRoute>
           <AdminAllPayments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/student-balance-dues">
+        <ProtectedRoute>
+          <StudentBalanceDues />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/roles">
