@@ -449,91 +449,113 @@ export default function ClassSubjectManagement() {
               </CardContent>
             </Card>
 
-            {/* Existing Subjects List */}
+            {/* Existing Subjects List - Grouped by Class */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>Existing Subjects</span>
-                  <Select value={selectedClassForView} onValueChange={setSelectedClassForView}>
-                    <SelectTrigger className="w-48">
-                      <SelectValue placeholder="Select class to filter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Classes</SelectItem>
-                      {classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <span>Existing Subjects (Grouped by Class)</span>
+                  <div className="text-sm text-gray-600">
+                    Total: {allSubjects.length} subjects across {classes.length} classes
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {subjectsLoading ? (
                   <div className="text-center py-4">Loading subjects...</div>
-                ) : filteredSubjects.length === 0 ? (
+                ) : classes.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <p>
-                      {selectedClassForView && selectedClassForView !== 'all'
-                        ? `No subjects found for ${getClassName(selectedClassForView)}`
-                        : "No subjects found. Add your first subject!"
-                      }
-                    </p>
+                    <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No classes found. Please add classes first!</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {filteredSubjects.map((subject: any) => (
-                      <div key={subject.id} className="p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 hover:shadow-md transition-shadow cursor-pointer"
-                           onClick={() => handleEditSubject(subject)}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg text-gray-800">{subject.name}</h3>
-                            <div className="flex items-start mt-2">
-                              <BookOpen className="w-4 h-4 text-blue-600 mr-2 mt-0.5" />
-                              <div className="flex flex-wrap gap-1">
-                                {Array.isArray(subject.connectedClasses) ? 
-                                  subject.connectedClasses.map((className: string, index: number) => (
-                                    <span key={index} className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
-                                      {className}
-                                    </span>
-                                  )) :
-                                  <span className="text-sm font-medium text-blue-700 bg-blue-100 px-2 py-1 rounded-full">
-                                    Connected to: {getClassName(subject.classId)}
-                                  </span>
-                                }
-                              </div>
+                  <div className="space-y-6">
+                    {classes.map((cls: any) => {
+                      const classSubjects = allSubjects.filter((subject: any) => subject.classId === cls.id);
+                      return (
+                        <div key={cls.id} className="border rounded-lg bg-gradient-to-r from-gray-50 to-blue-50 p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <BookOpen className="w-5 h-5 text-blue-600" />
+                              <h3 className="text-lg font-semibold text-gray-800">{cls.name}</h3>
+                              <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                {classSubjects.length} subjects
+                              </span>
                             </div>
+                            {cls.description && (
+                              <p className="text-sm text-gray-600 italic">{cls.description}</p>
+                            )}
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="text-green-600">
-                              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
+                          
+                          {classSubjects.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                              <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                              <p className="text-sm">No subjects added to this class yet</p>
+                              <p className="text-xs text-gray-400 mt-1">Use the form above to add subjects</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this subject?')) {
-                                  deleteSubjectMutation.mutate(subject.id);
-                                }
-                              }}
-                              disabled={deleteSubjectMutation.isPending}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <ArrowRightLeft className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {classSubjects.map((subject: any) => (
+                                <div key={subject.id} 
+                                     className="p-3 border rounded-lg bg-white hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-300"
+                                     onClick={() => handleEditSubject(subject)}>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                      <h4 className="font-medium text-gray-800 mb-1">{subject.name}</h4>
+                                      <div className="flex items-center text-xs text-gray-500">
+                                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                                          Active
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleEditSubject(subject);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (confirm(`Are you sure you want to delete "${subject.name}" from ${cls.name}?`)) {
+                                            deleteSubjectMutation.mutate(subject.id);
+                                          }
+                                        }}
+                                        disabled={deleteSubjectMutation.isPending}
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <ArrowRightLeft className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center">
+                                    <Edit2 className="w-3 h-3 mr-1" />
+                                    Click to edit or reassign to another class
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="mt-2 text-xs text-gray-500 bg-yellow-50 px-2 py-1 rounded flex items-center">
-                          <ArrowRightLeft className="w-3 h-3 mr-1" />
-                          Click to modify class connections
-                        </div>
+                      );
+                    })}
+                    
+                    {allSubjects.length === 0 && (
+                      <div className="text-center py-12 text-gray-500">
+                        <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">No Subjects Added Yet</h3>
+                        <p className="text-gray-600 max-w-md mx-auto leading-relaxed">
+                          Start building your academic structure by adding subjects to your classes using the form above.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </CardContent>
