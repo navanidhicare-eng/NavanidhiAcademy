@@ -1261,11 +1261,14 @@ export class DrizzleStorage implements IStorage {
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
     console.log('🔧 Generating next available SO Center ID...');
 
-    // Get all existing centers and users with so_center role to check for conflicts
+    // Get all existing SO Centers
     const centers = await db.select().from(schema.soCenters);
-    const users = await storage.getUsersByRole('so_center');
-
     console.log('Existing center IDs:', centers.map(c => c.centerId));
+
+    // Get all users with SO Center role
+    const users = await db.select().from(schema.users)
+      .where(eq(schema.users.role, 'so_center'));
+
     console.log('Existing SO Center emails:', users.map(u => u.email));
 
     // Extract numeric parts from both center IDs and emails
@@ -1359,7 +1362,7 @@ export class DrizzleStorage implements IStorage {
   async getSoCenterDashboardStats(soCenterId: string): Promise<any> {
     try {
       console.log('📊 Calculating SO Center dashboard stats for:', soCenterId);
-      
+
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1389,7 +1392,7 @@ export class DrizzleStorage implements IStorage {
       for (const payment of paymentsResult) {
         const amount = parseFloat(payment.amount || '0');
         thisMonthCollection += amount;
-        
+
         const paymentDate = new Date(payment.created_at);
         if (paymentDate.toDateString() === today.toDateString()) {
           todayCollection += amount;
