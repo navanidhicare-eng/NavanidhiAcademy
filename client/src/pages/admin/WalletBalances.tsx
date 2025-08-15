@@ -66,10 +66,10 @@ function WalletBalances() {
     queryKey: ['/api/admin/so-centers'],
   });
 
-  // Fetch Agents
+  // Fetch Agents (only users with agent role, excluding so_center)
   const { data: agents = [], isLoading: loadingAgents } = useQuery<Agent[]>({
     queryKey: ['/api/admin/users'],
-    select: (users) => users.filter(user => user.role === 'agent' || user.role === 'so_center')
+    select: (users) => users.filter(user => user.role === 'agent')
   });
 
   // Fetch SO Center wallet details when selected
@@ -84,10 +84,10 @@ function WalletBalances() {
 
   // Fetch Agent wallet details when selected
   const { data: agentWallet, isLoading: loadingAgentWallet } = useQuery<any>({
-    queryKey: ['/api/wallet/balance', selectedAgent?.id],
+    queryKey: ['/api/admin/agent-wallet', selectedAgent?.id],
     queryFn: async () => {
       if (!selectedAgent) return null;
-      return apiRequest('GET', `/api/wallet/balance`);
+      return apiRequest('GET', `/api/admin/wallet/${selectedAgent.id}`);
     },
     enabled: !!selectedAgent,
   });

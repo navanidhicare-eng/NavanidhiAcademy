@@ -2685,7 +2685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get wallet balance - for agents and SO centers only
+  // Get wallet balance - for agents, SO centers, and admins
   app.get('/api/wallet/balance', authenticateToken, async (req, res) => {
     console.log('🔍 Wallet balance request - User data:', {
       userId: req.user?.userId,
@@ -2694,8 +2694,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       hasUser: !!req.user
     });
 
-    // Check if user has appropriate role
-    if (!['agent', 'so_center'].includes(req.user?.role)) {
+    // Check if user has appropriate role (allow admin for viewing purposes)
+    if (!['agent', 'so_center', 'admin'].includes(req.user?.role)) {
       console.log('❌ Access denied for role:', req.user?.role);
       return res.status(403).json({ message: 'Access denied - Role not authorized for wallet access' });
     }
