@@ -149,7 +149,7 @@ const navigation: NavItem[] = [
     roles: ['admin', 'super_admin'],
   },
   {
-    title: 'Chapters and Topics Managing',
+    title: 'Topics Management',
     href: '/admin/structure',
     icon: School,
     roles: ['admin', 'super_admin'],

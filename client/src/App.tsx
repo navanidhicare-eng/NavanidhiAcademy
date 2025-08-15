@@ -24,7 +24,7 @@ import StudentsAdmin from "@/pages/StudentsAdmin";
 import AdminUsers from "@/pages/admin/Users";
 import AdminRoles from "@/pages/admin/Roles";
 import AdminAddresses from "@/pages/admin/Addresses";
-import AdminStructure from '@/pages/admin/Structure';
+import TopicsManagement from '@/pages/admin/TopicsManagement';
 import AdminCenters from '@/pages/admin/Centers';
 import AdminAllStudents from "@/pages/admin/AllStudents";
 import AdminAllPayments from "@/pages/admin/AllPayments";
@@ -46,7 +46,6 @@ import ExamResults from "@/pages/so-center/ExamResults";
 import PostExamResult from "@/pages/so-center/PostExamResult";
 
 import CoursePurchases from "@/pages/admin/CoursePurchases";
-import TopicsManagement from "@/pages/admin/TopicsManagement";
 import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
 import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
@@ -182,7 +181,7 @@ function Router() {
       </Route>
       <Route path="/admin/structure">
         <ProtectedRoute>
-          <AdminStructure />
+          <TopicsManagement />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/class-subject-management">

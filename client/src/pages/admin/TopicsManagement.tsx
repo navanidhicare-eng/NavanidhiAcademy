@@ -41,7 +41,7 @@ export default function TopicsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: topics = [], isLoading } = useQuery({
+  const { data: topics = [], isLoading } = useQuery<Topic[]>({
     queryKey: ["/api/topics-management"],
     queryFn: () => apiRequest("GET", "/api/topics-management"),
   });
