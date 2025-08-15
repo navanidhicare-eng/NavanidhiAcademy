@@ -1,10 +1,9 @@
-
 import { ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -13,18 +12,20 @@ interface DashboardLayoutProps {
   subtitle?: string;
   showAddButton?: boolean;
   onAddClick?: () => void;
+  addButtonText?: string;
 }
 
-function DashboardLayout({ 
+export default function DashboardLayout({ 
   children, 
   title, 
   subtitle, 
-  showAddButton, 
-  onAddClick 
+  showAddButton = false, 
+  onAddClick,
+  addButtonText = "Add New"
 }: DashboardLayoutProps) {
   const { isMobile, isTablet } = useScreenSize();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  
+
   const isCompact = isMobile || isTablet;
 
   return (
@@ -36,7 +37,7 @@ function DashboardLayout({
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      
+
       {/* Sidebar */}
       <div className={cn(
         "z-50 transition-transform duration-300 ease-in-out",
@@ -45,7 +46,7 @@ function DashboardLayout({
       )}>
         <Sidebar onMobileClose={() => setSidebarOpen(false)} />
       </div>
-      
+
       {/* Main Content */}
       <div className={cn(
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
@@ -64,7 +65,7 @@ function DashboardLayout({
             </Button>
           </div>
         )}
-        
+
         <Header 
           title={title}
           subtitle={subtitle}
@@ -72,7 +73,7 @@ function DashboardLayout({
           onAddClick={onAddClick}
           isMobile={isCompact}
         />
-        
+
         <main className={cn(
           "flex-1 p-4 overflow-x-hidden",
           isCompact ? "pt-6" : "p-6"
@@ -83,5 +84,3 @@ function DashboardLayout({
     </div>
   );
 }
-
-export default DashboardLayout;

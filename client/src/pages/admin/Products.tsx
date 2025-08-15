@@ -159,11 +159,9 @@ function AdminProducts() {
       subtitle="Manage products and commission settings"
       showAddButton={true}
       onAddClick={() => setIsCreateOpen(true)}
+      addButtonText="Add Product"
     >
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogTrigger asChild>
-          <Button className="hidden">Create Product</Button>
-        </DialogTrigger>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Product</DialogTitle>
