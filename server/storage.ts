@@ -896,8 +896,8 @@ export class DrizzleStorage implements IStorage {
       const studentIds = students.map(s => s.id);
       const siblings = studentIds.length > 0 ? await db
         .select()
-        .from(schema.siblings)
-        .where(inArray(schema.siblings.studentId, studentIds)) : [];
+        .from(schema.student_siblings)
+        .where(inArray(schema.student_siblings.studentId, studentIds)) : [];
 
       // Combine student data with siblings
       const studentsWithDetails = students.map(student => {
