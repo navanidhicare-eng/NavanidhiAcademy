@@ -1893,15 +1893,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         // Admin and other roles - comprehensive global stats from Supabase
         const [basicStats, paymentStats, progressStats, attendanceStats, examStats] = await Promise.all([
-          // Basic counts (handle missing is_active columns gracefully)
+          // Basic counts (remove is_active references for tables that don't have this column)
           sql`
             SELECT 
               (SELECT COUNT(*) FROM students WHERE COALESCE(is_active, true) = true) as total_students,
               (SELECT COUNT(*) FROM so_centers) as total_so_centers,
               (SELECT COUNT(*) FROM users WHERE role = 'teacher') as total_teachers,
-              (SELECT COUNT(*) FROM classes WHERE COALESCE(is_active, true) = true) as total_classes,
-              (SELECT COUNT(*) FROM subjects WHERE COALESCE(is_active, true) = true) as total_subjects,
-              (SELECT COUNT(*) FROM products WHERE COALESCE(is_active, true) = true) as total_products
+              (SELECT COUNT(*) FROM classes) as total_classes,
+              (SELECT COUNT(*) FROM subjects) as total_subjects,
+              (SELECT COUNT(*) FROM products) as total_products
           `,
           
           // Payment and revenue stats
@@ -1920,11 +1920,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
                FROM so_centers) as total_so_center_balance
           `,
           
-          // Academic progress stats (handle missing is_active columns gracefully)
+          // Academic progress stats (remove is_active references for tables that don't have this column)
           sql`
             SELECT 
               (SELECT COUNT(*) FROM tuition_progress WHERE status = 'learned') as topics_completed,
-              (SELECT COUNT(*) FROM topics WHERE COALESCE(is_active, true) = true) as total_topics,
+              (SELECT COUNT(*) FROM topics) as total_topics,
               (SELECT COUNT(*) FROM homework_activities WHERE status = 'completed') as homework_completed,
               (SELECT COUNT(*) FROM homework_activities) as total_homework
           `,
@@ -1939,10 +1939,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             WHERE date >= DATE_TRUNC('month', CURRENT_DATE)
           `,
           
-          // Exam and assessment stats (handle missing is_active columns gracefully)
+          // Exam and assessment stats (remove is_active references for tables that don't have this column)
           sql`
             SELECT 
-              (SELECT COUNT(*) FROM exams WHERE COALESCE(is_active, true) = true) as total_exams,
+              (SELECT COUNT(*) FROM exams) as total_exams,
               (SELECT COUNT(*) FROM exam_results) as total_exam_results,
               (SELECT COALESCE(AVG(CAST(marks_obtained AS NUMERIC)), 0) FROM exam_results) as avg_exam_score
           `
