@@ -192,6 +192,19 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   const { isMobile } = useScreenSize();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
+  // Auto-expand parent menu if current page is a submenu item
+  useState(() => {
+    navigation.forEach(item => {
+      if (item.children && item.children.some(child => 
+        isItemVisible(child) && child.href && isActive(child.href)
+      )) {
+        setExpandedItems(prev => 
+          prev.includes(item.title) ? prev : [...prev, item.title]
+        );
+      }
+    });
+  });
+
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev =>
       prev.includes(title)
@@ -202,6 +215,16 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
   const handleNavigation = (href: string) => {
     setLocation(href);
+    
+    // Keep parent menu expanded if navigating to a child item
+    navigation.forEach(item => {
+      if (item.children && item.children.some(child => child.href === href)) {
+        if (!expandedItems.includes(item.title)) {
+          setExpandedItems(prev => [...prev, item.title]);
+        }
+      }
+    });
+    
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
@@ -214,6 +237,16 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
 
   const isActive = (href: string) => {
     return location === href || location.startsWith(href + '/');
+  };
+
+  const isParentActive = (item: NavItem) => {
+    if (item.href && isActive(item.href)) return true;
+    if (item.children) {
+      return item.children.some(child => 
+        isItemVisible(child) && child.href && isActive(child.href)
+      );
+    }
+    return false;
   };
 
   const renderNavItem = (item: NavItem, level = 0) => {
@@ -231,6 +264,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
             className={cn(
               "w-full justify-start gap-3 h-11 px-3 text-left font-normal",
               level > 0 && "pl-6",
+              isParentActive(item) && "bg-sidebar-accent text-sidebar-accent-foreground",
               "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               "focus:bg-sidebar-accent focus:text-sidebar-accent-foreground"
             )}
