@@ -174,7 +174,7 @@ export default function AdminStructure() {
                     <SelectValue placeholder="Select Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
+                    <SelectItem value="all-classes">All Classes</SelectItem>
                     {classes.filter((cls: any) => cls.id && cls.name).map((cls: any) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         {cls.name}
@@ -198,7 +198,7 @@ export default function AdminStructure() {
                     <SelectValue placeholder={selectedClass ? "Select Subject" : "Select Class first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Subjects</SelectItem>
+                    <SelectItem value="all-subjects">All Subjects</SelectItem>
                     {filteredSubjects.filter((subject: any) => subject.id && subject.name).map((subject: any) => (
                       <SelectItem key={subject.id} value={subject.id}>
                         {subject.name}
@@ -219,7 +219,7 @@ export default function AdminStructure() {
                     <SelectValue placeholder={selectedSubject ? "Select Chapter" : "Select Subject first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Chapters</SelectItem>
+                    <SelectItem value="all-chapters">All Chapters</SelectItem>
                     {chapters
                       .filter((ch: any) => ch.id && ch.name && (!selectedSubject || ch.subjectId === selectedSubject))
                       .map((chapter: any) => (
