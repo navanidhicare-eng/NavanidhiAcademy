@@ -1,6 +1,3 @@
-
-<file_path>client/src/pages/admin/WalletBalances.tsx</file_path>
-<line_number>1</line_number>
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';

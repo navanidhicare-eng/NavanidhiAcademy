@@ -300,7 +300,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/admin/wallet-balances">
-        <ProtectedRoute requiredRole="admin">
+        <ProtectedRoute>
           <AdminWalletBalances />
         </ProtectedRoute>
       </Route>
