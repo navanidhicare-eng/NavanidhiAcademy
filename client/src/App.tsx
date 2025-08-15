@@ -50,6 +50,7 @@ import StudentDropoutRequests from "@/pages/so-center/StudentDropoutRequests";
 import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 import AdminProgressTracking from '@/pages/admin/ProgressTracking';
+import AdminWalletBalances from "@/pages/admin/WalletBalances";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -298,6 +299,12 @@ function Router() {
           <StudentDropoutRequests />
         </ProtectedRoute>
       </Route>
+      <Route path="/admin/wallet-balances">
+        <ProtectedRoute requiredRole="admin">
+          <AdminWalletBalances />
+        </ProtectedRoute>
+      </Route>
+
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />

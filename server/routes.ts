@@ -3560,30 +3560,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('💰 Fetching SO Center wallet transaction histories...');
 
-      // Get all SO Center wallet transactions with SO center details
-      const soWalletTransactions = await db
-        .select({
-          id: schema.walletTransactions.id,
-          amount: schema.walletTransactions.amount,
-          type: schema.walletTransactions.type,
-          description: schema.walletTransactions.description,
-          createdAt: schema.walletTransactions.createdAt,
-          soCenterName: schema.soCenters.name,
-          soCenterId: schema.walletTransactions.soCenterId,
-          collectionAgentName: schema.users.name,
-          stateName: schema.states.name,
-          districtName: schema.districts.name,
-          mandalName: schema.mandals.name,
-          villageName: schema.villages.name,
-        })
-        .from(schema.walletTransactions)
-        .leftJoin(schema.soCenters, eq(schema.walletTransactions.soCenterId, schema.soCenters.id))
-        .leftJoin(schema.users, eq(schema.walletTransactions.collectionAgentId, schema.users.id))
-        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .orderBy(desc(schema.walletTransactions.createdAt));
+      // Get all SO Center wallet transactions using raw SQL to avoid schema issues
+      const soWalletTransactions = await sql`
+        SELECT 
+          wt.id,
+          wt.amount,
+          wt.type,
+          wt.description,
+          wt.created_at,
+          sc.name as so_center_name,
+          sc.center_id as so_center_code,
+          u.name as collection_agent_name,
+          st.name as state_name,
+          d.name as district_name,
+          m.name as mandal_name,
+          v.name as village_name
+        FROM wallet_transactions wt
+        LEFT JOIN so_centers sc ON wt.so_center_id = sc.id
+        LEFT JOIN users u ON wt.collection_agent_id = u.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        ORDER BY wt.created_at DESC
+      `;
 
       console.log('✅ SO wallet transactions fetched successfully:', soWalletTransactions.length);
       res.json(soWalletTransactions);
@@ -3602,31 +3602,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🎯 Fetching Agent wallet transaction histories...');
 
-      // For now, return product orders as agent transactions since commission_transactions might not exist yet
-      const agentWalletTransactions = await db
-        .select({
-          id: schema.productOrders.id,
-          amount: schema.productOrders.commissionAmount,
-          type: sqlQuery`'commission'`,
-          description: sqlQuery`CONCAT('Commission from product order: ', ${schema.productOrders.receiptNumber})`,
-          createdAt: schema.productOrders.createdAt,
-          soCenterName: schema.soCenters.name,
-          soCenterId: schema.productOrders.soCenterId,
-          walletTotalEarned: sqlQuery`'0'`,
-          walletAvailableBalance: sqlQuery`'0'`,
-          walletTotalWithdrawn: sqlQuery`'0'`,
-          stateName: schema.states.name,
-          districtName: schema.districts.name,
-          mandalName: schema.mandals.name,
-          villageName: schema.villages.name,
-        })
-        .from(schema.productOrders)
-        .leftJoin(schema.soCenters, eq(schema.productOrders.soCenterId, schema.soCenters.id))
-        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .orderBy(desc(schema.productOrders.createdAt));
+      // Get agent wallet transactions using existing wallet_transactions table
+      const agentWalletTransactions = await sql`
+        SELECT 
+          wt.id,
+          wt.transaction_id,
+          wt.user_id,
+          wt.amount,
+          wt.type,
+          wt.description,
+          wt.created_at,
+          wt.status,
+          u.name as agent_name,
+          u.email as agent_email,
+          u.role as agent_role
+        FROM wallet_transactions wt
+        LEFT JOIN users u ON wt.user_id = u.id
+        WHERE u.role IN ('agent', 'so_center')
+        ORDER BY wt.created_at DESC
+      `;
 
       console.log('✅ Agent wallet transactions fetched successfully:', agentWalletTransactions.length);
       res.json(agentWalletTransactions);
