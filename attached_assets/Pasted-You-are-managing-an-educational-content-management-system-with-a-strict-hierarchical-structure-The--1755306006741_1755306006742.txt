@@ -1,0 +1,109 @@
+You are managing an educational content management system with a strict hierarchical structure. The admin can manage chapters and topics across different academic levels.
+
+Hierarchical Structure (Top to Bottom)
+1. CLASSES (e.g., "Class 10", "Class 12", "Navodaya", "POLYCET")
+   ↓
+2. SUBJECTS (e.g., "Mathematics", "Physics", "Chemistry") 
+   ↓ 
+3. CHAPTERS (e.g., "Quadratic Equations", "Light - Reflection")
+   ↓
+4. TOPICS (e.g., "Introduction to Quadratic Equations", "Properties of Light")
+Core Business Logic
+Chapter Management:
+Prerequisites: Must select Class → Subject before creating chapter
+Dependencies: Deleting a chapter automatically deletes all its topics
+Validation: Chapter names must be unique within the same subject
+Display: Show chapter count and associated topic count for each chapter
+Topic Management:
+Prerequisites: Must select Class → Subject → Chapter before creating topic
+Priority System:
+Topics can be marked as "Important" (shows red "IMP" badge)
+Topics can be marked as "Moderate" (shows orange "Moderate" badge)
+Topics can be "Normal" (no special marking)
+RULE: A topic cannot be both Important AND Moderate simultaneously
+Ordering: Topics have an orderIndex to control sequence within chapters
+Status: All topics have active/inactive status
+Data Flow & Component Logic
+Main Structure Page Components:
+
+Statistics Cards: Display totals for chapters, topics, moderate topics, important topics
+Tabbed Interface:
+"Chapters" tab: Lists all chapters with edit/delete actions
+"Topics" tab: Lists all topics with priority badges and edit/delete actions
+Action Buttons:
+"Add Chapter" → Opens AddChapterModal
+"Add Topic" → Opens AddTopicModal
+"Manage Topic Flags" → Links to TopicsManagement page
+AddChapterModal Logic:
+
+// Form fields: name, classId, subjectId
+// Validation: All fields required
+// Dependency: When class changes, reset subject selection
+// Filtering: Only show subjects belonging to selected class
+// API: POST /api/admin/chapters
+AddTopicModal Logic:
+
+// Form fields: name, classId, subjectId, chapterId, orderIndex, isModerate, isImportant
+// Validation: All fields required, mutual exclusivity for flags
+// Dependencies: Class → Subject → Chapter cascade filtering
+// Priority Logic: If isImportant = true, auto-set isModerate = false (and vice versa)
+// API: POST /api/admin/topics
+TopicsManagement Page Logic:
+
+Purpose: Bulk management of topic priority flags (separate from main structure page)
+Features: Search, filter by class/subject, toggle moderate/important flags
+Real-time Updates: Uses mutation to update flags with immediate UI feedback
+API Endpoints & Data Structure
+Required APIs:
+
+GET /api/classes - Fetch all classes
+GET /api/admin/subjects - Fetch all subjects
+GET /api/admin/chapters - Fetch all chapters with related data
+GET /api/admin/topics - Fetch all topics with full hierarchy
+POST/PUT/DELETE /api/admin/chapters/:id - Chapter CRUD
+POST/PUT/DELETE /api/admin/topics/:id - Topic CRUD
+PATCH /api/topics/:id/flags - Update topic priority flags
+Data Models:
+
+interface Chapter {
+  id: string;
+  name: string;
+  subjectId: string;
+  subjectName: string;  // JOIN data
+  className: string;    // JOIN data  
+  topicCount?: number;  // Calculated
+}
+interface Topic {
+  id: string;
+  name: string;
+  chapterId: string;
+  chapterName: string;  // JOIN data
+  subjectName: string;  // JOIN data
+  className: string;    // JOIN data
+  orderIndex: number;
+  isImportant: boolean;
+  isModerate: boolean;
+  isActive: boolean;
+}
+User Workflow Examples
+Creating a Chapter:
+
+Admin clicks "Add Chapter"
+Selects Class (e.g., "Class 10")
+Subject dropdown populates with Class 10 subjects
+Selects Subject (e.g., "Mathematics")
+Enters chapter name (e.g., "Quadratic Equations")
+Submits → Chapter appears in chapters table
+Creating a Topic:
+
+Admin clicks "Add Topic"
+Follows Class → Subject → Chapter sequence
+Enters topic name and order index
+Optionally marks as Important OR Moderate (not both)
+Submits → Topic appears in topics table with appropriate priority badge
+Key Constraints & Rules
+Hierarchy Enforcement: Cannot skip levels (must go Class→Subject→Chapter→Topic)
+Mutual Exclusivity: Topics cannot be both Important and Moderate
+Cascade Deletes: Deleting chapter removes all child topics
+Unique Naming: Chapter names unique per subject, topic names unique per chapter
+Order Management: Topics display in orderIndex sequence within chapters
