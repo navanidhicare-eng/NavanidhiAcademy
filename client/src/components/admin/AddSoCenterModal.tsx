@@ -77,12 +77,17 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const { data: nextCenterIdResponse, isLoading: centerIdLoading } = useQuery({
     queryKey: ['/api/admin/so-centers/next-id'],
     queryFn: async () => {
-      return await apiRequest('GET', '/api/admin/so-centers/next-id');
+      const response = await apiRequest('GET', '/api/admin/so-centers/next-id');
+      console.log('🔧 Center ID API Response:', response);
+      return response;
     },
     enabled: isOpen,
   });
 
-  const nextCenterId = nextCenterIdResponse?.centerId || '';
+  // Debug the response structure
+  console.log('🔧 nextCenterIdResponse:', nextCenterIdResponse);
+  
+  const nextCenterId = nextCenterIdResponse?.centerId || nextCenterIdResponse?.centerCode || nextCenterIdResponse?.id || '';
 
 
 
