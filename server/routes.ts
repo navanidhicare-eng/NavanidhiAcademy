@@ -1622,33 +1622,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      if (req.user.role === 'so_center') {
-        // For SO Centers, return all available classes so they can add students to any class
-        try {
-          // Get the SO Center details for verification
-          const soCenter = await storage.getSoCenterByEmail(req.user.email);
-          if (!soCenter) {
-            return res.status(403).json({ message: "SO Center not found" });
-          }
+      console.log('🎯 Fetching classes for user role:', req.user.role);
 
-          console.log('🎯 Fetching all available classes for SO Center:', soCenter.centerId);
-
-          // Return all active classes so SO Centers can add students to any class
-          const classes = await storage.getAllClasses();
-
-          console.log('✅ Found', classes.length, 'available classes for SO Center', soCenter.centerId);
-          res.json(classes);
-        } catch (error) {
-          console.error('Error fetching classes for SO Center:', error);
-          res.status(500).json({ message: "Failed to fetch classes for SO Center" });
-        }
-      } else {
-        // For admins and other roles, return all classes
-        const classes = await storage.getAllClasses();
-        res.json(classes);
-      }
+      // Return all active classes for all roles (SO Centers, admins, etc.)
+      const classes = await storage.getAllClasses();
+      
+      console.log('✅ Found', classes.length, 'available classes');
+      res.json(classes);
     } catch (error) {
-      console.error('Error fetching classes:', error);
+      console.error('❌ Error fetching classes:', error);
       res.status(500).json({ message: "Failed to fetch classes" });
     }
   });
