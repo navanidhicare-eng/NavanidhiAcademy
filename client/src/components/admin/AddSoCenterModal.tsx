@@ -25,7 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 // Removed Checkbox import - now using dynamic inputs instead of checkboxes
 import { Label } from '@/components/ui/label';
 import { CreditCard } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const addSoCenterSchema = z.object({
   name: z.string().min(1, 'Center name is required'),
@@ -158,39 +158,39 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     },
   });
 
-  // Auto-fill email when center ID is generated
+  // Auto-fill email when center ID is generated - stabilized with useCallback
   useEffect(() => {
     if (nextCenterId) {
       const autoEmail = `${nextCenterId.toLowerCase()}@navanidhi.org`;
       form.setValue('email', autoEmail);
     }
-  }, [nextCenterId, form]);
+  }, [nextCenterId]); // Removed 'form' from dependencies to prevent infinite loop
 
   // Remove the static facilities array - now using dynamic input
 
-  // Handle address cascade changes
-  const handleStateChange = (stateId: string) => {
+  // Handle address cascade changes - wrapped in useCallback for stability
+  const handleStateChange = useCallback((stateId: string) => {
     setSelectedState(stateId);
     setSelectedDistrict('');
     setSelectedMandal('');
     form.setValue('villageId', '');
-  };
+  }, [form]);
 
-  const handleDistrictChange = (districtId: string) => {
+  const handleDistrictChange = useCallback((districtId: string) => {
     setSelectedDistrict(districtId);
     setSelectedMandal('');
     form.setValue('villageId', '');
-  };
+  }, [form]);
 
-  const handleMandalChange = (mandalId: string) => {
+  const handleMandalChange = useCallback((mandalId: string) => {
     setSelectedMandal(mandalId);
     form.setValue('villageId', '');
-  };
+  }, [form]);
 
   // Remove old facility toggle function - now using dynamic input
 
   const createSoCenterMutation = useMutation({
-    mutationFn: async (data: AddSoCenterFormData) => {
+    mutationFn: useCallback(async (data: AddSoCenterFormData) => {
       const processedData = {
         ...data,
         centerId: nextCenterId,
@@ -210,8 +210,8 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
         admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
       };
       return apiRequest('POST', '/api/admin/so-centers', processedData);
-    },
-    onSuccess: () => {
+    }, [nextCenterId, facilities, nearbySchools, nearbyTuitions, equipment]),
+    onSuccess: useCallback(() => {
       toast({
         title: 'SO Center Created',
         description: 'SO Center has been successfully created.',
@@ -220,14 +220,14 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
       form.reset();
       onClose();
-    },
-    onError: (error: any) => {
+    }, [toast, queryClient, form, onClose]),
+    onError: useCallback((error: any) => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to create SO Center. Please try again.',
         variant: 'destructive',
       });
-    },
+    }, [toast]),
   });
 
   const onSubmit = (data: AddSoCenterFormData) => {

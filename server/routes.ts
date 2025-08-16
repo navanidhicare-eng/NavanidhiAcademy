@@ -2712,7 +2712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { nearbySchools, nearbyTuitions, equipment, ...centerData } = centerDataWithStringFields;
 
       // Generate next available SO Center ID automatically
-      const nextAvailable = await storage.getNextAvailableSoCenterId();
+      const nextAvailable = await storage.getNextAvailableSoCenterNumber();
       console.log('🔢 Generated next available SO Center ID:', nextAvailable);
 
       // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH

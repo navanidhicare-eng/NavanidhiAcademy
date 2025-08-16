@@ -1307,7 +1307,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getNextSoCenterId(): Promise<string> {
-    const result = this.getNextAvailableSoCenterNumber();
+    const result = await this.getNextAvailableSoCenterNumber();
     return result.centerId;
   }
 
