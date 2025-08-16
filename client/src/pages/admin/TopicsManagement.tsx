@@ -791,14 +791,26 @@ export default function TopicsManagement() {
   );
 
   const filteredChapters = chapters.filter(chapter => {
-    const classMatch = selectedClassFilter ? chapter.className === selectedClassFilter : true;
+    // Fix: Find the class by ID and compare names, or compare IDs directly if available
+    let classMatch = true;
+    if (selectedClassFilter) {
+      const selectedClass = classes.find(c => c.id === selectedClassFilter);
+      classMatch = selectedClass ? chapter.className === selectedClass.name : false;
+    }
     const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
     return classMatch && subjectMatch;
   });
 
   const filteredTopics = topics.filter(topic => {
-    const classMatch = selectedClassFilter ? topic.className === selectedClassFilter : true;
-    const subjectMatch = selectedSubjectFilter ? topic.subjectName === selectedSubjectFilter || topic.subjectId === selectedSubjectFilter : true;
+    // Fix: Find the class by ID and compare names
+    let classMatch = true;
+    if (selectedClassFilter) {
+      const selectedClass = classes.find(c => c.id === selectedClassFilter);
+      classMatch = selectedClass ? topic.className === selectedClass.name : false;
+    }
+    
+    // Fix: Compare subject IDs consistently
+    const subjectMatch = selectedSubjectFilter ? topic.subjectId === selectedSubjectFilter : true;
     const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
     return classMatch && subjectMatch && chapterMatch;
   });
