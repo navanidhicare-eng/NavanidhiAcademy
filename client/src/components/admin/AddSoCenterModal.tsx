@@ -75,14 +75,15 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
   // Generate next Center ID when modal opens - PRODUCTION READY
   const { data: nextCenterIdResponse, isLoading: centerIdLoading } = useQuery({
-    queryKey: ['/api/admin/so-centers/next-id'],
-    queryFn: async () => {
+     queryKey: ['/api/admin/so-centers/next-id'],
+        queryFn: async () => {
       const response = await apiRequest('GET', '/api/admin/so-centers/next-id');
       console.log('🔧 Center ID API Response:', response);
-      return response;
-    },
+      const data = await response.json(); // <--- This is the fix
+    return data;
+    } ,
     enabled: isOpen,
-  });
+ });
 
   // Debug the response structure
   console.log('🔧 nextCenterIdResponse:', nextCenterIdResponse);
