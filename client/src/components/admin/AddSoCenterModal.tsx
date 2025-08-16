@@ -105,19 +105,23 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   });
 
   const { data: districts = [], isLoading: districtsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/districts', selectedState],
-    queryFn: async () => {
-      if (!selectedState) return [];
-      return await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
-    },
-    enabled: !!selectedState && isOpen,
-  });
+  queryKey: ['/api/admin/addresses/districts', selectedState],
+  queryFn: async () => {
+    if (!selectedState) return [];
+    const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
+    const data = await response.json(); // <-- The missing step
+    return data;
+  },
+  enabled: !!selectedState && isOpen,
+});
 
   const { data: mandals = [], isLoading: mandalsLoading } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     queryFn: async () => {
       if (!selectedDistrict) return [];
-      return await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
+      const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
+      const data = await response.json(); // <-- The fix is here
+      return data;
     },
     enabled: !!selectedDistrict && isOpen,
   });
@@ -126,7 +130,9 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     queryFn: async () => {
       if (!selectedMandal) return [];
-      return await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
+      const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
+      const data = await response.json(); // <-- The fix is here
+      return data;
     },
     enabled: !!selectedMandal && isOpen,
   });
