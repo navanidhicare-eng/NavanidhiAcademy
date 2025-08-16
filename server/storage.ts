@@ -486,6 +486,7 @@ export class DrizzleStorage implements IStorage {
     }));
   }
 
+  /* 
   async updateSoCenter(centerId: string, updateData: any): Promise<any> {
     try {
       console.log('🔄 Storage: Updating SO Center with ID:', centerId);
@@ -515,6 +516,7 @@ export class DrizzleStorage implements IStorage {
       throw error;
     }
   }
+    */
 
   // SO Center Equipment Management
   async createSoCenterEquipment(soCenterId: string, equipment: any[]): Promise<void> {
@@ -896,8 +898,8 @@ export class DrizzleStorage implements IStorage {
       const studentIds = students.map(s => s.id);
       const siblings = studentIds.length > 0 ? await db
         .select()
-        .from(schema.siblings)
-        .where(inArray(schema.siblings.studentId, studentIds)) : [];
+        .from(schema.studentSiblings)
+        .where(inArray(schema.studentSiblings.studentId, studentIds)) : [];
 
       // Combine student data with siblings
       const studentsWithDetails = students.map(student => {
@@ -1248,14 +1250,16 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Products methods (for commission calculation)
-  async getAllProducts(): Promise<any[]> {
+  /* async getAllProducts(): Promise<any[]> {
     return await db.select().from(schema.products).where(eq(schema.products.isActive, true)).orderBy(asc(schema.products.name));
-  }
+  } 
+    */
 
-  async createProduct(data: any): Promise<any> {
+ /* async createProduct(data: any): Promise<any> {
     const result = await db.insert(schema.products).values(data).returning();
     return result[0];
   }
+    */
 
   // Enhanced SO Center methods with sequential number gap detection
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
@@ -1263,7 +1267,7 @@ export class DrizzleStorage implements IStorage {
 
     // Get all existing centers and users with so_center role to check for conflicts
     const centers = await db.select().from(schema.soCenters);
-    const users = await getUsersByRole('so_center');
+    const users = await storage.getUsersByRole('so_center');
 
     console.log('Existing center IDs:', centers.map(c => c.centerId));
     console.log('Existing SO Center emails:', users.map(u => u.email));
@@ -1359,7 +1363,7 @@ export class DrizzleStorage implements IStorage {
   async getSoCenterDashboardStats(soCenterId: string): Promise<any> {
     try {
       console.log('📊 Calculating SO Center dashboard stats for:', soCenterId);
-
+      
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1389,7 +1393,7 @@ export class DrizzleStorage implements IStorage {
       for (const payment of paymentsResult) {
         const amount = parseFloat(payment.amount || '0');
         thisMonthCollection += amount;
-
+        
         const paymentDate = new Date(payment.created_at);
         if (paymentDate.toDateString() === today.toDateString()) {
           todayCollection += amount;

@@ -1,0 +1,952 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navanidhi Academy Management System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1976D2',
+                        secondary: '#388E3C',
+                        accent: '#FF9800',
+                        error: '#D32F2F',
+                        success: '#4CAF50',
+                        warning: '#FF9800',
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- @COMPONENT: AuthenticationWrapper -->
+    <div id="authWrapper" class="min-h-screen">
+        <!-- Login Page -->
+        <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary to-blue-600 p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+                <!-- Academy Logo and Branding -->
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-graduation-cap text-white text-2xl"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold text-gray-900">Navanidhi Academy</h1>
+                    <p class="text-gray-600 mt-2">Management System</p>
+                </div>
+
+                <!-- Login Form -->
+                <form class="space-y-6" data-implementation="Handle authentication with Supabase">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition" placeholder="Enter your email" required data-bind="auth.email">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <div class="relative">
+                            <input type="password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition pr-12" placeholder="Enter your password" required data-bind="auth.password">
+                            <button type="button" class="absolute right-3 top-3 text-gray-400 hover:text-gray-600 transition">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Select Role</label>
+                        <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition" data-bind="auth.role">
+                            <option value="">Choose your role...</option>
+                            <option value="admin">Admin</option>
+                            <option value="so_center">SO Center</option>
+                            <option value="teacher">Teacher</option>
+                            <option value="academic_admin">Academic Admin</option>
+                            <option value="agent">Agent</option>
+                            <option value="office_staff">Office Staff</option>
+                            <option value="collection_agent">Collection Agent</option>
+                            <option value="marketing_staff">Marketing Staff</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition duration-200 flex items-center justify-center" data-event="click:handleLogin">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        Sign In
+                    </button>
+                </form>
+
+                <div class="mt-6 text-center">
+                    <a href="#" class="text-primary hover:text-blue-700 text-sm">Forgot Password?</a>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: AuthenticationWrapper -->
+
+        <!-- @COMPONENT: DashboardLayout -->
+        <div id="dashboardLayout" class="hidden min-h-screen bg-gray-50">
+            <!-- Sidebar Navigation -->
+            <div class="fixed inset-y-0 left-0 w-64 bg-white shadow-xl z-50 transform transition-transform duration-300">
+                <div class="flex items-center justify-center h-16 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                            <i class="fas fa-graduation-cap text-white text-sm"></i>
+                        </div>
+                        <h2 class="font-bold text-xl text-gray-900">Navanidhi</h2>
+                    </div>
+                </div>
+
+                <!-- User Info -->
+                <div class="p-4 border-b border-gray-200">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-primary to-blue-600 rounded-full flex items-center justify-center">
+                            <span class="text-white font-semibold text-sm" data-bind="user.initials">JD</span>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-900" data-bind="user.name">John Doe</p>
+                            <p class="text-sm text-gray-600" data-bind="user.role">SO Center</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Menu -->
+                <nav class="mt-4 px-4 pb-4 space-y-2">
+                    <!-- @STATE: activeMenu:string = 'dashboard' -->
+                    <a href="#" class="flex items-center px-4 py-3 text-primary bg-blue-50 rounded-lg transition" data-menu="dashboard">
+                        <i class="fas fa-chart-pie mr-3"></i>
+                        Dashboard
+                    </a>
+                    
+                    <!-- SO Center Navigation -->
+                    <div class="space-y-2" data-role-visibility="so_center,admin">
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="students">
+                            <i class="fas fa-user-graduate mr-3"></i>
+                            Students
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="payments">
+                            <i class="fas fa-credit-card mr-3"></i>
+                            Payments
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="progress">
+                            <i class="fas fa-chart-line mr-3"></i>
+                            Progress Tracking
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="wallet">
+                            <i class="fas fa-wallet mr-3"></i>
+                            Wallet
+                        </a>
+                    </div>
+
+                    <!-- Admin Navigation -->
+                    <div class="space-y-2" data-role-visibility="admin">
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="manage-users">
+                            <i class="fas fa-users mr-3"></i>
+                            Manage Users
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="academic-structure">
+                            <i class="fas fa-sitemap mr-3"></i>
+                            Academic Structure
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="centers">
+                            <i class="fas fa-building mr-3"></i>
+                            SO Centers
+                        </a>
+                    </div>
+
+                    <!-- Teacher Navigation -->
+                    <div class="space-y-2" data-role-visibility="teacher">
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="my-students">
+                            <i class="fas fa-chalkboard-teacher mr-3"></i>
+                            My Students
+                        </a>
+                        <a href="#" class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-menu="topic-updates">
+                            <i class="fas fa-tasks mr-3"></i>
+                            Topic Updates
+                        </a>
+                    </div>
+                </nav>
+
+                <!-- Logout -->
+                <div class="absolute bottom-4 left-4 right-4">
+                    <button class="w-full flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition" data-event="click:handleLogout">
+                        <i class="fas fa-sign-out-alt mr-3"></i>
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="ml-64 flex-1">
+                <!-- Top Header -->
+                <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900" data-bind="page.title">Dashboard</h1>
+                            <p class="text-gray-600" data-bind="page.subtitle">Welcome back, manage your academy operations</p>
+                        </div>
+                        
+                        <div class="flex items-center space-x-4">
+                            <!-- Notifications -->
+                            <div class="relative">
+                                <button class="p-2 text-gray-400 hover:text-gray-600 transition relative">
+                                    <i class="fas fa-bell text-xl"></i>
+                                    <span class="absolute -top-1 -right-1 w-5 h-5 bg-error text-white text-xs rounded-full flex items-center justify-center" data-bind="notifications.count">3</span>
+                                </button>
+                            </div>
+
+                            <!-- Quick Actions -->
+                            <div class="flex space-x-2">
+                                <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium" data-role-visibility="so_center">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Add Student
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Dashboard Content -->
+                <main class="p-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Total Students</p>
+                                    <p class="text-3xl font-bold text-gray-900 mt-2" data-bind="stats.totalStudents">156</p>
+                                </div>
+                                <div class="w-12 h-12 bg-primary bg-opacity-10 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-user-graduate text-primary text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <span class="text-success text-sm font-medium">+12% from last month</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Payments This Month</p>
+                                    <p class="text-3xl font-bold text-gray-900 mt-2" data-bind="stats.paymentsThisMonth">₹45,200</p>
+                                </div>
+                                <div class="w-12 h-12 bg-secondary bg-opacity-10 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-rupee-sign text-secondary text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <span class="text-success text-sm font-medium">+8% from last month</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Topics Completed</p>
+                                    <p class="text-3xl font-bold text-gray-900 mt-2" data-bind="stats.topicsCompleted">1,247</p>
+                                </div>
+                                <div class="w-12 h-12 bg-accent bg-opacity-10 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-accent text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <span class="text-success text-sm font-medium">+25% this week</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Wallet Balance</p>
+                                    <p class="text-3xl font-bold text-gray-900 mt-2" data-bind="stats.walletBalance">₹12,450</p>
+                                </div>
+                                <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                                    <i class="fas fa-wallet text-purple-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button class="text-primary text-sm font-medium hover:text-blue-700 transition" data-role-visibility="collection_agent">
+                                    <i class="fas fa-arrow-down mr-1"></i>
+                                    Collect Payment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Student Management Section -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h2 class="text-xl font-semibold text-gray-900">Recent Students</h2>
+                                <div class="flex items-center space-x-3">
+                                    <!-- Search -->
+                                    <div class="relative">
+                                        <input type="text" placeholder="Search students..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-event="input:handleStudentSearch">
+                                        <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                                    </div>
+                                    
+                                    <!-- Filter -->
+                                    <select class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-event="change:handleStudentFilter">
+                                        <option value="all">All Classes</option>
+                                        <option value="class-10">Class 10</option>
+                                        <option value="class-12">Class 12</option>
+                                        <option value="navodaya">Navodaya</option>
+                                        <option value="polycet">POLYCET</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Payment Status</th>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">QR Code</th>
+                                        <th class="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <!-- @MAP: students.map(student => ( -->
+                                    <tr class="hover:bg-gray-50 transition" data-mock="true">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                                                    <span class="text-white font-medium text-sm">AR</span>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900" data-bind="student.name">Arjun Reddy</div>
+                                                    <div class="text-sm text-gray-500" data-bind="student.parentPhone">+91 98765 43210</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full" data-bind="student.class">Class 10</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 bg-success bg-opacity-10 text-success text-sm font-medium rounded-full" data-bind="student.paymentStatus">
+                                                <i class="fas fa-check mr-1"></i>
+                                                Paid
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-24 bg-gray-200 rounded-full h-2 mr-3">
+                                                    <div class="bg-success h-2 rounded-full" style="width: 78%" data-bind="student.progressPercentage"></div>
+                                                </div>
+                                                <span class="text-sm font-medium text-gray-900" data-bind="student.progressText">78%</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <button class="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm" data-event="click:showQRCode" data-student-id="student.id">
+                                                <i class="fas fa-qrcode mr-2"></i>
+                                                View QR
+                                            </button>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div class="flex space-x-2">
+                                                <button class="text-primary hover:text-blue-700 transition" data-event="click:editStudent" data-student-id="student.id">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="text-accent hover:text-orange-700 transition" data-event="click:updateProgress" data-student-id="student.id">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </button>
+                                                <button class="text-secondary hover:text-green-700 transition" data-event="click:recordPayment" data-student-id="student.id">
+                                                    <i class="fas fa-rupee-sign"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <tr class="hover:bg-gray-50 transition" data-mock="true">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-10 h-10 bg-gradient-to-r from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
+                                                    <span class="text-white font-medium text-sm">SP</span>
+                                                </div>
+                                                <div class="ml-4">
+                                                    <div class="text-sm font-medium text-gray-900" data-bind="student.name">Sneha Patel</div>
+                                                    <div class="text-sm text-gray-500" data-bind="student.parentPhone">+91 87654 32109</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full" data-bind="student.class">Navodaya</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-3 py-1 bg-warning bg-opacity-10 text-warning text-sm font-medium rounded-full" data-bind="student.paymentStatus">
+                                                <i class="fas fa-clock mr-1"></i>
+                                                Pending
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="w-24 bg-gray-200 rounded-full h-2 mr-3">
+                                                    <div class="bg-warning h-2 rounded-full" style="width: 45%" data-bind="student.progressPercentage"></div>
+                                                </div>
+                                                <span class="text-sm font-medium text-gray-900" data-bind="student.progressText">45%</span>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <button class="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm" data-event="click:showQRCode" data-student-id="student.id">
+                                                <i class="fas fa-qrcode mr-2"></i>
+                                                View QR
+                                            </button>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div class="flex space-x-2">
+                                                <button class="text-primary hover:text-blue-700 transition" data-event="click:editStudent" data-student-id="student.id">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="text-accent hover:text-orange-700 transition" data-event="click:updateProgress" data-student-id="student.id">
+                                                    <i class="fas fa-chart-line"></i>
+                                                </button>
+                                                <button class="text-secondary hover:text-green-700 transition" data-event="click:recordPayment" data-student-id="student.id">
+                                                    <i class="fas fa-rupee-sign"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <!-- @END_MAP )) -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="px-6 py-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm text-gray-700">
+                                    Showing <span class="font-medium">1</span> to <span class="font-medium">2</span> of <span class="font-medium">156</span> students
+                                </p>
+                                <nav class="flex space-x-2">
+                                    <button class="px-3 py-2 text-gray-500 hover:text-gray-700 transition">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                    <button class="px-3 py-2 bg-primary text-white rounded">1</button>
+                                    <button class="px-3 py-2 text-gray-500 hover:text-gray-700 transition">2</button>
+                                    <button class="px-3 py-2 text-gray-500 hover:text-gray-700 transition">3</button>
+                                    <button class="px-3 py-2 text-gray-500 hover:text-gray-700 transition">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Tracking Interface -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-900">Progress Tracking</h2>
+                            <p class="text-gray-600 mt-1">Update student topic completion status</p>
+                        </div>
+
+                        <div class="p-6">
+                            <!-- Student Selection -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Student</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-event="change:handleStudentSelect">
+                                        <option value="">Choose student...</option>
+                                        <option value="student1">Arjun Reddy - Class 10</option>
+                                        <option value="student2">Sneha Patel - Navodaya</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Subject</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-event="change:handleSubjectSelect">
+                                        <option value="">Choose subject...</option>
+                                        <option value="mathematics">Mathematics</option>
+                                        <option value="physics">Physics</option>
+                                        <option value="chemistry">Chemistry</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Chapter</label>
+                                    <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-event="change:handleChapterSelect">
+                                        <option value="">Choose chapter...</option>
+                                        <option value="chapter1">Quadratic Equations</option>
+                                        <option value="chapter2">Arithmetic Progressions</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Topic Checklist -->
+                            <div class="bg-gray-50 rounded-lg p-6" data-visibility="show:when-chapter-selected">
+                                <h3 class="font-semibold text-gray-900 mb-4">Chapter: Quadratic Equations</h3>
+                                <div class="space-y-3">
+                                    <!-- @MAP: topics.map(topic => ( -->
+                                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200" data-mock="true">
+                                        <div class="flex items-center space-x-3">
+                                            <input type="checkbox" class="w-5 h-5 text-primary rounded focus:ring-primary focus:ring-2" data-bind="topic.completed" data-event="change:handleTopicToggle">
+                                            <div>
+                                                <p class="font-medium text-gray-900" data-bind="topic.title">Introduction to Quadratic Equations</p>
+                                                <p class="text-sm text-gray-600" data-bind="topic.description">Understanding the standard form ax² + bx + c = 0</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="px-2 py-1 bg-success bg-opacity-10 text-success text-xs font-medium rounded" data-bind="topic.status">Learned</span>
+                                            <span class="text-xs text-gray-500" data-bind="topic.updatedDate">Dec 15, 2024</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200" data-mock="true">
+                                        <div class="flex items-center space-x-3">
+                                            <input type="checkbox" class="w-5 h-5 text-primary rounded focus:ring-primary focus:ring-2" data-bind="topic.completed" data-event="change:handleTopicToggle">
+                                            <div>
+                                                <p class="font-medium text-gray-900" data-bind="topic.title">Methods of Solving Quadratic Equations</p>
+                                                <p class="text-sm text-gray-600" data-bind="topic.description">Factorization, completing the square, and quadratic formula</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded" data-bind="topic.status">Pending</span>
+                                            <span class="text-xs text-gray-500" data-bind="topic.updatedDate">-</span>
+                                        </div>
+                                    </div>
+                                    <!-- @END_MAP )) -->
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-3">
+                                    <button class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                                        Cancel
+                                    </button>
+                                    <button class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition" data-event="click:saveTopicProgress">
+                                        <i class="fas fa-save mr-2"></i>
+                                        Save Progress
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- QR Code Display Modal -->
+                    <div id="qrModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" data-event="click:closeModal">
+                        <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4" onclick="event.stopPropagation()">
+                            <div class="text-center">
+                                <h3 class="text-xl font-bold text-gray-900 mb-2">Student Progress QR Code</h3>
+                                <p class="text-gray-600 mb-6" data-bind="qr.studentName">Arjun Reddy - Class 10</p>
+                                
+                                <!-- QR Code Placeholder -->
+                                <div class="w-48 h-48 mx-auto mb-6 bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-300" data-implementation="Generate actual QR code using qrcode.react library">
+                                    <div class="text-center">
+                                        <i class="fas fa-qrcode text-4xl text-gray-400 mb-2"></i>
+                                        <p class="text-sm text-gray-500">QR Code</p>
+                                        <p class="text-xs text-gray-400 mt-1" data-bind="qr.url">https://academy.com/progress/student-123</p>
+                                    </div>
+                                </div>
+
+                                <p class="text-sm text-gray-600 mb-6">Parents can scan this QR code to view real-time progress updates</p>
+
+                                <div class="flex space-x-3">
+                                    <button class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition" data-event="click:downloadQR">
+                                        <i class="fas fa-download mr-2"></i>
+                                        Download
+                                    </button>
+                                    <button class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition" data-event="click:shareQR">
+                                        <i class="fas fa-share mr-2"></i>
+                                        Share
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Recording Interface -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h2 class="text-xl font-semibold text-gray-900">Payment Management</h2>
+                            <p class="text-gray-600 mt-1">Record and track student fee payments</p>
+                        </div>
+
+                        <div class="p-6">
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <!-- Payment Form -->
+                                <div>
+                                    <h3 class="font-semibold text-gray-900 mb-4">Record New Payment</h3>
+                                    <form class="space-y-4" data-event="submit:handlePaymentRecord">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Student</label>
+                                                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="payment.studentId">
+                                                    <option value="">Select student...</option>
+                                                    <option value="student1">Arjun Reddy</option>
+                                                    <option value="student2">Sneha Patel</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Course Type</label>
+                                                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="payment.courseType">
+                                                    <option value="monthly">Monthly Tuition</option>
+                                                    <option value="fixed">Fixed Fee Course</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Amount</label>
+                                                <input type="number" placeholder="Enter amount" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="payment.amount">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                                                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="payment.method">
+                                                    <option value="cash">Cash</option>
+                                                    <option value="online">Online</option>
+                                                    <option value="cheque">Cheque</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Payment For</label>
+                                            <input type="text" placeholder="e.g., December 2024 fees" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" data-bind="payment.description">
+                                        </div>
+
+                                        <button type="submit" class="w-full bg-secondary text-white py-3 rounded-lg font-medium hover:bg-green-600 transition">
+                                            <i class="fas fa-plus mr-2"></i>
+                                            Record Payment
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- Recent Payments -->
+                                <div>
+                                    <h3 class="font-semibold text-gray-900 mb-4">Recent Payments</h3>
+                                    <div class="space-y-4">
+                                        <!-- @MAP: recentPayments.map(payment => ( -->
+                                        <div class="p-4 border border-gray-200 rounded-lg" data-mock="true">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <span class="font-medium text-gray-900" data-bind="payment.studentName">Arjun Reddy</span>
+                                                <span class="font-bold text-secondary" data-bind="payment.amount">₹2,500</span>
+                                            </div>
+                                            <div class="flex items-center justify-between text-sm text-gray-600">
+                                                <span data-bind="payment.description">December 2024 fees</span>
+                                                <span data-bind="payment.date">Dec 15, 2024</span>
+                                            </div>
+                                            <div class="flex items-center mt-2">
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded" data-bind="payment.method">Cash</span>
+                                            </div>
+                                        </div>
+                                        <!-- @END_MAP )) -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: DashboardLayout -->
+
+        <!-- Student Progress Public Page (QR Code Destination) -->
+        <div id="publicProgressPage" class="hidden min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div class="container mx-auto px-4 py-8">
+                <div class="max-w-4xl mx-auto">
+                    <!-- Header -->
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-graduation-cap text-white text-2xl"></i>
+                        </div>
+                        <h1 class="text-3xl font-bold text-gray-900">Student Progress Report</h1>
+                        <p class="text-gray-600 mt-2">Real-time academic progress tracking</p>
+                    </div>
+
+                    <!-- Student Info Card -->
+                    <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center space-x-4">
+                                <div class="w-16 h-16 bg-gradient-to-r from-blue-400 to-blue-600 rounded-full flex items-center justify-center">
+                                    <span class="text-white font-bold text-xl" data-bind="student.initials">AR</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-2xl font-bold text-gray-900" data-bind="student.name">Arjun Reddy</h2>
+                                    <p class="text-gray-600" data-bind="student.classInfo">Class 10 - Mathematics & Science</p>
+                                    <p class="text-sm text-gray-500 mt-1">Last updated: <span data-bind="student.lastUpdated">December 15, 2024</span></p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-3xl font-bold text-primary" data-bind="student.overallProgress">78%</div>
+                                <p class="text-gray-600">Overall Progress</p>
+                            </div>
+                        </div>
+
+                        <!-- Progress Summary -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="text-center p-4 bg-success bg-opacity-10 rounded-xl">
+                                <div class="text-2xl font-bold text-success" data-bind="stats.topicsCompleted">45</div>
+                                <p class="text-gray-600">Topics Completed</p>
+                            </div>
+                            <div class="text-center p-4 bg-warning bg-opacity-10 rounded-xl">
+                                <div class="text-2xl font-bold text-warning" data-bind="stats.topicsPending">12</div>
+                                <p class="text-gray-600">Topics Pending</p>
+                            </div>
+                            <div class="text-center p-4 bg-primary bg-opacity-10 rounded-xl">
+                                <div class="text-2xl font-bold text-primary" data-bind="stats.totalTopics">57</div>
+                                <p class="text-gray-600">Total Topics</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subject-wise Progress -->
+                    <div class="space-y-6">
+                        <!-- @MAP: subjects.map(subject => ( -->
+                        <div class="bg-white rounded-xl shadow-lg p-6" data-mock="true">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-xl font-semibold text-gray-900" data-bind="subject.name">Mathematics</h3>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-32 bg-gray-200 rounded-full h-2">
+                                        <div class="bg-primary h-2 rounded-full" style="width: 85%" data-bind="subject.progressPercentage"></div>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-900" data-bind="subject.progressText">85%</span>
+                                </div>
+                            </div>
+
+                            <!-- Chapter Progress -->
+                            <div class="space-y-4">
+                                <!-- @MAP: subject.chapters.map(chapter => ( -->
+                                <div class="border border-gray-200 rounded-lg p-4" data-mock="true">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <h4 class="font-medium text-gray-900" data-bind="chapter.name">Quadratic Equations</h4>
+                                        <span class="px-3 py-1 bg-success bg-opacity-10 text-success text-sm font-medium rounded-full" data-bind="chapter.status">
+                                            <i class="fas fa-check mr-1"></i>
+                                            80% Complete
+                                        </span>
+                                    </div>
+
+                                    <!-- Topic List -->
+                                    <div class="space-y-2">
+                                        <!-- @MAP: chapter.topics.map(topic => ( -->
+                                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded" data-mock="true">
+                                            <span class="text-sm text-gray-700" data-bind="topic.name">Introduction to Quadratic Equations</span>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="w-2 h-2 bg-success rounded-full" data-bind="topic.statusIndicator"></span>
+                                                <span class="text-xs text-gray-500" data-bind="topic.completedDate">Dec 10, 2024</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded" data-mock="true">
+                                            <span class="text-sm text-gray-700" data-bind="topic.name">Methods of Solving</span>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="w-2 h-2 bg-gray-300 rounded-full" data-bind="topic.statusIndicator"></span>
+                                                <span class="text-xs text-gray-500" data-bind="topic.completedDate">Pending</span>
+                                            </div>
+                                        </div>
+                                        <!-- @END_MAP )) -->
+                                    </div>
+
+                                    <!-- Teacher Feedback -->
+                                    <div class="mt-3 p-3 bg-blue-50 rounded-lg" data-visibility="show:when-feedback-available">
+                                        <div class="flex items-start space-x-2">
+                                            <i class="fas fa-comment text-primary mt-1"></i>
+                                            <div>
+                                                <p class="text-sm text-gray-700" data-bind="chapter.teacherFeedback">Good progress on basic concepts. Practice more word problems.</p>
+                                                <p class="text-xs text-gray-500 mt-1">Teacher feedback - Dec 12, 2024</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- @END_MAP )) -->
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-8 py-6">
+                        <p class="text-gray-600">
+                            <i class="fas fa-shield-alt mr-2"></i>
+                            This progress report is updated in real-time by Navanidhi Academy
+                        </p>
+                        <p class="text-sm text-gray-500 mt-2">
+                            For any queries, contact your SO center or call academy support
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // TODO: Implement actual functionality with Supabase integration
+        (function() {
+            // Page state management
+            let currentPage = 'login';
+            let currentUser = null;
+
+            // DOM elements
+            const loginPage = document.getElementById('loginPage');
+            const dashboardLayout = document.getElementById('dashboardLayout');
+            const publicProgressPage = document.getElementById('publicProgressPage');
+            const qrModal = document.getElementById('qrModal');
+
+            // Initialize page based on URL or default to login
+            function initializePage() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const studentId = urlParams.get('student');
+                
+                if (studentId) {
+                    showPublicProgressPage(studentId);
+                } else {
+                    showLoginPage();
+                }
+            }
+
+            // Show login page
+            function showLoginPage() {
+                loginPage.classList.remove('hidden');
+                dashboardLayout.classList.add('hidden');
+                publicProgressPage.classList.add('hidden');
+                currentPage = 'login';
+            }
+
+            // Show dashboard
+            function showDashboard(userRole) {
+                loginPage.classList.add('hidden');
+                dashboardLayout.classList.remove('hidden');
+                publicProgressPage.classList.add('hidden');
+                currentPage = 'dashboard';
+                
+                // Update role-specific visibility
+                updateRoleVisibility(userRole);
+            }
+
+            // Show public progress page
+            function showPublicProgressPage(studentId) {
+                loginPage.classList.add('hidden');
+                dashboardLayout.classList.add('hidden');
+                publicProgressPage.classList.remove('hidden');
+                currentPage = 'progress';
+                
+                // TODO: Load actual student data
+                console.log('Loading progress for student:', studentId);
+            }
+
+            // Update UI based on user role
+            function updateRoleVisibility(role) {
+                const elements = document.querySelectorAll('[data-role-visibility]');
+                elements.forEach(element => {
+                    const visibleRoles = element.dataset.roleVisibility.split(',');
+                    if (visibleRoles.includes(role) || visibleRoles.includes('all')) {
+                        element.style.display = '';
+                    } else {
+                        element.style.display = 'none';
+                    }
+                });
+            }
+
+            // Event handlers
+            document.addEventListener('click', function(e) {
+                const target = e.target.closest('[data-event]');
+                if (!target) return;
+
+                const eventData = target.dataset.event.split(':');
+                const eventType = eventData[0];
+                const handler = eventData[1];
+
+                if (eventType === 'click') {
+                    handleClickEvent(handler, target);
+                }
+            });
+
+            // Click event router
+            function handleClickEvent(handler, element) {
+                switch (handler) {
+                    case 'handleLogin':
+                        e.preventDefault();
+                        // TODO: Implement Supabase authentication
+                        const role = document.querySelector('[data-bind="auth.role"]').value;
+                        if (role) {
+                            currentUser = { role };
+                            showDashboard(role);
+                        }
+                        break;
+
+                    case 'handleLogout':
+                        // TODO: Implement Supabase logout
+                        currentUser = null;
+                        showLoginPage();
+                        break;
+
+                    case 'showQRCode':
+                        qrModal.classList.remove('hidden');
+                        // TODO: Generate actual QR code
+                        break;
+
+                    case 'closeModal':
+                        qrModal.classList.add('hidden');
+                        break;
+
+                    case 'editStudent':
+                        // TODO: Open student edit modal
+                        console.log('Edit student:', element.dataset.studentId);
+                        break;
+
+                    case 'updateProgress':
+                        // TODO: Open progress update interface
+                        console.log('Update progress for:', element.dataset.studentId);
+                        break;
+
+                    case 'recordPayment':
+                        // TODO: Open payment recording modal
+                        console.log('Record payment for:', element.dataset.studentId);
+                        break;
+
+                    case 'saveTopicProgress':
+                        // TODO: Save topic completion status to Supabase
+                        console.log('Saving topic progress');
+                        break;
+
+                    case 'downloadQR':
+                        // TODO: Download QR code as image
+                        console.log('Downloading QR code');
+                        break;
+
+                    case 'shareQR':
+                        // TODO: Share QR code via native sharing or copy link
+                        console.log('Sharing QR code');
+                        break;
+
+                    default:
+                        console.log('Unhandled click event:', handler);
+                }
+            }
+
+            // Form submission handlers
+            document.addEventListener('submit', function(e) {
+                const form = e.target.closest('[data-event*="submit:"]');
+                if (!form) return;
+
+                e.preventDefault();
+                const handler = form.dataset.event.split(':')[1];
+                
+                switch (handler) {
+                    case 'handlePaymentRecord':
+                        // TODO: Record payment in Supabase
+                        console.log('Recording payment');
+                        break;
+                    default:
+                        console.log('Unhandled form submission:', handler);
+                }
+            });
+
+            // Initialize the application
+            initializePage();
+
+            // Responsive sidebar toggle for mobile
+            function setupMobileMenu() {
+                // TODO: Add mobile menu toggle functionality
+                console.log('Mobile menu setup');
+            }
+
+            setupMobileMenu();
+
+        })();
+    </script>
+</body>
+</html>
