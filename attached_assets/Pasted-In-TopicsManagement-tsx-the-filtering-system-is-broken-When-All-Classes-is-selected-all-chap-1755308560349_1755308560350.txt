@@ -1,0 +1,72 @@
+In TopicsManagement.tsx, the filtering system is broken:
+
+When "All Classes" is selected, all chapters show correctly
+When a specific class is selected, no chapters are visible
+Same issue occurs with topics filtering
+The filtering logic is comparing incompatible data types
+ROOT CAUSE:
+The filtering logic in filteredChapters and filteredTopics is flawed:
+
+Comparing chapter.className (string) with selectedClassFilter (ID)
+The current fix attempts to find classes by ID but the data structure mismatch persists
+The chapters and topics don't have consistent classId fields for direct comparison
+EXACT FIX NEEDED:
+
+Fix Chapter Filtering Logic:
+
+Chapters should be filtered by matching chapter.subjectId with subjects that belong to the selected class
+Remove the broken class name comparison logic
+Use a two-step filtering: first filter subjects by class, then filter chapters by those subjects
+Fix Topic Filtering Logic:
+
+Topics should be filtered by matching topic.chapterId with chapters that belong to the selected subject/class
+Remove the broken class name comparison logic
+Use cascading filters: class → subjects → chapters → topics
+Implement Proper Cascading Logic:
+
+// For chapters: filter by subjects that belong to selected class
+const filteredChapters = chapters.filter(chapter => {
+  const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
+  
+  if (selectedClassFilter && !selectedSubjectFilter) {
+    // If class selected but no subject, show chapters from subjects of that class
+    const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
+    return classSubjects.includes(chapter.subjectId);
+  }
+  
+  return subjectMatch;
+});
+// For topics: filter by chapters that belong to selected class/subject
+const filteredTopics = topics.filter(topic => {
+  const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
+  
+  if (selectedSubjectFilter && !selectedChapterFilter) {
+    // If subject selected but no chapter, show topics from chapters of that subject
+    const subjectChapters = chapters.filter(c => c.subjectId === selectedSubjectFilter).map(c => c.id);
+    return subjectChapters.includes(topic.chapterId);
+  }
+  
+  if (selectedClassFilter && !selectedSubjectFilter && !selectedChapterFilter) {
+    // If only class selected, show topics from all chapters of that class
+    const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
+    const classChapters = chapters.filter(c => classSubjects.includes(c.subjectId)).map(c => c.id);
+    return classChapters.includes(topic.chapterId);
+  }
+  
+  return chapterMatch;
+});
+TARGET FILE:
+
+client/src/pages/admin/TopicsManagement.tsx (lines around filteredChapters and filteredTopics logic)
+EXPECTED RESULT:
+
+When "All Classes" selected: Show all chapters and topics
+When specific class selected: Show only chapters/topics belonging to subjects of that class
+When specific subject selected: Show only chapters/topics of that subject
+When specific chapter selected: Show only topics of that chapter
+TEST CASES:
+
+Select "All Classes" → Should show all data
+Select specific class → Should show filtered data for that class only
+Select specific subject → Should show filtered data for that subject only
+Verify cascading resets work properly

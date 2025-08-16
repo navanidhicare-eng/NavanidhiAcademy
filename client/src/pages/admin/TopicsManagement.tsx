@@ -791,28 +791,34 @@ export default function TopicsManagement() {
   );
 
   const filteredChapters = chapters.filter(chapter => {
-    // Fix: Find the class by ID and compare names, or compare IDs directly if available
-    let classMatch = true;
-    if (selectedClassFilter) {
-      const selectedClass = classes.find(c => c.id === selectedClassFilter);
-      classMatch = selectedClass ? chapter.className === selectedClass.name : false;
-    }
     const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
-    return classMatch && subjectMatch;
+    
+    if (selectedClassFilter && !selectedSubjectFilter) {
+      // If class selected but no subject, show chapters from subjects of that class
+      const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
+      return classSubjects.includes(chapter.subjectId);
+    }
+    
+    return subjectMatch;
   });
 
   const filteredTopics = topics.filter(topic => {
-    // Fix: Find the class by ID and compare names
-    let classMatch = true;
-    if (selectedClassFilter) {
-      const selectedClass = classes.find(c => c.id === selectedClassFilter);
-      classMatch = selectedClass ? topic.className === selectedClass.name : false;
+    const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
+    
+    if (selectedSubjectFilter && !selectedChapterFilter) {
+      // If subject selected but no chapter, show topics from chapters of that subject
+      const subjectChapters = chapters.filter(c => c.subjectId === selectedSubjectFilter).map(c => c.id);
+      return subjectChapters.includes(topic.chapterId);
     }
     
-    // Fix: Compare subject IDs consistently
-    const subjectMatch = selectedSubjectFilter ? topic.subjectId === selectedSubjectFilter : true;
-    const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
-    return classMatch && subjectMatch && chapterMatch;
+    if (selectedClassFilter && !selectedSubjectFilter && !selectedChapterFilter) {
+      // If only class selected, show topics from all chapters of that class
+      const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
+      const classChapters = chapters.filter(c => classSubjects.includes(c.subjectId)).map(c => c.id);
+      return classChapters.includes(topic.chapterId);
+    }
+    
+    return chapterMatch;
   });
 
   // Handle filter changes with cascade reset
