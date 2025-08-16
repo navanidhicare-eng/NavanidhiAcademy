@@ -373,7 +373,7 @@ function AddTopicModal({
   const filteredSubjects = subjects.filter(subject => 
     selectedClass ? subject.classId === selectedClass : true
   );
-  
+
   const filteredChapters = chapters.filter(chapter => 
     selectedSubject ? chapter.subjectId === selectedSubject : true
   );
@@ -688,12 +688,12 @@ export default function TopicsManagement() {
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [editingChapter, setEditingChapter] = useState<Chapter | undefined>();
   const [editingTopic, setEditingTopic] = useState<Topic | undefined>();
-  
+
   // Filtering states
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('');
   const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('');
-  
+
   // Chapter selection for topic creation
   const [selectedChapterForTopic, setSelectedChapterForTopic] = useState<string>('');
 
@@ -872,7 +872,7 @@ export default function TopicsManagement() {
             <div className="text-2xl font-bold">{totalChapters}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Topics</CardTitle>
@@ -882,7 +882,7 @@ export default function TopicsManagement() {
             <div className="text-2xl font-bold">{totalTopics}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Moderate Topics</CardTitle>
@@ -892,7 +892,7 @@ export default function TopicsManagement() {
             <div className="text-2xl font-bold text-orange-600">{moderateTopics}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Important Topics</CardTitle>
@@ -958,14 +958,14 @@ export default function TopicsManagement() {
                     <SelectContent>
                       <SelectItem value="all-classes">All Classes</SelectItem>
                       {classes.map((cls) => (
-                        <SelectItem key={cls.id} value={cls.name}>
+                        <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Subject</label>
                   <Select value={selectedSubjectFilter || 'all-subjects'} onValueChange={handleSubjectFilterChange}>
@@ -1072,14 +1072,14 @@ export default function TopicsManagement() {
                     <SelectContent>
                       <SelectItem value="all-classes">All Classes</SelectItem>
                       {classes.map((cls) => (
-                        <SelectItem key={cls.id} value={cls.name}>
+                        <SelectItem key={cls.id} value={cls.id}>
                           {cls.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Subject</label>
                   <Select value={selectedSubjectFilter || 'all-subjects'} onValueChange={handleSubjectFilterChange}>
@@ -1096,7 +1096,7 @@ export default function TopicsManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Chapter</label>
                   <Select value={selectedChapterFilter || 'all-chapters'} onValueChange={handleChapterFilterChange}>
@@ -1159,7 +1159,7 @@ export default function TopicsManagement() {
                     </Card>
                   ))}
                 </div>
-                
+
                 {selectedChapterForTopic && (
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
                     <p className="text-sm text-green-800">
