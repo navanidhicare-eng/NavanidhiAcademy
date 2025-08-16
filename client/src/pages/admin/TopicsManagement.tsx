@@ -39,6 +39,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -212,112 +214,163 @@ function AddChapterModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-green-700">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="text-xl font-bold text-green-700 flex items-center gap-2">
+            <BookOpen className="h-5 w-5" />
             {editingChapter ? 'Edit Chapter' : 'Add New Chapter'}
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {editingChapter ? 'Update chapter information' : 'Create a new chapter for your subject'}
+          </p>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Class</label>
-              <Select value={selectedClass} onValueChange={handleClassChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <FormField
-              control={form.control}
-              name="subjectId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Subject</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a subject" />
+        <ScrollArea className="flex-1 px-1">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4">
+              {/* Class and Subject Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-green-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Academic Classification</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Class</label>
+                    <Select value={selectedClass} onValueChange={handleClassChange}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a class" />
                       </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filteredSubjects.map((subject) => (
-                        <SelectItem key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Chapter Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter chapter name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="subjectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-700">Subject</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Select a subject" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredSubjects.map((subject) => (
+                              <SelectItem key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter chapter description"
-                      className="min-h-[80px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <Separator />
 
-            <FormField
-              control={form.control}
-              name="order"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Order (Optional)</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Chapter order" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Chapter Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-blue-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Chapter Details</h3>
+                </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Saving...' : editingChapter ? 'Update Chapter' : 'Add Chapter'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Chapter Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter chapter name" 
+                          className="h-11" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter chapter description"
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Chapter Order</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter chapter order (1, 2, 3...)" 
+                          className="h-11" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Optional: Set the sequence order for this chapter</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+            </form>
+          </Form>
+        </ScrollArea>
+        
+        <Separator />
+        <div className="flex justify-end gap-3 pt-4 shrink-0">
+          <Button type="button" variant="outline" onClick={onClose} className="px-6">
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={mutation.isPending}
+            className="px-6 bg-green-600 hover:bg-green-700"
+            onClick={form.handleSubmit(onSubmit)}
+          >
+            {mutation.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                {editingChapter ? 'Update Chapter' : 'Add Chapter'}
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -492,189 +545,278 @@ function AddTopicModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-green-700">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="text-xl font-bold text-green-700 flex items-center gap-2">
+            <Target className="h-5 w-5" />
             {editingTopic ? 'Edit Topic' : 'Add New Topic'}
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {editingTopic ? 'Update topic information and settings' : 'Create a new topic for your chapter'}
+          </p>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Class {selectedChapterId ? '(Auto-filled)' : ''}</label>
-              <Select 
-                value={selectedClass} 
-                onValueChange={handleClassChange}
-                disabled={!!selectedChapterId && !editingTopic}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Subject {selectedChapterId ? '(Auto-filled)' : ''}</label>
-              <Select 
-                value={selectedSubject} 
-                onValueChange={handleSubjectChange}
-                disabled={!!selectedChapterId && !editingTopic}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredSubjects.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <FormField
-              control={form.control}
-              name="chapterId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Chapter {selectedChapterId ? '(Pre-selected)' : ''}</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
-                    disabled={!!selectedChapterId && !editingTopic}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a chapter" />
+        <ScrollArea className="flex-1 px-1">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4">
+              {/* Chapter Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-green-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Academic Classification</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Class {selectedChapterId ? '(Auto-filled)' : ''}
+                    </label>
+                    <Select 
+                      value={selectedClass} 
+                      onValueChange={handleClassChange}
+                      disabled={!!selectedChapterId && !editingTopic}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a class" />
                       </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {filteredChapters.map((chapter) => (
-                        <SelectItem key={chapter.id} value={chapter.id}>
-                          {chapter.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedChapterId && !editingTopic && (
-                    <p className="text-xs text-green-600">
-                      Chapter pre-selected from your selection
-                    </p>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Subject {selectedChapterId ? '(Auto-filled)' : ''}
+                    </label>
+                    <Select 
+                      value={selectedSubject} 
+                      onValueChange={handleSubjectChange}
+                      disabled={!!selectedChapterId && !editingTopic}
+                    >
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select a subject" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredSubjects.map((subject) => (
+                          <SelectItem key={subject.id} value={subject.id}>
+                            {subject.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="chapterId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium text-gray-700">
+                          Chapter {selectedChapterId ? '(Pre-selected)' : ''}
+                        </FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                          disabled={!!selectedChapterId && !editingTopic}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="h-11">
+                              <SelectValue placeholder="Select a chapter" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredChapters.map((chapter) => (
+                              <SelectItem key={chapter.id} value={chapter.id}>
+                                {chapter.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedChapterId && !editingTopic && (
+                          <div className="flex items-center gap-2 mt-2 p-2 bg-green-50 rounded-md">
+                            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                            <p className="text-xs text-green-700">
+                              Chapter pre-selected from your selection
+                            </p>
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Topic Details */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-blue-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Topic Information</h3>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Topic Name</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Enter topic name" 
+                          className="h-11" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                />
 
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Topic Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter topic name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Description (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter topic description"
+                          className="min-h-[100px] resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter topic description"
-                      className="min-h-[80px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <Separator />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="isImportant"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={handleImportantChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Important Topic</FormLabel>
-                      <div className="text-xs text-muted-foreground">
-                        Shows red "IMP" badge
-                      </div>
-                    </div>
-                  </FormItem>
-                )}
-              />
+              {/* Priority Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-orange-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Priority Settings</h3>
+                  <Badge variant="outline" className="text-xs">Mutually Exclusive</Badge>
+                </div>
 
-              <FormField
-                control={form.control}
-                name="isModerate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={handleModerateChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Moderate Topic</FormLabel>
-                      <div className="text-xs text-muted-foreground">
-                        Shows orange "Moderate" badge
-                      </div>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="isImportant"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border border-red-200 rounded-lg bg-red-50">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={handleImportantChange}
+                            className="mt-1"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-sm font-medium text-red-700 flex items-center gap-2">
+                            <Star className="h-4 w-4" />
+                            Important Topic
+                          </FormLabel>
+                          <div className="text-xs text-red-600">
+                            Shows red "IMP" badge - for critical topics
+                          </div>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
 
-            <FormField
-              control={form.control}
-              name="order"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Order Index</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Topic order sequence" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={form.control}
+                    name="isModerate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 p-4 border border-orange-200 rounded-lg bg-orange-50">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={handleModerateChange}
+                            className="mt-1"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-sm font-medium text-orange-700 flex items-center gap-2">
+                            <Flag className="h-4 w-4" />
+                            Moderate Topic
+                          </FormLabel>
+                          <div className="text-xs text-orange-600">
+                            Shows orange "Moderate" badge - for medium priority
+                          </div>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Saving...' : editingTopic ? 'Update Topic' : 'Add Topic'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <Separator />
+
+              {/* Additional Settings */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-1 bg-purple-600 rounded-full"></div>
+                  <h3 className="font-semibold text-gray-900">Additional Settings</h3>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="order"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-gray-700">Topic Order</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="Enter topic order (1, 2, 3...)" 
+                          className="h-11" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <p className="text-xs text-muted-foreground">Optional: Set the sequence order for this topic within the chapter</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+            </form>
+          </Form>
+        </ScrollArea>
+        
+        <Separator />
+        <div className="flex justify-end gap-3 pt-4 shrink-0">
+          <Button type="button" variant="outline" onClick={onClose} className="px-6">
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={mutation.isPending}
+            className="px-6 bg-blue-600 hover:bg-blue-700"
+            onClick={form.handleSubmit(onSubmit)}
+          >
+            {mutation.isPending ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                {editingTopic ? 'Update Topic' : 'Add Topic'}
+              </>
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
