@@ -2712,17 +2712,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { nearbySchools, nearbyTuitions, equipment, ...centerData } = centerDataWithStringFields;
 
       // Generate next available SO Center ID automatically
-      const nextAvailable = await storage.getNextAvailableSoCenterNumber();
-      console.log('🔢 Generated next available SO Center ID:', nextAvailable);
+      const nextCenterId = await storage.getNextSoCenterId();
+      console.log('🔢 Generated next available SO Center ID:', nextCenterId);
+
+      // Generate auto email for SO Center
+      const autoEmail = `${nextCenterId.toLowerCase()}@navanidhi.org`;
 
       // ALL SO CENTER CREATION MUST GO THROUGH SUPABASE AUTH
       const result = await AuthService.createSoCenter({
-        email: centerData.email || nextAvailable.email, // Use provided email or auto-generated
+        email: centerData.email || autoEmail, // Use provided email or auto-generated
         password: centerData.password || '12345678',
         name: centerData.name || centerData.managerName || 'SO Manager',
         phone: centerData.phone || centerData.managerPhone,
         address: centerData.address,
-        centerId: nextAvailable.centerId, // Use auto-generated center ID
+        centerId: nextCenterId, // Use auto-generated center ID
         centerName: centerData.centerName,
         location: centerData.location,
         managerName: centerData.managerName,
