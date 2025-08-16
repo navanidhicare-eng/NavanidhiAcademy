@@ -1623,38 +1623,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (req.user.role === 'so_center') {
-        // For SO Centers, get classes where they have students
+        // For SO Centers, return all available classes so they can add students to any class
         try {
-          // Get the SO Center details
+          // Get the SO Center details for verification
           const soCenter = await storage.getSoCenterByEmail(req.user.email);
           if (!soCenter) {
             return res.status(403).json({ message: "SO Center not found" });
           }
 
-          console.log('🎯 Fetching classes for SO Center:', soCenter.centerId);
+          console.log('🎯 Fetching all available classes for SO Center:', soCenter.centerId);
 
-          // Get classes where this SO Center has students using Drizzle ORM
-          const classes = await db
-            .selectDistinct({
-              id: schema.classes.id,
-              name: schema.classes.name,
-              description: schema.classes.description
-            })
-            .from(schema.classes)
-            .innerJoin(schema.students, eq(schema.classes.id, schema.students.classId))
-            .where(
-              and(
-                eq(schema.students.soCenterId, soCenter.id),
-                eq(schema.students.isActive, true),
-                eq(schema.classes.isActive, true)
-              )
-            )
-            .orderBy(schema.classes.name);
+          // Return all active classes so SO Centers can add students to any class
+          const classes = await storage.getAllClasses();
 
-          console.log('✅ Found', classes.length, 'classes for SO Center', soCenter.centerId);
+          console.log('✅ Found', classes.length, 'available classes for SO Center', soCenter.centerId);
           res.json(classes);
         } catch (error) {
-          console.error('Error fetching SO Center classes:', error);
+          console.error('Error fetching classes for SO Center:', error);
           res.status(500).json({ message: "Failed to fetch classes for SO Center" });
         }
       } else {
