@@ -85,6 +85,7 @@ interface Topic {
   description?: string;
   chapterId: string;
   chapterName: string;
+  subjectId: string;
   subjectName: string;
   className: string;
   isImportant: boolean;
@@ -168,7 +169,7 @@ function AddChapterModal({
       });
       setSelectedClass('');
     }
-  }, [editingChapter, form, subjects]);
+  }, [editingChapter, isOpen]);
 
   const mutation = useMutation({
     mutationFn: async (data: ChapterFormData) => {
@@ -327,12 +328,14 @@ function AddTopicModal({
   isOpen, 
   onClose, 
   editingTopic,
-  onTopicAdded 
+  onTopicAdded,
+  selectedChapterId 
 }: {
   isOpen: boolean;
   onClose: () => void;
   editingTopic?: Topic;
   onTopicAdded: () => void;
+  selectedChapterId?: string;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -394,6 +397,24 @@ function AddTopicModal({
           setSelectedClass(subject.classId);
         }
       }
+    } else if (selectedChapterId) {
+      // Pre-populate with selected chapter
+      const selectedChapter = chapters.find(c => c.id === selectedChapterId);
+      if (selectedChapter) {
+        form.reset({
+          name: '',
+          description: '',
+          chapterId: selectedChapterId,
+          isImportant: false,
+          isModerate: false,
+          order: '',
+        });
+        setSelectedSubject(selectedChapter.subjectId);
+        const subject = subjects.find(s => s.id === selectedChapter.subjectId);
+        if (subject) {
+          setSelectedClass(subject.classId);
+        }
+      }
     } else {
       form.reset({
         name: '',
@@ -406,7 +427,7 @@ function AddTopicModal({
       setSelectedClass('');
       setSelectedSubject('');
     }
-  }, [editingTopic, form, chapters, subjects]);
+  }, [editingTopic, selectedChapterId, isOpen, chapters, subjects]);
 
   const mutation = useMutation({
     mutationFn: async (data: TopicFormData) => {
@@ -481,8 +502,12 @@ function AddTopicModal({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Class</label>
-              <Select value={selectedClass} onValueChange={handleClassChange}>
+              <label className="text-sm font-medium">Class {selectedChapterId ? '(Auto-filled)' : ''}</label>
+              <Select 
+                value={selectedClass} 
+                onValueChange={handleClassChange}
+                disabled={!!selectedChapterId && !editingTopic}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a class" />
                 </SelectTrigger>
@@ -497,8 +522,12 @@ function AddTopicModal({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Subject</label>
-              <Select value={selectedSubject} onValueChange={handleSubjectChange}>
+              <label className="text-sm font-medium">Subject {selectedChapterId ? '(Auto-filled)' : ''}</label>
+              <Select 
+                value={selectedSubject} 
+                onValueChange={handleSubjectChange}
+                disabled={!!selectedChapterId && !editingTopic}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a subject" />
                 </SelectTrigger>
@@ -517,8 +546,12 @@ function AddTopicModal({
               name="chapterId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Chapter</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <FormLabel>Chapter {selectedChapterId ? '(Pre-selected)' : ''}</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    value={field.value}
+                    disabled={!!selectedChapterId && !editingTopic}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a chapter" />
@@ -532,6 +565,11 @@ function AddTopicModal({
                       ))}
                     </SelectContent>
                   </Select>
+                  {selectedChapterId && !editingTopic && (
+                    <p className="text-xs text-green-600">
+                      Chapter pre-selected from your selection
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -650,6 +688,23 @@ export default function TopicsManagement() {
   const [showAddTopicModal, setShowAddTopicModal] = useState(false);
   const [editingChapter, setEditingChapter] = useState<Chapter | undefined>();
   const [editingTopic, setEditingTopic] = useState<Topic | undefined>();
+  
+  // Filtering states
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('');
+  const [selectedSubjectFilter, setSelectedSubjectFilter] = useState<string>('');
+  const [selectedChapterFilter, setSelectedChapterFilter] = useState<string>('');
+  
+  // Chapter selection for topic creation
+  const [selectedChapterForTopic, setSelectedChapterForTopic] = useState<string>('');
+
+  // Fetch all data
+  const { data: classes = [] } = useQuery<Class[]>({
+    queryKey: ['/api/classes'],
+  });
+
+  const { data: subjects = [] } = useQuery<Subject[]>({
+    queryKey: ['/api/admin/subjects'],
+  });
 
   // Fetch chapters
   const { data: chapters = [], isLoading: chaptersLoading } = useQuery<Chapter[]>({
@@ -729,6 +784,57 @@ export default function TopicsManagement() {
     setShowAddTopicModal(false);
     setEditingTopic(undefined);
   };
+
+  // Filtering logic
+  const filteredSubjects = subjects.filter(subject => 
+    selectedClassFilter ? subject.classId === selectedClassFilter : true
+  );
+
+  const filteredChapters = chapters.filter(chapter => {
+    const classMatch = selectedClassFilter ? chapter.className === selectedClassFilter : true;
+    const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
+    return classMatch && subjectMatch;
+  });
+
+  const filteredTopics = topics.filter(topic => {
+    const classMatch = selectedClassFilter ? topic.className === selectedClassFilter : true;
+    const subjectMatch = selectedSubjectFilter ? topic.subjectName === selectedSubjectFilter || topic.subjectId === selectedSubjectFilter : true;
+    const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
+    return classMatch && subjectMatch && chapterMatch;
+  });
+
+  // Handle filter changes with cascade reset
+  const handleClassFilterChange = (classId: string) => {
+    const actualClassId = classId === 'all-classes' ? '' : classId;
+    setSelectedClassFilter(actualClassId);
+    setSelectedSubjectFilter(''); // Reset downstream filters
+    setSelectedChapterFilter('');
+    setSelectedChapterForTopic(''); // Reset chapter selection
+  };
+
+  const handleSubjectFilterChange = (subjectId: string) => {
+    const actualSubjectId = subjectId === 'all-subjects' ? '' : subjectId;
+    setSelectedSubjectFilter(actualSubjectId);
+    setSelectedChapterFilter(''); // Reset downstream filter
+    setSelectedChapterForTopic(''); // Reset chapter selection
+  };
+
+  const handleChapterFilterChange = (chapterId: string) => {
+    const actualChapterId = chapterId === 'all-chapters' ? '' : chapterId;
+    setSelectedChapterFilter(actualChapterId);
+    setSelectedChapterForTopic(''); // Reset chapter selection
+  };
+
+  // Chapter selection for topic creation
+  const handleChapterSelection = (chapterId: string) => {
+    setSelectedChapterForTopic(chapterId);
+  };
+
+  // Check if Add Topic button should be enabled
+  const addTopicButtonEnabled = selectedChapterForTopic !== '';
+
+  // Get selected chapter details for topic modal
+  const selectedChapterDetails = chapters.find(c => c.id === selectedChapterForTopic);
 
   const getPriorityBadge = (topic: Topic) => {
     if (topic.isImportant) {
@@ -821,7 +927,12 @@ export default function TopicsManagement() {
             </Button>
             <Button 
               onClick={() => setShowAddTopicModal(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              disabled={!addTopicButtonEnabled}
+              className={addTopicButtonEnabled 
+                ? "bg-blue-600 hover:bg-blue-700" 
+                : "bg-gray-400 cursor-not-allowed"
+              }
+              title={!addTopicButtonEnabled ? "Select a chapter first to add a topic" : ""}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Topic
@@ -831,21 +942,65 @@ export default function TopicsManagement() {
 
         {/* Chapters Tab */}
         <TabsContent value="chapters" className="space-y-6">
+          {/* Chapter Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Filter Chapters</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Class</label>
+                  <Select value={selectedClassFilter || 'all-classes'} onValueChange={handleClassFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Classes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-classes">All Classes</SelectItem>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.name}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Subject</label>
+                  <Select value={selectedSubjectFilter || 'all-subjects'} onValueChange={handleSubjectFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Subjects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-subjects">All Subjects</SelectItem>
+                      {filteredSubjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
-                Chapters ({chapters.length})
+                Chapters ({filteredChapters.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {chaptersLoading ? (
                 <div className="text-center py-8">Loading chapters...</div>
-              ) : chapters.length === 0 ? (
+              ) : filteredChapters.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No chapters found</p>
-                  <p className="text-sm">Add your first chapter to get started</p>
+                  <p className="text-sm">{chapters.length === 0 ? "Add your first chapter to get started" : "Adjust filters to view chapters"}</p>
                 </div>
               ) : (
                 <Table>
@@ -860,7 +1015,7 @@ export default function TopicsManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {chapters.map((chapter) => (
+                    {filteredChapters.map((chapter) => (
                       <TableRow key={chapter.id}>
                         <TableCell className="font-medium">{chapter.name}</TableCell>
                         <TableCell>{chapter.subjectName}</TableCell>
@@ -901,21 +1056,136 @@ export default function TopicsManagement() {
 
         {/* Topics Tab */}
         <TabsContent value="topics" className="space-y-6">
+          {/* Topic Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">Filter Topics</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Class</label>
+                  <Select value={selectedClassFilter || 'all-classes'} onValueChange={handleClassFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Classes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-classes">All Classes</SelectItem>
+                      {classes.map((cls) => (
+                        <SelectItem key={cls.id} value={cls.name}>
+                          {cls.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Subject</label>
+                  <Select value={selectedSubjectFilter || 'all-subjects'} onValueChange={handleSubjectFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Subjects" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-subjects">All Subjects</SelectItem>
+                      {filteredSubjects.map((subject) => (
+                        <SelectItem key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Chapter</label>
+                  <Select value={selectedChapterFilter || 'all-chapters'} onValueChange={handleChapterFilterChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Chapters" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all-chapters">All Chapters</SelectItem>
+                      {filteredChapters.map((chapter) => (
+                        <SelectItem key={chapter.id} value={chapter.id}>
+                          {chapter.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Chapter Selection for Topic Creation */}
+          {activeTab === 'topics' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  Select Chapter for Topic Creation
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Click on a chapter below to enable topic creation for that chapter
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {filteredChapters.map((chapter) => (
+                    <Card 
+                      key={chapter.id} 
+                      className={`cursor-pointer transition-all hover:shadow-md ${
+                        selectedChapterForTopic === chapter.id 
+                          ? 'ring-2 ring-blue-500 bg-blue-50' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => handleChapterSelection(chapter.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-sm">{chapter.name}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {chapter.className} - {chapter.subjectName}
+                            </p>
+                          </div>
+                          {selectedChapterForTopic === chapter.id && (
+                            <div className="text-blue-600">
+                              <Target className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                
+                {selectedChapterForTopic && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-800">
+                      ✓ Chapter "{selectedChapterDetails?.name}" selected. You can now add topics to this chapter.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5" />
-                Topics ({topics.length})
+                Topics ({filteredTopics.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
               {topicsLoading ? (
                 <div className="text-center py-8">Loading topics...</div>
-              ) : topics.length === 0 ? (
+              ) : filteredTopics.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No topics found</p>
-                  <p className="text-sm">Add your first topic to get started</p>
+                  <p className="text-sm">{topics.length === 0 ? "Add your first topic to get started" : "Adjust filters or select a chapter to view topics"}</p>
                 </div>
               ) : (
                 <Table>
@@ -932,7 +1202,7 @@ export default function TopicsManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {topics.map((topic) => (
+                    {filteredTopics.map((topic) => (
                       <TableRow key={topic.id}>
                         <TableCell className="font-medium">{topic.name}</TableCell>
                         <TableCell>{topic.chapterName}</TableCell>
@@ -995,6 +1265,7 @@ export default function TopicsManagement() {
         onClose={handleCloseTopicModal}
         editingTopic={editingTopic}
         onTopicAdded={() => {}}
+        selectedChapterId={selectedChapterForTopic}
       />
     </DashboardLayout>
   );

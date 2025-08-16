@@ -1,0 +1,195 @@
+You are managing an educational content management system with a strict hierarchical structure. The admin can manage chapters and topics with advanced filtering and chapter-driven topic creation workflow.
+
+Hierarchical Structure (Top to Bottom)
+1. CLASSES (e.g., "Class 10", "Class 12", "Navodaya", "POLYCET")
+   ↓
+2. SUBJECTS (e.g., "Mathematics", "Physics", "Chemistry") 
+   ↓ 
+3. CHAPTERS (e.g., "Quadratic Equations", "Light - Reflection")
+   ↓
+4. TOPICS (e.g., "Introduction to Quadratic Equations", "Properties of Light")
+Core Business Logic
+Chapter Management:
+Prerequisites: Must select Class → Subject before creating chapter
+Filtering:
+Chapters Tab: Filter by Class and Subject (cascade filtering)
+When class changes, subject filter resets
+Only show chapters belonging to selected class/subject combination
+Dependencies: Deleting a chapter automatically deletes all its topics
+Validation: Chapter names must be unique within the same subject
+Display: Show chapter count and associated topic count for each chapter
+Topic Management:
+Prerequisites: Must select Class → Subject → Chapter before creating topic
+Chapter-Driven Creation Flow:
+Topics Tab: Filter by Class, Subject, and Chapter (triple cascade filtering)
+IMPORTANT: To add a topic, admin must first SELECT a chapter from the filtered list
+Only when a chapter is selected, the "Add Topic" button becomes highlighted/enabled
+The selected chapter auto-populates in the Add Topic modal
+This enforces the parent-child relationship between chapters and topics
+Priority System:
+Topics can be marked as "Important" (shows red "IMP" badge)
+Topics can be marked as "Moderate" (shows orange "Moderate" badge)
+Topics can be "Normal" (no special marking)
+RULE: A topic cannot be both Important AND Moderate simultaneously
+Ordering: Topics have an orderIndex to control sequence within chapters
+Status: All topics have active/inactive status
+Enhanced Filtering Logic
+Chapter Filtering:
+
+// Class Filter: Shows all classes
+// Subject Filter: Only shows subjects for selected class
+// Display: Only chapters belonging to selected class+subject combination
+const filteredChapters = chapters.filter(chapter => {
+  const classMatch = selectedClassFilter ? chapter.className === selectedClassFilter : true;
+  const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
+  return classMatch && subjectMatch;
+});
+Topic Filtering:
+
+// Class Filter: Shows all classes
+// Subject Filter: Only shows subjects for selected class
+// Chapter Filter: Only shows chapters for selected class+subject
+// Display: Only topics belonging to selected class+subject+chapter combination
+const filteredTopics = topics.filter(topic => {
+  const classMatch = selectedClassFilter ? topic.className === selectedClassFilter : true;
+  const subjectMatch = selectedSubjectFilter ? topic.subjectId === selectedSubjectFilter : true;
+  const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
+  return classMatch && subjectMatch && chapterMatch;
+});
+Chapter-Driven Topic Creation Workflow
+Step-by-Step Process:
+
+Admin navigates to Topics tab
+Admin applies filters: Class → Subject → Chapter (optional but recommended)
+Admin sees filtered list of chapters
+CRITICAL: Admin clicks/selects a specific chapter from the list
+Chapter selection triggers:
+"Add Topic" button highlights/enables
+Selected chapter ID is stored in state
+Admin clicks "Add Topic" button
+AddTopicModal opens with:
+Chapter field pre-populated with selected chapter
+Class and Subject auto-filled based on chapter's hierarchy
+Topic name and other fields ready for input
+Topic gets created under the selected chapter
+UI State Management:
+
+const [selectedChapterForTopic, setSelectedChapterForTopic] = useState<string>('');
+const [addTopicButtonEnabled, setAddTopicButtonEnabled] = useState(false);
+// When chapter is selected from list
+const handleChapterSelection = (chapterId: string) => {
+  setSelectedChapterForTopic(chapterId);
+  setAddTopicButtonEnabled(true);
+};
+// Add Topic button state
+<Button 
+  onClick={() => setShowAddTopicModal(true)}
+  disabled={!addTopicButtonEnabled}
+  className={addTopicButtonEnabled ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400"}
+>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Topic
+</Button>
+Component Architecture
+Main Structure Page Components:
+
+Statistics Cards: Display totals for chapters, topics, moderate topics, important topics
+Filter Controls:
+Chapters Tab: Class Filter + Subject Filter
+Topics Tab: Class Filter + Subject Filter + Chapter Filter
+Tabbed Interface:
+"Chapters" tab: Filtered chapters list with selection capability
+"Topics" tab: Filtered topics list with chapter-driven creation
+Action Buttons:
+"Add Chapter" → Always available, opens AddChapterModal
+"Add Topic" → Only enabled when chapter is selected
+"Manage Topic Flags" → Links to TopicsManagement page
+AddChapterModal Logic:
+
+// Form fields: name, classId, subjectId
+// Validation: All fields required
+// Dependency: When class changes, reset subject selection
+// Filtering: Only show subjects belonging to selected class
+// API: POST /api/admin/chapters
+Enhanced AddTopicModal Logic:
+
+// Form fields: name, chapterId (pre-filled), orderIndex, isModerate, isImportant
+// Pre-population: If topic creation triggered by chapter selection:
+//   - chapterId: auto-filled from selected chapter
+//   - classId: derived from chapter's subject
+//   - subjectId: derived from chapter
+// Validation: All fields required, mutual exclusivity for flags
+// Priority Logic: If isImportant = true, auto-set isModerate = false (and vice versa)
+// API: POST /api/admin/topics
+Data Flow & API Integration
+Required APIs:
+
+GET /api/classes - Fetch all classes for filters
+GET /api/admin/subjects - Fetch all subjects for cascade filtering
+GET /api/admin/chapters - Fetch all chapters with related data for display and filtering
+GET /api/admin/topics - Fetch all topics with full hierarchy for display and filtering
+POST/PUT/DELETE /api/admin/chapters/:id - Chapter CRUD operations
+POST/PUT/DELETE /api/admin/topics/:id - Topic CRUD operations
+Enhanced Data Models:
+
+interface Chapter {
+  id: string;
+  name: string;
+  subjectId: string;
+  subjectName: string;  // JOIN data for filtering
+  className: string;    // JOIN data for filtering
+  topicCount?: number;  // Calculated for display
+  isSelected?: boolean; // UI state for topic creation
+}
+interface Topic {
+  id: string;
+  name: string;
+  chapterId: string;
+  chapterName: string;  // JOIN data for filtering
+  subjectId: string;    // JOIN data for filtering
+  subjectName: string;  // JOIN data for filtering
+  className: string;    // JOIN data for filtering
+  orderIndex: number;
+  isImportant: boolean;
+  isModerate: boolean;
+  isActive: boolean;
+}
+User Workflow Examples
+Creating a Chapter (Enhanced):
+
+Admin applies class/subject filters (optional)
+Admin clicks "Add Chapter"
+Selects Class (e.g., "Class 10")
+Subject dropdown populates with Class 10 subjects only
+Selects Subject (e.g., "Mathematics")
+Enters chapter name (e.g., "Quadratic Equations")
+Submits → Chapter appears in filtered chapters list
+Creating a Topic (Enhanced Chapter-Driven Flow):
+
+Admin navigates to Topics tab
+Admin applies filters: Class 10 → Mathematics → (optional chapter filter)
+Admin sees filtered list of Mathematics chapters for Class 10
+CRITICAL: Admin clicks on "Quadratic Equations" chapter in the list
+Chapter gets selected (visual highlight), "Add Topic" button enables
+Admin clicks "Add Topic" button
+AddTopicModal opens with:
+Chapter: "Quadratic Equations" (pre-filled, read-only)
+Class: "Class 10" (auto-derived)
+Subject: "Mathematics" (auto-derived)
+Admin enters topic name and order index
+Admin optionally marks as Important OR Moderate
+Submits → Topic appears under "Quadratic Equations" chapter
+Key Constraints & Rules
+Hierarchy Enforcement: Cannot skip levels (must go Class→Subject→Chapter→Topic)
+Chapter Selection Requirement: Topics can only be created after selecting a parent chapter
+Mutual Exclusivity: Topics cannot be both Important and Moderate
+Cascade Filtering: Filters reset downstream when upstream selection changes
+Cascade Deletes: Deleting chapter removes all child topics
+Unique Naming: Chapter names unique per subject, topic names unique per chapter
+Order Management: Topics display in orderIndex sequence within chapters
+Advanced Features
+Real-time Filtering: Instant filter application without page reload
+Visual Chapter Selection: Selected chapter highlights in the list
+Smart Button States: Add Topic button disabled until chapter selection
+Auto-population: Modal fields auto-fill based on selection context
+Contextual Navigation: Quick access to TopicsManagement for bulk flag operations
