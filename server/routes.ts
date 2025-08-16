@@ -2253,7 +2253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/so-centers/next-id", authenticateToken, async (req, res) => {
     try {
       const nextId = await storage.getNextSoCenterId();
-      res.json(nextId);
+      res.json({ centerId: nextId });
     } catch (error) {
       console.error('Error generating next SO Center ID:', error);
       res.status(500).json({ message: 'Failed to generate next SO Center ID' });
