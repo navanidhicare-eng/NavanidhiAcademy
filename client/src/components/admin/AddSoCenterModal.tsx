@@ -197,45 +197,48 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   // Remove old facility toggle function - now using dynamic input
 
   const createSoCenterMutation = useMutation({
-    mutationFn: useCallback(async (data: AddSoCenterFormData) => {
-      const processedData = {
-        ...data,
-        centerId: nextCenterId,
-        password: '12345678', // Default password as requested
-        rentAmount: parseFloat(data.rentAmount),
-        rentalAdvance: parseFloat(data.rentalAdvance),
-        monthlyRentDate: parseInt(data.monthlyRentDate),
-        electricBillAccountNumber: data.electricBillAccountNumber,
-        monthlyInternetDate: parseInt(data.monthlyInternetDate),
-        internetServiceProvider: data.internetServiceProvider,
-        roomSize: data.roomSize,
-        capacity: parseInt(data.capacity),
-        facilities: facilities.map(f => f.facilityName).filter(name => name && name.trim() !== ''),
-        nearbySchools: nearbySchools,
-        nearbyTuitions: nearbyTuitions,
-        equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
-        admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
-      };
-      return apiRequest('POST', '/api/admin/so-centers', processedData);
-    }, [nextCenterId, facilities, nearbySchools, nearbyTuitions, equipment]),
-    onSuccess: useCallback(() => {
-      toast({
-        title: 'SO Center Created',
-        description: 'SO Center has been successfully created.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/so-centers'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
-      form.reset();
-      onClose();
-    }, [toast, queryClient, form, onClose]),
-    onError: useCallback((error: any) => {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to create SO Center. Please try again.',
-        variant: 'destructive',
-      });
-    }, [toast]),
-  });
+  mutationFn: useCallback(async (data: AddSoCenterFormData) => {
+    const processedData = {
+      ...data,
+      centerId: nextCenterId,
+      password: '12345678', // Default password as requested
+      rentAmount: parseFloat(data.rentAmount),
+      rentalAdvance: parseFloat(data.rentalAdvance),
+      monthlyRentDate: parseInt(data.monthlyRentDate),
+      electricBillAccountNumber: data.electricBillAccountNumber,
+      monthlyInternetDate: parseInt(data.monthlyInternetDate),
+      internetServiceProvider: data.internetServiceProvider,
+      roomSize: data.roomSize,
+      capacity: parseInt(data.capacity),
+      facilities: facilities.map(f => f.facilityName).filter(name => name && name.trim() !== ''),
+      nearbySchools: nearbySchools,
+      nearbyTuitions: nearbyTuitions,
+      equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
+      admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
+      
+      // THIS IS THE FIX: Force the date into YYYY-MM-DD format
+      dateOfHouseTaken: new Date(data.dateOfHouseTaken).toISOString().split('T')[0],
+    };
+    return apiRequest('POST', '/api/admin/so-centers', processedData);
+  }, [nextCenterId, facilities, nearbySchools, nearbyTuitions, equipment]),
+  onSuccess: useCallback(() => {
+    toast({
+      title: 'SO Center Created',
+      description: 'SO Center has been successfully created.',
+    });
+    queryClient.invalidateQueries({ queryKey: ['/api/so-centers'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
+    form.reset();
+    onClose();
+  }, [toast, queryClient, form, onClose]),
+  onError: useCallback((error: any) => {
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to create SO Center. Please try again.',
+      variant: 'destructive',
+    });
+  }, [toast]),
+});
 
   const onSubmit = (data: AddSoCenterFormData) => {
     createSoCenterMutation.mutate(data);
