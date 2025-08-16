@@ -77,8 +77,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
   const { data: nextCenterIdResponse, isLoading: centerIdLoading } = useQuery({
     queryKey: ['/api/admin/so-centers/next-id'],
     queryFn: async () => {
-      const response = await apiRequest('GET', '/api/admin/so-centers/next-id');
-      return await response.json();
+      return await apiRequest('GET', '/api/admin/so-centers/next-id');
     },
     enabled: isOpen,
   });
@@ -103,8 +102,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     queryKey: ['/api/admin/addresses/districts', selectedState],
     queryFn: async () => {
       if (!selectedState) return [];
-      const response = await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
-      return await response.json();
+      return await apiRequest('GET', `/api/admin/addresses/districts/${selectedState}`);
     },
     enabled: !!selectedState && isOpen,
   });
@@ -113,8 +111,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     queryFn: async () => {
       if (!selectedDistrict) return [];
-      const response = await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
-      return await response.json();
+      return await apiRequest('GET', `/api/admin/addresses/mandals/${selectedDistrict}`);
     },
     enabled: !!selectedDistrict && isOpen,
   });
@@ -123,8 +120,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     queryFn: async () => {
       if (!selectedMandal) return [];
-      const response = await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
-      return await response.json();
+      return await apiRequest('GET', `/api/admin/addresses/villages/${selectedMandal}`);
     },
     enabled: !!selectedMandal && isOpen,
   });
