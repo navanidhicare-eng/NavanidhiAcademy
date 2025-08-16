@@ -58,6 +58,7 @@ import { z } from 'zod';
 const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
 
 // Initialize admin user on server start with timeout
+/*
 (async () => {
   try {
     console.log('🚀 Initializing Supabase authentication...');
@@ -72,6 +73,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024"
     console.log('🔄 System will continue - authentication may work after database reconnects');
   }
 })();
+*/
 
 // Middleware to verify JWT token
 const authenticateToken = (req: Request, res: any, next: any) => {
