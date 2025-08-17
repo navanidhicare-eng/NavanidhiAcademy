@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useMemo, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -79,26 +80,30 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
   
-  // Filter subjects based on selected class
-  const filteredSubjects = (allSubjects as any[]).filter((subject: any) => 
-    selectedClassId ? subject.classId === selectedClassId : false
+  // Filter subjects based on selected class with useMemo to prevent re-renders
+  const filteredSubjects = useMemo(() => 
+    (allSubjects as any[]).filter((subject: any) => 
+      selectedClassId ? subject.classId === selectedClassId : false
+    ), [allSubjects, selectedClassId]
   );
 
-  // Filter chapters based on selected subject
-  const filteredChapters = (allChapters as any[]).filter((chapter: any) => 
-    selectedSubjectId ? chapter.subjectId === selectedSubjectId : false
+  // Filter chapters based on selected subject with useMemo to prevent re-renders
+  const filteredChapters = useMemo(() => 
+    (allChapters as any[]).filter((chapter: any) => 
+      selectedSubjectId ? chapter.subjectId === selectedSubjectId : false
+    ), [allChapters, selectedSubjectId]
   );
 
-  const handleClassChange = (value: string) => {
+  const handleClassChange = useCallback((value: string) => {
     form.setValue('classId', value);
     form.setValue('subjectId', '');
     form.setValue('chapterId', '');
-  };
+  }, [form]);
 
-  const handleSubjectChange = (value: string) => {
+  const handleSubjectChange = useCallback((value: string) => {
     form.setValue('subjectId', value);
     form.setValue('chapterId', '');
-  };
+  }, [form]);
 
   const createTopicMutation = useMutation({
     mutationFn: async (data: AddTopicFormData) => {
@@ -137,13 +142,14 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Add New Topic</DialogTitle>
         </DialogHeader>
         
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
             <FormField
               control={form.control}
               name="name"
@@ -349,20 +355,23 @@ Use $$...$$ for block math: $$\frac{numerator}{denominator}$$"
               </p>
             </div>
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createTopicMutation.isPending}
-                className="bg-primary text-white hover:bg-blue-700"
-              >
-                {createTopicMutation.isPending ? 'Creating...' : 'Create Topic'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        </div>
+        
+        <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t bg-background">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={createTopicMutation.isPending}
+            className="bg-primary text-white hover:bg-blue-700"
+            onClick={form.handleSubmit(onSubmit)}
+          >
+            {createTopicMutation.isPending ? 'Creating...' : 'Create Topic'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
