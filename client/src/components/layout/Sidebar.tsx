@@ -91,6 +91,7 @@ const navigation: NavItem[] = [
     roles: ['so_center'],
     children: [
       { title: 'All Students', href: '/students', icon: Users },
+      { title: 'Fee Collection', href: '/fee-payments', icon: CreditCard },
       { title: 'Progress Tracking', href: '/progress', icon: TrendingUp },
       { title: 'Attendance', href: '/attendance', icon: Calendar },
       { title: 'Attendance Reports', href: '/attendance-reports', icon: FileText },
