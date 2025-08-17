@@ -55,10 +55,10 @@ type FormData = z.infer<typeof formSchema>;
 export function SimpleSoCenterModal({ isOpen, onClose, onSuccess }: SimpleSoCenterModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   // Hardcoded center ID for now to bypass database issues
   const [nextCenterId, setNextCenterId] = useState("");
-  
+
   useEffect(() => {
     if (isOpen) {
       // Generate a simple sequential ID
@@ -100,7 +100,7 @@ export function SimpleSoCenterModal({ isOpen, onClose, onSuccess }: SimpleSoCent
         email: `${nextCenterId.toLowerCase()}@navanidhi.org`,
         admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
       };
-      
+
       return apiRequest('POST', '/api/admin/so-centers', soCenterData);
     },
     onSuccess: () => {
@@ -108,8 +108,12 @@ export function SimpleSoCenterModal({ isOpen, onClose, onSuccess }: SimpleSoCent
         title: "Success",
         description: "SO Center created successfully!",
       });
+
+      // Invalidate all relevant queries to refresh data immediately
       queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
-      onSuccess();
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers/next-id'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+
       onClose();
       form.reset();
     },
@@ -141,10 +145,10 @@ export function SimpleSoCenterModal({ isOpen, onClose, onSuccess }: SimpleSoCent
             New SO Center
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            
+
             {/* Center ID Display */}
             <div className="bg-gradient-to-r from-green-100 to-emerald-100 p-3 rounded-lg border border-green-200 text-center">
               <p className="text-sm text-green-700 mb-1">Generated Center ID</p>
@@ -310,7 +314,7 @@ export function SimpleSoCenterModal({ isOpen, onClose, onSuccess }: SimpleSoCent
                 <MapPin className="h-3 w-3" />
                 Location
               </Label>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Select onValueChange={setSelectedState} value={selectedState}>

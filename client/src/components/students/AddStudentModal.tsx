@@ -46,7 +46,7 @@ const addStudentSchema = z.object({
   // Basic Information
   name: z.string().min(1, 'Student name is required'),
   aadharNumber: z.string().min(12, 'Valid Aadhar number required').max(12, 'Aadhar number must be 12 digits'),
-  
+
   // Family Information
   fatherName: z.string().min(1, 'Father name is required'),
   motherName: z.string().min(1, 'Mother name is required'),
@@ -54,35 +54,35 @@ const addStudentSchema = z.object({
   motherMobile: z.string().optional(),
   fatherQualification: z.string().optional(),
   motherQualification: z.string().optional(),
-  
+
   // Personal Details
   gender: z.enum(['male', 'female', 'other']),
   dateOfBirth: z.string().min(1, 'Date of birth is required'),
-  
+
   // School Information
   presentSchoolName: z.string().min(1, 'Present school name is required'),
   schoolType: z.enum(['government', 'private']),
-  
+
   // Address Information
   villageId: z.string().min(1, 'Village selection is required'),
   address: z.string().min(1, 'Complete address is required'),
   landmark: z.string().optional(),
-  
+
   // Academic Information
   classId: z.string().min(1, 'Class is required'),
   courseType: z.enum(['monthly', 'yearly']),
-  
+
   // System fields
   soCenterId: z.string().min(1, 'SO Center is required'),
   parentPhone: z.string().min(10, 'Parent phone is required'), // For compatibility
   parentName: z.string().optional(), // For compatibility
-  
+
   // Enrollment Information
   enrollmentDate: z.string().min(1, 'Enrollment date is required'),
-  
+
   // Siblings
   siblings: z.array(siblingSchema).optional(),
-  
+
   // Admission Fee
   admissionFeePaid: z.boolean().default(false),
   receiptNumber: z.string().optional(),
@@ -125,14 +125,14 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       // Use the provided PhonePe audio file - no fallback sound
       const audio = new Audio('/phone_pe_success.mp3');
       audio.volume = 0.9; // Set volume to 90%
-      
+
       // Wait for audio to load before playing
       await new Promise((resolve, reject) => {
         audio.addEventListener('canplaythrough', resolve, { once: true });
         audio.addEventListener('error', reject, { once: true });
         audio.load(); // Force load
       });
-      
+
       await audio.play();
       console.log('PhonePe audio played successfully');
     } catch (error) {
@@ -142,7 +142,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   };
 
 
-  
+
   // Silent confetti celebration function (no audio)
   const triggerConfetti = () => {
     // Multiple confetti bursts for visual celebration effect only
@@ -151,7 +151,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       origin: { y: 0.7 },
       disableForReducedMotion: false // Ensure confetti shows but with no sound
     };
-    
+
     // Left side burst
     confetti({
       ...defaults,
@@ -160,7 +160,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       spread: 55,
       origin: { x: 0 }
     });
-    
+
     // Right side burst  
     confetti({
       ...defaults,
@@ -169,7 +169,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       spread: 55,
       origin: { x: 1 }
     });
-    
+
     // Center burst
     confetti({
       ...defaults,
@@ -178,7 +178,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       spread: 100,
       origin: { x: 0.5 }
     });
-    
+
     // Delayed second wave for extended celebration
     setTimeout(() => {
       confetti({
@@ -214,7 +214,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     queryKey: ['/api/classes'],
     enabled: isOpen,
   });
-  
+
   // Fetch address hierarchy data
   const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
@@ -307,7 +307,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       receiptNumber: '',
     },
   });
-  
+
   const { fields: siblingFields, append: appendSibling, remove: removeSibling } = useFieldArray({
     control: form.control,
     name: 'siblings'
@@ -380,19 +380,20 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
           admissionFeePaid: result.admissionFeePaid || form.getValues('admissionFeePaid'),
           amount: result.amount || (classFeesData?.admissionFee ? parseFloat(classFeesData.admissionFee) : null)
         });
-        
+
         // Trigger confetti celebration (silent)
         triggerConfetti();
-        
+
         // Play ONLY PhonePe sound after a brief delay to avoid conflicts
         setTimeout(() => {
           playSuccessSound();
         }, 200);
-        
+
         setShowSuccessScreen(true);
         // Invalidate and refetch students data immediately
         queryClient.invalidateQueries({ queryKey: ['/api/students'] });
-        queryClient.refetchQueries({ queryKey: ['/api/students'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/so-center/detailed-students'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       } catch (error) {
         console.error('Error processing success response:', error);
         toast({
@@ -415,24 +416,24 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
   const onSubmit = (data: AddStudentFormData) => {
     console.log('Form submission started with data:', data);
     console.log('Form errors:', form.formState.errors);
-    
+
     // Set parent phone for compatibility (using father's mobile)
     data.parentPhone = data.fatherMobile;
     data.parentName = data.fatherName;
-    
+
     createStudentMutation.mutate(data);
   };
-  
+
   // Handle Aadhar number validation with 2-3 second delay
   const handleAadharValidation = async (aadharNumber: string) => {
     // Clear any existing timeout
     if (aadharTimeoutRef.current) {
       clearTimeout(aadharTimeoutRef.current);
     }
-    
+
     if (aadharNumber.length === 12) {
       setAadharValidation({ isChecking: true, isValid: null });
-      
+
       // Add 2.5 second delay before validation
       aadharTimeoutRef.current = setTimeout(() => {
         validateAadharMutation.mutate(aadharNumber);
@@ -441,12 +442,12 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       setAadharValidation({ isChecking: false, isValid: null });
     }
   };
-  
+
   // Auto-sync parentPhone and parentName from father details
   useEffect(() => {
     const fatherMobile = form.watch('fatherMobile');
     const fatherName = form.watch('fatherName');
-    
+
     if (fatherMobile) {
       form.setValue('parentPhone', fatherMobile);
     }
@@ -463,7 +464,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
       }
     };
   }, []);
-  
+
   // Handle address cascade changes
   const handleStateChange = (stateId: string) => {
     setSelectedState(stateId);
@@ -482,18 +483,18 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     setSelectedMandal(mandalId);
     form.setValue('villageId', '');
   };
-  
+
   // Handle class and course type changes for fee display
   const handleClassChange = (classId: string) => {
     setSelectedClass(classId);
     form.setValue('classId', classId);
   };
-  
+
   const handleCourseTypeChange = (courseType: string) => {
     setSelectedCourseType(courseType);
     form.setValue('courseType', courseType as 'monthly' | 'yearly');
   };
-  
+
   // Add new sibling
   const addSibling = () => {
     appendSibling({
@@ -508,7 +509,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
     value: cls.id,
     label: cls.name
   })) : [];
-  
+
   const qualificationOptions = [
     'Illiterate',
     'Primary School',
@@ -531,7 +532,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
             Comprehensive Student Registration
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
             console.log('Form validation failed:', errors);
@@ -541,7 +542,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
               variant: 'destructive',
             });
           })} className="space-y-6">
-            
+
             {/* Student Personal Information */}
             <Card className="animate-fade-in border-green-100 hover-lift">
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
@@ -565,7 +566,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="aadharNumber"
@@ -597,7 +598,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
@@ -629,7 +630,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="dateOfBirth"
@@ -646,7 +647,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Family Information */}
             <Card>
               <CardHeader>
@@ -678,7 +679,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="motherName"
@@ -693,7 +694,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -716,7 +717,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="motherMobile"
@@ -731,7 +732,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -757,7 +758,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="motherQualification"
@@ -785,7 +786,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* School Information */}
             <Card>
               <CardHeader>
@@ -809,7 +810,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="schoolType"
@@ -839,7 +840,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Address Information */}
             <Card>
               <CardHeader>
@@ -925,7 +926,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -940,7 +941,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name="landmark"
@@ -957,7 +958,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 </div>
               </CardContent>
             </Card>
-            
+
             {/* Academic Information & Fees */}
             <Card>
               <CardHeader>
@@ -1015,7 +1016,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     )}
                   />
                 </div>
-                
+
                 {/* Enrollment Date */}
                 <FormField
                   control={form.control}
@@ -1037,7 +1038,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 {/* Fee Display */}
                 {isLoadingFees && selectedClass && selectedCourseType && (
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -1068,7 +1069,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                         </div>
                       )}
                     </div>
-                    
+
                     {classFeesData.description && (
                       <p className="text-xs text-gray-600 mt-2">{classFeesData.description}</p>
                     )}
@@ -1076,7 +1077,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Siblings Information */}
             <Card>
               <CardHeader>
@@ -1106,7 +1107,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -1121,7 +1122,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name={`siblings.${index}.className`}
@@ -1136,7 +1137,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                           )}
                         />
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4 mt-3">
                         <FormField
                           control={form.control}
@@ -1151,7 +1152,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name={`siblings.${index}.schoolType`}
@@ -1184,7 +1185,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                 )}
               </CardContent>
             </Card>
-            
+
             {/* Admission Fee Handling */}
             {classFeesData && (
               <Card>
@@ -1217,7 +1218,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                       </FormItem>
                     )}
                   />
-                  
+
                   {form.watch('admissionFeePaid') && (
                     <FormField
                       control={form.control}
@@ -1238,7 +1239,7 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
             )}
 
 
-            
+
             <div className="flex justify-end space-x-3 pt-6">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
@@ -1255,13 +1256,13 @@ export function AddStudentModal({ isOpen, onClose }: AddStudentModalProps) {
                   'Register Student'
                 )}
               </Button>
-              
+
 
             </div>
           </form>
         </Form>
       </DialogContent>
-      
+
       {/* Success Screen */}
       <SuccessScreen 
         isOpen={showSuccessScreen}

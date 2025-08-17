@@ -20,7 +20,8 @@ import {
   BookOpen,
   DollarSign,
   GraduationCap,
-  FileText
+  FileText,
+  CreditCard
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -359,7 +360,7 @@ export default function Dashboard() {
           style={{ animationDelay: `${delay}ms` }}>
       <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
-      
+
       <CardContent className="p-6 relative z-10">
         <div className="flex items-center justify-between">
           <div className="space-y-3">
@@ -397,7 +398,7 @@ export default function Dashboard() {
         {/* Floating background elements */}
         <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl animate-float-slow"></div>
         <div className="absolute top-20 right-0 w-96 h-96 bg-gradient-to-br from-purple-400/10 to-pink-400/10 rounded-full blur-3xl animate-float-slower"></div>
-        
+
         <div className="relative z-10">
           <div className="text-center space-y-4 animate-fade-in-up">
             <div className="inline-block">

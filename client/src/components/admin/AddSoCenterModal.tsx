@@ -87,7 +87,7 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
 
   // Debug the response structure
   console.log('🔧 nextCenterIdResponse:', nextCenterIdResponse);
-  
+
   const nextCenterId = nextCenterIdResponse?.centerId || nextCenterIdResponse?.centerCode || nextCenterIdResponse?.id || '';
 
 
@@ -215,22 +215,25 @@ export function AddSoCenterModal({ isOpen, onClose }: AddSoCenterModalProps) {
       nearbyTuitions: nearbyTuitions,
       equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
       admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
-      
+
       // THIS IS THE FIX: Force the date into YYYY-MM-DD format
       dateOfHouseTaken: new Date(data.dateOfHouseTaken).toISOString().split('T')[0],
     };
     return apiRequest('POST', '/api/admin/so-centers', processedData);
   }, [nextCenterId, facilities, nearbySchools, nearbyTuitions, equipment]),
   onSuccess: useCallback(() => {
-    toast({
-      title: 'SO Center Created',
-      description: 'SO Center has been successfully created.',
-    });
-    queryClient.invalidateQueries({ queryKey: ['/api/so-centers'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
-    form.reset();
-    onClose();
-  }, [toast, queryClient, form, onClose]),
+      toast({
+        title: 'SO Center Created',
+        description: 'SO Center has been created successfully.',
+      });
+
+      // Invalidate queries to refresh data immediately
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/so-centers/next-id'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+
+      onClose();
+    }, [toast, queryClient, form, onClose]),
   onError: useCallback((error: any) => {
     toast({
       title: 'Error',

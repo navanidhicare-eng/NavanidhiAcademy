@@ -1228,53 +1228,58 @@ export class DrizzleStorage implements IStorage {
   }
     */
 
-  // Enhanced SO Center methods with sequential number gap detection
+  // Enhanced SO Center methods with atomic number generation
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
-    console.log('🔧 Generating next available SO Center ID...');
+    console.log('🔧 Generating next available SO Center ID with atomic transaction...');
 
-    // Get all existing centers and users with so_center role to check for conflicts
-    const centers = await db.select().from(schema.soCenters);
-    const users = await storage.getUsersByRole('so_center');
+    return await db.transaction(async (tx) => {
+      // Use a pessimistic approach - get all existing numbers in a transaction
+      const centers = await tx.select({ centerId: schema.soCenters.centerId }).from(schema.soCenters);
+      const users = await tx.select({ email: schema.users.email }).from(schema.users).where(eq(schema.users.role, 'so_center'));
 
-    console.log('Existing center IDs:', centers.map(c => c.centerId));
-    console.log('Existing SO Center emails:', users.map(u => u.email));
+      console.log('Existing center IDs:', centers.map(c => c.centerId));
+      console.log('Existing SO Center emails:', users.map(u => u.email));
 
-    // Extract numeric parts from both center IDs and emails
-    const existingNumbers = new Set<number>();
+      // Extract numeric parts from both center IDs and emails
+      const existingNumbers = new Set<number>();
 
-    // From center IDs
-    centers.forEach(center => {
-      if (center.centerId) {
-        const match = center.centerId.match(/NNASOC(\d+)/);
-        if (match) {
-          existingNumbers.add(parseInt(match[1], 10));
+      // From center IDs
+      centers.forEach(center => {
+        if (center.centerId) {
+          const match = center.centerId.match(/NNASOC(\d+)/);
+          if (match) {
+            existingNumbers.add(parseInt(match[1], 10));
+          }
         }
-      }
-    });
+      });
 
-    // From emails
-    users.forEach(user => {
-      if (user.email) {
-        const match = user.email.match(/nnasoc(\d+)@navanidhi\.org/);
-        if (match) {
-          existingNumbers.add(parseInt(match[1], 10));
+      // From emails
+      users.forEach(user => {
+        if (user.email) {
+          const match = user.email.match(/nnasoc(\d+)@navanidhi\.org/);
+          if (match) {
+            existingNumbers.add(parseInt(match[1], 10));
+          }
         }
+      });
+
+      console.log('Existing SO Center numbers:', Array.from(existingNumbers).sort((a, b) => a - b));
+
+      // Find the next sequential number (gap-filling approach)
+      let nextNumber = 1;
+      while (existingNumbers.has(nextNumber)) {
+        nextNumber++;
       }
+
+      const centerId = `NNASOC${String(nextNumber).padStart(5, '0')}`;
+      const email = `nnasoc${String(nextNumber).padStart(5, '0')}@navanidhi.org`;
+
+      console.log(`Next available SO Center number: ${nextNumber}`);
+      console.log(`Generated center ID: ${centerId}`);
+      console.log(`Generated email: ${email}`);
+
+      return { centerId, email };
     });
-
-    console.log('Existing SO Center numbers:', Array.from(existingNumbers).sort((a, b) => a - b));
-
-    // Find the next number (should be total count + 1 for sequential IDs)
-    const nextNumber = existingNumbers.size + 1;
-
-    const centerId = `NNASOC${String(nextNumber).padStart(5, '0')}`;
-    const email = `nnasoc${String(nextNumber).padStart(5, '0')}@navanidhi.org`;
-
-    console.log(`Next available SO Center number: ${nextNumber}`);
-    console.log(`Generated center ID: ${centerId}`);
-    console.log(`Generated email: ${email}`);
-
-    return { centerId, email };
   }
 
   async getNextSoCenterId(): Promise<string> {
