@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,10 +31,10 @@ import { CreditCard } from 'lucide-react';
 
 const editSoCenterSchema = z.object({
   name: z.string().min(1, 'Center name is required'),
-  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
-  address: z.string().min(1, 'Address is required'),
+  phone: z.string().min(10, 'Valid phone number required'),
+  address: z.string().min(1, 'Complete address is required'),
   villageId: z.string().min(1, 'Village selection is required'),
-  managerId: z.string().optional(),
+  managerId: z.string().optional().transform(val => val === 'none' || val === '' ? null : val),
   ownerName: z.string().optional(),
   ownerLastName: z.string().optional(),
   ownerPhone: z.string().optional(),
@@ -151,7 +150,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
   useEffect(() => {
     if (center && isOpen) {
       console.log('🔄 Loading SO Center data for editing:', center);
-      
+
       // Set facilities from center data
       const centerFacilities = center.facilities || [];
       if (centerFacilities.length > 0) {
@@ -176,17 +175,17 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
         phone: center.phone || '',
         address: center.address || '',
         villageId: center.villageId || center.village_id || '',
-        managerId: center.managerId || center.manager_id || '',
+        managerId: center.managerId || center.manager_id || 'none', // Use 'none' for null managerId
         ownerName: center.ownerName || center.owner_name || '',
         ownerLastName: center.ownerLastName || center.owner_last_name || '',
         ownerPhone: center.ownerPhone || center.owner_phone || '',
         landmarks: center.landmarks || '',
         roomSize: center.roomSize || center.room_size || '',
-        rentAmount: center.rentAmount || center.rent_amount || '',
-        rentalAdvance: center.rentalAdvance || center.rental_advance || '',
+        rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
+        rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
         dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
-        monthlyRentDate: center.monthlyRentDate || center.monthly_rent_date || '',
-        monthlyInternetDate: center.monthlyInternetDate || center.monthly_internet_date || '',
+        monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
+        monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
         electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
         internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
         internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
@@ -240,7 +239,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
   const updateCenterMutation = useMutation({
     mutationFn: async (data: EditSoCenterFormData) => {
       console.log('🔄 Updating SO Center with data:', data);
-      
+
       const updateData = {
         ...data,
         capacity: data.capacity ? parseInt(data.capacity) : null,
@@ -356,7 +355,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Basic Information</h3>
-              
+
               <FormField
                 control={form.control}
                 name="name"
@@ -448,7 +447,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
             {/* Location Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Location Information</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="state">State *</Label>
@@ -563,7 +562,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
             {/* Property Owner Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Property Owner Information</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -612,7 +611,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
             {/* Property & Financial Details */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Property & Financial Details</h3>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}

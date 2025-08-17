@@ -2347,6 +2347,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process the update data to handle type conversions
       const processedUpdateData = {
         ...updateData,
+        // Fix managerId: convert empty string to null, keep null as null
+        managerId: updateData.managerId === '' || updateData.managerId === null || updateData.managerId === undefined ? null : updateData.managerId,
         // Convert string numbers to proper types
         capacity: updateData.capacity ? parseInt(updateData.capacity) : null,
         monthlyRentDate: updateData.monthlyRentDate ? parseInt(updateData.monthlyRentDate) : null,
