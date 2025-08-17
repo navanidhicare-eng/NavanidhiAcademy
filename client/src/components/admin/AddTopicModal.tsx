@@ -152,7 +152,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
     if (selectedChapterId) {
       form.setValue('chapterId', selectedChapterId);
     }
-  }, [selectedChapterId, form]);
+  }, [selectedChapterId]);
 
 
   return (
