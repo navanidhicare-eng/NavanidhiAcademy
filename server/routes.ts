@@ -3187,8 +3187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/subjects", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       
       const { name, classIds } = req.body;
@@ -3217,8 +3217,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/subjects/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       const updates = req.body;
       const updatedSubject = await storage.updateSubject(req.params.id, updates);
@@ -3231,8 +3231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/subjects/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       await storage.deleteSubject(req.params.id);
       res.json({ message: 'Subject deleted successfully' });
@@ -3255,8 +3255,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/chapters", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       const chapterData = insertChapterSchema.parse(req.body);
       const newChapter = await storage.createChapter(chapterData);
@@ -3269,8 +3269,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/chapters/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       const updates = req.body;
       const updatedChapter = await storage.updateChapter(req.params.id, updates);
@@ -3283,8 +3283,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/chapters/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       await storage.deleteChapter(req.params.id);
       res.json({ message: 'Chapter deleted successfully' });
@@ -3307,8 +3307,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/topics", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       const topicData = insertTopicSchema.parse(req.body);
       const newTopic = await storage.createTopic(topicData);
@@ -3321,8 +3321,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/admin/topics/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       const updates = req.body;
       const updatedTopic = await storage.updateTopic(req.params.id, updates);
@@ -3335,8 +3335,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/admin/topics/:id", authenticateToken, async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
+        return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
       await storage.deleteTopic(req.params.id);
       res.json({ message: 'Topic deleted successfully' });
