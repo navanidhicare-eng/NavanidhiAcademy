@@ -91,7 +91,6 @@ const navigation: NavItem[] = [
     roles: ['so_center'],
     children: [
       { title: 'All Students', href: '/students', icon: Users },
-      { title: 'Fee Collection', href: '/fee-payments', icon: CreditCard },
       { title: 'Progress Tracking', href: '/progress', icon: TrendingUp },
       { title: 'Attendance', href: '/attendance', icon: Calendar },
       { title: 'Attendance Reports', href: '/attendance-reports', icon: FileText },
@@ -104,7 +103,6 @@ const navigation: NavItem[] = [
     children: [
       { title: 'Exam Management', href: '/exam-management', icon: Award, roles: ['so_center'] },
       { title: 'SO Center Exams', href: '/so-center/exams', icon: ClipboardList, roles: ['so_center'] },
-      { title: 'Exam Results', href: '/so-center/exam-results', icon: BarChart3, roles: ['so_center'] },
       { title: 'Admin Exam Management', href: '/admin/exam-management', icon: Award, roles: ['admin', 'super_admin'] },
       { title: 'Academic Dashboard', href: '/admin/academic-dashboard', icon: BarChart3, roles: ['admin', 'super_admin'] },
     ],
@@ -113,6 +111,7 @@ const navigation: NavItem[] = [
     title: 'Finance',
     icon: DollarSign,
     children: [
+      { title: 'Fee Collection', href: '/fee-payments', icon: CreditCard, roles: ['so_center'] },
       { title: 'Expenses', href: '/expenses', icon: FileText, roles: ['so_center'] },
       { title: 'Admin Expenses', href: '/admin/expenses', icon: FileText, roles: ['admin', 'super_admin'] },
       { title: 'All Payments', href: '/admin/all-payments', icon: CreditCard, roles: ['admin', 'super_admin'] },
