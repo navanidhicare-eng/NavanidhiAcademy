@@ -1537,14 +1537,33 @@ export class DrizzleStorage implements IStorage {
       console.log('🔄 Storage: Updating SO Center with ID:', id);
       console.log('🔄 Storage: Update data:', updates);
 
-      // Extract additional data that goes to separate tables
-      const { nearbySchools, nearbyTuitions, equipment, ...centerUpdates } = updates;
+      // Process the update data to handle type conversions and null values
+      const processedUpdateData = {
+        ...updates,
+        // Fix managerId: convert empty string to null, keep null as null
+        managerId: updates.managerId === '' || updates.managerId === null || updates.managerId === undefined ? null : updates.managerId,
+        // Convert string numbers to proper types, handle null values
+        capacity: updates.capacity !== null && updates.capacity !== undefined && updates.capacity !== '' ? parseInt(updates.capacity.toString()) : null,
+        monthlyRentDate: updates.monthlyRentDate !== null && updates.monthlyRentDate !== undefined && updates.monthlyRentDate !== '' ? parseInt(updates.monthlyRentDate.toString()) : null,
+        monthlyInternetDate: updates.monthlyInternetDate !== null && updates.monthlyInternetDate !== undefined && updates.monthlyInternetDate !== '' ? parseInt(updates.monthlyInternetDate.toString()) : null,
+        // Handle decimal fields properly
+        rentAmount: updates.rentAmount !== null && updates.rentAmount !== undefined && updates.rentAmount !== '' ? updates.rentAmount.toString() : null,
+        rentalAdvance: updates.rentalAdvance !== null && updates.rentalAdvance !== undefined && updates.rentalAdvance !== '' ? updates.rentalAdvance.toString() : null,
+        // Handle boolean conversion
+        isActive: Boolean(updates.isActive),
+        admissionFeeApplicable: Boolean(updates.admissionFeeApplicable),
+        // Ensure arrays are properly handled
+        facilities: Array.isArray(updates.facilities) ? updates.facilities : [],
+        nearbySchools: Array.isArray(updates.nearbySchools) ? updates.nearbySchools : [],
+        nearbyTuitions: Array.isArray(updates.nearbyTuitions) ? updates.nearbyTuitions : [],
+        equipment: Array.isArray(updates.equipment) ? updates.equipment : [],
+      };
 
       // Update the main SO Center record
       const [updatedCenter] = await db
         .update(schema.soCenters)
         .set({
-          ...centerUpdates,
+          ...processedUpdateData,
           updatedAt: new Date(),
         })
         .where(eq(schema.soCenters.id, id))
@@ -1556,13 +1575,13 @@ export class DrizzleStorage implements IStorage {
       }
 
       // Update additional data if provided
-      if (nearbySchools !== undefined) {
+      if (updates.nearbySchools !== undefined) {
         // Delete existing nearby schools
         await sql`DELETE FROM so_center_nearby_schools WHERE so_center_id = ${id}`;
 
         // Insert new nearby schools
-        if (nearbySchools.length > 0) {
-          for (const school of nearbySchools) {
+        if (processedUpdateData.nearbySchools.length > 0) {
+          for (const school of processedUpdateData.nearbySchools) {
             if (school.schoolName && school.schoolName.trim()) {
               await sql`
                 INSERT INTO so_center_nearby_schools (so_center_id, school_name, student_strength, school_type)
@@ -1573,13 +1592,13 @@ export class DrizzleStorage implements IStorage {
         }
       }
 
-      if (nearbyTuitions !== undefined) {
+      if (updates.nearbyTuitions !== undefined) {
         // Delete existing nearby tuitions
         await sql`DELETE FROM so_center_nearby_tuitions WHERE so_center_id = ${id}`;
 
         // Insert new nearby tuitions
-        if (nearbyTuitions.length > 0) {
-          for (const tuition of nearbyTuitions) {
+        if (processedUpdateData.nearbyTuitions.length > 0) {
+          for (const tuition of processedUpdateData.nearbyTuitions) {
             if (tuition.tuitionName && tuition.tuitionName.trim()) {
               await sql`
                 INSERT INTO so_center_nearby_tuitions (so_center_id, tuition_name, student_strength)
@@ -1590,13 +1609,13 @@ export class DrizzleStorage implements IStorage {
         }
       }
 
-      if (equipment !== undefined) {
+      if (updates.equipment !== undefined) {
         // Delete existing equipment
         await sql`DELETE FROM so_center_equipment WHERE so_center_id = ${id}`;
 
         // Insert new equipment
-        if (equipment.length > 0) {
-          for (const item of equipment) {
+        if (processedUpdateData.equipment.length > 0) {
+          for (const item of processedUpdateData.equipment) {
             if (item.itemName && item.itemName.trim() && item.serialNumber && item.serialNumber.trim()) {
               await sql`
                 INSERT INTO so_center_equipment 

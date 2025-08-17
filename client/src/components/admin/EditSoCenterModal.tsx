@@ -170,12 +170,33 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
         setEquipment(center.equipment);
       }
 
+      // Pre-populate location selections first, then set form values
+      const villageId = center.villageId || center.village_id;
+      if (villageId && villages.length > 0) {
+        const village = villages.find((v: any) => v.id === villageId);
+        if (village && mandals.length > 0) {
+          const mandal = mandals.find((m: any) => m.id === village.mandalId);
+          if (mandal && districts.length > 0) {
+            const district = districts.find((d: any) => d.id === mandal.districtId);
+            if (district && states.length > 0) {
+              const state = states.find((s: any) => s.id === district.stateId);
+              if (state) {
+                setSelectedState(state.id);
+                setSelectedDistrict(district.id);
+                setSelectedMandal(mandal.id);
+              }
+            }
+          }
+        }
+      }
+
+      // Set form values with proper handling of empty/null values
       form.reset({
         name: center.name || '',
         phone: center.phone || '',
         address: center.address || '',
-        villageId: center.villageId || center.village_id || '',
-        managerId: center.managerId || center.manager_id || 'none', // Use 'none' for null managerId
+        villageId: villageId || '',
+        managerId: center.managerId || center.manager_id || 'none',
         ownerName: center.ownerName || center.owner_name || '',
         ownerLastName: center.ownerLastName || center.owner_last_name || '',
         ownerPhone: center.ownerPhone || center.owner_phone || '',
@@ -194,27 +215,8 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
         isActive: center.isActive !== false && center.is_active !== false,
         admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
       });
-
-      // Set location selections based on village
-      if (center.villageId || center.village_id) {
-        const village = villages.find((v: any) => v.id === (center.villageId || center.village_id));
-        if (village) {
-          const mandal = mandals.find((m: any) => m.id === village.mandalId);
-          if (mandal) {
-            const district = districts.find((d: any) => d.id === mandal.districtId);
-            if (district) {
-              const state = states.find((s: any) => s.id === district.stateId);
-              if (state) {
-                setSelectedState(state.id);
-                setSelectedDistrict(district.id);
-                setSelectedMandal(mandal.id);
-              }
-            }
-          }
-        }
-      }
     }
-  }, [center, isOpen, form, villages, mandals, districts, states]);
+  }, [center, isOpen, states, districts, mandals, villages]);
 
   // Handle location changes
   const handleStateChange = (stateId: string) => {
@@ -242,14 +244,21 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
 
       const updateData = {
         ...data,
-        capacity: data.capacity ? parseInt(data.capacity) : null,
-        monthlyRentDate: data.monthlyRentDate ? parseInt(data.monthlyRentDate) : null,
-        monthlyInternetDate: data.monthlyInternetDate ? parseInt(data.monthlyInternetDate) : null,
+        // Handle numeric fields properly - convert empty strings to null
+        capacity: data.capacity && data.capacity.trim() !== '' ? parseInt(data.capacity) : null,
+        monthlyRentDate: data.monthlyRentDate && data.monthlyRentDate.trim() !== '' ? parseInt(data.monthlyRentDate) : null,
+        monthlyInternetDate: data.monthlyInternetDate && data.monthlyInternetDate.trim() !== '' ? parseInt(data.monthlyInternetDate) : null,
+        rentAmount: data.rentAmount && data.rentAmount.trim() !== '' ? data.rentAmount : null,
+        rentalAdvance: data.rentalAdvance && data.rentalAdvance.trim() !== '' ? data.rentalAdvance : null,
+        // Handle arrays
         facilities: facilities.map(f => f.facilityName).filter(name => name && name.trim() !== ''),
         nearbySchools: nearbySchools,
         nearbyTuitions: nearbyTuitions,
         equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
+        // Handle boolean
         admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
+        // Handle managerId
+        managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === null ? null : data.managerId,
       };
 
       console.log('🔄 Processed update data:', updateData);
@@ -275,7 +284,22 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
 
   const onSubmit = (data: EditSoCenterFormData) => {
     console.log('📝 Form submitted with data:', data);
-    updateCenterMutation.mutate(data);
+    
+    // Process the data to handle empty strings for numeric fields
+    const processedData = {
+      ...data,
+      // Convert empty strings to null for numeric fields
+      rentAmount: data.rentAmount?.trim() === '' ? null : data.rentAmount,
+      rentalAdvance: data.rentalAdvance?.trim() === '' ? null : data.rentalAdvance,
+      monthlyRentDate: data.monthlyRentDate?.trim() === '' ? null : data.monthlyRentDate,
+      monthlyInternetDate: data.monthlyInternetDate?.trim() === '' ? null : data.monthlyInternetDate,
+      capacity: data.capacity?.trim() === '' ? null : data.capacity,
+      // Handle managerId properly
+      managerId: data.managerId === 'none' || data.managerId === '' ? null : data.managerId,
+    };
+    
+    console.log('📝 Processed form data:', processedData);
+    updateCenterMutation.mutate(processedData);
   };
 
   return (
