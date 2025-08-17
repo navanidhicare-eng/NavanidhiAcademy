@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MathJaxComponent } from '@/components/ui/MathJax';
+import MathJaxComponent from '@/components/ui/MathJax';
 
 interface TopicDisplayProps {
   topic: {
@@ -18,7 +18,9 @@ export function TopicDisplay({ topic, className = "" }: TopicDisplayProps) {
   return (
     <div className={`space-y-2 ${className}`}>
       <div className="flex items-center gap-2">
-        <h3 className="font-medium">{topic.name}</h3>
+        <h3 className="font-medium">
+          <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
+        </h3>
         {topic.isImportant && (
           <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">
             IMP

@@ -63,18 +63,20 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
     queryKey: ['/api/admin/chapters'],
   });
 
+  const defaultValues = useMemo(() => ({
+    name: '',
+    description: '',
+    classId: '',
+    subjectId: '',
+    chapterId: '',
+    orderIndex: '',
+    isModerate: false,
+    isImportant: false,
+  }), []);
+
   const form = useForm<AddTopicFormData>({
     resolver: zodResolver(addTopicSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      classId: '',
-      subjectId: '',
-      chapterId: '',
-      orderIndex: '',
-      isModerate: false,
-      isImportant: false,
-    },
+    defaultValues,
   });
 
   const selectedClassId = form.watch('classId');
@@ -124,7 +126,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
-      form.reset();
+      form.reset(defaultValues);
       onClose();
     },
     onError: (error: any) => {
@@ -147,18 +149,24 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
           <DialogTitle>Add New Topic</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto pr-6 -mr-6">
+        <div className="flex-1 overflow-y-scroll px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ maxHeight: 'calc(90vh - 160px)' }}>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pb-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8"
+                  style={{ minHeight: '700px' }}>
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Topic Name</FormLabel>
+                  <FormLabel>Topic Name (LaTeX Math Support)</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Introduction to Quadratic Equations" {...field} />
+                    <Input placeholder="Enter topic name with LaTeX: e.g., Quadratic Formula $ax^2 + bx + c = 0$" {...field} />
                   </FormControl>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    <strong>LaTeX Examples for Title:</strong><br />
+                    • Use $...$ for inline math: $E = mc^2$<br />
+                    • Formulas: $x^2 + y^2 = z^2$ or $\frac{a}{b}$
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -359,7 +367,7 @@ Use $$...$$ for block math: $$\frac{numerator}{denominator}$$"
           </Form>
         </div>
         
-        <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t bg-background">
+        <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t bg-background/95 backdrop-blur">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
