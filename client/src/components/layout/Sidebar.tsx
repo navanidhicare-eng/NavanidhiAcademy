@@ -217,6 +217,12 @@ const navigation: NavItem[] = [
     roles: ['admin', 'super_admin'],
   },
   {
+    title: 'Academic Dashboard',
+    href: '/admin/academic-dashboard',
+    icon: GraduationCap,
+    roles: ['academic_admin'],
+  },
+  {
     title: 'Settings',
     href: '/settings',
     icon: Settings,

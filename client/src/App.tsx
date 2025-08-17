@@ -209,12 +209,36 @@ function Router() {
           <AdminAllPayments />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/academic-dashboard" component={() => <AcademicDashboard />} />
-          <Route path="/admin/attendance" component={() => <Attendance />} />
-          <Route path="/admin/course-purchases" component={() => <CoursePurchases />} />
-          <Route path="/admin/topics-management" component={() => <TopicsManagement />} />
-          <Route path="/admin/progress-tracking" component={() => <AdminProgressTracking />} />
-          <Route path="/admin/dropout-requests" component={() => <DropoutRequestsManagement />} />
+      <Route path="/admin/academic-dashboard">
+        <ProtectedRoute>
+          <AcademicDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/attendance">
+        <ProtectedRoute>
+          <AdminAttendance />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/course-purchases">
+        <ProtectedRoute>
+          <CoursePurchases />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/topics-management">
+        <ProtectedRoute>
+          <TopicsManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/progress-tracking">
+        <ProtectedRoute>
+          <AdminProgressTracking />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/dropout-requests">
+        <ProtectedRoute>
+          <DropoutRequestsManagement />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/exam-management">
         <ProtectedRoute>
           <ExamManagement />
