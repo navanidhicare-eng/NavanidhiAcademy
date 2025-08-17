@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -82,7 +82,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
 
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
-  
+
   // Filter subjects based on selected class with useMemo to prevent re-renders
   const filteredSubjects = useMemo(() => 
     (allSubjects as any[]).filter((subject: any) => 
@@ -145,13 +145,22 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
     createTopicMutation.mutate(data);
   };
 
+  // This useEffect is intended to fix an infinite loop by ensuring the chapterId is only set if it differs from the current value.
+  // It's crucial for preventing unnecessary re-renders or state updates.
+  useEffect(() => {
+    if (selectedChapter && form.getValues('chapterId') !== selectedChapter) {
+      form.setValue('chapterId', selectedChapter);
+    }
+  }, [selectedChapter, form]);
+
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[700px] h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>Add New Topic</DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-y-auto px-4 py-2 border border-gray-200 rounded-lg bg-gray-50/50" style={{ maxHeight: 'calc(85vh - 140px)', minHeight: '500px' }}>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8 bg-white rounded p-4"
@@ -369,7 +378,7 @@ Use $$...$$ for block math: $$\frac{numerator}{denominator}$$"
             </form>
           </Form>
         </div>
-        
+
         <div className="flex-shrink-0 flex justify-end space-x-3 pt-4 border-t bg-background/95 backdrop-blur">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel

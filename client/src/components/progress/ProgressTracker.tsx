@@ -8,13 +8,14 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest } from '@/lib/queryClient';
 import { Save } from 'lucide-react';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 export function ProgressTracker() {
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [selectedChapter, setSelectedChapter] = useState('');
   const [topicProgress, setTopicProgress] = useState<{[key: string]: boolean}>({});
-  
+
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -42,7 +43,7 @@ export function ProgressTracker() {
       if (!selectedStudent) return [];
       const student = students.find((s: any) => s.id === selectedStudent);
       if (!student) return [];
-      
+
       const token = localStorage.getItem('auth_token');
       const response = await fetch(`/api/subjects/${student.classId}`, {
         headers: {
@@ -122,7 +123,7 @@ export function ProgressTracker() {
         completed,
         completedDate: completed ? new Date().toISOString() : null,
       }));
-      
+
       const token = localStorage.getItem('auth_token');
       return Promise.all(
         progressUpdates.map(update => 
@@ -252,7 +253,9 @@ export function ProgressTracker() {
                         onCheckedChange={(checked) => handleTopicToggle(topic.id, checked as boolean)}
                       />
                       <div>
-                        <p className="font-medium text-gray-900">{topic.name}</p>
+                        <h3 className="font-medium">
+                          <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
+                        </h3>
                         <p className="text-sm text-gray-600">{topic.description}</p>
                       </div>
                     </div>
