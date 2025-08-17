@@ -363,16 +363,21 @@ export default function Dashboard() {
 
       <CardContent className="p-6 relative z-10">
         <div className="flex items-center justify-between">
-          <div className="space-y-3">
+          <div className="space-y-3 flex-1">
             <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider group-hover:text-gray-800 transition-colors duration-300">{title}</p>
             <div className="relative">
-              <p className="text-3xl font-black text-gray-900 mt-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-500 transform group-hover:scale-110">
+              <p className="text-3xl font-black text-gray-900 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-500 transform group-hover:scale-110">
                 {typeof value === 'number' && title.includes('₹') 
                   ? `₹${value.toLocaleString()}` 
                   : value}
               </p>
               <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
             </div>
+            {trend && (
+              <div className="mt-3">
+                <span className="text-sm text-green-600 font-medium bg-green-50 px-2 py-1 rounded-md">{trend}</span>
+              </div>
+            )}
           </div>
           <div className="relative">
             <div className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center transform group-hover:rotate-12 group-hover:scale-110 transition-all duration-500 shadow-lg group-hover:shadow-2xl`}>
@@ -381,11 +386,6 @@ export default function Dashboard() {
             <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500 animate-pulse"></div>
           </div>
         </div>
-        {trend && (
-          <div className="mt-4 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0">
-            <span className="text-sm text-green-600 font-semibold bg-green-50 px-3 py-1 rounded-full">{trend}</span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
