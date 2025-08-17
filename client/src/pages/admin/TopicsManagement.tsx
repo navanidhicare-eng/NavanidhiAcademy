@@ -303,8 +303,8 @@ function AddChapterModal({
                       </FormControl>
                       <div className="text-xs text-muted-foreground mt-1">
                         <strong>LaTeX Examples:</strong><br />
-                        • Use $...$ for inline math: $E = mc^2$<br />
-                        • Fractions: $\frac{a}{b}$, Powers: $x^2$, Square roots: $\sqrt{x}$
+                        {'• Use $...$ for inline math: $E = mc^2$'}<br />
+                        {'• Fractions: $\\frac{a}{b}$, Powers: $x^2$, Square roots: $\\sqrt{x}$'}
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -326,7 +326,7 @@ function AddChapterModal({
                       </FormControl>
                       <div className="text-xs text-muted-foreground mt-1">
                         <strong>LaTeX Examples:</strong><br />
-                        • Inline: $\sin(x) + \cos(x)$ • Block: $$\int_a^b f(x)dx$$ • Matrices: $\begin{matrix} a & b \\ c & d \end{matrix}$
+                        {'• Inline: $\\sin(x) + \\cos(x)$ • Block: $$\\int_a^b f(x)dx$$ • Matrices: $\\begin{matrix} a & b \\\\ c & d \\end{matrix}$'}
                       </div>
                       <FormMessage />
                     </FormItem>
