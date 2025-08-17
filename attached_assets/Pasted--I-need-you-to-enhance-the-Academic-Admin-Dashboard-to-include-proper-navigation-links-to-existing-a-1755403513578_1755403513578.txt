@@ -1,0 +1,60 @@
+"I need you to enhance the Academic Admin Dashboard to include proper navigation links to existing academic management pages. The system currently has an Academic Dashboard with only 2 tabs (Student Progress and Attendance Reports), but it needs to be expanded to include navigation to key academic management pages.
+
+Current Situation:
+
+AcademicDashboard.tsx exists with basic Student Progress and Attendance Reports tabs
+The following academic admin pages already exist and are functional:
+ClassSubjectManagement.tsx - For managing classes and subjects
+TopicsManagement.tsx - For managing chapters and topics
+Required Changes:
+
+Update client/src/pages/admin/AcademicDashboard.tsx:
+
+Keep existing Student Progress and Attendance Reports tabs
+Add a navigation section with cards/buttons to access academic management pages
+Create an Academic Management section that provides easy access to:
+Class & Subject Management
+Topics Management (Chapters & Topics)
+Academic Dashboard Structure to Implement:
+
+Student Progress Tab (Keep existing functionality with location filters)
+Attendance Reports Tab (Keep existing functionality with center-wise reports)
+Academic Management Section with navigation cards for:
+Class & Subject Management (/admin/class-subject-management)
+Topics Management (/admin/topics-management)
+Technical Requirements:
+
+Use React Router navigation (useLocation from wouter)
+Add navigation cards with proper routing
+Include icons from Lucide React (BookOpen, Target)
+Maintain responsive design with Tailwind CSS
+Use existing UI components (Card, Button)
+Add descriptive text for each management section
+Include proper accessibility attributes
+Design Pattern:
+
+// Add navigation cards for academic management
+const academicSections = [
+  {
+    title: 'Class & Subject Management',
+    description: 'Manage classes and subjects',
+    icon: BookOpen,
+    path: '/admin/class-subject-management'
+  },
+  {
+    title: 'Topics Management', 
+    description: 'Manage chapters and topics',
+    icon: Target,
+    path: '/admin/topics-management'
+  }
+];
+Key Implementation Points:
+
+Import useLocation from wouter for navigation
+Add navigation cards above or below the existing tabs
+Ensure all existing functionality remains intact (Student Progress and Attendance Reports)
+Use consistent styling with existing dashboard
+Add loading states if needed
+Include proper error handling
+Expected Outcome:
+An enhanced Academic Admin Dashboard that serves as a central hub for academic monitoring (Student Progress and Attendance Reports) while providing easy navigation to Class & Subject Management and Topics Management pages. The dashboard should maintain all existing functionality while adding seamless navigation to these key academic management functions."
