@@ -1782,8 +1782,6 @@ export class DrizzleStorage implements IStorage {
           t.is_moderate as "isModerate",
           t.is_important as "isImportant",
           t.is_active as "isActive",
-          t.created_at as "createdAt",
-          t.updated_at as "updatedAt",
           c.name as "chapterName",
           s.name as "subjectName",
           cl.name as "className"

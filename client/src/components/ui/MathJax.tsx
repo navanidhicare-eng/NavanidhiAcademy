@@ -59,22 +59,38 @@ export const MathJaxComponent: React.FC<MathJaxProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadMathJax().then(() => {
-      if (containerRef.current && window.MathJax) {
-        // Set the content with proper class for MathJax processing
-        containerRef.current.innerHTML = children;
-        containerRef.current.className = `tex2jax_process ${className}`;
+    if (!containerRef.current) return;
+    
+    const processContent = async () => {
+      if (!containerRef.current) return;
+      
+      // Set the content first
+      containerRef.current.innerHTML = children;
+      containerRef.current.className = `tex2jax_process ${className}`;
+      
+      // Wait for MathJax to load and process
+      try {
+        await loadMathJax();
         
-        // Typeset the math
-        window.MathJax.typesetPromise([containerRef.current]).catch((error: any) => {
-          console.error('MathJax typeset error:', error);
-          // Fallback to plain text on error
-          if (containerRef.current) {
-            containerRef.current.textContent = children;
-          }
-        });
+        if (window.MathJax && typeof window.MathJax.typesetPromise === 'function') {
+          await window.MathJax.typesetPromise([containerRef.current]);
+        } else if (window.MathJax && window.MathJax.Hub) {
+          // Legacy MathJax 2.x support
+          window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, containerRef.current]);
+        } else {
+          // MathJax not available, show plain text
+          containerRef.current.textContent = children;
+        }
+      } catch (error) {
+        console.error('MathJax processing error:', error);
+        // Fallback to plain text on error
+        if (containerRef.current) {
+          containerRef.current.textContent = children;
+        }
       }
-    });
+    };
+    
+    processContent();
   }, [children, className]);
 
   return (
