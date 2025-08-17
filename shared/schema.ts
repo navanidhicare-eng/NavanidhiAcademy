@@ -702,6 +702,8 @@ export const insertTuitionProgressSchema = createInsertSchema(tuitionProgress).o
   updatedAt: true,
 });
 
+
+
 export const insertExamSchema = createInsertSchema(exams).omit({
   id: true,
   createdAt: true,
@@ -824,6 +826,19 @@ export type InsertHomeworkActivity = z.infer<typeof insertHomeworkActivitySchema
 export type TuitionProgress = typeof tuitionProgress.$inferSelect;
 export type InsertTuitionProgress = z.infer<typeof insertTuitionProgressSchema>;
 
+// Additional missing types for storage.ts compatibility
+export type ProductOrder = typeof productOrders.$inferSelect;
+export type InsertProductOrder = z.infer<typeof insertProductOrderSchema>;
+export type CommissionWallet = typeof commissionWallets.$inferSelect;
+export type InsertCommissionWallet = z.infer<typeof insertCommissionWalletSchema>;
+export type CommissionTransaction = typeof commissionTransactions.$inferSelect;
+export type InsertCommissionTransaction = z.infer<typeof insertCommissionTransactionSchema>;
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+
+
+
 export type Exam = typeof exams.$inferSelect;
 export type InsertExam = z.infer<typeof insertExamSchema>;
 export type ExamResult = typeof examResults.$inferSelect;
@@ -913,12 +928,34 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 // Withdrawal Request schemas
 export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests).omit({
   id: true,
-  requestedAt: true,
-  processedAt: true,
+  createdAt: true,
 });
 
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
 export type WithdrawalRequest = typeof withdrawalRequests.$inferSelect;
+
+// Missing insert schemas for existing tables
+export const insertProductOrderSchema = createInsertSchema(productOrders).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCommissionWalletSchema = createInsertSchema(commissionWallets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCommissionTransactionSchema = createInsertSchema(commissionTransactions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 // Admin Notification schemas (using announcements as base)
 export const insertAdminNotificationSchema = createInsertSchema(announcements).omit({

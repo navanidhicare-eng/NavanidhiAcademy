@@ -539,7 +539,7 @@ export default function Dashboard() {
               </>
             ) : (
               <>
-                {/* Default Cards for other roles with premium animations */}
+                {/* Default Cards for Academic Admin and other roles with premium animations */}
                 <StatCard
                   title="Total Students"
                   value={displayStats.totalStudents}
@@ -548,10 +548,10 @@ export default function Dashboard() {
                   delay={0}
                 />
                 <StatCard
-                  title="Monthly Payments"
-                  value={formatCurrency(displayStats.paymentsThisMonth)}
-                  icon={DollarSign}
-                  trend="This month"
+                  title="SO Centers"
+                  value={displayStats.totalSoCenters}
+                  icon={Building}
+                  trend="Active centers"
                   delay={100}
                 />
                 <StatCard
@@ -562,10 +562,10 @@ export default function Dashboard() {
                   delay={200}
                 />
                 <StatCard
-                  title="System Balance"
-                  value={formatCurrency(displayStats.walletBalance || 0)}
-                  icon={Wallet}
-                  trend="Total system funds"
+                  title="Monthly Payments"
+                  value={formatCurrency(displayStats.paymentsThisMonth)}
+                  icon={DollarSign}
+                  trend="This month"
                   delay={300}
                 />
               </>

@@ -163,7 +163,7 @@ function StudentProgressTab({
             ))}
           </div>
         </CardContent>
-      </Dialog>
+      </Card>
     </div>
   );
 }
