@@ -148,18 +148,7 @@ const navigation: NavItem[] = [
     icon: Building,
     roles: ['admin', 'super_admin'],
   },
-  {
-    title: 'Topics Management',
-    href: '/admin/structure',
-    icon: School,
-    roles: ['admin', 'super_admin'],
-  },
-  {
-    title: 'Class & Subject Management',
-    href: '/admin/class-subject-management',
-    icon: Plus,
-    roles: ['admin', 'super_admin'],
-  },
+  
   {
     title: 'All Students',
     href: '/admin/students',
@@ -221,6 +210,18 @@ const navigation: NavItem[] = [
     href: '/admin/academic-dashboard',
     icon: GraduationCap,
     roles: ['academic_admin'],
+  },
+  {
+    title: 'Class & Subject Management',
+    href: '/admin/class-subject-management',
+    icon: Plus,
+    roles: ['admin', 'super_admin', 'academic_admin'],
+  },
+  {
+    title: 'Topics Management',
+    href: '/admin/structure',
+    icon: School,
+    roles: ['admin', 'super_admin', 'academic_admin'],
   },
   {
     title: 'Settings',
