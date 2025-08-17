@@ -82,6 +82,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
 
   const selectedClassId = form.watch('classId');
   const selectedSubjectId = form.watch('subjectId');
+  const selectedChapterId = form.watch('chapterId'); // Added to watch chapterId
 
   // Filter subjects based on selected class with useMemo to prevent re-renders
   const filteredSubjects = useMemo(() => 
@@ -148,10 +149,10 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   // This useEffect is intended to fix an infinite loop by ensuring the chapterId is only set if it differs from the current value.
   // It's crucial for preventing unnecessary re-renders or state updates.
   useEffect(() => {
-    if (selectedChapter && form.getValues('chapterId') !== selectedChapter) {
-      form.setValue('chapterId', selectedChapter);
+    if (selectedChapterId) {
+      form.setValue('chapterId', selectedChapterId);
     }
-  }, [selectedChapter, form]);
+  }, [selectedChapterId, form]);
 
 
   return (
