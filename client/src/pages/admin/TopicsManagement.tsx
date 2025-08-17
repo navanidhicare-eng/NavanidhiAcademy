@@ -45,7 +45,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, BookOpen, FileText, Target, Flag, Star } from 'lucide-react';
-import MathJaxComponent from '@/components/ui/MathJax';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 // Schemas
 const chapterSchema = z.object({
@@ -267,7 +267,7 @@ function AddChapterModal({
                           <SelectContent>
                             {filteredSubjects.map((subject) => (
                               <SelectItem key={subject.id} value={subject.id}>
-                                {subject.name}
+                                <MathJaxComponent inline={true}>{subject.name}</MathJaxComponent>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -357,7 +357,7 @@ function AddChapterModal({
             </form>
           </Form>
         </ScrollArea>
-        
+
         <Separator />
         <div className="flex justify-end gap-3 pt-4 shrink-0">
           <Button type="button" variant="outline" onClick={onClose} className="px-6">
@@ -613,7 +613,7 @@ function AddTopicModal({
                       <SelectContent>
                         {filteredSubjects.map((subject) => (
                           <SelectItem key={subject.id} value={subject.id}>
-                            {subject.name}
+                            <MathJaxComponent inline={true}>{subject.name}</MathJaxComponent>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -641,7 +641,7 @@ function AddTopicModal({
                           <SelectContent>
                             {filteredChapters.map((chapter) => (
                               <SelectItem key={chapter.id} value={chapter.id}>
-                                {chapter.name}
+                                <MathJaxComponent inline={true}>{chapter.name}</MathJaxComponent>
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -803,7 +803,7 @@ function AddTopicModal({
             </form>
           </Form>
         </ScrollArea>
-        
+
         <Separator />
         <div className="flex justify-end gap-3 pt-4 shrink-0">
           <Button type="button" variant="outline" onClick={onClose} className="px-6">
@@ -944,32 +944,32 @@ export default function TopicsManagement() {
 
   const filteredChapters = chapters.filter(chapter => {
     const subjectMatch = selectedSubjectFilter ? chapter.subjectId === selectedSubjectFilter : true;
-    
+
     if (selectedClassFilter && !selectedSubjectFilter) {
       // If class selected but no subject, show chapters from subjects of that class
       const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
       return classSubjects.includes(chapter.subjectId);
     }
-    
+
     return subjectMatch;
   });
 
   const filteredTopics = topics.filter(topic => {
     const chapterMatch = selectedChapterFilter ? topic.chapterId === selectedChapterFilter : true;
-    
+
     if (selectedSubjectFilter && !selectedChapterFilter) {
       // If subject selected but no chapter, show topics from chapters of that subject
       const subjectChapters = chapters.filter(c => c.subjectId === selectedSubjectFilter).map(c => c.id);
       return subjectChapters.includes(topic.chapterId);
     }
-    
+
     if (selectedClassFilter && !selectedSubjectFilter && !selectedChapterFilter) {
       // If only class selected, show topics from all chapters of that class
       const classSubjects = subjects.filter(s => s.classId === selectedClassFilter).map(s => s.id);
       const classChapters = chapters.filter(c => classSubjects.includes(c.subjectId)).map(c => c.id);
       return classChapters.includes(topic.chapterId);
     }
-    
+
     return chapterMatch;
   });
 
@@ -1146,7 +1146,7 @@ export default function TopicsManagement() {
                       <SelectItem value="all-subjects">All Subjects</SelectItem>
                       {filteredSubjects.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
-                          {subject.name}
+                          <MathJaxComponent inline={true}>{subject.name}</MathJaxComponent>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1262,7 +1262,7 @@ export default function TopicsManagement() {
                       <SelectItem value="all-subjects">All Subjects</SelectItem>
                       {filteredSubjects.map((subject) => (
                         <SelectItem key={subject.id} value={subject.id}>
-                          {subject.name}
+                          <MathJaxComponent inline={true}>{subject.name}</MathJaxComponent>
                         </SelectItem>
                       ))}
                     </SelectContent>

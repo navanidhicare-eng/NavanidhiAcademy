@@ -951,8 +951,8 @@ export function EnhancedProgressTracker() {
                                     ) : (
                                       <Clock className="h-4 w-4 text-gray-400" />
                                     )}
-                                    <span className={isCompleted ? "text-green-600" : ""}>
-                                      <MathJaxComponent>{topic.name}</MathJaxComponent>
+                                    <span className="font-medium">
+                                      <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
                                     </span>
                                     {isCompleted && (
                                       <Badge variant="secondary" className="ml-2 text-xs">

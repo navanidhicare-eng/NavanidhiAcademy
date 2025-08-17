@@ -213,7 +213,7 @@ export default function PublicProgress() {
                         getPendingTopicsForSubject().map((topic, index) => (
                           <div key={index} className="p-3 sm:p-4 bg-orange-50 rounded-md border-l-4 border-orange-400 shadow-sm">
                             <div className="font-medium text-orange-800 text-sm sm:text-base">
-                              <MathJaxComponent>{topic.name}</MathJaxComponent>
+                              <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
                             </div>
                             <div className="text-xs sm:text-sm text-orange-600 mt-1">Chapter: {topic.chapterName}</div>
                             {topic.isImportant && (

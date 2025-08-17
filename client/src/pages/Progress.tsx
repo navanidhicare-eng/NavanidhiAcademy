@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { EnhancedProgressTracker } from '@/components/progress/EnhancedProgressTracker';
 import { useAuth } from '@/hooks/useAuth';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 export default function Progress() {
   const { user } = useAuth();
