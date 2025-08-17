@@ -1528,6 +1528,37 @@ export class DrizzleStorage implements IStorage {
     }
   }
 
+  // Add missing location lookup functions for EditSoCenterModal
+  async getVillageById(id: string): Promise<any> {
+    try {
+      const [village] = await db.select().from(schema.villages).where(eq(schema.villages.id, id)).limit(1);
+      return village;
+    } catch (error) {
+      console.error('Error fetching village by ID:', error);
+      return undefined;
+    }
+  }
+
+  async getMandalById(id: string): Promise<any> {
+    try {
+      const [mandal] = await db.select().from(schema.mandals).where(eq(schema.mandals.id, id)).limit(1);
+      return mandal;
+    } catch (error) {
+      console.error('Error fetching mandal by ID:', error);
+      return undefined;
+    }
+  }
+
+  async getDistrictById(id: string): Promise<any> {
+    try {
+      const [district] = await db.select().from(schema.districts).where(eq(schema.districts.id, id)).limit(1);
+      return district;
+    } catch (error) {
+      console.error('Error fetching district by ID:', error);
+      return undefined;
+    }
+  }
+
   async updateSoCenter(id: string, updates: Partial<InsertSoCenter & {
     nearbySchools?: any[];
     nearbyTuitions?: any[];

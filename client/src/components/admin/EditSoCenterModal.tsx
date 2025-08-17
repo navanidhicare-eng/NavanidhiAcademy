@@ -66,9 +66,10 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedMandal, setSelectedMandal] = useState('');
+  const [selectedVillage, setSelectedVillage] = useState('');
   const [facilities, setFacilities] = useState([{facilityName: ''}]);
-  const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([]);
-  const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([]);
+  const [nearbySchools, setNearbySchools] = useState<{schoolName: string; studentStrength: string; schoolType: string}[]>([{schoolName: '', studentStrength: '', schoolType: ''}]);
+  const [nearbyTuitions, setNearbyTuitions] = useState<{tuitionName: string; studentStrength: string}[]>([{tuitionName: '', studentStrength: ''}]);
   const [equipment, setEquipment] = useState([{itemName: '', serialNumber: '', warrantyYears: '', purchaseDate: '', brandName: ''}]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -80,7 +81,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
       phone: '',
       address: '',
       villageId: '',
-      managerId: '',
+      managerId: null,
       ownerName: '',
       ownerLastName: '',
       ownerPhone: '',
@@ -151,13 +152,13 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
     try {
       const villageResponse = await apiRequest('GET', `/api/admin/addresses/village/${villageId}`);
       const villageData = await villageResponse.json();
-      
+
       const mandalResponse = await apiRequest('GET', `/api/admin/addresses/mandal/${villageData.mandalId}`);
       const mandalData = await mandalResponse.json();
-      
+
       const districtResponse = await apiRequest('GET', `/api/admin/addresses/district/${mandalData.districtId}`);
       const districtData = await districtResponse.json();
-      
+
       return {
         stateId: districtData.stateId,
         districtId: mandalData.districtId,
@@ -169,96 +170,99 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
     }
   };
 
-  // Update form when center changes - with proper location hierarchy initialization
+  // Populate form when center data changes
   useEffect(() => {
-    if (center && isOpen && states.length > 0) {
+    if (center && isOpen) {
       console.log('🔄 Loading SO Center data for editing:', center);
 
-      // Set facilities from center data
-      const centerFacilities = center.facilities || [];
-      if (centerFacilities.length > 0) {
-        setFacilities(centerFacilities.map((f: string) => ({facilityName: f})));
-      } else {
-        setFacilities([{facilityName: ''}]);
+      // Load location hierarchy - set state and village first
+      if (center.villageId) {
+        setSelectedVillage(center.villageId);
+        form.setValue('villageId', center.villageId);
+
+        // Set mandal, district, state from center data if available
+        if (center.mandalName) {
+          // Find mandal ID and set it
+          mandals.forEach((mandal: any) => {
+            if (mandal.name === center.mandalName) {
+              setSelectedMandal(mandal.id);
+            }
+          });
+        }
+
+        if (center.districtName) {
+          // Find district ID and set it
+          districts.forEach((district: any) => {
+            if (district.name === center.districtName) {
+              setSelectedDistrict(district.id);
+            }
+          });
+        }
+
+        if (center.stateName) {
+          // Find state ID and set it
+          states.forEach((state: any) => {
+            if (state.name === center.stateName) {
+              setSelectedState(state.id);
+            }
+          });
+        }
       }
 
-      // Set nearby schools and tuitions if available
-      if (center.nearbySchools && Array.isArray(center.nearbySchools)) {
+      form.reset({
+        name: center.name || '',
+        phone: center.phone || '',
+        address: center.address || '',
+        villageId: center.villageId || '',
+        managerId: center.managerId || null,
+        ownerName: center.ownerName || '',
+        ownerLastName: center.ownerLastName || '',
+        ownerPhone: center.ownerPhone || '',
+        landmarks: center.landmarks || '',
+        roomSize: center.roomSize || '',
+        rentAmount: center.rentAmount?.toString() || '',
+        rentalAdvance: center.rentalAdvance?.toString() || '',
+        dateOfHouseTaken: center.dateOfHouseTaken?.split('T')[0] || '',
+        monthlyRentDate: center.monthlyRentDate?.toString() || '',
+        monthlyInternetDate: center.monthlyInternetDate?.toString() || '',
+        electricBillAccountNumber: center.electricBillAccountNumber || '',
+        internetBillAccountNumber: center.internetBillAccountNumber || '',
+        internetServiceProvider: center.internetServiceProvider || '',
+        capacity: center.capacity?.toString() || '',
+        facilities: center.facilities || [],
+        isActive: center.isActive ?? true,
+        admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
+      });
+
+      // Set up facilities array for dynamic inputs
+      if (center.facilities && center.facilities.length > 0) {
+        setFacilities(center.facilities.map(facility => ({ facilityName: facility })));
+      } else {
+        setFacilities([{ facilityName: '' }]);
+      }
+
+      // Load existing nearby schools data
+      if (center.nearbySchools && center.nearbySchools.length > 0) {
         setNearbySchools(center.nearbySchools);
-      }
-      if (center.nearbyTuitions && Array.isArray(center.nearbyTuitions)) {
-        setNearbyTuitions(center.nearbyTuitions);
-      }
-      if (center.equipment && Array.isArray(center.equipment)) {
-        setEquipment(center.equipment);
+      } else {
+        setNearbySchools([{ schoolName: '', studentStrength: '', schoolType: '' }]);
       }
 
-      // Initialize location hierarchy first, then set form values
-      const villageId = center.villageId || center.village_id;
-      if (villageId) {
-        findLocationHierarchy(villageId).then(({ stateId, districtId, mandalId }) => {
-          // Set location state first
-          setSelectedState(stateId);
-          setSelectedDistrict(districtId);
-          setSelectedMandal(mandalId);
-          
-          // THEN set form values after location state is properly initialized
-          setTimeout(() => {
-            form.reset({
-              name: center.name || '',
-              phone: center.phone || '',
-              address: center.address || '',
-              villageId: villageId || '',
-              managerId: center.managerId || center.manager_id || 'none',
-              ownerName: center.ownerName || center.owner_name || '',
-              ownerLastName: center.ownerLastName || center.owner_last_name || '',
-              ownerPhone: center.ownerPhone || center.owner_phone || '',
-              landmarks: center.landmarks || '',
-              roomSize: center.roomSize || center.room_size || '',
-              rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
-              rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
-              dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
-              monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
-              monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
-              electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
-              internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
-              internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
-              capacity: center.capacity ? center.capacity.toString() : '',
-              facilities: centerFacilities,
-              isActive: center.isActive !== false && center.is_active !== false,
-              admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
-            });
-          }, 100); // Small delay to ensure state updates are processed
-        });
+      // Load existing nearby tuitions data
+      if (center.nearbyTuitions && center.nearbyTuitions.length > 0) {
+        setNearbyTuitions(center.nearbyTuitions);
       } else {
-        // If no villageId, just set form values directly
-        form.reset({
-          name: center.name || '',
-          phone: center.phone || '',
-          address: center.address || '',
-          villageId: '',
-          managerId: center.managerId || center.manager_id || 'none',
-          ownerName: center.ownerName || center.owner_name || '',
-          ownerLastName: center.ownerLastName || center.owner_last_name || '',
-          ownerPhone: center.ownerPhone || center.owner_phone || '',
-          landmarks: center.landmarks || '',
-          roomSize: center.roomSize || center.room_size || '',
-          rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
-          rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
-          dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
-          monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
-          monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
-          electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
-          internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
-          internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
-          capacity: center.capacity ? center.capacity.toString() : '',
-          facilities: centerFacilities,
-          isActive: center.isActive !== false && center.is_active !== false,
-          admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
-        });
+        setNearbyTuitions([{ tuitionName: '', studentStrength: '' }]);
+      }
+
+      // Load existing equipment data
+      if (center.equipment && center.equipment.length > 0) {
+        setEquipment(center.equipment);
+      } else {
+        setEquipment([{ itemName: '', serialNumber: '', warrantyYears: '', purchaseDate: '', brandName: '' }]);
       }
     }
-  }, [center, isOpen, states.length]);
+  }, [center, isOpen, form, states, districts, mandals]);
 
   // Handle location changes
   const handleStateChange = (stateId: string) => {
@@ -326,7 +330,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
 
   const onSubmit = (data: EditSoCenterFormData) => {
     console.log('📝 Form submitted with data:', data);
-    
+
     // Process the data to handle empty strings for numeric fields - convert to undefined instead of null for Zod compatibility
     const processedData = {
       ...data,
@@ -339,7 +343,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
       // Handle managerId properly
       managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === undefined ? undefined : data.managerId,
     };
-    
+
     console.log('📝 Processed form data:', processedData);
     updateCenterMutation.mutate(processedData);
   };
@@ -1006,25 +1010,40 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
                       }}
                     />
                   </div>
-                  <div>
-                    <Label>School Type</Label>
-                    <Select 
-                      value={school.schoolType} 
-                      onValueChange={(value) => {
-                        const updated = [...nearbySchools];
-                        updated[index].schoolType = value;
-                        setNearbySchools(updated);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select school type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="government">Government</SelectItem>
-                        <SelectItem value="private">Private</SelectItem>
-                        <SelectItem value="aided">Aided</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label>School Type</Label>
+                      <Select 
+                        value={school.schoolType} 
+                        onValueChange={(value) => {
+                          const updated = [...nearbySchools];
+                          updated[index].schoolType = value;
+                          setNearbySchools(updated);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select school type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="government">Government</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                          <SelectItem value="aided">Aided</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {nearbySchools.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updated = nearbySchools.filter((_, i) => i !== index);
+                          setNearbySchools(updated);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1058,18 +1077,33 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
                       }}
                     />
                   </div>
-                  <div>
-                    <Label>Student Strength</Label>
-                    <Input 
-                      type="number"
-                      placeholder="e.g., 100"
-                      value={tuition.studentStrength}
-                      onChange={(e) => {
-                        const updated = [...nearbyTuitions];
-                        updated[index].studentStrength = e.target.value;
-                        setNearbyTuitions(updated);
-                      }}
-                    />
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <Label>Student Strength</Label>
+                      <Input 
+                        type="number"
+                        placeholder="e.g., 100"
+                        value={tuition.studentStrength}
+                        onChange={(e) => {
+                          const updated = [...nearbyTuitions];
+                          updated[index].studentStrength = e.target.value;
+                          setNearbyTuitions(updated);
+                        }}
+                      />
+                    </div>
+                    {nearbyTuitions.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const updated = nearbyTuitions.filter((_, i) => i !== index);
+                          setNearbyTuitions(updated);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
