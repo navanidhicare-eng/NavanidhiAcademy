@@ -320,7 +320,7 @@ export interface IStorage {
   deleteTopic(id: string): Promise<void>;
   getAllSubjects(): Promise<Subject[]>;
   getAllChapters(): Promise<Chapter[]>;
-  getAllTopics(): Promise<Topic[]>;
+  getAllTopics(): Promise<any[]>;
 
   // Fee Structure methods
   getAllFeeStructures(): Promise<any[]>;
@@ -1769,10 +1769,29 @@ export class DrizzleStorage implements IStorage {
       .orderBy(asc(schema.chapters.name));
   }
 
-  async getAllTopics(): Promise<Topic[]> {
-    return await db.select().from(schema.topics)
-      .where(eq(schema.topics.isActive, true))
-      .orderBy(asc(schema.topics.name));
+  async getAllTopics(): Promise<any[]> {
+    return await db.select({
+      id: schema.topics.id,
+      name: schema.topics.name,
+      description: schema.topics.description,
+      chapterId: schema.topics.chapterId,
+      chapterName: schema.chapters.name,
+      subjectName: schema.subjects.name,
+      className: schema.classes.name,
+      orderIndex: schema.topics.orderIndex,
+      isModerate: schema.topics.isModerate,
+      isImportant: schema.topics.isImportant,
+      isActive: schema.topics.isActive,
+      createdAt: schema.topics.createdAt,
+      updatedAt: schema.topics.updatedAt,
+      order: schema.topics.orderIndex
+    })
+    .from(schema.topics)
+    .innerJoin(schema.chapters, eq(schema.topics.chapterId, schema.chapters.id))
+    .innerJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
+    .innerJoin(schema.classes, eq(schema.subjects.classId, schema.classes.id))
+    .where(eq(schema.topics.isActive, true))
+    .orderBy(asc(schema.topics.name));
   }
 
   // Fee Structure methods (using products table for now)

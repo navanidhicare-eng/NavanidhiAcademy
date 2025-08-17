@@ -77,6 +77,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
   const form = useForm<AddTopicFormData>({
     resolver: zodResolver(addTopicSchema),
     defaultValues,
+    mode: 'onChange',
   });
 
   const selectedClassId = form.watch('classId');
@@ -126,8 +127,10 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
-      form.reset(defaultValues);
-      onClose();
+      setTimeout(() => {
+        form.reset(defaultValues);
+        onClose();
+      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -144,14 +147,14 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[700px] h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>Add New Topic</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-scroll px-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ maxHeight: 'calc(90vh - 160px)' }}>
+        <div className="flex-1 overflow-y-auto px-4 py-2 border border-gray-200 rounded-lg bg-gray-50/50" style={{ maxHeight: 'calc(85vh - 140px)', minHeight: '500px' }}>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8"
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-8 bg-white rounded p-4"
                   style={{ minHeight: '700px' }}>
             <FormField
               control={form.control}

@@ -45,6 +45,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, BookOpen, FileText, Target, Flag, Star } from 'lucide-react';
+import MathJaxComponent from '@/components/ui/MathJax';
 
 // Schemas
 const chapterSchema = z.object({
@@ -1364,11 +1365,13 @@ export default function TopicsManagement() {
                   <TableBody>
                     {filteredTopics.map((topic) => (
                       <TableRow key={topic.id}>
-                        <TableCell className="font-medium">{topic.name}</TableCell>
-                        <TableCell>{topic.chapterName}</TableCell>
-                        <TableCell>{topic.subjectName}</TableCell>
+                        <TableCell className="font-medium">
+                          <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
+                        </TableCell>
+                        <TableCell>{topic.chapterName || '-'}</TableCell>
+                        <TableCell>{topic.subjectName || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{topic.className}</Badge>
+                          <Badge variant="outline">{topic.className || '-'}</Badge>
                         </TableCell>
                         <TableCell>
                           {getPriorityBadge(topic) || (
