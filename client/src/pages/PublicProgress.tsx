@@ -3,6 +3,7 @@ import { useRoute } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GraduationCap, CheckCircle, Clock, MessageSquare, Shield, Calendar, Award, Target, BookOpen, Users, TrendingUp } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 export default function PublicProgress() {
   const [, params] = useRoute('/progress/:qrCode');
@@ -211,7 +212,9 @@ export default function PublicProgress() {
                       ) : (
                         getPendingTopicsForSubject().map((topic, index) => (
                           <div key={index} className="p-3 sm:p-4 bg-orange-50 rounded-md border-l-4 border-orange-400 shadow-sm">
-                            <div className="font-medium text-orange-800 text-sm sm:text-base">{topic.name}</div>
+                            <div className="font-medium text-orange-800 text-sm sm:text-base">
+                              <MathJaxComponent>{topic.name}</MathJaxComponent>
+                            </div>
                             <div className="text-xs sm:text-sm text-orange-600 mt-1">Chapter: {topic.chapterName}</div>
                             {topic.isImportant && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-2">

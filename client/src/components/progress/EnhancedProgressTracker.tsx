@@ -27,6 +27,7 @@ import {
   FileText,
   Brain
 } from 'lucide-react';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 interface Class {
   id: string;
@@ -951,7 +952,7 @@ export function EnhancedProgressTracker() {
                                       <Clock className="h-4 w-4 text-gray-400" />
                                     )}
                                     <span className={isCompleted ? "text-green-600" : ""}>
-                                      {topic.name}
+                                      <MathJaxComponent>{topic.name}</MathJaxComponent>
                                     </span>
                                     {isCompleted && (
                                       <Badge variant="secondary" className="ml-2 text-xs">

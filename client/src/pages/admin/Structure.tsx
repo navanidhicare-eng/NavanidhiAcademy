@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/table';
 import { AddChapterModal } from '@/components/admin/AddChapterModal';
 import { AddTopicModal } from '@/components/admin/AddTopicModal';
+import { MathJaxComponent } from '@/components/ui/MathJax';
 
 interface Chapter {
   id: string;
@@ -341,7 +342,7 @@ function AdminStructure() {
                         {topics.map((topic) => (
                           <TableRow key={topic.id}>
                             <TableCell className="font-medium">
-                              {topic.name}
+                              <MathJaxComponent>{topic.name}</MathJaxComponent>
                             </TableCell>
                             <TableCell>{topic.chapterName}</TableCell>
                             <TableCell>{topic.subjectName}</TableCell>
