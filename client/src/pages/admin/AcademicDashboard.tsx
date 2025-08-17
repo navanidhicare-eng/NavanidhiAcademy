@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useLocation } from 'wouter';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,11 +24,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { CardDescription } from '@/components/ui/card';
-import { 
-  BookOpen, 
-  Users, 
-  TrendingUp, 
+import {
+  BookOpen,
+  Users,
+  TrendingUp,
   Calendar,
   MapPin,
   GraduationCap,
@@ -44,18 +44,20 @@ import {
   User,
   Phone,
   MapPin as MapPinIcon,
-  Building
+  Building,
+  ArrowRight,
+  Building2
 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 // Student Progress with SO Center and Location Filters
-function StudentProgressTab({ 
-  selectedState, 
-  selectedDistrict, 
-  selectedMandal, 
-  selectedVillage, 
-  selectedSoCenter, 
-  filteredSoCenters 
+function StudentProgressTab({
+  selectedState,
+  selectedDistrict,
+  selectedMandal,
+  selectedVillage,
+  selectedSoCenter,
+  filteredSoCenters
 }: any) {
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
 
@@ -81,8 +83,8 @@ function StudentProgressTab({
   // Real academic progress data
   const { data: academicProgress = [] } = useQuery<any[]>({
     queryKey: ['/api/analytics/academic-progress'],
-    ...(selectedSoCenter && { 
-      queryKey: ['/api/analytics/academic-progress', { soCenterId: selectedSoCenter }] 
+    ...(selectedSoCenter && {
+      queryKey: ['/api/analytics/academic-progress', { soCenterId: selectedSoCenter }]
     }),
   });
 
@@ -133,8 +135,8 @@ function StudentProgressTab({
         <CardContent>
           <div className="grid gap-4">
             {filteredStudents.map((student: any) => (
-              <div 
-                key={student.id} 
+              <div
+                key={student.id}
                 className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
                 onClick={() => setSelectedStudent(student)}
               >
@@ -150,7 +152,7 @@ function StudentProgressTab({
                   <div className="text-right">
                     <div className="text-sm text-gray-500">Progress</div>
                     <div className="font-semibold">
-                      {academicProgress.filter((p: any) => p.status === 'learned').length > 0 
+                      {academicProgress.filter((p: any) => p.status === 'learned').length > 0
                         ? Math.round((academicProgress.filter((p: any) => p.status === 'learned').length / academicProgress.length) * 100)
                         : 0}%
                     </div>
@@ -207,7 +209,7 @@ function StudentProgressTab({
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   {academicProgress
-                    .filter((item: any, index: number, self: any[]) => 
+                    .filter((item: any, index: number, self: any[]) =>
                       self.findIndex((i: any) => i.subject === item.subject) === index
                     )
                     .map((subject: any) => {
@@ -217,7 +219,7 @@ function StudentProgressTab({
                         .filter((p: any) => p.status === 'learned')
                         .reduce((sum: number, p: any) => sum + p.count, 0);
                       const progress = totalTopics > 0 ? Math.round((learnedTopics / totalTopics) * 100) : 0;
-                      
+
                       return (
                         <div key={subject.subject} className="space-y-2">
                           <div className="flex justify-between">
@@ -225,8 +227,8 @@ function StudentProgressTab({
                             <span className="font-semibold">{progress}%</span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full" 
+                            <div
+                              className="bg-primary h-2 rounded-full"
                               style={{ width: `${progress}%` }}
                             />
                           </div>
@@ -245,13 +247,13 @@ function StudentProgressTab({
 
 
 // Attendance Reports Tab
-function AttendanceReportsTab({ 
-  selectedState, 
-  selectedDistrict, 
-  selectedMandal, 
-  selectedVillage, 
-  selectedSoCenter, 
-  filteredSoCenters 
+function AttendanceReportsTab({
+  selectedState,
+  selectedDistrict,
+  selectedMandal,
+  selectedVillage,
+  selectedSoCenter,
+  filteredSoCenters
 }: any) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -264,7 +266,7 @@ function AttendanceReportsTab({
       params.append('month', selectedMonth.toString());
       params.append('year', selectedYear.toString());
       if (selectedSoCenter) params.append('soCenterId', selectedSoCenter);
-      
+
       return apiRequest('GET', `/api/analytics/center-month-attendance?${params.toString()}`);
     },
   });
@@ -387,7 +389,7 @@ function AttendanceReportsTab({
                   <div className="text-right">
                     <div className="text-sm text-gray-500">Average Attendance</div>
                     <div className="text-2xl font-bold text-primary">
-                      {centerData.dailyAttendance.length > 0 
+                      {centerData.dailyAttendance.length > 0
                         ? Math.round(centerData.dailyAttendance.reduce((sum: number, day: any) => sum + day.attendancePercentage, 0) / centerData.dailyAttendance.length)
                         : 0}%
                     </div>
@@ -412,7 +414,7 @@ function AttendanceReportsTab({
                         const attendanceDate = new Date(dayData.date);
                         const dayName = attendanceDate.toLocaleDateString('en-US', { weekday: 'short' });
                         const isWeekend = dayName === 'Sat' || dayName === 'Sun';
-                        
+
                         return (
                           <tr key={index} className={isWeekend ? 'bg-gray-50' : ''}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -433,8 +435,8 @@ function AttendanceReportsTab({
                               <div className="flex items-center space-x-2">
                                 <span className="font-medium">{dayData.attendancePercentage}%</span>
                                 <div className="w-16 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="h-2 rounded-full bg-primary" 
+                                  <div
+                                    className="h-2 rounded-full bg-primary"
                                     style={{ width: `${Math.min(dayData.attendancePercentage, 100)}%` }}
                                   />
                                 </div>
@@ -488,7 +490,7 @@ function AttendanceReportsTab({
               </div>
             ))}
           </div>
-          
+
           {centerAttendanceArray.length === 0 && (
             <div className="text-center py-12">
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -503,247 +505,606 @@ function AttendanceReportsTab({
 }
 
 
-
 export default function AcademicDashboard() {
-  const [activeTab, setActiveTab] = useState('progress');
-  
-  // Universal location filters
+  const [location, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Filter states for Student Progress
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [selectedMandal, setSelectedMandal] = useState('');
   const [selectedVillage, setSelectedVillage] = useState('');
-  const [selectedSoCenter, setSelectedSoCenter] = useState('');
+  const [selectedCenter, setSelectedCenter] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
 
-  // Location data queries
-  const { data: states = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/states'],
+  // Filter states for Attendance Reports
+  const [attendanceState, setAttendanceState] = useState('');
+  const [attendanceDistrict, setAttendanceDistrict] = useState('');
+  const [attendanceMandal, setAttendanceMandal] = useState('');
+  const [attendanceVillage, setAttendanceVillage] = useState('');
+  const [attendanceCenter, setAttendanceCenter] = useState('');
+  const [attendanceClass, setAttendanceClass] = useState('');
+  const [attendanceStudent, setAttendanceStudent] = useState('');
+
+  // Academic Management Sections
+  const academicSections = [
+    {
+      title: 'Class & Subject Management',
+      description: 'Manage classes, subjects, and their relationships',
+      icon: BookOpen,
+      path: '/admin/class-subject-management',
+      color: 'from-blue-500 to-blue-600',
+      stats: 'Organize Academic Structure'
+    },
+    {
+      title: 'Topics Management',
+      description: 'Manage chapters, topics, and academic content',
+      icon: Target,
+      path: '/admin/topics-management',
+      color: 'from-green-500 to-green-600',
+      stats: 'Content Organization'
+    },
+    {
+      title: 'Exam Management',
+      description: 'Create and manage academic examinations',
+      icon: GraduationCap,
+      path: '/admin/exam-management',
+      color: 'from-purple-500 to-purple-600',
+      stats: 'Assessment Tools'
+    },
+    {
+      title: 'Academic Structure',
+      description: 'Comprehensive academic hierarchy management',
+      icon: Building2,
+      path: '/admin/structure',
+      color: 'from-orange-500 to-orange-600',
+      stats: 'System Organization'
+    }
+  ];
+
+  // Fetch location data
+  const { data: locationData } = useQuery<LocationData>({
+    queryKey: ['locations'],
+    queryFn: () => apiRequest('/api/locations/all'),
   });
 
-  const { data: districts = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/districts'],
-    enabled: !!selectedState,
+  // Fetch classes
+  const { data: classes } = useQuery({
+    queryKey: ['classes'],
+    queryFn: () => apiRequest('/api/classes'),
   });
 
-  const { data: mandals = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/mandals'],
-    enabled: !!selectedDistrict,
+  // Fetch SO Centers based on selected village
+  const { data: centers } = useQuery({
+    queryKey: ['so-centers', selectedVillage, attendanceVillage],
+    queryFn: () => apiRequest(`/api/locations/so-centers${selectedVillage || attendanceVillage ? `?villageId=${selectedVillage || attendanceVillage}` : ''}`),
+    enabled: !!(selectedVillage || attendanceVillage),
   });
 
-  const { data: villages = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/villages'],
-    enabled: !!selectedMandal,
+  // Fetch students based on filters
+  const { data: students } = useQuery({
+    queryKey: ['students-filter', attendanceClass, attendanceCenter],
+    queryFn: () => apiRequest(`/api/students/by-filter?${new URLSearchParams({
+      ...(attendanceClass && { classId: attendanceClass }),
+      ...(attendanceCenter && { centerId: attendanceCenter })
+    }).toString()}`),
+    enabled: !!(attendanceClass || attendanceCenter),
   });
 
-  const { data: soCenters = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/so-centers'],
+  // Fetch progress data
+  const { data: progressData, isLoading: isLoadingProgress } = useQuery<ProgressData[]>({
+    queryKey: ['admin-progress-tracking', selectedClass, selectedCenter],
+    queryFn: () => apiRequest(`/api/admin/progress-tracking?${new URLSearchParams({
+      ...(selectedClass && { classId: selectedClass }),
+      ...(selectedCenter && { soCenterId: selectedCenter })
+    }).toString()}`),
+    enabled: activeTab === 'progress' && !!(selectedClass || selectedCenter),
   });
 
-  // Filter SO Centers based on selected location
-  const filteredSoCenters = soCenters.filter((center: any) => {
-    if (selectedVillage && center.villageId !== selectedVillage) return false;
-    if (selectedMandal && !villages.some((v: any) => v.id === center.villageId && v.mandalId === selectedMandal)) return false;
-    if (selectedDistrict && !mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === selectedDistrict)) return false;
-    if (selectedState && !districts.some((d: any) => mandals.some((m: any) => villages.some((v: any) => v.mandalId === m.id && v.id === center.villageId) && m.districtId === d.id) && d.stateId === selectedState)) return false;
-    return true;
+  // Fetch attendance data
+  const { data: attendanceData, isLoading: isLoadingAttendance } = useQuery<AttendanceData[]>({
+    queryKey: ['attendance', attendanceStudent, attendanceClass, attendanceCenter],
+    queryFn: () => apiRequest(`/api/attendance?${new URLSearchParams({
+      ...(attendanceStudent && { studentId: attendanceStudent }),
+      ...(attendanceClass && { classId: attendanceClass }),
+      ...(attendanceCenter && { centerId: attendanceCenter })
+    }).toString()}`),
+    enabled: activeTab === 'attendance' && !!(attendanceStudent || attendanceClass || attendanceCenter),
   });
 
-  // Reset dependent filters when parent changes
-  const handleStateChange = (value: string) => {
-    setSelectedState(value === 'all' ? '' : value);
-    setSelectedDistrict('');
-    setSelectedMandal('');
-    setSelectedVillage('');
-    setSelectedSoCenter('');
+  const handleNavigation = (path: string) => {
+    navigate(path);
   };
 
-  const handleDistrictChange = (value: string) => {
-    setSelectedDistrict(value === 'all' ? '' : value);
-    setSelectedMandal('');
-    setSelectedVillage('');
-    setSelectedSoCenter('');
-  };
+  // Filter data based on location
+  const getFilteredDistricts = (stateId: string) =>
+    locationData?.districts.filter(d => d.stateId === stateId) || [];
 
-  const handleMandalChange = (value: string) => {
-    setSelectedMandal(value === 'all' ? '' : value);
-    setSelectedVillage('');
-    setSelectedSoCenter('');
-  };
+  const getFilteredMandals = (districtId: string) =>
+    locationData?.mandals.filter(m => m.districtId === districtId) || [];
 
-  const handleVillageChange = (value: string) => {
-    setSelectedVillage(value === 'all' ? '' : value);
-    setSelectedSoCenter('');
-  };
+  const getFilteredVillages = (mandalId: string) =>
+    locationData?.villages.filter(v => v.mandalId === mandalId) || [];
 
   return (
     <DashboardLayout
       title="Academic Admin Dashboard"
       subtitle="Comprehensive academic management and student progress tracking"
     >
-      <div className="space-y-6">
-        {/* Universal Location Filter */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <MapPin size={20} />
-              <span>Location Filter</span>
-            </CardTitle>
-            <CardDescription>
-              Filter all dashboard data by geographic location. Changes apply to all tabs.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div>
-                <Label htmlFor="state">State</Label>
-                <Select value={selectedState} onValueChange={handleStateChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
-                    {states.map((state: any) => (
-                      <SelectItem key={state.id} value={state.id}>
-                        {state.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Academic Dashboard</h1>
+            <p className="text-gray-600 mt-1">Monitor academic progress and manage educational content</p>
+          </div>
 
-              <div>
-                <Label htmlFor="district">District</Label>
-                <Select 
-                  value={selectedDistrict} 
-                  onValueChange={handleDistrictChange}
-                  disabled={!selectedState}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select District" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Districts</SelectItem>
-                    {districts
-                      .filter((district: any) => district.stateId === selectedState)
-                      .map((district: any) => (
-                        <SelectItem key={district.id} value={district.id}>
-                          {district.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Academic Management Navigation Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            {academicSections.map((section) => {
+              const IconComponent = section.icon;
+              return (
+                <Card key={section.path} className="group hover:shadow-lg transition-all duration-200 cursor-pointer border-0 bg-gradient-to-r from-white to-gray-50">
+                  <CardContent className="p-6" onClick={() => handleNavigation(section.path)}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`p-3 rounded-xl bg-gradient-to-r ${section.color} text-white group-hover:scale-110 transition-transform duration-200`}>
+                        <IconComponent className="h-6 w-6" />
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all duration-200" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                      {section.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {section.description}
+                    </p>
+                    <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full inline-block">
+                      {section.stats}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
 
-              <div>
-                <Label htmlFor="mandal">Mandal</Label>
-                <Select 
-                  value={selectedMandal} 
-                  onValueChange={handleMandalChange}
-                  disabled={!selectedDistrict}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Mandal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Mandals</SelectItem>
-                    {mandals
-                      .filter((mandal: any) => mandal.districtId === selectedDistrict)
-                      .map((mandal: any) => (
-                        <SelectItem key={mandal.id} value={mandal.id}>
-                          {mandal.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Main Dashboard Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-fit">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="progress" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Student Progress
+            </TabsTrigger>
+            <TabsTrigger value="attendance" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Attendance Reports
+            </TabsTrigger>
+          </TabsList>
 
-              <div>
-                <Label htmlFor="village">Village</Label>
-                <Select 
-                  value={selectedVillage} 
-                  onValueChange={handleVillageChange}
-                  disabled={!selectedMandal}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Village" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Villages</SelectItem>
-                    {villages
-                      .filter((village: any) => village.mandalId === selectedMandal)
-                      .map((village: any) => (
-                        <SelectItem key={village.id} value={village.id}>
-                          {village.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-blue-800 flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Academic Monitoring
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-blue-700 text-sm mb-4">
+                    Track student progress and attendance across all centers
+                  </p>
+                  <Button
+                    onClick={() => setActiveTab('progress')}
+                    variant="outline"
+                    className="w-full border-blue-300 text-blue-700 hover:bg-blue-200"
+                  >
+                    View Progress Reports
+                  </Button>
+                </CardContent>
+              </Card>
 
-              <div>
-                <Label htmlFor="soCenter">SO Center</Label>
-                <Select value={selectedSoCenter} onValueChange={setSelectedSoCenter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select SO Center" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All SO Centers</SelectItem>
-                    {filteredSoCenters.map((center: any) => (
-                      <SelectItem key={center.id} value={center.id}>
-                        {center.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-green-800 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5" />
+                    Content Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-green-700 text-sm mb-4">
+                    Organize classes, subjects, chapters, and topics
+                  </p>
+                  <Button
+                    onClick={() => handleNavigation('/admin/class-subject-management')}
+                    variant="outline"
+                    className="w-full border-green-300 text-green-700 hover:bg-green-200"
+                  >
+                    Manage Content
+                  </Button>
+                </CardContent>
+              </Card>
 
-              <div className="flex items-end">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setSelectedState('');
+              <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-purple-800 flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Examination System
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-purple-700 text-sm mb-4">
+                    Create and manage academic examinations
+                  </p>
+                  <Button
+                    onClick={() => handleNavigation('/admin/exam-management')}
+                    variant="outline"
+                    className="w-full border-purple-300 text-purple-700 hover:bg-purple-200"
+                  >
+                    Manage Exams
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Student Progress Tab */}
+          <TabsContent value="progress" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5" />
+                  Student Progress Tracking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Location Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <Select value={selectedState} onValueChange={(value) => {
+                    setSelectedState(value);
                     setSelectedDistrict('');
                     setSelectedMandal('');
                     setSelectedVillage('');
-                    setSelectedSoCenter('');
-                  }}
-                  className="w-full"
-                >
-                  <RotateCcw size={16} className="mr-2" />
-                  Reset
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    setSelectedCenter('');
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All States</SelectItem>
+                      {locationData?.states.map((state) => (
+                        <SelectItem key={state.id} value={state.id}>{state.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="progress">Student Progress</TabsTrigger>
-            <TabsTrigger value="attendance">Attendance Reports</TabsTrigger>
-          </TabsList>
+                  <Select value={selectedDistrict} onValueChange={(value) => {
+                    setSelectedDistrict(value);
+                    setSelectedMandal('');
+                    setSelectedVillage('');
+                    setSelectedCenter('');
+                  }} disabled={!selectedState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Districts</SelectItem>
+                      {getFilteredDistricts(selectedState).map((district) => (
+                        <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-          <TabsContent value="progress">
-            <StudentProgressTab 
-              selectedState={selectedState}
-              selectedDistrict={selectedDistrict}
-              selectedMandal={selectedMandal}
-              selectedVillage={selectedVillage}
-              selectedSoCenter={selectedSoCenter}
-              filteredSoCenters={filteredSoCenters}
-            />
+                  <Select value={selectedMandal} onValueChange={(value) => {
+                    setSelectedMandal(value);
+                    setSelectedVillage('');
+                    setSelectedCenter('');
+                  }} disabled={!selectedDistrict}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Mandals</SelectItem>
+                      {getFilteredMandals(selectedDistrict).map((mandal) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>{mandal.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedVillage} onValueChange={(value) => {
+                    setSelectedVillage(value);
+                    setSelectedCenter('');
+                  }} disabled={!selectedMandal}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Villages</SelectItem>
+                      {getFilteredVillages(selectedMandal).map((village) => (
+                        <SelectItem key={village.id} value={village.id}>{village.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedCenter} onValueChange={setSelectedCenter} disabled={!selectedVillage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Center" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Centers</SelectItem>
+                      {centers?.map((center: any) => (
+                        <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Classes</SelectItem>
+                      {classes?.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Progress Data Display */}
+                {isLoadingProgress ? (
+                  <div className="text-center py-8">Loading progress data...</div>
+                ) : progressData && progressData.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-300 p-2 text-left">Student</th>
+                          <th className="border border-gray-300 p-2 text-left">Class</th>
+                          <th className="border border-gray-300 p-2 text-left">Center</th>
+                          <th className="border border-gray-300 p-2 text-center">Homework %</th>
+                          <th className="border border-gray-300 p-2 text-center">Tuition %</th>
+                          <th className="border border-gray-300 p-2 text-center">Activities</th>
+                          <th className="border border-gray-300 p-2 text-center">Topics</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {progressData.map((student) => (
+                          <tr key={student.studentId} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-2">
+                              <div>
+                                <div className="font-medium">{student.studentName}</div>
+                                <div className="text-sm text-gray-500">{student.studentCode}</div>
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2">{student.className}</td>
+                            <td className="border border-gray-300 p-2">
+                              <div>
+                                <div className="font-medium">{student.centerName}</div>
+                                <div className="text-sm text-gray-500">{student.centerCode}</div>
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              <div className={`inline-block px-2 py-1 rounded-full text-sm ${
+                                student.homeworkCompletionPercentage >= 80
+                                  ? 'bg-green-100 text-green-800'
+                                  : student.homeworkCompletionPercentage >= 60
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {student.homeworkCompletionPercentage}%
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              <div className={`inline-block px-2 py-1 rounded-full text-sm ${
+                                student.tuitionCompletionPercentage >= 80
+                                  ? 'bg-green-100 text-green-800'
+                                  : student.tuitionCompletionPercentage >= 60
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {student.tuitionCompletionPercentage}%
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              {student.completedHomework}/{student.totalHomeworkActivities}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              {student.completedTuitionTopics}/{student.totalTuitionTopics}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    {selectedClass || selectedCenter ? 'No progress data found for selected filters' : 'Select filters to view progress data'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
+          {/* Attendance Reports Tab */}
+          <TabsContent value="attendance" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Attendance Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Attendance Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+                  <Select value={attendanceState} onValueChange={(value) => {
+                    setAttendanceState(value);
+                    setAttendanceDistrict('');
+                    setAttendanceMandal('');
+                    setAttendanceVillage('');
+                    setAttendanceCenter('');
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All States</SelectItem>
+                      {locationData?.states.map((state) => (
+                        <SelectItem key={state.id} value={state.id}>{state.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
+                  <Select value={attendanceDistrict} onValueChange={(value) => {
+                    setAttendanceDistrict(value);
+                    setAttendanceMandal('');
+                    setAttendanceVillage('');
+                    setAttendanceCenter('');
+                  }} disabled={!attendanceState}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select District" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Districts</SelectItem>
+                      {getFilteredDistricts(attendanceState).map((district) => (
+                        <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-          <TabsContent value="attendance">
-            <AttendanceReportsTab 
-              selectedState={selectedState}
-              selectedDistrict={selectedDistrict}
-              selectedMandal={selectedMandal}
-              selectedVillage={selectedVillage}
-              selectedSoCenter={selectedSoCenter}
-              filteredSoCenters={filteredSoCenters}
-            />
+                  <Select value={attendanceMandal} onValueChange={(value) => {
+                    setAttendanceMandal(value);
+                    setAttendanceVillage('');
+                    setAttendanceCenter('');
+                  }} disabled={!attendanceDistrict}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Mandal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Mandals</SelectItem>
+                      {getFilteredMandals(attendanceDistrict).map((mandal) => (
+                        <SelectItem key={mandal.id} value={mandal.id}>{mandal.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={attendanceVillage} onValueChange={(value) => {
+                    setAttendanceVillage(value);
+                    setAttendanceCenter('');
+                  }} disabled={!attendanceMandal}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Village" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Villages</SelectItem>
+                      {getFilteredVillages(attendanceMandal).map((village) => (
+                        <SelectItem key={village.id} value={village.id}>{village.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={attendanceCenter} onValueChange={setAttendanceCenter} disabled={!attendanceVillage}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Center" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Centers</SelectItem>
+                      {centers?.map((center: any) => (
+                        <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={attendanceClass} onValueChange={setAttendanceClass}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Classes</SelectItem>
+                      {classes?.map((cls: any) => (
+                        <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={attendanceStudent} onValueChange={setAttendanceStudent} disabled={!attendanceClass && !attendanceCenter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All Students</SelectItem>
+                      {students?.map((student: any) => (
+                        <SelectItem key={student.id} value={student.id}>{student.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Attendance Data Display */}
+                {isLoadingAttendance ? (
+                  <div className="text-center py-8">Loading attendance data...</div>
+                ) : attendanceData && attendanceData.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-300">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          <th className="border border-gray-300 p-2 text-left">Student</th>
+                          <th className="border border-gray-300 p-2 text-left">Class</th>
+                          <th className="border border-gray-300 p-2 text-left">Center</th>
+                          <th className="border border-gray-300 p-2 text-center">Date</th>
+                          <th className="border border-gray-300 p-2 text-center">Status</th>
+                          <th className="border border-gray-300 p-2 text-left">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attendanceData.map((record) => (
+                          <tr key={record.id} className="hover:bg-gray-50">
+                            <td className="border border-gray-300 p-2">
+                              <div>
+                                <div className="font-medium">{record.studentName}</div>
+                                <div className="text-sm text-gray-500">{record.studentCode}</div>
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2">{record.className}</td>
+                            <td className="border border-gray-300 p-2">
+                              <div>
+                                <div className="font-medium">{record.centerName}</div>
+                                <div className="text-sm text-gray-500">{record.centerCode}</div>
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              {new Date(record.date).toLocaleDateString()}
+                            </td>
+                            <td className="border border-gray-300 p-2 text-center">
+                              <div className={`inline-block px-2 py-1 rounded-full text-sm ${
+                                record.status === 'present'
+                                  ? 'bg-green-100 text-green-800'
+                                  : record.status === 'absent'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {record.status}
+                              </div>
+                            </td>
+                            <td className="border border-gray-300 p-2">{record.remarks || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    {attendanceStudent || attendanceClass || attendanceCenter ? 'No attendance data found for selected filters' : 'Select filters to view attendance data'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
