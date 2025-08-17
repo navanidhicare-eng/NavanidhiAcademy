@@ -461,10 +461,10 @@ export default function Dashboard() {
                   delay={100}
                 />
                 <StatCard
-                  title="Topics Completed"
-                  value={displayStats.topicsCompleted}
+                  title="Total Topics"
+                  value={displayStats.totalTopics}
                   icon={BookOpen}
-                  trend={`of ${displayStats.totalTopics || 0} total topics`}
+                  trend={`${displayStats.topicsCompleted || 0} topics completed`}
                   delay={200}
                 />
                 <StatCard
@@ -555,10 +555,10 @@ export default function Dashboard() {
                   delay={100}
                 />
                 <StatCard
-                  title="Topics Completed"
-                  value={displayStats.topicsCompleted}
+                  title="Total Topics"
+                  value={displayStats.totalTopics}
                   icon={BookOpen}
-                  trend={`of ${displayStats.totalTopics || 0} total topics`}
+                  trend={`${displayStats.topicsCompleted || 0} topics completed`}
                   delay={200}
                 />
                 <StatCard

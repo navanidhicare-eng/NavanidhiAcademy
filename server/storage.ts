@@ -3195,7 +3195,7 @@ export class DrizzleStorage implements IStorage {
 
       // Get real topics completed data from tuition_progress table
       const topicsCompletedResult = await sql`
-        SELECT COUNT(*) as count 
+        SELECT COUNT(DISTINCT topic_id) as count 
         FROM tuition_progress 
         WHERE status = 'learned'
       `;
