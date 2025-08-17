@@ -163,81 +163,6 @@ function StudentProgressTab({
             ))}
           </div>
         </CardContent>
-      </Card>
-
-      {/* Student Performance Modal */}
-      <Dialog open={!!selectedStudent} onOpenChange={() => setSelectedStudent(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Performance Analytics - {selectedStudent?.name} ({selectedStudent?.studentId})
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6">
-            {/* Performance Trends */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <TrendingUp size={20} />
-                  <span>Performance Trends</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={performanceData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="percentage" stroke="#8884d8" strokeWidth={2} name="Completion %" />
-                    <Line type="monotone" dataKey="completedTopics" stroke="#82ca9d" strokeWidth={2} name="Topics Learned" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Subject-wise Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Target size={20} />
-                  <span>Subject-wise Progress</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  {academicProgress
-                    .filter((item: any, index: number, self: any[]) => 
-                      self.findIndex((i: any) => i.subject === item.subject) === index
-                    )
-                    .map((subject: any) => {
-                      const subjectData = academicProgress.filter((p: any) => p.subject === subject.subject);
-                      const totalTopics = subjectData.reduce((sum: number, p: any) => sum + p.count, 0);
-                      const learnedTopics = subjectData
-                        .filter((p: any) => p.status === 'learned')
-                        .reduce((sum: number, p: any) => sum + p.count, 0);
-                      const progress = totalTopics > 0 ? Math.round((learnedTopics / totalTopics) * 100) : 0;
-                      
-                      return (
-                        <div key={subject.subject} className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="font-medium">{subject.subject}</span>
-                            <span className="font-semibold">{progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full" 
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </DialogContent>
       </Dialog>
     </div>
   );
@@ -264,7 +189,7 @@ function AttendanceReportsTab({
       params.append('month', selectedMonth.toString());
       params.append('year', selectedYear.toString());
       if (selectedSoCenter) params.append('soCenterId', selectedSoCenter);
-      
+
       return apiRequest('GET', `/api/analytics/center-month-attendance?${params.toString()}`);
     },
   });
@@ -412,7 +337,7 @@ function AttendanceReportsTab({
                         const attendanceDate = new Date(dayData.date);
                         const dayName = attendanceDate.toLocaleDateString('en-US', { weekday: 'short' });
                         const isWeekend = dayName === 'Sat' || dayName === 'Sun';
-                        
+
                         return (
                           <tr key={index} className={isWeekend ? 'bg-gray-50' : ''}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
@@ -488,7 +413,7 @@ function AttendanceReportsTab({
               </div>
             ))}
           </div>
-          
+
           {centerAttendanceArray.length === 0 && (
             <div className="text-center py-12">
               <Calendar className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -506,7 +431,7 @@ function AttendanceReportsTab({
 
 export default function AcademicDashboard() {
   const [activeTab, setActiveTab] = useState('progress');
-  
+
   // Universal location filters
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
@@ -536,6 +461,14 @@ export default function AcademicDashboard() {
 
   const { data: soCenters = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/so-centers'],
+  });
+
+  // Fetch dashboard stats and topics
+  const { data: dashboardStats } = useQuery<any>({
+    queryKey: ['/api/analytics/dashboard-stats'],
+  });
+  const { data: topics = [] } = useQuery<any[]>({
+    queryKey: ['/api/topics'],
   });
 
   // Filter SO Centers based on selected location

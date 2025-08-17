@@ -225,9 +225,9 @@ function AddChapterModal({
           </p>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-1">
+        <ScrollArea className="flex-1 max-h-[calc(85vh-180px)] px-1">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4 pb-4">
               {/* Class and Subject Selection */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
@@ -556,9 +556,9 @@ function AddTopicModal({
           </p>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-1">
+        <ScrollArea className="flex-1 max-h-[calc(90vh-200px)] px-1">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pr-4 pb-4">
               {/* Chapter Selection */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">

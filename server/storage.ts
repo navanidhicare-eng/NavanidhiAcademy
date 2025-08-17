@@ -366,6 +366,10 @@ export interface IStorage {
   getAllPayments(): Promise<Payment[]>;
   updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment>;
   deletePayment(id: string): Promise<void>;
+
+  // Dashboard stats methods
+  getDashboardStats(userEmail: string, userRole: string): Promise<any>;
+  getSoCenterDashboardStats(soCenterId: string): Promise<any>;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -3157,6 +3161,93 @@ export class DrizzleStorage implements IStorage {
     }
 
     return { canAccess: true };
+  }
+
+  // Admin Dashboard specific methods
+  async getDashboardStats(userEmail: string, userRole: string): Promise<any> {
+    try {
+      console.log(`📊 Fetching dashboard stats for user: ${userRole} ${userEmail}`);
+
+      if (userRole === 'so_center') {
+        const soCenter = await this.getSoCenterByEmail(userEmail);
+        if (!soCenter) {
+          throw new Error('SO Center not found');
+        }
+
+        console.log(`✅ Found SO Center: ${soCenter.centerId} - ${soCenter.name}`);
+        console.log(`📊 Calculating SO Center dashboard stats for: ${soCenter.id}`);
+
+        const soCenterStats = await this.getSoCenterDashboardStats(soCenter.id);
+
+        return {
+          totalStudents: soCenterStats.totalStudents || 0,
+          paymentsThisMonth: soCenterStats.thisMonthCollection || 0,
+          topicsCompleted: soCenterStats.topicsCompleted || 0,
+          walletBalance: parseFloat(soCenter.walletBalance) || 0,
+        };
+      }
+
+      // For admin and academic_admin users
+      const [studentsResult, soCentersResult, topicsResult] = await Promise.all([
+        this.sql`SELECT COUNT(*) as count FROM students WHERE is_active = true`,
+        this.sql`SELECT COUNT(*) as count FROM so_centers WHERE is_active = true`,
+        this.sql`SELECT COUNT(*) as count FROM student_progress WHERE status = 'learned'`
+      ]);
+
+      // Get system balance (sum of all SO center wallet balances + total payments collected)
+      let systemBalance = 0;
+      if (userRole === 'admin') {
+        try {
+          // Sum of all SO Center wallet balances
+          const soCenterBalanceResult = await this.sql`
+            SELECT COALESCE(SUM(wallet_balance::decimal), 0) as total_so_balance 
+            FROM so_centers 
+            WHERE is_active = true
+          `;
+
+          // Sum of all payments made to the system
+          const paymentsResult = await this.sql`
+            SELECT COALESCE(SUM(amount::decimal), 0) as total_payments 
+            FROM payments 
+            WHERE status = 'completed'
+          `;
+
+          const soCenterBalance = parseFloat(soCenterBalanceResult[0]?.total_so_balance) || 0;
+          const totalPayments = parseFloat(paymentsResult[0]?.total_payments) || 0;
+
+          systemBalance = soCenterBalance + totalPayments;
+        } catch (balanceError) {
+          console.log('⚠️ Error calculating system balance, using fallback:', balanceError);
+          // Fallback to just SO center balances if payments table doesn't exist
+          const soCenterBalanceResult = await this.sql`
+            SELECT COALESCE(SUM(wallet_balance::decimal), 0) as total_so_balance 
+            FROM so_centers 
+            WHERE is_active = true
+          `;
+          systemBalance = parseFloat(soCenterBalanceResult[0]?.total_so_balance) || 0;
+        }
+      }
+
+      const stats = {
+        totalStudents: parseInt(studentsResult[0]?.count) || 0,
+        totalSoCenters: parseInt(soCentersResult[0]?.count) || 0,
+        paymentsThisMonth: 0, // You can add payment calculation here
+        topicsCompleted: parseInt(topicsResult[0]?.count) || 0,
+        walletBalance: systemBalance,
+      };
+
+      console.log('✅ Dashboard stats calculated:', stats);
+      return stats;
+    } catch (error) {
+      console.error('❌ Error calculating dashboard stats:', error);
+      return {
+        totalStudents: 0,
+        totalSoCenters: 0,
+        paymentsThisMonth: 0,
+        topicsCompleted: 0,
+        walletBalance: 0,
+      };
+    }
   }
 }
 

@@ -601,7 +601,7 @@ export default function Dashboard() {
                       <div className={`w-3 h-3 bg-${item.color}-500 rounded-full animate-pulse shadow-lg`}></div>
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-800">{item.title}</p>
-                        <p className="text-xs text-gray-500">{item.time}</p>
+                        <p className="text-sm text-gray-500">{item.time}</p>
                       </div>
                     </div>
                   ))}
