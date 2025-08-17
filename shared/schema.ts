@@ -646,6 +646,8 @@ export const insertChapterSchema = createInsertSchema(chapters).omit({
 
 export const insertTopicSchema = createInsertSchema(topics).omit({
   id: true,
+}).extend({
+  description: z.string().optional(), // Allow LaTeX content in descriptions
 });
 
 export const insertStudentSchema = createInsertSchema(students).omit({

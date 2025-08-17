@@ -19,12 +19,14 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 
 const addTopicSchema = z.object({
   name: z.string().min(1, 'Topic name is required'),
+  description: z.string().optional(),
   classId: z.string().min(1, 'Class selection is required'),
   subjectId: z.string().min(1, 'Subject selection is required'),
   chapterId: z.string().min(1, 'Chapter selection is required'),
@@ -64,6 +66,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
     resolver: zodResolver(addTopicSchema),
     defaultValues: {
       name: '',
+      description: '',
       classId: '',
       subjectId: '',
       chapterId: '',
@@ -101,6 +104,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
     mutationFn: async (data: AddTopicFormData) => {
       const submitData = {
         name: data.name,
+        description: data.description || '',
         chapterId: data.chapterId,
         orderIndex: parseInt(data.orderIndex),
         isModerate: data.isModerate,
@@ -149,6 +153,32 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                   <FormControl>
                     <Input placeholder="e.g. Introduction to Quadratic Equations" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (LaTeX Math Support)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter topic description with LaTeX math formulas.
+Use $...$ for inline math: $x^2 + y^2 = z^2$
+Use $$...$$ for block math: $$\frac{numerator}{denominator}$$"
+                      className="min-h-[100px] resize-none"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    <strong>LaTeX Examples:</strong><br />
+                    • Inline: $x^2 + y^2 = z^2$ or $\frac{numerator}{denominator}$<br />
+                    • Block: $$\int_0^1 x^2 dx = \frac{1}{3}$$<br />
+                    • Equations: $$E = mc^2$$
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

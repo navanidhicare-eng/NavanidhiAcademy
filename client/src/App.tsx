@@ -52,6 +52,7 @@ import DropoutRequestsManagement from "@/pages/admin/DropoutRequestsManagement";
 import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 import AdminProgressTracking from '@/pages/admin/ProgressTracking';
 import AdminWalletBalances from "@/pages/admin/WalletBalances";
+import MathPreview from "@/pages/MathPreview";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -166,6 +167,11 @@ function Router() {
       <Route path="/settings">
         <ProtectedRoute>
           <Settings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/math-preview">
+        <ProtectedRoute>
+          <MathPreview />
         </ProtectedRoute>
       </Route>
 
