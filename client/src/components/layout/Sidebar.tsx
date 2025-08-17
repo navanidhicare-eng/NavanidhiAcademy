@@ -224,6 +224,12 @@ const navigation: NavItem[] = [
     roles: ['admin', 'super_admin', 'academic_admin'],
   },
   {
+    title: 'Admin Exam Management',
+    href: '/admin/exam-management',
+    icon: Award,
+    roles: ['admin', 'super_admin', 'academic_admin'],
+  },
+  {
     title: 'Settings',
     href: '/settings',
     icon: Settings,
