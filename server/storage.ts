@@ -1770,28 +1770,51 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getAllTopics(): Promise<any[]> {
-    return await db.select({
-      id: schema.topics.id,
-      name: schema.topics.name,
-      description: schema.topics.description,
-      chapterId: schema.topics.chapterId,
-      chapterName: schema.chapters.name,
-      subjectName: schema.subjects.name,
-      className: schema.classes.name,
-      orderIndex: schema.topics.orderIndex,
-      isModerate: schema.topics.isModerate,
-      isImportant: schema.topics.isImportant,
-      isActive: schema.topics.isActive,
-      createdAt: schema.topics.createdAt,
-      updatedAt: schema.topics.updatedAt,
-      order: schema.topics.orderIndex
-    })
-    .from(schema.topics)
-    .innerJoin(schema.chapters, eq(schema.topics.chapterId, schema.chapters.id))
-    .innerJoin(schema.subjects, eq(schema.chapters.subjectId, schema.subjects.id))
-    .innerJoin(schema.classes, eq(schema.subjects.classId, schema.classes.id))
-    .where(eq(schema.topics.isActive, true))
-    .orderBy(asc(schema.topics.name));
+    try {
+      // Use raw SQL to avoid Drizzle ordering issues
+      const results = await sql`
+        SELECT 
+          t.id,
+          t.name,
+          t.description,
+          t.chapter_id as "chapterId",
+          t.order_index as "orderIndex",
+          t.is_moderate as "isModerate",
+          t.is_important as "isImportant",
+          t.is_active as "isActive",
+          t.created_at as "createdAt",
+          t.updated_at as "updatedAt",
+          c.name as "chapterName",
+          s.name as "subjectName",
+          cl.name as "className"
+        FROM topics t
+        INNER JOIN chapters c ON t.chapter_id = c.id
+        INNER JOIN subjects s ON c.subject_id = s.id
+        INNER JOIN classes cl ON s.class_id = cl.id
+        WHERE t.is_active = true
+        ORDER BY t.name ASC
+      `;
+
+      // Map results to include order field for compatibility
+      return results.map((topic: any) => ({
+        ...topic,
+        order: topic.orderIndex
+      }));
+    } catch (error) {
+      console.error('Error in getAllTopics:', error);
+      // Fallback to simple query if JOIN fails
+      const simpleResults = await db.select().from(schema.topics)
+        .where(eq(schema.topics.isActive, true))
+        .orderBy(asc(schema.topics.name));
+      
+      return simpleResults.map(topic => ({
+        ...topic,
+        order: topic.orderIndex,
+        chapterName: 'Loading...',
+        subjectName: 'Loading...',
+        className: 'Loading...'
+      }));
+    }
   }
 
   // Fee Structure methods (using products table for now)

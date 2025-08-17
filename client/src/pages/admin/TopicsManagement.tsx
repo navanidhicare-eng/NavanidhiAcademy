@@ -293,14 +293,19 @@ function AddChapterModal({
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Chapter Name</FormLabel>
+                      <FormLabel className="text-sm font-medium text-gray-700">Chapter Name (LaTeX Math Support)</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Enter chapter name" 
+                          placeholder="Enter chapter name with LaTeX: e.g., Algebra $x^2 + y^2 = z^2$" 
                           className="h-11" 
                           {...field} 
                         />
                       </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <strong>LaTeX Examples:</strong><br />
+                        • Use $...$ for inline math: $E = mc^2$<br />
+                        • Fractions: $\frac{a}{b}$, Powers: $x^2$, Square roots: $\sqrt{x}$
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -311,14 +316,18 @@ function AddChapterModal({
                   name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium text-gray-700">Description (Optional)</FormLabel>
+                      <FormLabel className="text-sm font-medium text-gray-700">Description (Optional - LaTeX Math Support)</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Enter chapter description"
+                          placeholder="Enter chapter description with LaTeX math: e.g., This chapter covers $$f(x) = ax^2 + bx + c$$"
                           className="min-h-[100px] resize-none"
                           {...field}
                         />
                       </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        <strong>LaTeX Examples:</strong><br />
+                        • Inline: $\sin(x) + \cos(x)$ • Block: $$\int_a^b f(x)dx$$ • Matrices: $\begin{matrix} a & b \\ c & d \end{matrix}$
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1178,7 +1187,9 @@ export default function TopicsManagement() {
                   <TableBody>
                     {filteredChapters.map((chapter) => (
                       <TableRow key={chapter.id}>
-                        <TableCell className="font-medium">{chapter.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <MathJaxComponent inline={true}>{chapter.name}</MathJaxComponent>
+                        </TableCell>
                         <TableCell>{chapter.subjectName}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{chapter.className}</Badge>
@@ -1268,7 +1279,7 @@ export default function TopicsManagement() {
                       <SelectItem value="all-chapters">All Chapters</SelectItem>
                       {filteredChapters.map((chapter) => (
                         <SelectItem key={chapter.id} value={chapter.id}>
-                          {chapter.name}
+                          <MathJaxComponent inline={true}>{chapter.name}</MathJaxComponent>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1305,7 +1316,9 @@ export default function TopicsManagement() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h4 className="font-medium text-sm">{chapter.name}</h4>
+                            <h4 className="font-medium text-sm">
+                              <MathJaxComponent inline={true}>{chapter.name}</MathJaxComponent>
+                            </h4>
                             <p className="text-xs text-muted-foreground">
                               {chapter.className} - {chapter.subjectName}
                             </p>
