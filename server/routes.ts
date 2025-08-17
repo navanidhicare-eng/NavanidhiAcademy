@@ -1984,6 +1984,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Individual location lookup endpoints for EditSoCenterModal hierarchy
+  app.get("/api/admin/addresses/village/:id", authenticateToken, async (req, res) => {
+    try {
+      const village = await storage.getVillageById(req.params.id);
+      if (!village) {
+        return res.status(404).json({ message: 'Village not found' });
+      }
+      res.json(village);
+    } catch (error) {
+      console.error('Error fetching village:', error);
+      res.status(500).json({ message: 'Failed to fetch village' });
+    }
+  });
+
+  app.get("/api/admin/addresses/mandal/:id", authenticateToken, async (req, res) => {
+    try {
+      const mandal = await storage.getMandalById(req.params.id);
+      if (!mandal) {
+        return res.status(404).json({ message: 'Mandal not found' });
+      }
+      res.json(mandal);
+    } catch (error) {
+      console.error('Error fetching mandal:', error);
+      res.status(500).json({ message: 'Failed to fetch mandal' });
+    }
+  });
+
+  app.get("/api/admin/addresses/district/:id", authenticateToken, async (req, res) => {
+    try {
+      const district = await storage.getDistrictById(req.params.id);
+      if (!district) {
+        return res.status(404).json({ message: 'District not found' });
+      }
+      res.json(district);
+    } catch (error) {
+      console.error('Error fetching district:', error);
+      res.status(500).json({ message: 'Failed to fetch district' });
+    }
+  });
+
   // Address hierarchy creation endpoints
   app.post("/api/admin/addresses/states", authenticateToken, async (req, res) => {
     try {
