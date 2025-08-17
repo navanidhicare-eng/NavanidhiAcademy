@@ -32,16 +32,16 @@ const loadMathJax = () => {
       }
     };
 
-    // Load MathJax script
-    const script = document.createElement('script');
-    script.src = 'https://polyfill.io/v3/polyfill.min.js?features=es6';
-    script.onload = () => {
-      const mathJaxScript = document.createElement('script');
-      mathJaxScript.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
-      mathJaxScript.async = true;
-      document.head.appendChild(mathJaxScript);
+    // Load MathJax script directly (no polyfill needed)
+    const mathJaxScript = document.createElement('script');
+    mathJaxScript.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+    mathJaxScript.async = true;
+    mathJaxScript.onload = () => resolve();
+    mathJaxScript.onerror = () => {
+      console.error('Failed to load MathJax');
+      resolve(); // Still resolve to prevent hanging
     };
-    document.head.appendChild(script);
+    document.head.appendChild(mathJaxScript);
   });
 };
 
