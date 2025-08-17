@@ -34,21 +34,21 @@ const editSoCenterSchema = z.object({
   phone: z.string().min(10, 'Valid phone number required'),
   address: z.string().min(1, 'Complete address is required'),
   villageId: z.string().min(1, 'Village selection is required'),
-  managerId: z.string().optional().transform(val => val === 'none' || val === '' ? null : val),
+  managerId: z.string().optional().nullable().transform(val => val === 'none' || val === '' ? null : val),
   ownerName: z.string().optional(),
   ownerLastName: z.string().optional(),
   ownerPhone: z.string().optional(),
   landmarks: z.string().optional(),
   roomSize: z.string().optional(),
-  rentAmount: z.string().optional(),
-  rentalAdvance: z.string().optional(),
+  rentAmount: z.string().optional().nullable(),
+  rentalAdvance: z.string().optional().nullable(),
   dateOfHouseTaken: z.string().optional(),
-  monthlyRentDate: z.string().optional(),
-  monthlyInternetDate: z.string().optional(),
+  monthlyRentDate: z.string().optional().nullable(),
+  monthlyInternetDate: z.string().optional().nullable(),
   electricBillAccountNumber: z.string().optional(),
   internetBillAccountNumber: z.string().optional(),
   internetServiceProvider: z.string().optional(),
-  capacity: z.string().optional(),
+  capacity: z.string().optional().nullable(),
   facilities: z.array(z.string()).optional(),
   isActive: z.boolean(),
   admissionFeeApplicable: z.string().min(1, 'Admission fee applicability must be selected'),
@@ -102,7 +102,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
   });
 
   // Fetch address hierarchy data
-  const { data: states = [] } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/states'],
     enabled: isOpen,
   });
@@ -146,9 +146,32 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
     enabled: isOpen && !!center?.id,
   });
 
-  // Update form when center changes
+  // Helper function to find location hierarchy
+  const findLocationHierarchy = async (villageId: string) => {
+    try {
+      const villageResponse = await apiRequest('GET', `/api/admin/addresses/village/${villageId}`);
+      const villageData = await villageResponse.json();
+      
+      const mandalResponse = await apiRequest('GET', `/api/admin/addresses/mandal/${villageData.mandalId}`);
+      const mandalData = await mandalResponse.json();
+      
+      const districtResponse = await apiRequest('GET', `/api/admin/addresses/district/${mandalData.districtId}`);
+      const districtData = await districtResponse.json();
+      
+      return {
+        stateId: districtData.stateId,
+        districtId: mandalData.districtId,
+        mandalId: villageData.mandalId
+      };
+    } catch (error) {
+      console.error('Error finding location hierarchy:', error);
+      return { stateId: '', districtId: '', mandalId: '' };
+    }
+  };
+
+  // Update form when center changes - with proper location hierarchy initialization
   useEffect(() => {
-    if (center && isOpen) {
+    if (center && isOpen && states.length > 0) {
       console.log('🔄 Loading SO Center data for editing:', center);
 
       // Set facilities from center data
@@ -170,53 +193,72 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
         setEquipment(center.equipment);
       }
 
-      // Pre-populate location selections first, then set form values
+      // Initialize location hierarchy first, then set form values
       const villageId = center.villageId || center.village_id;
-      if (villageId && villages.length > 0) {
-        const village = villages.find((v: any) => v.id === villageId);
-        if (village && mandals.length > 0) {
-          const mandal = mandals.find((m: any) => m.id === village.mandalId);
-          if (mandal && districts.length > 0) {
-            const district = districts.find((d: any) => d.id === mandal.districtId);
-            if (district && states.length > 0) {
-              const state = states.find((s: any) => s.id === district.stateId);
-              if (state) {
-                setSelectedState(state.id);
-                setSelectedDistrict(district.id);
-                setSelectedMandal(mandal.id);
-              }
-            }
-          }
-        }
+      if (villageId) {
+        findLocationHierarchy(villageId).then(({ stateId, districtId, mandalId }) => {
+          // Set location state first
+          setSelectedState(stateId);
+          setSelectedDistrict(districtId);
+          setSelectedMandal(mandalId);
+          
+          // THEN set form values after location state is properly initialized
+          setTimeout(() => {
+            form.reset({
+              name: center.name || '',
+              phone: center.phone || '',
+              address: center.address || '',
+              villageId: villageId || '',
+              managerId: center.managerId || center.manager_id || 'none',
+              ownerName: center.ownerName || center.owner_name || '',
+              ownerLastName: center.ownerLastName || center.owner_last_name || '',
+              ownerPhone: center.ownerPhone || center.owner_phone || '',
+              landmarks: center.landmarks || '',
+              roomSize: center.roomSize || center.room_size || '',
+              rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
+              rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
+              dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
+              monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
+              monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
+              electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
+              internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
+              internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
+              capacity: center.capacity ? center.capacity.toString() : '',
+              facilities: centerFacilities,
+              isActive: center.isActive !== false && center.is_active !== false,
+              admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
+            });
+          }, 100); // Small delay to ensure state updates are processed
+        });
+      } else {
+        // If no villageId, just set form values directly
+        form.reset({
+          name: center.name || '',
+          phone: center.phone || '',
+          address: center.address || '',
+          villageId: '',
+          managerId: center.managerId || center.manager_id || 'none',
+          ownerName: center.ownerName || center.owner_name || '',
+          ownerLastName: center.ownerLastName || center.owner_last_name || '',
+          ownerPhone: center.ownerPhone || center.owner_phone || '',
+          landmarks: center.landmarks || '',
+          roomSize: center.roomSize || center.room_size || '',
+          rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
+          rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
+          dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
+          monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
+          monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
+          electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
+          internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
+          internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
+          capacity: center.capacity ? center.capacity.toString() : '',
+          facilities: centerFacilities,
+          isActive: center.isActive !== false && center.is_active !== false,
+          admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
+        });
       }
-
-      // Set form values with proper handling of empty/null values
-      form.reset({
-        name: center.name || '',
-        phone: center.phone || '',
-        address: center.address || '',
-        villageId: villageId || '',
-        managerId: center.managerId || center.manager_id || 'none',
-        ownerName: center.ownerName || center.owner_name || '',
-        ownerLastName: center.ownerLastName || center.owner_last_name || '',
-        ownerPhone: center.ownerPhone || center.owner_phone || '',
-        landmarks: center.landmarks || '',
-        roomSize: center.roomSize || center.room_size || '',
-        rentAmount: center.rentAmount ? center.rentAmount.toString() : '',
-        rentalAdvance: center.rentalAdvance ? center.rentalAdvance.toString() : '',
-        dateOfHouseTaken: center.dateOfHouseTaken || center.date_of_house_taken || '',
-        monthlyRentDate: center.monthlyRentDate ? center.monthlyRentDate.toString() : '',
-        monthlyInternetDate: center.monthlyInternetDate ? center.monthlyInternetDate.toString() : '',
-        electricBillAccountNumber: center.electricBillAccountNumber || center.electric_bill_account_number || '',
-        internetBillAccountNumber: center.internetBillAccountNumber || center.internet_bill_account_number || '',
-        internetServiceProvider: center.internetServiceProvider || center.internet_service_provider || '',
-        capacity: center.capacity ? center.capacity.toString() : '',
-        facilities: centerFacilities,
-        isActive: center.isActive !== false && center.is_active !== false,
-        admissionFeeApplicable: center.admissionFeeApplicable ? 'applicable' : 'not_applicable',
-      });
     }
-  }, [center, isOpen, states, districts, mandals, villages]);
+  }, [center, isOpen, states.length]);
 
   // Handle location changes
   const handleStateChange = (stateId: string) => {
@@ -244,7 +286,7 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
 
       const updateData = {
         ...data,
-        // Handle numeric fields properly - convert empty strings to null
+        // Handle ALL numeric fields properly - convert empty strings/undefined to null
         capacity: data.capacity && data.capacity.trim() !== '' ? parseInt(data.capacity) : null,
         monthlyRentDate: data.monthlyRentDate && data.monthlyRentDate.trim() !== '' ? parseInt(data.monthlyRentDate) : null,
         monthlyInternetDate: data.monthlyInternetDate && data.monthlyInternetDate.trim() !== '' ? parseInt(data.monthlyInternetDate) : null,
@@ -257,8 +299,8 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
         equipment: equipment.filter(e => e.itemName.trim() !== '' && e.serialNumber.trim() !== ''),
         // Handle boolean
         admissionFeeApplicable: data.admissionFeeApplicable === 'applicable',
-        // Handle managerId
-        managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === null ? null : data.managerId,
+        // Handle managerId properly - convert undefined to null
+        managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === undefined || data.managerId === null ? null : data.managerId,
       };
 
       console.log('🔄 Processed update data:', updateData);
@@ -285,17 +327,17 @@ export function EditSoCenterModal({ isOpen, onClose, center }: EditSoCenterModal
   const onSubmit = (data: EditSoCenterFormData) => {
     console.log('📝 Form submitted with data:', data);
     
-    // Process the data to handle empty strings for numeric fields
+    // Process the data to handle empty strings for numeric fields - convert to undefined instead of null for Zod compatibility
     const processedData = {
       ...data,
-      // Convert empty strings to null for numeric fields
-      rentAmount: data.rentAmount?.trim() === '' ? null : data.rentAmount,
-      rentalAdvance: data.rentalAdvance?.trim() === '' ? null : data.rentalAdvance,
-      monthlyRentDate: data.monthlyRentDate?.trim() === '' ? null : data.monthlyRentDate,
-      monthlyInternetDate: data.monthlyInternetDate?.trim() === '' ? null : data.monthlyInternetDate,
-      capacity: data.capacity?.trim() === '' ? null : data.capacity,
+      // Convert empty strings to undefined for numeric fields (Zod compatible)
+      rentAmount: data.rentAmount?.trim() === '' || data.rentAmount === undefined ? undefined : data.rentAmount,
+      rentalAdvance: data.rentalAdvance?.trim() === '' || data.rentalAdvance === undefined ? undefined : data.rentalAdvance,
+      monthlyRentDate: data.monthlyRentDate?.trim() === '' || data.monthlyRentDate === undefined ? undefined : data.monthlyRentDate,
+      monthlyInternetDate: data.monthlyInternetDate?.trim() === '' || data.monthlyInternetDate === undefined ? undefined : data.monthlyInternetDate,
+      capacity: data.capacity?.trim() === '' || data.capacity === undefined ? undefined : data.capacity,
       // Handle managerId properly
-      managerId: data.managerId === 'none' || data.managerId === '' ? null : data.managerId,
+      managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === undefined ? undefined : data.managerId,
     };
     
     console.log('📝 Processed form data:', processedData);

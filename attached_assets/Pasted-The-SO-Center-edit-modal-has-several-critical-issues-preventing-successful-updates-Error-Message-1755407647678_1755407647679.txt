@@ -1,0 +1,83 @@
+The SO Center edit modal has several critical issues preventing successful updates:
+
+Error Message: 500: {"message":"Failed to update SO Center","error":"Invalid input syntax for type numeric: \"\""}
+Form fields reverting immediately when edited
+Location dropdowns (Districts, Mandals, Villages) not pre-populated with existing data
+Numeric field validation errors causing update failures
+Root Causes Identified:
+Numeric Field Handling Issue in EditSoCenterModal.tsx:
+
+Empty strings being sent to database for numeric fields instead of null
+Database expects null for empty numeric fields, not empty strings
+Form State Management Issue:
+
+Form is resetting/overriding user input immediately after changes
+Location hierarchy not properly initializing from existing data
+Database Update Logic Issue in storage.ts:
+
+Type conversion handling for numeric fields is inconsistent
+Empty string to null conversion not working properly
+Required Fixes:
+Fix 1: Numeric Field Handling in EditSoCenterModal.tsx
+// In the processedData transformation, ensure ALL numeric fields handle empty strings properly:
+const processedData = {
+  ...data,
+  // Convert empty strings to null for ALL numeric fields
+  rentAmount: data.rentAmount?.trim() === '' || data.rentAmount === undefined ? null : data.rentAmount,
+  rentalAdvance: data.rentalAdvance?.trim() === '' || data.rentalAdvance === undefined ? null : data.rentalAdvance,
+  monthlyRentDate: data.monthlyRentDate?.trim() === '' || data.monthlyRentDate === undefined ? null : data.monthlyRentDate,
+  monthlyInternetDate: data.monthlyInternetDate?.trim() === '' || data.monthlyInternetDate === undefined ? null : data.monthlyInternetDate,
+  capacity: data.capacity?.trim() === '' || data.capacity === undefined ? null : data.capacity,
+  managerId: data.managerId === 'none' || data.managerId === '' || data.managerId === undefined ? null : data.managerId,
+};
+Fix 2: Location Dropdown Pre-population
+// In the useEffect where center data is loaded, fix the location hierarchy initialization:
+useEffect(() => {
+  if (center && isOpen && states.length > 0) {
+    // First, find and set location hierarchy
+    const villageId = center.villageId || center.village_id;
+    if (villageId) {
+      // Load the complete hierarchy synchronously
+      findLocationHierarchy(villageId).then(({ stateId, districtId, mandalId }) => {
+        setSelectedState(stateId);
+        setSelectedDistrict(districtId);
+        setSelectedMandal(mandalId);
+        
+        // THEN set form values after location state is set
+        form.reset({
+          // ... all form values
+          villageId: villageId,
+        });
+      });
+    }
+  }
+}, [center, isOpen, states.length]);
+Fix 3: Database Storage Layer Fix
+// In storage.ts updateSoCenter method, ensure proper null handling:
+const processedUpdateData = {
+  ...updates,
+  // Handle numeric fields with explicit null conversion
+  capacity: updates.capacity !== null && updates.capacity !== undefined && updates.capacity !== '' 
+    ? parseInt(updates.capacity.toString()) : null,
+  monthlyRentDate: updates.monthlyRentDate !== null && updates.monthlyRentDate !== undefined && updates.monthlyRentDate !== '' 
+    ? parseInt(updates.monthlyRentDate.toString()) : null,
+  monthlyInternetDate: updates.monthlyInternetDate !== null && updates.monthlyInternetDate !== undefined && updates.monthlyInternetDate !== '' 
+    ? parseInt(updates.monthlyInternetDate.toString()) : null,
+  // Handle decimal fields
+  rentAmount: updates.rentAmount !== null && updates.rentAmount !== undefined && updates.rentAmount !== '' 
+    ? updates.rentAmount.toString() : null,
+  rentalAdvance: updates.rentalAdvance !== null && updates.rentalAdvance !== undefined && updates.rentalAdvance !== '' 
+    ? updates.rentalAdvance.toString() : null,
+};
+Test Cases to Verify:
+Edit an existing SO Center
+Leave numeric fields empty (should save as null, not cause errors)
+Verify location dropdowns show correct pre-selected values
+Verify form doesn't revert changes immediately
+Verify successful update with toast notification
+Files to Modify:
+client/src/components/admin/EditSoCenterModal.tsx - Main form logic
+server/storage.ts - Database update method
+server/routes.ts - Update endpoint validation
+Priority: CRITICAL
+This breaks the core SO Center management functionality for administrators.
