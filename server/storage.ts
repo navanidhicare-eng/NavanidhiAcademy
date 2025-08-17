@@ -3187,56 +3187,86 @@ export class DrizzleStorage implements IStorage {
         };
       }
 
-      // For admin and academic_admin users
-      const [studentsResult, soCentersResult, topicsResult] = await Promise.all([
-        this.sql`SELECT COUNT(*) as count FROM students WHERE is_active = true`,
-        this.sql`SELECT COUNT(*) as count FROM so_centers WHERE is_active = true`,
-        this.sql`SELECT COUNT(*) as count FROM student_progress WHERE status = 'learned'`
+      // For admin and academic_admin users - Get real data from Supabase
+      const [studentsResult, soCentersResult] = await Promise.all([
+        sql`SELECT COUNT(*) as count FROM students WHERE is_active = true`,
+        sql`SELECT COUNT(*) as count FROM so_centers WHERE is_active = true`
       ]);
+
+      // Get real topics completed data from tuition_progress table
+      const topicsCompletedResult = await sql`
+        SELECT COUNT(*) as count 
+        FROM tuition_progress 
+        WHERE status = 'learned'
+      `;
+
+      // Get total topics count for reference
+      const totalTopicsResult = await sql`
+        SELECT COUNT(*) as count 
+        FROM topics 
+        WHERE is_active = true
+      `;
+
+      // Get monthly payments for current month
+      const currentMonth = new Date();
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const paymentsThisMonthResult = await sql`
+        SELECT COALESCE(SUM(amount::decimal), 0) as total_payments
+        FROM payments 
+        WHERE created_at >= ${startOfMonth.toISOString()}
+      `;
 
       // Get system balance (sum of all SO center wallet balances + total payments collected)
       let systemBalance = 0;
       if (userRole === 'admin') {
         try {
           // Sum of all SO Center wallet balances
-          const soCenterBalanceResult = await this.sql`
+          const soCenterBalanceResult = await sql`
             SELECT COALESCE(SUM(wallet_balance::decimal), 0) as total_so_balance 
             FROM so_centers 
             WHERE is_active = true
           `;
 
           // Sum of all payments made to the system
-          const paymentsResult = await this.sql`
+          const allPaymentsResult = await sql`
             SELECT COALESCE(SUM(amount::decimal), 0) as total_payments 
-            FROM payments 
-            WHERE status = 'completed'
+            FROM payments
           `;
 
           const soCenterBalance = parseFloat(soCenterBalanceResult[0]?.total_so_balance) || 0;
-          const totalPayments = parseFloat(paymentsResult[0]?.total_payments) || 0;
+          const totalPayments = parseFloat(allPaymentsResult[0]?.total_payments) || 0;
 
           systemBalance = soCenterBalance + totalPayments;
         } catch (balanceError) {
           console.log('⚠️ Error calculating system balance, using fallback:', balanceError);
           // Fallback to just SO center balances if payments table doesn't exist
-          const soCenterBalanceResult = await this.sql`
+          const soCenterBalanceResult = await sql`
             SELECT COALESCE(SUM(wallet_balance::decimal), 0) as total_so_balance 
             FROM so_centers 
             WHERE is_active = true
           `;
           systemBalance = parseFloat(soCenterBalanceResult[0]?.total_so_balance) || 0;
         }
+      } else {
+        // For academic_admin, just get SO center balances
+        const soCenterBalanceResult = await sql`
+          SELECT COALESCE(SUM(wallet_balance::decimal), 0) as total_so_balance 
+          FROM so_centers 
+          WHERE is_active = true
+        `;
+        systemBalance = parseFloat(soCenterBalanceResult[0]?.total_so_balance) || 0;
       }
 
       const stats = {
         totalStudents: parseInt(studentsResult[0]?.count) || 0,
         totalSoCenters: parseInt(soCentersResult[0]?.count) || 0,
-        paymentsThisMonth: 0, // You can add payment calculation here
-        topicsCompleted: parseInt(topicsResult[0]?.count) || 0,
+        paymentsThisMonth: parseFloat(paymentsThisMonthResult[0]?.total_payments) || 0,
+        topicsCompleted: parseInt(topicsCompletedResult[0]?.count) || 0,
+        totalTopics: parseInt(totalTopicsResult[0]?.count) || 0,
         walletBalance: systemBalance,
       };
 
-      console.log('✅ Dashboard stats calculated:', stats);
+      console.log('✅ Dashboard stats calculated with real topics data:', stats);
       return stats;
     } catch (error) {
       console.error('❌ Error calculating dashboard stats:', error);
@@ -3245,6 +3275,7 @@ export class DrizzleStorage implements IStorage {
         totalSoCenters: 0,
         paymentsThisMonth: 0,
         topicsCompleted: 0,
+        totalTopics: 0,
         walletBalance: 0,
       };
     }

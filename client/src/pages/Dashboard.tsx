@@ -321,10 +321,10 @@ export default function Dashboard() {
     totalStudents: 0,
     paymentsThisMonth: 0,
     topicsCompleted: 0,
+    totalTopics: 0,
     walletBalance: 0,
     newStudentsThisMonth: 0,
     yearlyRevenue: 0,
-    totalTopics: 0,
     totalSoCenters: 0,
     totalWalletBalance: 0,
     totalTeachers: 0,
@@ -461,7 +461,7 @@ export default function Dashboard() {
                   delay={100}
                 />
                 <StatCard
-                  title="Academic Progress"
+                  title="Topics Completed"
                   value={displayStats.topicsCompleted}
                   icon={BookOpen}
                   trend={`of ${displayStats.totalTopics || 0} total topics`}
@@ -558,7 +558,7 @@ export default function Dashboard() {
                   title="Topics Completed"
                   value={displayStats.topicsCompleted}
                   icon={BookOpen}
-                  trend="Learning progress"
+                  trend={`of ${displayStats.totalTopics || 0} total topics`}
                   delay={200}
                 />
                 <StatCard
