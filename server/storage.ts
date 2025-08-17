@@ -486,39 +486,6 @@ export class DrizzleStorage implements IStorage {
     }));
   }
 
-  /* 
-  async updateSoCenter(centerId: string, updateData: any): Promise<any> {
-    try {
-      console.log('🔄 Storage: Updating SO Center with ID:', centerId);
-
-      // Convert string numbers to proper types where needed
-      if (updateData.capacity) {
-        updateData.capacity = parseInt(updateData.capacity);
-      }
-      if (updateData.monthlyRentDate) {
-        updateData.monthlyRentDate = parseInt(updateData.monthlyRentDate);
-      }
-
-      const [updatedCenter] = await db
-        .update(schema.soCenters)
-        .set(updateData)
-        .where(eq(schema.soCenters.id, centerId))
-        .returning();
-
-      if (!updatedCenter) {
-        throw new Error('SO Center not found or update failed');
-      }
-
-      console.log('✅ Storage: SO Center updated successfully:', updatedCenter.id);
-      return updatedCenter;
-    } catch (error) {
-      console.error('❌ Storage: Failed to update SO Center:', error);
-      throw error;
-    }
-  }
-    */
-
-  // SO Center Equipment Management
   async createSoCenterEquipment(soCenterId: string, equipment: any[]): Promise<void> {
     if (equipment && equipment.length > 0) {
       const equipmentData = equipment.map(item => ({
@@ -1363,7 +1330,7 @@ export class DrizzleStorage implements IStorage {
   async getSoCenterDashboardStats(soCenterId: string): Promise<any> {
     try {
       console.log('📊 Calculating SO Center dashboard stats for:', soCenterId);
-      
+
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1393,7 +1360,7 @@ export class DrizzleStorage implements IStorage {
       for (const payment of paymentsResult) {
         const amount = parseFloat(payment.amount || '0');
         thisMonthCollection += amount;
-        
+
         const paymentDate = new Date(payment.created_at);
         if (paymentDate.toDateString() === today.toDateString()) {
           todayCollection += amount;
@@ -1556,12 +1523,94 @@ export class DrizzleStorage implements IStorage {
     }
   }
 
-  async updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter> {
-    const result = await db.update(schema.soCenters)
-      .set(updates)
-      .where(eq(schema.soCenters.id, id))
-      .returning();
-    return result[0];
+  async updateSoCenter(id: string, updates: Partial<InsertSoCenter & {
+    nearbySchools?: any[];
+    nearbyTuitions?: any[];
+    equipment?: any[];
+  }>): Promise<SoCenter> {
+    try {
+      console.log('🔄 Storage: Updating SO Center with ID:', id);
+      console.log('🔄 Storage: Update data:', updates);
+
+      // Extract additional data that goes to separate tables
+      const { nearbySchools, nearbyTuitions, equipment, ...centerUpdates } = updates;
+
+      // Update the main SO Center record
+      const [updatedCenter] = await db
+        .update(schema.soCenters)
+        .set({
+          ...centerUpdates,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.soCenters.id, id))
+        .returning();
+
+      if (!updatedCenter) {
+        console.log('❌ Storage: SO Center not found for update:', id);
+        throw new Error('SO Center not found');
+      }
+
+      // Update additional data if provided
+      if (nearbySchools !== undefined) {
+        // Delete existing nearby schools
+        await sql`DELETE FROM so_center_nearby_schools WHERE so_center_id = ${id}`;
+
+        // Insert new nearby schools
+        if (nearbySchools.length > 0) {
+          for (const school of nearbySchools) {
+            if (school.schoolName && school.schoolName.trim()) {
+              await sql`
+                INSERT INTO so_center_nearby_schools (so_center_id, school_name, student_strength, school_type)
+                VALUES (${id}, ${school.schoolName}, ${school.studentStrength || '0'}, ${school.schoolType || 'government'})
+              `;
+            }
+          }
+        }
+      }
+
+      if (nearbyTuitions !== undefined) {
+        // Delete existing nearby tuitions
+        await sql`DELETE FROM so_center_nearby_tuitions WHERE so_center_id = ${id}`;
+
+        // Insert new nearby tuitions
+        if (nearbyTuitions.length > 0) {
+          for (const tuition of nearbyTuitions) {
+            if (tuition.tuitionName && tuition.tuitionName.trim()) {
+              await sql`
+                INSERT INTO so_center_nearby_tuitions (so_center_id, tuition_name, student_strength)
+                VALUES (${id}, ${tuition.tuitionName}, ${tuition.studentStrength || '0'})
+              `;
+            }
+          }
+        }
+      }
+
+      if (equipment !== undefined) {
+        // Delete existing equipment
+        await sql`DELETE FROM so_center_equipment WHERE so_center_id = ${id}`;
+
+        // Insert new equipment
+        if (equipment.length > 0) {
+          for (const item of equipment) {
+            if (item.itemName && item.itemName.trim() && item.serialNumber && item.serialNumber.trim()) {
+              await sql`
+                INSERT INTO so_center_equipment 
+                (so_center_id, item_name, serial_number, warranty_years, purchase_date, brand_name)
+                VALUES (${id}, ${item.itemName}, ${item.serialNumber}, 
+                       ${item.warrantyYears ? parseInt(item.warrantyYears) : null}, 
+                       ${item.purchaseDate || null}, ${item.brandName || null})
+              `;
+            }
+          }
+        }
+      }
+
+      console.log('✅ Storage: SO Center updated successfully with all additional data:', updatedCenter.id);
+      return updatedCenter;
+    } catch (error) {
+      console.error('❌ Storage: Error updating SO Center:', error);
+      throw error;
+    }
   }
 
   async updateSoCenterByUserId(userId: string, updates: Partial<InsertSoCenter>): Promise<SoCenter> {

@@ -2344,8 +2344,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log('🔄 Updating SO Center:', centerId, 'with data:', updateData);
 
-      // Update SO Center
-      const updatedCenter = await storage.updateSoCenter(centerId, updateData);
+      // Process the update data to handle type conversions
+      const processedUpdateData = {
+        ...updateData,
+        // Convert string numbers to proper types
+        capacity: updateData.capacity ? parseInt(updateData.capacity) : null,
+        monthlyRentDate: updateData.monthlyRentDate ? parseInt(updateData.monthlyRentDate) : null,
+        monthlyInternetDate: updateData.monthlyInternetDate ? parseInt(updateData.monthlyInternetDate) : null,
+        // Handle boolean conversion
+        isActive: Boolean(updateData.isActive),
+        admissionFeeApplicable: Boolean(updateData.admissionFeeApplicable),
+        // Ensure arrays are properly handled
+        facilities: Array.isArray(updateData.facilities) ? updateData.facilities : [],
+        nearbySchools: Array.isArray(updateData.nearbySchools) ? updateData.nearbySchools : [],
+        nearbyTuitions: Array.isArray(updateData.nearbyTuitions) ? updateData.nearbyTuitions : [],
+        equipment: Array.isArray(updateData.equipment) ? updateData.equipment : [],
+      };
+
+      console.log('🔄 Processed update data:', processedUpdateData);
+
+      // Update SO Center with all fields
+      const updatedCenter = await storage.updateSoCenter(centerId, processedUpdateData);
 
       if (!updatedCenter) {
         return res.status(404).json({ message: 'SO Center not found' });
