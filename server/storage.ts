@@ -330,6 +330,7 @@ export interface IStorage {
 
   // Enhanced Student methods
   getAllStudents(): Promise<Student[]>;
+  getAllStudentsWithDetails(): Promise<any[]>;
   deleteStudent(id: string): Promise<void>;
   generateStudentId(): Promise<string>;
   createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student>;
@@ -2044,7 +2045,7 @@ export class DrizzleStorage implements IStorage {
           soCenterId: attendanceData.soCenterId,
           date: attendanceData.date,
           status: record.status,
-          markedBy: attendanceData.markedBy
+          markedBy: record.markedBy
         })
         .onConflictDoUpdate({
           target: [schema.attendance.studentId, schema.attendance.date, schema.attendance.classId],
@@ -3202,7 +3203,7 @@ export class DrizzleStorage implements IStorage {
 
       // Get total topics count for reference
       const totalTopicsResult = await sql`
-        SELECT COUNT(*) as count 
+        SELECT COUNT(*) as count
         FROM topics 
         WHERE is_active = true
       `;

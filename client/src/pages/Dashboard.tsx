@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { AnnouncementsPopup } from '@/components/announcements/AnnouncementsPopup';
 import { Link } from 'wouter';
-import { 
-  Users, 
-  IndianRupee, 
-  CheckCircle, 
+import {
+  Users,
+  IndianRupee,
+  CheckCircle,
   Wallet,
   TrendingUp,
   Building,
@@ -71,12 +71,12 @@ function SOCenterDashboard() {
     productSalesChart: []
   };
 
-  const SOStatCard = ({ 
-    title, 
-    value, 
-    icon: Icon, 
-    trend, 
-    color = "primary" 
+  const SOStatCard = ({
+    title,
+    value,
+    icon: Icon,
+    trend,
+    color = "primary"
   }: {
     title: string;
     value: string | number;
@@ -90,8 +90,8 @@ function SOCenterDashboard() {
           <div>
             <p className="text-sm font-medium text-gray-600">{title}</p>
             <p className="text-2xl font-bold text-gray-900 mt-2">
-              {typeof value === 'number' && title.includes('₹') 
-                ? `₹${value.toLocaleString()}` 
+              {typeof value === 'number' && title.includes('₹')
+                ? `₹${value.toLocaleString()}`
                 : value}
             </p>
             {trend && (
@@ -161,10 +161,10 @@ function SOCenterDashboard() {
                   <XAxis dataKey="day" />
                   <YAxis />
                   <Tooltip formatter={(value) => [`₹${value}`, 'Collection']} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="collection" 
-                    stroke="#22c55e" 
+                  <Line
+                    type="monotone"
+                    dataKey="collection"
+                    stroke="#22c55e"
                     strokeWidth={3}
                     dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
                   />
@@ -341,11 +341,11 @@ export default function Dashboard() {
     totalCommission: 0,
   };
 
-  const StatCard = ({ 
-    title, 
-    value, 
-    icon: Icon, 
-    trend, 
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    trend,
     color = "primary",
     delay = 0
   }: {
@@ -356,7 +356,7 @@ export default function Dashboard() {
     color?: string;
     delay?: number;
   }) => (
-    <Card className={`group relative overflow-hidden bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-slide-up-stagger cursor-pointer transform hover:scale-105`} 
+    <Card className={`group relative overflow-hidden bg-gradient-to-br from-white to-gray-50/30 border-0 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 animate-slide-up-stagger cursor-pointer transform hover:scale-105`}
           style={{ animationDelay: `${delay}ms` }}>
       <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
@@ -367,8 +367,8 @@ export default function Dashboard() {
             <p className="text-sm font-semibold text-gray-600 uppercase tracking-wider group-hover:text-gray-800 transition-colors duration-300">{title}</p>
             <div className="relative">
               <p className="text-3xl font-black text-gray-900 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 transition-all duration-500 transform group-hover:scale-110">
-                {typeof value === 'number' && title.includes('₹') 
-                  ? `₹${value.toLocaleString()}` 
+                {typeof value === 'number' && title.includes('₹')
+                  ? `₹${value.toLocaleString()}`
                   : value}
               </p>
               <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-purple-400/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
