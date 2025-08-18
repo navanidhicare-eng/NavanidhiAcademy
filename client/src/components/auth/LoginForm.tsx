@@ -286,17 +286,7 @@ export function LoginForm() {
             <a href="/terms-of-use" className="text-green-300 hover:text-green-200 transition-colors">terms of use</a>.
           </div>
 
-          {/* Help Section */}
-          <div className="border-t border-white/20 pt-5">
-            <div className="text-center">
-              <p className="text-xs text-white/80 mb-3 drop-shadow-md">Need help logging in?</p>
-              <div className="space-y-2 text-xs">
-                <p className="text-white/70 drop-shadow-md">• Use your registered email address</p>
-                <p className="text-white/70 drop-shadow-md">• SO Centers can use their Center ID (e.g., NAV001)</p>
-                <p className="text-white/70 drop-shadow-md">• Contact support for password reset</p>
-              </div>
-            </div>
-          </div>
+          
           </div>
         </div>
       </div>
