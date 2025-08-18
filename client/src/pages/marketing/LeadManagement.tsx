@@ -166,6 +166,9 @@ export default function LeadManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/marketing/leads'] });
       queryClient.invalidateQueries({ queryKey: ['/api/marketing/lead-metrics'] });
       form.reset();
+      setSelectedState('');
+      setSelectedDistrict('');
+      setSelectedMandal('');
       setIsAddLeadOpen(false);
     },
     onError: (error: any) => {

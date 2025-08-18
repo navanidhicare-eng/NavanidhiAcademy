@@ -1,4 +1,5 @@
 import type { Express, Request } from "express";
+import { randomUUID } from "crypto";
 
 // Extend Express Request type to include user
 declare global {
@@ -5833,6 +5834,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: error.message || 'Failed to process withdrawal request'
       });
+    }
+  });
+
+  // Marketing endpoints
+  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      console.log('📊 Marketing Head fetching leads...');
+
+      // Use raw SQL to avoid Drizzle circular reference issues
+      const leads = await sql`
+        SELECT 
+          l.id,
+          l.student_name as "studentName",
+          l.parent_name as "parentName", 
+          l.mobile_number as "mobileNumber",
+          l.whatsapp_number as "whatsappNumber",
+          l.email,
+          l.address,
+          l.interested_class as "interestedClass",
+          l.lead_source as "leadSource",
+          l.priority,
+          l.status,
+          l.expected_join_date as "expectedJoinDate",
+          l.notes,
+          l.created_at as "createdAt",
+          l.assigned_to as "assignedTo",
+          u.name as "assignedToName",
+          v.name as village,
+          m.name as mandal,
+          d.name as district,
+          st.name as state,
+          c.name as "interestedClassName"
+        FROM leads l
+        LEFT JOIN users u ON l.assigned_to = u.id
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        ORDER BY l.created_at DESC
+      `;
+
+      console.log(`✅ Retrieved ${leads.length} leads successfully`);
+      res.json(leads);
+    } catch (error: any) {
+      console.error('❌ Error fetching leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      console.log('📝 Creating new lead...');
+
+      const leadData = {
+        id: randomUUID(),
+        studentName: req.body.studentName,
+        parentName: req.body.parentName,
+        mobileNumber: req.body.mobileNumber,
+        whatsappNumber: req.body.whatsappNumber,
+        email: req.body.email,
+        address: req.body.address,
+        villageId: req.body.villageId,
+        interestedClass: req.body.interestedClass,
+        leadSource: req.body.leadSource,
+        priority: req.body.priority,
+        expectedJoinDate: req.body.expectedJoinDate,
+        notes: req.body.notes,
+        status: 'new',
+        createdAt: new Date(),
+        createdBy: req.user.userId
+      };
+
+      const [newLead] = await db.insert(schema.leads).values(leadData).returning();
+
+      console.log('✅ Lead created successfully:', newLead.id);
+      res.status(201).json(newLead);
+    } catch (error: any) {
+      console.error('❌ Error creating lead:', error);
+      res.status(500).json({ message: 'Failed to create lead' });
+    }
+  });
+
+  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      console.log('📈 Fetching lead metrics...');
+
+      const metrics = await sql`
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads
+        FROM leads
+      `;
+
+      const totalLeads = parseInt(metrics[0]?.total_leads || '0');
+      const convertedLeads = parseInt(metrics[0]?.converted_leads || '0');
+      const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+
+      const result = {
+        totalLeads,
+        newLeads: parseInt(metrics[0]?.new_leads || '0'),
+        contactedLeads: parseInt(metrics[0]?.contacted_leads || '0'),
+        convertedLeads,
+        conversionRate
+      };
+
+      console.log('✅ Lead metrics calculated:', result);
+      res.json(result);
+    } catch (error: any) {
+      console.error('❌ Error fetching lead metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead metrics' });
+    }
+  });
+
+  app.put("/api/marketing/leads/:leadId/assign", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      const { leadId } = req.params;
+      const { assignedTo } = req.body;
+
+      console.log(`📋 Assigning lead ${leadId} to ${assignedTo}`);
+
+      const [updatedLead] = await db
+        .update(schema.leads)
+        .set({ assignedTo, updatedAt: new Date() })
+        .where(eq(schema.leads.id, leadId))
+        .returning();
+
+      if (!updatedLead) {
+        return res.status(404).json({ message: 'Lead not found' });
+      }
+
+      // Create assignment record
+      await db.insert(schema.leadAssignments).values({
+        leadId,
+        assignedTo,
+        assignedBy: req.user.userId
+      });
+
+      console.log('✅ Lead assigned successfully');
+      res.json(updatedLead);
+    } catch (error: any) {
+      console.error('❌ Error assigning lead:', error);
+      res.status(500).json({ message: 'Failed to assign lead' });
+    }
+  });
+
+  app.get("/api/marketing/centers-overview", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      console.log('🏢 Fetching centers overview...');
+
+      const centers = await sql`
+        SELECT 
+          sc.id,
+          sc.center_id as "centerId",
+          sc.name as "centerName",
+          sc.manager_name as "managerName",
+          sc.phone,
+          sc.location,
+          sc.is_active as "isActive",
+          sc.created_at as "registrationDate",
+          COALESCE(sc.wallet_balance::numeric, 0) as "walletBalance",
+          v.name as "villageName",
+          m.name as "mandalName",
+          d.name as "districtName",
+          st.name as "stateName",
+          COUNT(DISTINCT s.id) as "activeStudents",
+          COUNT(DISTINCT CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN s.id END) as "thisMonthDropouts"
+        FROM so_centers sc
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        GROUP BY sc.id, sc.center_id, sc.name, sc.manager_name, sc.phone, sc.location, 
+                 sc.is_active, sc.created_at, sc.wallet_balance, v.name, m.name, d.name, st.name
+        ORDER BY sc.created_at DESC
+      `;
+
+      console.log(`✅ Retrieved ${centers.length} centers for overview`);
+      res.json(centers);
+    } catch (error: any) {
+      console.error('❌ Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  app.get("/api/users/office-staff", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      console.log('👥 Fetching office staff...');
+
+      const officeStaff = await sql`
+        SELECT id, name, email, phone
+        FROM users 
+        WHERE role = 'office_staff' AND is_active = true
+        ORDER BY name
+      `;
+
+      console.log(`✅ Retrieved ${officeStaff.length} office staff members`);
+      res.json(officeStaff);
+    } catch (error: any) {
+      console.error('❌ Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
     }
   });
 

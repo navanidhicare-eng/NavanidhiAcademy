@@ -320,13 +320,15 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       }
     });
 
-    // Don't close sidebar for marketing and office pages to maintain navigation flow
+    // Keep sidebar open for marketing and office staff pages to maintain workflow
     const keepSidebarOpen = [
       '/marketing/leads',
       '/marketing/centers-overview', 
-      '/marketing/attendance-metrics'
+      '/marketing/attendance-metrics',
+      '/office/lead-followup'
     ];
     
+    // Only close sidebar on mobile for non-workflow pages
     if (isMobile && onMobileClose && !keepSidebarOpen.includes(href)) {
       onMobileClose();
     }

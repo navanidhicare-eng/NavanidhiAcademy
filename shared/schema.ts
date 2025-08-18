@@ -994,6 +994,28 @@ export const leads = pgTable("leads", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Leads table (main lead management)
+export const leads = pgTable("leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentName: varchar("student_name").notNull(),
+  parentName: varchar("parent_name").notNull(),
+  mobileNumber: varchar("mobile_number").notNull(),
+  whatsappNumber: varchar("whatsapp_number"),
+  email: varchar("email"),
+  address: text("address").notNull(),
+  villageId: varchar("village_id").references(() => villages.id),
+  interestedClass: varchar("interested_class").references(() => classes.id).notNull(),
+  leadSource: leadSourceEnum("lead_source").notNull(),
+  priority: leadPriorityEnum("priority").default("medium").notNull(),
+  status: leadStatusEnum("status").default("new").notNull(),
+  expectedJoinDate: date("expected_join_date"),
+  notes: text("notes"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Lead Follow-ups table
 export const leadFollowUps = pgTable("lead_follow_ups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
