@@ -216,35 +216,37 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Background image optimization */
+/* Background image optimization - Full screen coverage */
 .login-background {
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
   background-attachment: fixed;
   min-height: 100vh;
-  width: 100%;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 @media (max-width: 768px) {
   .login-background {
     background-attachment: scroll;
     background-size: cover;
+    /* Ensure full coverage on mobile */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
   }
 }
 
-/* Ensure full screen coverage */
-.login-background::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: inherit;
-  background-size: cover;
-  background-position: center;
-  z-index: -1;
+/* Additional mobile viewport fix */
+@supports (-webkit-touch-callout: none) {
+  .login-background {
+    min-height: -webkit-fill-available;
+  }
 }
 
 /* Improve performance on mobile */

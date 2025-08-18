@@ -80,7 +80,7 @@ export function LoginForm() {
           backgroundRepeat: 'no-repeat'
         }}
       >
-        <div className="absolute inset-0 bg-black/40"></div>
+        <div className="absolute inset-0 bg-black/20"></div>
       </div>
       
       {/* Content Container */}
@@ -90,10 +90,10 @@ export function LoginForm() {
           {/* Top Logo */}
           <div className="absolute top-8 left-8">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center p-3 border border-white/20 shadow-lg">
+              <div className="w-20 h-20 bg-white/15 backdrop-blur-md rounded-xl flex items-center justify-center p-3 border border-white/30 shadow-xl">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
-              <span className="text-white text-2xl font-bold drop-shadow-lg">Navanidhi Academy</span>
+              <span className="text-white text-3xl font-bold drop-shadow-lg">Navanidhi Academy</span>
             </div>
           </div>
           
