@@ -217,14 +217,6 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Mail className="h-4 w-4" />
-                      <span>Email</span>
-                    </div>
-                    <p className="font-medium">{combinedStudent.email || 'Not provided'}</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Phone className="h-4 w-4" />
                       <span>Phone Number</span>
                     </div>
@@ -338,7 +330,9 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <span>Course Type</span>
                     </div>
                     <Badge variant="outline" className="capitalize">
-                      {combinedStudent.courseType || 'Not provided'}
+                      {combinedStudent.courseType === 'monthly' ? 'Monthly' : 
+                       combinedStudent.courseType === 'yearly' ? 'Yearly' : 
+                       combinedStudent.courseType || 'Monthly'}
                     </Badge>
                   </div>
 

@@ -1066,6 +1066,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Ensure course type is valid enum value
+      if (studentData.courseType && !['monthly', 'yearly'].includes(studentData.courseType)) {
+        studentData.courseType = 'monthly'; // Default to monthly if invalid
+      }
+      if (!studentData.courseType) {
+        studentData.courseType = 'monthly'; // Default if not provided
+      }
+
       console.log('✅ All required fields present, proceeding with registration...');
 
       // Validate Aadhar number uniqueness
@@ -3704,44 +3712,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         SELECT 
           s.id,
           s.student_id as "studentId",
-          COALESCE(s.name, 'N/A') as name,
-          s.aadhar_number as "aadharNumber", 
-          s.father_name as "fatherName",
-          s.mother_name as "motherName",
-          s.father_mobile as "fatherMobile",
-          s.mother_mobile as "motherMobile",
-          s.father_qualification as "fatherQualification",
-          s.mother_qualification as "motherQualification",
-          s.gender,
+          COALESCE(s.name, 'Not provided') as name,
+          COALESCE(s.aadhar_number, 'Not provided') as "aadharNumber", 
+          COALESCE(s.father_name, 'Not provided') as "fatherName",
+          COALESCE(s.mother_name, 'Not provided') as "motherName",
+          COALESCE(s.father_mobile, 'Not provided') as "fatherMobile",
+          COALESCE(s.mother_mobile, 'Not provided') as "motherMobile",
+          COALESCE(s.father_qualification, 'Not provided') as "fatherQualification",
+          COALESCE(s.mother_qualification, 'Not provided') as "motherQualification",
+          COALESCE(s.gender, 'Not provided') as gender,
           s.date_of_birth as "dateOfBirth",
-          s.present_school_name as "presentSchoolName",
-          s.school_type as "schoolType",
-          s.landmark,
-          s.address,
-          s.parent_phone as "parentPhone",
-          COALESCE(s.parent_name, s.father_name) as "parentName",
-          COALESCE(s.course_type, 'Regular') as "courseType",
-          s.qr_code as "qrCode",
+          COALESCE(s.present_school_name, 'Not provided') as "presentSchoolName",
+          COALESCE(s.school_type::text, 'Not provided') as "schoolType",
+          COALESCE(s.landmark, 'Not provided') as landmark,
+          COALESCE(s.address, 'Not provided') as address,
+          COALESCE(s.parent_phone, 'Not provided') as "parentPhone",
+          COALESCE(s.parent_name, s.father_name, 'Not provided') as "parentName",
+          COALESCE(s.course_type::text, 'monthly') as "courseType",
+          COALESCE(s.qr_code, 'Not generated') as "qrCode",
           COALESCE(s.total_fee_amount::text, '0.00') as "totalFeeAmount",
           COALESCE(s.paid_amount::text, '0.00') as "paidAmount", 
           COALESCE(s.pending_amount::text, '0.00') as "pendingAmount",
           CASE 
-            WHEN s.paid_amount >= s.total_fee_amount THEN 'Paid'
-            WHEN s.paid_amount > 0 THEN 'Partial'
+            WHEN COALESCE(s.paid_amount, 0) >= COALESCE(s.total_fee_amount, 0) THEN 'Paid'
+            WHEN COALESCE(s.paid_amount, 0) > 0 THEN 'Partial'
             ELSE 'Pending'
           END as "paymentStatus",
-          s.is_active as "isActive",
+          COALESCE(s.is_active, true) as "isActive",
           s.enrollment_date as "enrollmentDate",
           COALESCE(s.admission_fee_paid, false) as "admissionFeePaid",
           s.created_at as "createdAt",
           s.class_id as "classId",
-          c.name as "className",
-          soc.name as "soCenterName",
-          soc.center_id as "soCenterCode",
-          v.name as "villageName",
-          m.name as "mandalName",
-          d.name as "districtName",
-          st.name as "stateName"
+          COALESCE(c.name, 'Not assigned') as "className",
+          COALESCE(soc.name, 'Not assigned') as "soCenterName",
+          COALESCE(soc.center_id, 'Not assigned') as "soCenterCode",
+          COALESCE(v.name, 'Not provided') as "villageName",
+          COALESCE(m.name, 'Not provided') as "mandalName",
+          COALESCE(d.name, 'Not provided') as "districtName",
+          COALESCE(st.name, 'Not provided') as "stateName"
         FROM students s
         LEFT JOIN classes c ON s.class_id = c.id
         LEFT JOIN so_centers soc ON s.so_center_id = soc.id
