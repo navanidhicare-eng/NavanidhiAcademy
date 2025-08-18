@@ -56,9 +56,14 @@ export default function AdminUsers() {
   const queryClient = useQueryClient();
 
   // Fetch users from API
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
+    refetchOnWindowFocus: false,
+    retry: 3,
   });
+  
+  // Debug log to check data loading
+  console.log('👥 Users data:', { users: users.length, isLoading, error });
 
   // Add user mutation (assuming this exists and is handled elsewhere or will be added)
   // Placeholder for addUserMutation if it's not defined in the original snippet
