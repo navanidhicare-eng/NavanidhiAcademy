@@ -69,6 +69,8 @@ interface LeadMetrics {
 
 export default function LeadManagement() {
   const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
+  const [isViewLeadOpen, setIsViewLeadOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -227,6 +229,11 @@ export default function LeadManagement() {
 
   const handleAssignLead = (leadId: string, assignedTo: string) => {
     assignLeadMutation.mutate({ leadId, assignedTo });
+  };
+
+  const handleViewLead = (lead: Lead) => {
+    setSelectedLead(lead);
+    setIsViewLeadOpen(true);
   };
 
   if (leadsLoading || metricsLoading) {
@@ -548,6 +555,155 @@ export default function LeadManagement() {
         </Dialog>
       </div>
 
+      {/* View Lead Dialog */}
+      <Dialog open={isViewLeadOpen} onOpenChange={setIsViewLeadOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lead Details</DialogTitle>
+          </DialogHeader>
+          {selectedLead && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Student Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Student Name</Label>
+                      <p className="text-sm">{selectedLead.studentName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Parent Name</Label>
+                      <p className="text-sm">{selectedLead.parentName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Interested Class</Label>
+                      <Badge variant="outline" className="ml-2">
+                        {classes?.find(cls => cls.id === selectedLead.interestedClass)?.name || selectedLead.interestedClass}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Expected Join Date</Label>
+                      <p className="text-sm">{selectedLead.expectedJoinDate ? new Date(selectedLead.expectedJoinDate).toLocaleDateString() : 'Not specified'}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Contact Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Mobile Number</Label>
+                      <div className="flex items-center gap-2">
+                        <Phone size={14} />
+                        <p className="text-sm">{selectedLead.mobileNumber}</p>
+                      </div>
+                    </div>
+                    {selectedLead.whatsappNumber && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">WhatsApp Number</Label>
+                        <p className="text-sm">{selectedLead.whatsappNumber}</p>
+                      </div>
+                    )}
+                    {selectedLead.email && (
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">Email</Label>
+                        <div className="flex items-center gap-2">
+                          <Mail size={14} />
+                          <p className="text-sm">{selectedLead.email}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Address</Label>
+                      <p className="text-sm">{selectedLead.address}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Location Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-start gap-2">
+                      <MapPin size={14} className="mt-1" />
+                      <div className="space-y-1">
+                        <p className="text-sm"><span className="font-medium">Village:</span> {selectedLead.village}</p>
+                        <p className="text-sm"><span className="font-medium">Mandal:</span> {selectedLead.mandal}</p>
+                        <p className="text-sm"><span className="font-medium">District:</span> {selectedLead.district}</p>
+                        <p className="text-sm"><span className="font-medium">State:</span> {selectedLead.state}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Lead Status</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Lead Source</Label>
+                      <Badge variant="secondary" className="ml-2">
+                        {selectedLead.leadSource.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Priority</Label>
+                      <Badge className={`ml-2 ${getPriorityColor(selectedLead.priority)}`}>
+                        {selectedLead.priority.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Status</Label>
+                      <Badge className={`ml-2 ${getStatusColor(selectedLead.status)}`}>
+                        {selectedLead.status.replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Assigned To</Label>
+                      <p className="text-sm">{selectedLead.assignedToName || 'Not assigned'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Created Date</Label>
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} />
+                        <p className="text-sm">{new Date(selectedLead.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {selectedLead.notes && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Notes/Comments</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-gray-700">{selectedLead.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsViewLeadOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      </div>
+
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <Card>
@@ -648,7 +804,9 @@ export default function LeadManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{lead.interestedClass}</Badge>
+                      <Badge variant="outline">
+                        {classes?.find(cls => cls.id === lead.interestedClass)?.name || lead.interestedClass}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">
@@ -690,8 +848,13 @@ export default function LeadManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewLead(lead)}
+                      >
                         <Eye size={14} />
+                        View
                       </Button>
                     </TableCell>
                   </TableRow>

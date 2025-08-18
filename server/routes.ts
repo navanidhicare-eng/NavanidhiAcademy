@@ -52,7 +52,9 @@ import {
   insertWalletTransactionSchema,
   insertAdminNotificationSchema,
   insertWithdrawalRequestSchema,
-  insertTeacherDailyRecordSchema
+  insertTeacherDailyRecordSchema,
+  insertLeadSchema,
+  insertLeadFollowUpSchema
 } from "@shared/schema";
 import { z } from 'zod';
 
@@ -253,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             console.log(`📍 Redirecting ${user.role} to: ${dashboardRoute}`);
-            console.log(`🚀 Sending login response...`);
+            consoleP.log(`🚀 Sending login response...`);
 
             res.json({
               token,
@@ -418,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/forgot-password", async (req, res) => {
     try {
       const { email } = req.body;
-      
+
       if (!email) {
         return res.status(400).json({ message: "Email is required" });
       }
@@ -1427,9 +1429,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.classes)
         .where(eq(schema.classes.id, student.classId || ""))
         .limit(1);
-      
+
       const className = classQuery[0]?.className || 'Unknown Class';
-      
+
       console.log(`🔍 Fetching progress for student: ${student.name} (${student.id}), Class: ${className}`);
 
       // Get all topics for the student's class with their progress status using Drizzle
@@ -1538,7 +1540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Organize topics by subjects with completion status
       const subjectMap = new Map();
-      
+
       allTopicsResults.forEach((topic: any) => {
         const subjectId = topic.subject_id;
         if (!subjectMap.has(subjectId)) {
@@ -1549,7 +1551,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             pendingTopics: []
           });
         }
-        
+
         const subject = subjectMap.get(subjectId);
         const topicData = {
           id: topic.topic_id,
@@ -1683,7 +1685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Return all active classes for all roles (SO Centers, admins, etc.)
       const classes = await storage.getAllClasses();
-      
+
       console.log('✅ Found', classes.length, 'available classes');
       res.json(classes);
     } catch (error) {
@@ -1696,7 +1698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/subjects", authenticateToken, async (req, res) => {
     try {
       const allSubjects = await storage.getAllSubjects();
-      
+
       // Group subjects by name to show multiple class connections
       const groupedSubjects = allSubjects.reduce((acc: any[], subject: any) => {
         const existingSubject = acc.find(s => s.name === subject.name);
@@ -1714,7 +1716,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         return acc;
       }, []);
-      
+
       res.json(groupedSubjects);
     } catch (error) {
       console.error('Error fetching all subjects:', error);
@@ -3265,9 +3267,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
         return res.status(403).json({ message: 'Admin or Academic Admin access required' });
       }
-      
+
       const { name, classIds } = req.body;
-      
+
       if (!name || !classIds || !Array.isArray(classIds) || classIds.length === 0) {
         return res.status(400).json({ message: 'Subject name and at least one class ID required' });
       }
@@ -3279,7 +3281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const newSubject = await storage.createSubject(subjectData);
         createdSubjects.push(newSubject);
       }
-      
+
       res.status(201).json({ 
         message: `Subject "${name}" connected to ${classIds.length} classes`,
         subjects: createdSubjects 
@@ -3450,12 +3452,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🗑️ Admin attempting to delete SO Center:', centerId);
 
       await storage.deleteSoCenter(centerId);
-      
+
       console.log('✅ SO Center deletion completed successfully');
       res.json({ message: 'SO Center deleted successfully' });
     } catch (error: any) {
       console.error('❌ Error deleting SO Center:', error);
-      
+
       // Provide specific error messages
       if (error.message.includes('active students')) {
         res.status(400).json({ message: error.message });
@@ -3923,7 +3925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message,
         stack: error.stack
       });
-      
+
       res.status(500).json({ 
         message: 'Failed to fetch student details',
         error: 'INTERNAL_SERVER_ERROR',
@@ -4015,13 +4017,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/districts", authenticateToken, async (req, res) => {
     try {
       const { stateId } = req.query;
-      
+
       let query = db.select().from(schema.districts);
-      
+
       if (stateId) {
         query = query.where(eq(schema.districts.stateId, stateId as string));
       }
-      
+
       const districts = await query.orderBy(schema.districts.name);
       res.json(districts);
     } catch (error: any) {
@@ -4033,13 +4035,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/mandals", authenticateToken, async (req, res) => {
     try {
       const { districtId } = req.query;
-      
+
       let query = db.select().from(schema.mandals);
-      
+
       if (districtId) {
         query = query.where(eq(schema.mandals.districtId, districtId as string));
       }
-      
+
       const mandals = await query.orderBy(schema.mandals.name);
       res.json(mandals);
     } catch (error: any) {
@@ -4051,13 +4053,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/villages", authenticateToken, async (req, res) => {
     try {
       const { mandalId } = req.query;
-      
+
       let query = db.select().from(schema.villages);
-      
+
       if (mandalId) {
         query = query.where(eq(schema.villages.mandalId, mandalId as string));
       }
-      
+
       const villages = await query.orderBy(schema.villages.name);
       res.json(villages);
     } catch (error: any) {
@@ -4069,13 +4071,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/locations/so-centers", authenticateToken, async (req, res) => {
     try {
       const { villageId } = req.query;
-      
+
       let query = db.select().from(schema.soCenters);
-      
+
       if (villageId) {
         query = query.where(eq(schema.soCenters.villageId, villageId as string));
       }
-      
+
       const centers = await query.orderBy(schema.soCenters.name);
       res.json(centers);
     } catch (error: any) {
@@ -4087,7 +4089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/classes/by-center", authenticateToken, async (req, res) => {
     try {
       const { centerId } = req.query;
-      
+
       if (centerId) {
         // Get classes that have students in the specified SO center
         const classesWithStudents = await sql`
@@ -4097,7 +4099,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           WHERE s.so_center_id = ${centerId} AND s.is_active = true
           ORDER BY c.name
         `;
-        
+
         res.json(classesWithStudents);
       } else {
         // Get all classes
@@ -4113,7 +4115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/students/by-filter", authenticateToken, async (req, res) => {
     try {
       const { classId, centerId } = req.query;
-      
+
       let query = sql`
         SELECT s.id, s.name, s.student_id, s.class_id, c.name as class_name
         FROM students s
@@ -4181,7 +4183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/students/:studentId", authenticateToken, async (req, res) => {
     try {
       const studentId = req.params.studentId;
-      
+
       // Get basic student info with related data
       const studentQuery = `
         SELECT 
@@ -4202,13 +4204,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
 
       const studentResults = await executeRawQuery(studentQuery, [studentId]);
-      
+
       if (!studentResults.length) {
         return res.status(404).json({ message: 'Student not found' });
       }
 
       const student = studentResults[0];
-      
+
       // Transform the result
       const studentData = {
         id: student.id,
@@ -4245,7 +4247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const studentId = req.params.id;
       console.log(`📊 Fetching student details for ID: ${studentId}`);
-      
+
       // Use raw SQL query to avoid Drizzle ordering issues with null values
       const studentQuery = `
         SELECT 
@@ -4279,14 +4281,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           s.admission_fee_paid as "admissionFeePaid",
           s.created_at as "createdAt",
           s.class_id as "classId",
-          
+
           -- Class info
           c.name as "className",
-          
+
           -- SO Center info
           sc.name as "soCenterName",
           sc.center_id as "soCenterCode",
-          
+
           -- Complete hierarchical address with null safety
           COALESCE(v.name, 'Not provided') as "villageName",
           COALESCE(m.name, 'Not provided') as "mandalName", 
@@ -4302,17 +4304,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE s.id = $1
         LIMIT 1
       `;
-      
+
       const studentResults = await executeRawQuery(studentQuery, [studentId]);
-      
+
       if (studentResults.length === 0) {
         console.log('❌ Student not found:', studentId);
         return res.status(404).json({ message: 'Student not found' });
       }
-      
+
       const student = studentResults[0];
       console.log('✅ Student data retrieved successfully');
-      
+
       // Get progress summary with null safety
       const progressQuery = `
         SELECT 
@@ -4323,15 +4325,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             2
           ) as completion_percentage
         FROM topics t
-        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1 AND tp.status = 'learned'
+        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1
         JOIN chapters ch ON t.chapter_id = ch.id
         JOIN subjects sub ON ch.subject_id = sub.id
         WHERE sub.class_id = $2 AND t.is_active = true
       `;
-      
+
       const progressResults = await executeRawQuery(progressQuery, [studentId, student.classId]);
       const progress = progressResults[0] || {};
-      
+
       const studentDetails = {
         student: {
           ...student,
@@ -4356,7 +4358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/progress-tracking/student/:studentId", authenticateToken, async (req, res) => {
     try {
       const studentId = req.params.studentId;
-      
+
       // Get homework activities progress
       const homeworkQuery = `
         SELECT 
@@ -4387,7 +4389,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate subject-wise statistics
       const subjectStats: any = {};
-      
+
       // Process homework data
       homeworkResults.forEach((hw: any) => {
         const subject = hw.subject || 'General';
@@ -4401,7 +4403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completedTuitionTopics: 0
           };
         }
-        
+
         subjectStats[subject].homeworkTotal++;
         if (hw.status === 'completed') {
           subjectStats[subject].homeworkCompleted++;
@@ -4425,7 +4427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             completedTuitionTopics: 0
           };
         }
-        
+
         subjectStats[subject].tuitionTopics++;
         if (tp.status === 'learned' || tp.status === 'completed') {
           subjectStats[subject].completedTuitionTopics++;
@@ -4476,7 +4478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/attendance/student/:studentId", authenticateToken, async (req, res) => {
     try {
       const studentId = req.params.studentId;
-      
+
       // Get attendance records with stats
       const attendanceQuery = `
         SELECT 
@@ -4493,7 +4495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let attendancePercentage = 0;
       let monthlyData: any[] = [];
-      
+
       if (attendanceResults.length > 0) {
         const totalPresent = parseInt(attendanceResults[0].total_present) || 0;
         const totalRecords = parseInt(attendanceResults[0].total_records) || 0;
@@ -4504,11 +4506,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         attendanceResults.forEach((record: any) => {
           const date = new Date(record.date);
           const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          
+
           if (!monthlyStats[monthKey]) {
             monthlyStats[monthKey] = { total: 0, present: 0 };
           }
-          
+
           monthlyStats[monthKey].total++;
           if (record.status === 'present') {
             monthlyStats[monthKey].present++;
@@ -4879,7 +4881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/attendance", authenticateToken, async (req, res) => {
     try {
       const { studentId, classId, centerId, date } = req.query;
-      
+
       let query = sql`
         SELECT 
           a.id,
@@ -4991,7 +4993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           s.so_center_id,
           sc.name as center_name,
           sc.center_id as center_code,
-          
+
           -- Homework completion stats
           COALESCE(
             ROUND(
@@ -5001,7 +5003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ), 
             0
           ) as homework_completion_percentage,
-          
+
           -- Tuition progress stats  
           COALESCE(
             ROUND(
@@ -5011,12 +5013,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ), 
             0
           ) as tuition_completion_percentage,
-          
+
           COUNT(DISTINCT ha.id) as total_homework_activities,
           COUNT(CASE WHEN ha.status = 'completed' THEN 1 END) as completed_homework,
           COUNT(DISTINCT tp.id) as total_tuition_topics,
           COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_tuition_topics
-          
+
         FROM students s
         LEFT JOIN classes cls ON s.class_id = cls.id
         LEFT JOIN so_centers sc ON s.so_center_id = sc.id
@@ -5091,542 +5093,1557 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced Progress Tracking Routes for SO Centers
-  
-  // Homework activities route
-  app.post("/api/progress-tracking/homework", authenticateToken, async (req, res) => {
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
+        return res.status(403).json({ message: "SO Center access required" });
       }
 
-      const { activities } = req.body;
-      
-      if (!activities || !Array.isArray(activities)) {
-        return res.status(400).json({ message: 'Activities array is required' });
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
       }
 
-      const results = [];
-      
-      for (const activity of activities) {
-        // Get student details to determine classId
-        const student = await storage.getStudent(activity.studentId);
-        if (!student) {
-          return res.status(400).json({ message: `Student not found: ${activity.studentId}` });
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get enriched data for each center
+      const enrichedCenters = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
         }
 
-        const homeworkData = {
-          studentId: activity.studentId,
-          classId: student.classId,
-          homeworkDate: activity.date,
-          status: activity.status,
-          completionType: activity.completionType,
-          reason: activity.reason,
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
         };
-
-        // Insert or update homework activity
-        const result = await db.insert(schema.homeworkActivities).values(homeworkData)
-          .onConflictDoUpdate({
-            target: [schema.homeworkActivities.studentId, schema.homeworkActivities.homeworkDate],
-            set: {
-              status: homeworkData.status,
-              completionType: homeworkData.completionType,
-              reason: homeworkData.reason,
-              updatedAt: new Date(),
-            }
-          })
-          .returning();
-          
-        results.push(result[0]);
-      }
-
-      res.json({ message: 'Homework activities saved successfully', count: results.length });
-    } catch (error: any) {
-      console.error('❌ Error saving homework activities:', error);
-      res.status(500).json({ message: 'Failed to save homework activities' });
-    }
-  });
-
-  // Topic completion route
-  app.post("/api/progress-tracking/topics/complete", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-
-      const { studentId, topicId, chapterId } = req.body;
-      
-      if (!studentId || !topicId) {
-        return res.status(400).json({ message: 'Student ID and Topic ID are required' });
-      }
-
-      // Check if topic is already completed for this student
-      const existingProgress = await db.select()
-        .from(schema.tuitionProgress)
-        .where(
-          sql`${schema.tuitionProgress.studentId} = ${studentId} AND ${schema.tuitionProgress.topicId} = ${topicId} AND ${schema.tuitionProgress.status} = 'learned'`
-        )
-        .limit(1);
-
-      if (existingProgress.length > 0) {
-        return res.status(400).json({ 
-          message: 'Topic already completed',
-          alreadyCompleted: true,
-          completedDate: existingProgress[0].completedDate
-        });
-      }
-
-      const progressData = {
-        studentId: studentId,
-        topicId: topicId,
-        status: 'learned' as const,
-        completedDate: new Date(), // Use Date object instead of string
-        updatedBy: req.user.userId
-      };
-
-      // Insert or update tuition progress
-      const result = await db.insert(schema.tuitionProgress).values(progressData)
-        .onConflictDoUpdate({
-          target: [schema.tuitionProgress.studentId, schema.tuitionProgress.topicId],
-          set: {
-            status: progressData.status,
-            completedDate: progressData.completedDate,
-            updatedBy: progressData.updatedBy
-          }
-        })
-        .returning();
-
-      res.json({ message: 'Topic marked as completed', progress: result[0] });
-    } catch (error: any) {
-      console.error('❌ Error marking topic complete:', error);
-      res.status(500).json({ message: 'Failed to mark topic as completed' });
-    }
-  });
-
-  // Get topic completion status for a student
-  app.get("/api/progress-tracking/topics/status", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-
-      const { studentId, chapterId } = req.query;
-      
-      if (!studentId) {
-        return res.status(400).json({ message: 'Student ID is required' });
-      }
-
-      let query = `
-        SELECT 
-          t.id as topic_id,
-          t.name as topic_name,
-          tp.status,
-          tp.completed_date
-        FROM topics t
-        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1
-      `;
-
-      const params = [studentId];
-
-      if (chapterId) {
-        query += ` WHERE t.chapter_id = $2`;
-        params.push(chapterId as string);
-      }
-
-      query += ` ORDER BY t.order_index`;
-
-      const result = await executeRawQuery(query, params);
-      
-      const completed = result.filter(row => row.status === 'learned').map(row => row.topic_id);
-      const remaining = result.filter(row => row.status !== 'learned').map(row => row.topic_id);
-
-      res.json({
-        completed,
-        remaining,
-        total: result.length,
-        details: result
-      });
-    } catch (error: any) {
-      console.error('❌ Error fetching topic status:', error);
-      res.status(500).json({ message: 'Failed to fetch topic status' });
-    }
-  });
-
-  // Teacher Management Routes
-
-  // Get all teachers
-  app.get("/api/admin/teachers", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      const teachers = await storage.getUsersByRole('teacher');
-      res.json(teachers);
-    } catch (error) {
-      console.error('Error fetching teachers:', error);
-      res.status(500).json({ message: 'Failed to fetch teachers' });
-    }
-  });
-
-  // Get teacher by ID
-  app.get("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      res.json(teacher);
-    } catch (error) {
-      console.error('Error fetching teacher:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher' });
-    }
-  });
-
-  // Create teacher - Note: Teachers are now created through User Management
-  app.post("/api/admin/teachers", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Teachers should be created through the User Management system with role "teacher"
-      res.status(400).json({ 
-        message: "Teachers should be created through User Management with role 'teacher'" 
-      });
-    } catch (error) {
-      console.error('Error in teacher creation endpoint:', error);
-      res.status(500).json({ message: 'Failed to process request' });
-    }
-  });
-
-  // Update teacher - Note: Teacher details are now updated through User Management
-  app.put("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      // Teachers should be updated through the User Management system
-      res.status(400).json({ 
-        message: "Teacher details should be updated through User Management" 
-      });
-    } catch (error) {
-      console.error('Error updating teacher:', error);
-      res.status(500).json({ message: 'Failed to update teacher' });
-    }
-  });
-
-  // Delete teacher (deactivate user)
-  app.delete("/api/admin/teachers/:id", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      await storage.deleteUser(req.params.id);
-      res.json({ message: 'Teacher deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting teacher:', error);
-      res.status(500).json({ message: 'Failed to delete teacher' });
-    }
-  });
-
-  // Get teacher's subjects
-  app.get("/api/admin/teachers/:id/subjects", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      // Get teacher subjects from teacher_subjects table
-      const query = sqlQuery`
-        SELECT s.id, s.name, s.description 
-        FROM subjects s 
-        JOIN teacher_subjects ts ON s.id = ts.subject_id 
-        WHERE ts.user_id = ${req.params.id} AND s.is_active = true
-        ORDER BY s.name
-      `;
-      const subjects = await db.execute(query);
-      res.json(subjects);
-    } catch (error) {
-      console.error('Error fetching teacher subjects:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher subjects' });
-    }
-  });
-
-  // Get teacher's classes
-  app.get("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      // Get teacher classes from teacher_classes table
-      const query = sqlQuery`
-        SELECT c.id, c.name, c.description 
-        FROM classes c 
-        JOIN teacher_classes tc ON c.id = tc.class_id 
-        WHERE tc.user_id = ${req.params.id} AND c.is_active = true
-        ORDER BY c.name
-      `;
-      const classes = await db.execute(query);
-      res.json(classes);
-    } catch (error) {
-      console.error('Error fetching teacher classes:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher classes' });
-    }
-  });
-
-  // Get teacher's daily records
-  app.get("/api/admin/teachers/:id/records", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      // Get teacher records from teacher_daily_records table
-      const query = sqlQuery`
-        SELECT tr.*, c.name as class_name, s.name as subject_name, ch.name as chapter_title, t.name as topic_title
-        FROM teacher_daily_records tr
-        LEFT JOIN classes c ON tr.class_id = c.id
-        LEFT JOIN subjects s ON tr.subject_id = s.id
-        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
-        LEFT JOIN topics t ON tr.topic_id = t.id
-        WHERE tr.teacher_id = ${req.params.id}
-        ORDER BY tr.record_date DESC, tr.created_at DESC
-      `;
-      const records = await db.execute(query);
-      res.json(records);
-    } catch (error) {
-      console.error('Error fetching teacher records:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher records' });
-    }
-  });
-
-  // Add daily teaching record
-  app.post("/api/admin/teacher-records", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      console.log('Teaching record request body:', req.body);
-
-      const { teacherId, classId, subjectId, chapterId, teachingDuration, notes, recordDate } = req.body;
-
-      if (!teacherId || !classId || !subjectId || !teachingDuration) {
-        console.log('Missing required fields:', { teacherId, classId, subjectId, teachingDuration });
-        return res.status(400).json({ 
-          message: "Required fields missing",
-          missing: {
-            teacherId: !teacherId,
-            classId: !classId, 
-            subjectId: !subjectId,
-            teachingDuration: !teachingDuration
-          }
-        });
-      }
-
-      const recordData = {
-        teacherId: teacherId,
-        recordDate: recordDate || new Date().toISOString().split('T')[0],
-        classId: classId,
-        subjectId: subjectId,
-        chapterId: chapterId || null,
-        teachingDuration: parseInt(teachingDuration),
-        notes: notes || null
-      };
-
-      console.log('Creating teaching record with data:', recordData);
-
-      const [newRecord] = await db.insert(schema.teacherDailyRecords)
-        .values(recordData)
-        .returning();
-
-      console.log('Teaching record created successfully:', newRecord);
-      res.status(201).json({ message: 'Teaching record added successfully', record: newRecord });
-    } catch (error: any) {
-      console.error('Error adding teaching record:', error);
-      res.status(500).json({ message: 'Failed to add teaching record', error: error.message });
-    }
-  });
-
-  // Get teacher records with date filtering
-  app.get("/api/admin/teachers/:teacherId/records", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      const { teacherId } = req.params;
-      const { fromDate, toDate } = req.query;
-
-      console.log('Fetching records for teacher:', teacherId, 'with dates:', { fromDate, toDate });
-
-      // Build the query with proper parameter substitution
-      let queryString = `
-        SELECT 
-          tr.id,
-          tr.teacher_id,
-          tr.record_date,
-          tr.class_id,
-          tr.subject_id,
-          tr.chapter_id,
-          tr.teaching_duration,
-          tr.notes,
-          tr.created_at,
-          c.name as className,
-          s.name as subjectName,
-          ch.name as chapterTitle
-        FROM teacher_daily_records tr
-        LEFT JOIN classes c ON tr.class_id = c.id
-        LEFT JOIN subjects s ON tr.subject_id = s.id
-        LEFT JOIN chapters ch ON tr.chapter_id = ch.id
-        WHERE tr.teacher_id = $1
-      `;
-
-      const params = [teacherId];
-
-      if (fromDate) {
-        queryString += ` AND tr.record_date >= $${params.length + 1}`;
-        params.push(fromDate as string);
-      }
-
-      if (toDate) {
-        queryString += ` AND tr.record_date <= $${params.length + 1}`;
-        params.push(toDate as string);
-      }
-
-      queryString += ` ORDER BY tr.record_date DESC, tr.created_at DESC`;
-
-      console.log('Executing query:', queryString);
-      console.log('With params:', params);
-
-      const result = await executeRawQuery(queryString, params);
-      console.log('Query result:', result);
-
-      // Transform result to match expected format
-      const records = result.map((row: any) => ({
-        id: row.id,
-        teacherId: row.teacher_id,
-        recordDate: row.record_date,
-        classId: row.class_id,
-        subjectId: row.subject_id,
-        chapterId: row.chapter_id,
-        teachingDuration: row.teaching_duration,
-        notes: row.notes,
-        createdAt: row.created_at,
-        className: row.classname,
-        subjectName: row.subjectname,
-        chapterTitle: row.chaptertitle
       }));
 
-      res.json(records);
-    } catch (error: any) {
-      console.error('Error fetching teacher records:', error);
-      res.status(500).json({ message: 'Failed to fetch teacher records', error: error.message });
-    }
-  });
-
-  
-
-  // Update teacher class assignments
-  app.put("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      // Check if user exists and has teacher role
-      const teacher = await storage.getUser(req.params.id);
-      if (!teacher || teacher.role !== 'teacher') {
-        return res.status(404).json({ message: 'Teacher not found' });
-      }
-
-      const { classIds } = req.body;
-
-      if (!Array.isArray(classIds)) {
-        return res.status(400).json({ message: 'classIds must be an array' });
-      }
-
-      // Delete existing assignments
-      await db.execute(sqlQuery`DELETE FROM teacher_classes WHERE user_id = ${req.params.id}`);
-
-      // Insert new assignments
-      if (classIds.length > 0) {
-        for (const classId of classIds) {
-          await db.execute(sqlQuery`
-            INSERT INTO teacher_classes (user_id, class_id) 
-            VALUES (${req.params.id}, ${classId})
-          `);
-        }
-      }
-
-      res.json({ message: 'Teacher classes updated successfully' });
+      res.json(enrichedCenters);
     } catch (error) {
-      console.error('Error updating teacher classes:', error);
-      res.status(500).json({ message: 'Failed to update teacher classes' });
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
     }
   });
 
-  // Update teacher class assignments
-  app.put("/api/admin/teachers/:id/classes", authenticateToken, async (req, res) => {
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
       }
 
-      const { classIds } = req.body;
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT st.id) as "totalStudents",
+          COUNT(CASE WHEN a.is_present = true THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.is_present = false THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
+        LEFT JOIN attendance a ON st.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
 
-      if (!Array.isArray(classIds)) {
-        return res.status(400).json({ message: 'classIds must be an array' });
-      }
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.is_present = true THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.is_present = false THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
+          LEFT JOIN attendance a ON st.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
 
-      // This functionality is now handled by the new class assignments endpoint above
-      res.json({ message: 'Teacher classes updated successfully' });
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
     } catch (error) {
-      console.error('Error updating teacher classes:', error);
-      res.status(500).json({ message: 'Failed to update teacher classes' });
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
     }
   });
 
-  // =================== PRODUCTS MANAGEMENT ===================
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  // Marketing Head - Get all leads with analytics
+  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📊 Marketing Head fetching leads analytics...');
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, []);
+      console.log(`✅ Retrieved ${leads.length} leads for marketing analytics`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching marketing leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Marketing Head - Create new lead
+  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const leadData = insertLeadSchema.parse({
+        ...req.body,
+        createdBy: req.user.userId
+      });
+
+      const [newLead] = await db.insert(schema.leads)
+        .values(leadData)
+        .returning();
+
+      console.log('✅ Marketing Head created new lead:', newLead.id);
+      res.status(201).json(newLead);
+    } catch (error) {
+      console.error('❌ Error creating lead:', error);
+      res.status(500).json({ message: 'Failed to create lead' });
+    }
+  });
+
+  // Marketing Head - Lead conversion metrics
+  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📈 Fetching lead conversion metrics...');
+
+      const metricsQuery = `
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
+          COUNT(CASE WHEN status = 'interested' THEN 1 END) as interested_leads,
+          COUNT(CASE WHEN status = 'visit_scheduled' THEN 1 END) as visit_scheduled,
+          COUNT(CASE WHEN status = 'joined' THEN 1 END) as joined_leads,
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads,
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(*), 0), 2
+          ) as conversion_rate,
+          COUNT(CASE WHEN lead_source = 'online' THEN 1 END) as online_leads,
+          COUNT(CASE WHEN lead_source = 'referral' THEN 1 END) as referral_leads,
+          COUNT(CASE WHEN lead_source = 'walk_in' THEN 1 END) as walk_in_leads,
+          COUNT(CASE WHEN lead_source = 'marketing_campaign' THEN 1 END) as campaign_leads
+        FROM leads
+        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+
+      const metrics = await executeRawQuery(metricsQuery, []);
+      console.log('✅ Lead metrics calculated');
+      res.json(metrics[0] || {});
+    } catch (error) {
+      console.error('❌ Error fetching lead metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead metrics' });
+    }
+  });
+
+  // Marketing Head - Assign lead to office staff
+  app.put("/api/marketing/leads/:id/assign", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { assignedTo } = req.body;
+
+      console.log(`📋 Assigning lead ${id} to ${assignedTo}`);
+
+      await db.update(schema.leads)
+        .set({ 
+          assignedTo,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.leads.id, id));
+
+      // Create assignment record
+      await db.insert(schema.leadAssignments)
+        .values({
+          leadId: id,
+          assignedTo,
+          assignedBy: req.user.userId
+        });
+
+      console.log('✅ Lead assigned successfully');
+      res.json({ message: 'Lead assigned successfully' });
+    } catch (error) {
+      console.error('❌ Error assigning lead:', error);
+      res.status(500).json({ message: 'Failed to assign lead' });
+    }
+  });
+
+  // Office Staff API Endpoints
+
+  // Get assigned leads for Office Staff
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  // =================== MARKETING HEAD ANALYTICS ENDPOINTS ===================
+
+  // Marketing Head - Get all leads with analytics
+  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📊 Marketing Head fetching leads analytics...');
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, []);
+      console.log(`✅ Retrieved ${leads.length} leads for marketing analytics`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching marketing leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Marketing Head - Create new lead
+  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const leadData = insertLeadSchema.parse({
+        ...req.body,
+        createdBy: req.user.userId
+      });
+
+      const [newLead] = await db.insert(schema.leads)
+        .values(leadData)
+        .returning();
+
+      console.log('✅ Marketing Head created new lead:', newLead.id);
+      res.status(201).json(newLead);
+    } catch (error) {
+      console.error('❌ Error creating lead:', error);
+      res.status(500).json({ message: 'Failed to create lead' });
+    }
+  });
+
+  // Marketing Head - Lead conversion metrics
+  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📈 Fetching lead conversion metrics...');
+
+      const metricsQuery = `
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
+          COUNT(CASE WHEN status = 'interested' THEN 1 END) as interested_leads,
+          COUNT(CASE WHEN status = 'visit_scheduled' THEN 1 END) as visit_scheduled,
+          COUNT(CASE WHEN status = 'joined' THEN 1 END) as joined_leads,
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads,
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(*), 0), 2
+          ) as conversion_rate,
+          COUNT(CASE WHEN lead_source = 'online' THEN 1 END) as online_leads,
+          COUNT(CASE WHEN lead_source = 'referral' THEN 1 END) as referral_leads,
+          COUNT(CASE WHEN lead_source = 'walk_in' THEN 1 END) as walk_in_leads,
+          COUNT(CASE WHEN lead_source = 'marketing_campaign' THEN 1 END) as campaign_leads
+        FROM leads
+        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+
+      const metrics = await executeRawQuery(metricsQuery, []);
+      console.log('✅ Lead metrics calculated');
+      res.json(metrics[0] || {});
+    } catch (error) {
+      console.error('❌ Error fetching lead metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead metrics' });
+    }
+  });
+
+  // Marketing Head - Assign lead to office staff
+  app.put("/api/marketing/leads/:id/assign", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { assignedTo } = req.body;
+
+      console.log(`📋 Assigning lead ${id} to ${assignedTo}`);
+
+      await db.update(schema.leads)
+        .set({ 
+          assignedTo,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.leads.id, id));
+
+      // Create assignment record
+      await db.insert(schema.leadAssignments)
+        .values({
+          leadId: id,
+          assignedTo,
+          assignedBy: req.user.userId
+        });
+
+      console.log('✅ Lead assigned successfully');
+      res.json({ message: 'Lead assigned successfully' });
+    } catch (error) {
+      console.error('❌ Error assigning lead:', error);
+      res.status(500).json({ message: 'Failed to assign lead' });
+    }
+  });
+
+  // Office Staff API Endpoints
+
+  // Get assigned leads for Office Staff
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  // =================== MARKETING HEAD ANALYTICS ENDPOINTS ===================
+
+  // Marketing Head - Get all leads with analytics
+  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📊 Marketing Head fetching leads analytics...');
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, []);
+      console.log(`✅ Retrieved ${leads.length} leads for marketing analytics`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching marketing leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Marketing Head - Create new lead
+  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const leadData = insertLeadSchema.parse({
+        ...req.body,
+        createdBy: req.user.userId
+      });
+
+      const [newLead] = await db.insert(schema.leads)
+        .values(leadData)
+        .returning();
+
+      console.log('✅ Marketing Head created new lead:', newLead.id);
+      res.status(201).json(newLead);
+    } catch (error) {
+      console.error('❌ Error creating lead:', error);
+      res.status(500).json({ message: 'Failed to create lead' });
+    }
+  });
+
+  // Marketing Head - Lead conversion metrics
+  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📈 Fetching lead conversion metrics...');
+
+      const metricsQuery = `
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
+          COUNT(CASE WHEN status = 'interested' THEN 1 END) as interested_leads,
+          COUNT(CASE WHEN status = 'visit_scheduled' THEN 1 END) as visit_scheduled,
+          COUNT(CASE WHEN status = 'joined' THEN 1 END) as joined_leads,
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads,
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(*), 0), 2
+          ) as conversion_rate,
+          COUNT(CASE WHEN lead_source = 'online' THEN 1 END) as online_leads,
+          COUNT(CASE WHEN lead_source = 'referral' THEN 1 END) as referral_leads,
+          COUNT(CASE WHEN lead_source = 'walk_in' THEN 1 END) as walk_in_leads,
+          COUNT(CASE WHEN lead_source = 'marketing_campaign' THEN 1 END) as campaign_leads
+        FROM leads
+        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+
+      const metrics = await executeRawQuery(metricsQuery, []);
+      console.log('✅ Lead metrics calculated');
+      res.json(metrics[0] || {});
+    } catch (error) {
+      console.error('❌ Error fetching lead metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead metrics' });
+    }
+  });
+
+  // Marketing Head - Assign lead to office staff
+  app.put("/api/marketing/leads/:id/assign", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { assignedTo } = req.body;
+
+      console.log(`📋 Assigning lead ${id} to ${assignedTo}`);
+
+      await db.update(schema.leads)
+        .set({ 
+          assignedTo,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.leads.id, id));
+
+      // Create assignment record
+      await db.insert(schema.leadAssignments)
+        .values({
+          leadId: id,
+          assignedTo,
+          assignedBy: req.user.userId
+        });
+
+      console.log('✅ Lead assigned successfully');
+      res.json({ message: 'Lead assigned successfully' });
+    } catch (error) {
+      console.error('❌ Error assigning lead:', error);
+      res.status(500).json({ message: 'Failed to assign lead' });
+    }
+  });
+
+  // Office Staff API Endpoints
+
+  // Get assigned leads for Office Staff
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
 
   // Get all products (Admin only)
   app.get("/api/admin/products", authenticateToken, async (req, res) => {
@@ -5855,1785 +6872,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Marketing endpoints
-  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      console.log('📊 Marketing Head fetching leads...');
-
-      // Use raw SQL to avoid Drizzle circular reference issues
-      const leads = await sql`
-        SELECT 
-          l.id,
-          l.student_name as "studentName",
-          l.parent_name as "parentName", 
-          l.mobile_number as "mobileNumber",
-          l.whatsapp_number as "whatsappNumber",
-          l.email,
-          l.address,
-          l.interested_class as "interestedClass",
-          l.lead_source as "leadSource",
-          l.priority,
-          l.status,
-          l.expected_join_date as "expectedJoinDate",
-          l.notes,
-          l.created_at as "createdAt",
-          l.assigned_to as "assignedTo",
-          u.name as "assignedToName",
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          st.name as state,
-          c.name as "interestedClassName"
-        FROM leads l
-        LEFT JOIN users u ON l.assigned_to = u.id
-        LEFT JOIN villages v ON l.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states st ON d.state_id = st.id
-        LEFT JOIN classes c ON l.interested_class = c.id
-        ORDER BY l.created_at DESC
-      `;
-
-      console.log(`✅ Retrieved ${leads.length} leads successfully`);
-      res.json(leads);
-    } catch (error: any) {
-      console.error('❌ Error fetching leads:', error);
-      res.status(500).json({ message: 'Failed to fetch leads' });
-    }
-  });
-
-  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      console.log('📝 Creating new lead...');
-
-      const leadData = {
-        id: randomUUID(),
-        studentName: req.body.studentName,
-        parentName: req.body.parentName,
-        mobileNumber: req.body.mobileNumber,
-        whatsappNumber: req.body.whatsappNumber,
-        email: req.body.email,
-        address: req.body.address,
-        villageId: req.body.villageId,
-        interestedClass: req.body.interestedClass,
-        leadSource: req.body.leadSource,
-        priority: req.body.priority,
-        expectedJoinDate: req.body.expectedJoinDate,
-        notes: req.body.notes,
-        status: 'new',
-        createdAt: new Date(),
-        createdBy: req.user.userId
-      };
-
-      const [newLead] = await db.insert(schema.leads).values(leadData).returning();
-
-      console.log('✅ Lead created successfully:', newLead.id);
-      res.status(201).json(newLead);
-    } catch (error: any) {
-      console.error('❌ Error creating lead:', error);
-      res.status(500).json({ message: 'Failed to create lead' });
-    }
-  });
-
-  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      console.log('📈 Fetching lead metrics...');
-
-      const metrics = await sql`
-        SELECT 
-          COUNT(*) as total_leads,
-          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
-          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
-          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads
-        FROM leads
-      `;
-
-      const totalLeads = parseInt(metrics[0]?.total_leads || '0');
-      const convertedLeads = parseInt(metrics[0]?.converted_leads || '0');
-      const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
-
-      const result = {
-        totalLeads,
-        newLeads: parseInt(metrics[0]?.new_leads || '0'),
-        contactedLeads: parseInt(metrics[0]?.contacted_leads || '0'),
-        convertedLeads,
-        conversionRate
-      };
-
-      console.log('✅ Lead metrics calculated:', result);
-      res.json(result);
-    } catch (error: any) {
-      console.error('❌ Error fetching lead metrics:', error);
-      res.status(500).json({ message: 'Failed to fetch lead metrics' });
-    }
-  });
-
-  app.put("/api/marketing/leads/:leadId/assign", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      const { leadId } = req.params;
-      const { assignedTo } = req.body;
-
-      console.log(`📋 Assigning lead ${leadId} to ${assignedTo}`);
-
-      const [updatedLead] = await db
-        .update(schema.leads)
-        .set({ assignedTo, updatedAt: new Date() })
-        .where(eq(schema.leads.id, leadId))
-        .returning();
-
-      if (!updatedLead) {
-        return res.status(404).json({ message: 'Lead not found' });
-      }
-
-      // Create assignment record
-      await db.insert(schema.leadAssignments).values({
-        leadId,
-        assignedTo,
-        assignedBy: req.user.userId
-      });
-
-      console.log('✅ Lead assigned successfully');
-      res.json(updatedLead);
-    } catch (error: any) {
-      console.error('❌ Error assigning lead:', error);
-      res.status(500).json({ message: 'Failed to assign lead' });
-    }
-  });
-
-  app.get("/api/marketing/centers-overview", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      console.log('🏢 Fetching centers overview...');
-
-      const centers = await sql`
-        SELECT 
-          sc.id,
-          sc.center_id as "centerId",
-          sc.name as "centerName",
-          sc.manager_name as "managerName",
-          sc.phone,
-          sc.location,
-          sc.address,
-          sc.is_active as "isActive",
-          sc.created_at as "registrationDate",
-          COALESCE(sc.wallet_balance::numeric, 0) as "walletBalance",
-          COALESCE(v.name, 'N/A') as "villageName",
-          COALESCE(m.name, 'N/A') as "mandalName",
-          COALESCE(d.name, 'N/A') as "districtName",
-          COALESCE(st.name, 'N/A') as "stateName",
-          COUNT(DISTINCT s.id) FILTER (WHERE s.is_active = true) as "activeStudents",
-          COUNT(DISTINCT CASE 
-            WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) 
-            AND s.is_active = false 
-            THEN s.id 
-          END) as "thisMonthDropouts"
-        FROM so_centers sc
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states st ON d.state_id = st.id
-        LEFT JOIN students s ON sc.id = s.so_center_id
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.center_id, sc.name, sc.manager_name, sc.phone, sc.location, 
-                 sc.address, sc.is_active, sc.created_at, sc.wallet_balance, v.name, m.name, d.name, st.name
-        ORDER BY sc.created_at DESC
-      `;
-
-      // Get class-wise student counts for each center
-      const centersWithClassData = await Promise.all(centers.map(async (center: any) => {
-        const classWiseCount = await sql`
-          SELECT 
-            c.name as class_name,
-            COUNT(s.id) as student_count
-          FROM students s
-          LEFT JOIN classes c ON s.class_id = c.id
-          WHERE s.so_center_id = ${center.id} AND s.is_active = true
-          GROUP BY c.id, c.name
-          ORDER BY c.name
-        `;
-
-        const classWiseCountObj: Record<string, number> = {};
-        classWiseCount.forEach((row: any) => {
-          if (row.class_name) {
-            classWiseCountObj[row.class_name] = parseInt(row.student_count) || 0;
-          }
-        });
-
-        return {
-          ...center,
-          totalActiveStudents: parseInt(center.activeStudents) || 0,
-          dropoutCount: parseInt(center.thisMonthDropouts) || 0,
-          classWiseCount: classWiseCountObj,
-          village: center.villageName || 'N/A',
-          mandal: center.mandalName || 'N/A',
-          district: center.districtName || 'N/A',
-          state: center.stateName || 'N/A'
-        };
-      }));
-
-      console.log(`✅ Retrieved ${centersWithClassData.length} centers with complete data for overview`);
-      res.json(centersWithClassData);
-    } catch (error: any) {
-      console.error('❌ Error fetching centers overview:', error);
-      res.status(500).json({ message: 'Failed to fetch centers overview' });
-    }
-  });
-
-  app.get("/api/users/office-staff", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing head or admin access required' });
-      }
-
-      console.log('👥 Fetching office staff...');
-
-      const officeStaff = await sql`
-        SELECT id, name, email, phone
-        FROM users 
-        WHERE role = 'office_staff' AND is_active = true
-        ORDER BY name
-      `;
-
-      console.log(`✅ Retrieved ${officeStaff.length} office staff members`);
-      res.json(officeStaff);
-    } catch (error: any) {
-      console.error('❌ Error fetching office staff:', error);
-      res.status(500).json({ message: 'Failed to fetch office staff' });
-    }
-  });
-
-  // System Settings Management (Admin only)
-  app.get("/api/admin/system-settings/:key", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      const setting = await storage.getSystemSetting(req.params.key);
-      res.json(setting);
-    } catch (error) {
-      console.error('Error fetching system setting:', error);
-      res.status(500).json({ message: 'Failed to fetch system setting' });
-    }
-  });
-
-  app.put("/api/admin/system-settings/:key", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
-      }
-
-      const { value, description } = req.body;
-      const setting = await storage.setSystemSetting(
-        req.params.key, 
-        value, 
-        description, 
-        req.user.userId
-      );
-
-      res.json(setting);
-    } catch (error) {
-      console.error('Error updating system setting:', error);
-      res.status(500).json({ message: 'Failed to update system setting' });
-    }
-  });
-
-  // SO Center Expenses Management Routes
-
-  // Get SO Center profile with autofill data
-  app.get("/api/so-center/profile", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      // Debug: Check what email we're looking for
-      console.log('🔍 Looking for SO Center with email:', req.user.email);
-
-      // Look up SO Center by email since SO Centers use email authentication
-      const soCenter = await db.select()
-        .from(schema.soCenters)
-        .where(eq(schema.soCenters.email, req.user.email))
-        .limit(1);
-
-      // Debug: If not found by email, try to find any centers and see their emails
-      if (!soCenter.length) {
-        console.log('❌ No SO Center found with exact email match');
-        const allCenters = await db.select({ id: schema.soCenters.id, email: schema.soCenters.email, centerId: schema.soCenters.centerId })
-          .from(schema.soCenters)
-          .limit(5);
-        console.log('📋 Available SO Centers:', allCenters);
-
-        // Try to find by similar email pattern
-        const emailMatch = await db.select()
-          .from(schema.soCenters)
-          .where(sqlQuery`email ILIKE ${`%${req.user.email.split('@')[0]}%`}`)
-          .limit(1);
-
-        if (emailMatch.length) {
-          console.log('✅ Found SO Center by email pattern match:', emailMatch[0].centerId);
-          return res.json(emailMatch[0]);
-        }
-
-        console.log('SO Center not found for email:', req.user.email);
-        return res.status(404).json({ message: "SO Center not found" });
-      }
-
-      console.log('✅ SO Center profile retrieved:', soCenter[0].centerId);
-      res.json(soCenter[0]);
-    } catch (error) {
-      console.error("Error fetching SO Center profile:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get expense requests for SO Center
-  app.get("/api/so-center/expenses", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const expenses = await db.select()
-        .from(schema.soCenterExpenses)
-        .where(sqlQuery`so_center_id = ${req.user.userId}`)
-        .orderBy(sqlQuery`requested_at DESC`);
-
-      res.json(expenses);
-    } catch (error) {
-      console.error("Error fetching expenses:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Create expense request
-  app.post("/api/so-center/expenses", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const validatedData = insertSoCenterExpenseSchema.parse({
-        ...req.body,
-        soCenterId: req.user.userId,
-        status: 'pending'
-      });
-
-      const [expense] = await db.insert(schema.soCenterExpenses)
-        .values(validatedData)
-        .returning();
-
-      res.json(expense);
-    } catch (error) {
-      console.error("Error creating expense request:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get expense wallet for SO Center
-  app.get("/api/so-center/expense-wallet", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      // Get or create expense wallet
-      let [wallet] = await db.select()
-        .from(schema.soCenterExpenseWallet)
-        .where(sqlQuery`so_center_id = ${req.user.userId}`)
-        .limit(1);
-
-      if (!wallet) {
-        // Create wallet if not exists
-        [wallet] = await db.insert(schema.soCenterExpenseWallet)
-          .values({
-            soCenterId: req.user.userId,
-            totalExpenses: '0',
-            remainingBalance: '0'
-          })
-          .returning();
-      }
-
-      // Calculate current values from expenses and collections
-      const totalExpenses = await db.select({
-        sum: sqlQuery`COALESCE(SUM(CAST(amount AS DECIMAL)), 0)`
-      })
-      .from(schema.soCenterExpenses)
-      .where(sqlQuery`so_center_id = ${req.user.userId} AND status = 'paid'`);
-
-      // Get total collections from wallet
-      const [soCenter] = await db.select({ walletBalance: schema.soCenters.walletBalance })
-        .from(schema.soCenters)
-        .where(sqlQuery`id = ${req.user.userId}`)
-        .limit(1);
-
-      const totalCollections = parseFloat(soCenter?.walletBalance || '0');
-      const expenseAmount = parseFloat(totalExpenses[0]?.sum || '0');
-      const remainingBalance = totalCollections - expenseAmount;
-
-      // Update wallet with current values
-      await db.update(schema.soCenterExpenseWallet)
-        .set({
-          totalExpenses: expenseAmount.toString(),
-          remainingBalance: remainingBalance.toString(),
-          lastUpdated: new Date()
-        })
-        .where(sqlQuery`so_center_id = ${req.user.userId}`);
-
-      res.json({
-        totalExpenses: expenseAmount.toString(),
-        remainingBalance: remainingBalance.toString(),
-        lastUpdated: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error("Error fetching expense wallet:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Mark expense as paid (for SO Centers)
-  app.post("/api/so-center/expenses/:expenseId/pay", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'so_center') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const { expenseId } = req.params;
-      const { paymentMethod, paymentReference } = req.body;
-
-      // Verify expense belongs to this SO Center and is approved
-      const [expense] = await db.select()
-        .from(schema.soCenterExpenses)
-        .where(sqlQuery`id = ${expenseId} AND so_center_id = ${req.user.userId} AND status = 'approved'`)
-        .limit(1);
-
-      if (!expense) {
-        return res.status(404).json({ message: "Expense not found or not approved" });
-      }
-
-      // Generate transaction ID
-      const transactionId = `TXN-${Date.now()}-EXP-${expenseId.slice(0, 8)}`;
-
-      // Update expense as paid
-      const [updatedExpense] = await db.update(schema.soCenterExpenses)
-        .set({
-          status: 'paid',
-          paymentMethod,
-          paymentReference,
-          transactionId,
-          paidAt: new Date(),
-          paidBy: req.user.userId
-        })
-        .where(sqlQuery`id = ${expenseId}`)
-        .returning();
-
-      res.json({ 
-        expense: updatedExpense,
-        transactionId 
-      });
-    } catch (error) {
-      console.error("Error marking expense as paid:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Admin Expense Approval Routes
-
-  // Get all expense requests for admin approval
-  app.get("/api/admin/expenses", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const { status, search, soCenterId } = req.query;
-
-      // Build base query with joins
-      let whereClause = sqlQuery`1=1`;
-
-      if (status && status !== 'all') {
-        whereClause = sqlQuery`${whereClause} AND ${schema.soCenterExpenses.status} = ${status}`;
-      }
-      if (soCenterId) {
-        whereClause = sqlQuery`${whereClause} AND ${schema.soCenterExpenses.soCenterId} = ${soCenterId}`;
-      }
-      if (search) {
-        whereClause = sqlQuery`${whereClause} AND (${schema.soCenters.name} ILIKE ${`%${search}%`} OR ${schema.soCenters.centerId} ILIKE ${`%${search}%`})`;
-      }
-
-      const expenses = await db.select({
-        id: schema.soCenterExpenses.id,
-        expenseType: schema.soCenterExpenses.expenseType,
-        amount: schema.soCenterExpenses.amount,
-        description: schema.soCenterExpenses.description,
-        status: schema.soCenterExpenses.status,
-        requestedAt: schema.soCenterExpenses.requestedAt,
-        approvedAt: schema.soCenterExpenses.approvedAt,
-        paidAt: schema.soCenterExpenses.paidAt,
-        soCenterId: schema.soCenterExpenses.soCenterId,
-        soCenterName: schema.soCenters.name,
-        centerCode: schema.soCenters.centerId,
-        electricBillNumber: schema.soCenterExpenses.electricBillNumber,
-        internetBillNumber: schema.soCenterExpenses.internetBillNumber,
-        internetServiceProvider: schema.soCenterExpenses.internetServiceProvider,
-        serviceName: schema.soCenterExpenses.serviceName,
-        servicePhone: schema.soCenterExpenses.servicePhone,
-        adminNotes: schema.soCenterExpenses.adminNotes,
-        transactionId: schema.soCenterExpenses.transactionId,
-        paymentMethod: schema.soCenterExpenses.paymentMethod,
-        paymentReference: schema.soCenterExpenses.paymentReference
-      })
-      .from(schema.soCenterExpenses)
-      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`)
-      .where(whereClause)
-      .orderBy(sqlQuery`${schema.soCenterExpenses.requestedAt} DESC`);
-
-      res.json(expenses);
-    } catch (error) {
-      console.error("Error fetching admin expenses:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Approve/Reject expense request
-  app.post("/api/admin/expenses/:expenseId/approval", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const { expenseId } = req.params;
-      const { action, adminNotes } = req.body; // action: 'approve' or 'reject'
-
-      if (!['approve', 'reject'].includes(action)) {
-        return res.status(400).json({ message: "Invalid action" });
-      }
-
-      const [updatedExpense] = await db.update(schema.soCenterExpenses)
-        .set({
-          status: action === 'approve' ? 'approved' : 'rejected',
-          adminNotes,
-          approvedAt: new Date(),
-          approvedBy: req.user.userId
-        })
-        .where(sqlQuery`${schema.soCenterExpenses.id} = ${expenseId}`)
-        .returning();
-
-      if (!updatedExpense) {
-        return res.status(404).json({ message: "Expense not found" });
-      }
-
-      res.json({ 
-        expense: updatedExpense,
-        message: `Expense ${action}d successfully`
-      });
-    } catch (error) {
-      console.error("Error processing expense approval:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get approval history
-  app.get("/api/admin/expenses/history", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const history = await db.select({
-        id: schema.soCenterExpenses.id,
-        expenseType: schema.soCenterExpenses.expenseType,
-        amount: schema.soCenterExpenses.amount,
-        status: schema.soCenterExpenses.status,
-        requestedAt: schema.soCenterExpenses.requestedAt,
-        approvedAt: schema.soCenterExpenses.approvedAt,
-        paidAt: schema.soCenterExpenses.paidAt,
-        soCenterName: schema.soCenters.name,
-        centerCode: schema.soCenters.centerId,
-        adminNotes: schema.soCenterExpenses.adminNotes,
-        approverName: schema.users.name
-      })
-      .from(schema.soCenterExpenses)
-      .leftJoin(schema.soCenters, sqlQuery`${schema.soCenterExpenses.soCenterId} = ${schema.soCenters.id}`)
-      .leftJoin(schema.users, sqlQuery`${schema.soCenterExpenses.approvedBy} = ${schema.users.id}`)
-      .where(sqlQuery`${schema.soCenterExpenses.status} IN ('approved', 'rejected', 'paid')`)
-      .orderBy(sqlQuery`${schema.soCenterExpenses.approvedAt} DESC`);
-
-      res.json(history);
-    } catch (error) {
-      console.error("Error fetching approval history:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Get admin expense statistics
-  app.get("/api/admin/expense-stats", authenticateToken, async (req, res) => {
-    try {
-      if (req.user?.role !== 'admin') {
-        return res.status(403).json({ message: "Unauthorized" });
-      }
-
-      const [statsResult] = await db.execute(sqlQuery`
-        SELECT 
-          COUNT(CASE WHEN status = 'pending' THEN 1 END) as total_pending,
-          COUNT(CASE WHEN status = 'approved' THEN 1 END) as total_approved,
-          COUNT(CASE WHEN status = 'paid' THEN 1 END) as total_paid,
-          COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as total_amount
-        FROM so_center_expenses
-      `);
-
-      const stats = {
-        totalPending: Number(statsResult.total_pending || 0),
-        totalApproved: Number(statsResult.total_approved || 0), 
-        totalPaid: Number(statsResult.total_paid || 0),
-        totalAmount: (statsResult.total_amount || 0).toString()
-      };
-
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching admin expense stats:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // EXAM MANAGEMENT ENDPOINTS
-
-  // Get all exams with related data
-  app.get('/api/admin/exams', authenticateToken, async (req, res) => {
-    try {
-      console.log('📋 Fetching all exams for admin...');
-
-      // Simple query first to check if exams exist
-      const examsList = await db.select().from(schema.exams);
-
-      console.log('✅ Exams fetched successfully:', examsList.length);
-      console.log('📊 Exams data:', examsList);
-      res.json(examsList);
-    } catch (error: any) {
-      console.error('❌ Error fetching exams:', error);
-      console.error('❌ Full error details:', error.message, error.stack);
-      res.status(500).json({ message: 'Failed to fetch exams' });
-    }
-  });
-
-  // Create new exam
-  app.post('/api/admin/exams', authenticateToken, async (req, res) => {
-    try {
-      console.log('🆕 Creating new exam...');
-
-      const examData = insertExamSchema.parse(req.body);
-      const userId = req.user?.userId;
-
-      const [newExam] = await db
-        .insert(schema.exams)
-        .values({
-          ...examData,
-          createdBy: userId,
-        })
-        .returning();
-
-      console.log('✅ Exam created successfully:', newExam.id);
-      res.json(newExam);
-    } catch (error: any) {
-      console.error('❌ Error creating exam:', error);
-      res.status(500).json({ message: 'Failed to create exam' });
-    }
-  });
-
-  // Update exam
-  app.put('/api/admin/exams/:id', authenticateToken, async (req, res) => {
-    try {
-      const examId = req.params.id;
-      console.log('📝 Updating exam:', examId);
-
-      const examData = insertExamSchema.parse(req.body);
-
-      const [updatedExam] = await db
-        .update(schema.exams)
-        .set({
-          ...examData,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.exams.id, examId))
-        .returning();
-
-      if (!updatedExam) {
-        return res.status(404).json({ message: 'Exam not found' });
-      }
-
-      console.log('✅ Exam updated successfully');
-      res.json(updatedExam);
-    } catch (error: any) {
-      console.error('❌ Error updating exam:', error);
-      res.status(500).json({ message: 'Failed to update exam' });
-    }
-  });
-
-  // Delete exam
-  app.delete('/api/admin/exams/:id', authenticateToken, async (req, res) => {
-    try {
-      const examId = req.params.id;
-      console.log('🗑️ Deleting exam:', examId);
-
-      await db.delete(schema.exams).where(eq(schema.exams.id, examId));
-
-      console.log('✅ Exam deleted successfully');
-      res.json({ message: 'Exam deleted successfully' });
-    } catch (error: any) {
-      console.error('❌ Error deleting exam:', error);
-      res.status(500).json({ message: 'Failed to delete exam' });
-    }
-  });
-
-  // SO CENTER EXAM MANAGEMENT ENDPOINTS
-
-  // Get exams for logged-in SO Center user (Optimized for performance)
-  app.get('/api/so-center/exams', authenticateToken, async (req, res) => {
-    try {
-      const userId = req.user?.userId;
-      console.log('📋 Fetching exams for SO Center user:', userId);
-
-      // Use the existing working getSoCenterByEmail method
-      let soCenter = null;
-      if (req.user?.email) {
-        try {
-          soCenter = await storage.getSoCenterByEmail(req.user.email);
-          if (soCenter) {
-            console.log('✅ Found SO Center by email:', soCenter.centerId);
-          }
-        } catch (error) {
-          console.log('⚠️ Email lookup failed, trying fallback');
-        }
-      }
-
-      // Fallback lookup by managerId if email lookup fails
-      if (!soCenter && userId) {
-        try {
-          const soCenterByManager = await db.select()
-            .from(schema.soCenters)
-            .where(eq(schema.soCenters.managerId, userId))
-            .limit(1);
-
-          if (soCenterByManager.length > 0) {
-            soCenter = soCenterByManager[0];
-            console.log('✅ Fallback - Found SO Center by managerId:', soCenter.centerId);
-          }
-        } catch (error) {
-          console.log('⚠️ Manager lookup also failed');
-        }
-      }
-
-      if (!soCenter) {
-        console.log('❌ No SO Center found for user');
-        return res.status(404).json({ message: 'SO Center not found for this user' });
-      }
-
-      const soCenterId = soCenter.id;
-
-      // Simplified exam query to avoid performance issues
-      const allExams = await db.select()
-        .from(schema.exams)
-        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
-        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-        .orderBy(desc(schema.exams.examDate));
-
-      // Filter exams for this SO Center in JavaScript to avoid complex SQL
-      const exams = allExams
-        .filter(examRow => {
-          const soCenterIds = examRow.exams.soCenterIds;
-          return Array.isArray(soCenterIds) && soCenterIds.includes(soCenterId);
-        })
-        .map(examRow => ({
-          ...examRow.exams,
-          className: examRow.classes?.name || 'N/A',
-          subjectName: examRow.subjects?.name || 'N/A'
-        }));
-
-      console.log('✅ Found', exams.length, 'exams for SO Center');
-      res.json(exams);
-    } catch (error: any) {
-      console.error('❌ Error fetching SO Center exams:', error);
-      // Fallback to JavaScript filtering if SQL array query fails
-      try {
-        const allExams = await db.select()
-          .from(schema.exams)
-          .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
-          .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
-          .orderBy(desc(schema.exams.examDate));
-
-        const filteredExams = allExams.filter(exam => 
-          exam.exams.soCenterIds && exam.exams.soCenterIds.includes(req.user?.userId || '')
-        );
-
-        res.json(filteredExams.map(item => ({
-          ...item.exams,
-          className: item.classes?.name,
-          subjectName: item.subjects?.name
-        })));
-      } catch (fallbackError) {
-        res.status(500).json({ message: 'Failed to fetch exams' });
-      }
-    }
-  });
-
-  // Get students for logged-in SO Center user
-  app.get('/api/so-center/students', authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-
-      console.log('🔐 CRITICAL PRIVACY: SO Center students endpoint - enforcing strict filtering');
-      console.log('👥 SO Center user requesting students:', req.user.userId, req.user.email);
-
-      // Get SO Center associated with this user's email
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        console.log('❌ PRIVACY VIOLATION PREVENTED: No SO Center found for user email:', req.user.email);
-        return res.status(403).json({ message: "SO Center not found for authenticated user" });
-      }
-
-      console.log('✅ SO Center identified:', soCenter.centerId, '- Fetching ONLY their students');
-
-      // Get ONLY students registered by THIS specific SO Center
-      const students = await storage.getStudentsBySoCenter(soCenter.id);
-
-      console.log(`🔒 PRIVACY ENFORCED: Retrieved ${students.length} students exclusively for SO Center ${soCenter.centerId}`);
-
-      if (!students || students.length === 0) {
-        console.log('📭 No students found for this SO Center');
-        return res.json([]);
-      }
-
-      res.json(students);
-    } catch (error: any) {
-      console.error('❌ Error fetching SO Center students:', error);
-      res.status(500).json({ message: 'Failed to fetch students' });
-    }
-  });
-
-  // Mark exam as completed by SO Center
-  app.post('/api/so-center/exams/:examId/complete', authenticateToken, async (req, res) => {
-    try {
-      const { examId } = req.params;
-      console.log('✅ Marking exam as completed:', examId);
-
-      const [updatedExam] = await db
-        .update(schema.exams)
-        .set({
-          status: 'completed',
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.exams.id, examId))
-        .returning();
-
-      if (!updatedExam) {
-        return res.status(404).json({ message: 'Exam not found' });
-      }
-
-      console.log('✅ Exam marked as completed');
-      res.json({ message: 'Exam marked as completed', exam: updatedExam });
-    } catch (error: any) {
-      console.error('❌ Error marking exam as completed:', error);
-      res.status(500).json({ message: 'Failed to mark exam as completed' });
-    }
-  });
-
-  // Get exam questions for individual marks entry
-  app.get("/api/exams/:examId/questions", authenticateToken, async (req, res) => {
-    try {
-      const examId = req.params.examId;
-      console.log('📋 Fetching questions for exam:', examId);
-
-      // Get exam with questions
-      const exam = await sql`
-        SELECT questions, title, total_questions, total_marks
-        FROM exams 
-        WHERE id = ${examId}
-      `;
-
-      if (!exam || exam.length === 0) {
-        console.log('❌ Exam not found:', examId);
-        return res.status(404).json({ message: "Exam not found" });
-      }
-
-      const examData = exam[0];
-      console.log('📊 Exam data found:', { 
-        title: examData.title, 
-        hasQuestions: !!examData.questions 
-      });
-
-      // Parse questions if they exist
-      let questions = [];
-      if (examData.questions) {
-        try {
-          questions = JSON.parse(examData.questions);
-          console.log('✅ Questions parsed successfully:', questions.length);
-        } catch (parseError) {
-          console.error('❌ Error parsing questions JSON:', parseError);
-          questions = [];
-        }
-      }
-
-      // Format questions for response
-      const formattedQuestions = questions.map((q: any, index: number) => ({
-        questionNumber: q.questionNumber || index + 1,
-        marks: q.marks || 0,
-        questionText: q.questionText || q.question || `Question ${index + 1}`,
-        questionType: q.questionType || q.type || 'descriptive'
-      }));
-
-      console.log('📋 Returning formatted questions:', formattedQuestions.length);
-
-      res.json(formattedQuestions);
-    } catch (error: any) {
-      console.error('❌ Error fetching exam questions:', error);
-      res.status(500).json({ message: "Failed to fetch exam questions" });
-    }
-  });
-
-  // Get all exam results for a specific exam (SO Center filtered)
-  app.get('/api/exams/:examId/results', authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-
-      const { examId } = req.params;
-      console.log('📊 Fetching all results for exam:', examId);
-
-      // Get SO Center for this user
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        return res.status(403).json({ message: "SO Center not found for user" });
-      }
-
-      // Get all results for this exam for students from this SO Center
-      const results = await db
-        .select({
-          id: schema.examResults.id,
-          studentId: schema.examResults.studentId,
-          examId: schema.examResults.examId,
-          marksObtained: schema.examResults.marksObtained,
-          answeredQuestions: schema.examResults.answeredQuestions,
-          detailedResults: schema.examResults.detailedResults,
-          createdAt: schema.examResults.createdAt,
-          updatedAt: schema.examResults.updatedAt,
-          // Include student info for verification
-          studentName: schema.students.name,
-          studentNumber: schema.students.studentId
-        })
-        .from(schema.examResults)
-        .leftJoin(schema.students, eq(schema.examResults.studentId, schema.students.id))
-        .where(
-          and(
-            eq(schema.examResults.examId, examId),
-            eq(schema.students.soCenterId, soCenter.id)
-          )
-        )
-        .orderBy(schema.examResults.createdAt);
-
-      console.log(`📊 Found ${results.length} results for exam ${examId} in SO Center ${soCenter.centerId}`);
-      
-      // Calculate percentage for each result that doesn't have it
-      const exam = await db.select()
-        .from(schema.exams)
-        .where(eq(schema.exams.id, examId))
-        .limit(1);
-        
-      const examTotalMarks = exam.length > 0 ? Number(exam[0].totalMarks) : 0;
-      
-      const resultsWithPercentage = results.map(result => ({
-        ...result,
-        percentage: examTotalMarks > 0 ? Math.round((result.marksObtained / examTotalMarks) * 100) : 0
-      }));
-
-      res.json(resultsWithPercentage);
-    } catch (error: any) {
-      console.error('❌ Error fetching exam results:', error);
-      res.status(500).json({ message: 'Failed to fetch exam results' });
-    }
-  });
-
-  // Get individual student results for an exam
-  app.get('/api/exams/:examId/student-results/:studentId', authenticateToken, async (req, res) => {
-    try {
-      const { examId, studentId } = req.params;
-      console.log('📊 Fetching individual student results:', { examId, studentId });
-
-      // Get existing detailed results if any
-      const existingResult = await db.select()
-        .from(schema.examResults)
-        .where(
-          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-        );
-
-      if (existingResult.length > 0 && existingResult[0].detailedResults) {
-        const detailedResults = JSON.parse(existingResult[0].detailedResults);
-        res.json({
-          totalMarks: existingResult[0].marksObtained,
-          status: existingResult[0].answeredQuestions,
-          questions: detailedResults.questions || []
-        });
-      } else {
-        // Return empty results structure
-        res.json({
-          totalMarks: 0,
-          status: 'not_answered',
-          questions: []
-        });
-      }
-    } catch (error: any) {
-      console.error('❌ Error fetching student results:', error);
-      res.status(500).json({ message: 'Failed to fetch student results' });
-    }
-  });
-
-  // Save individual student results with question-level details
-  app.post('/api/exams/:examId/student-results', authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: 'SO Center access required' });
-      }
-
-      const { examId } = req.params;
-      const { studentId, answers, totalMarks, percentage, answeredQuestions, detailedResults } = req.body;
-
-      console.log('💾 Saving detailed student results:', {
-        examId,
-        studentId,
-        totalMarks,
-        hasAnswers: !!answers
-      });
-
-      if (!studentId || !examId) {
-        return res.status(400).json({ message: 'Student ID and Exam ID are required' });
-      }
-
-      // Validate that totalMarks is provided and is a valid number
-      const numericTotalMarks = Number(totalMarks);
-      if (totalMarks === undefined || totalMarks === null || isNaN(numericTotalMarks) || numericTotalMarks < 0) {
-        return res.status(400).json({ message: 'Valid total marks (non-negative number) are required' });
-      }
-
-      // Get exam details to validate
-      const exam = await db.select()
-        .from(schema.exams)
-        .where(eq(schema.exams.id, examId))
-        .limit(1);
-
-      if (!exam.length) {
-        return res.status(404).json({ message: 'Exam not found' });
-      }
-
-      const examData = exam[0];
-      const examTotalMarks = Number(examData.totalMarks);
-
-      // Validate total marks doesn't exceed exam total
-      if (numericTotalMarks > examTotalMarks) {
-        return res.status(400).json({ 
-          message: `Total marks (${numericTotalMarks}) cannot exceed exam total marks (${examTotalMarks})` 
-        });
-      }
-
-      // Calculate percentage
-      const calculatedPercentage = examTotalMarks > 0 ? Math.round((numericTotalMarks / examTotalMarks) * 100) : 0;
-
-      // Check if result already exists  
-      const existingResult = await db.select()
-        .from(schema.examResults)
-        .where(
-          sqlQuery`exam_id = ${examId} AND student_id = ${studentId}`
-        );
-
-      // Prevent modification of already completed results (business rule)
-      if (existingResult.length > 0 && existingResult[0].marksObtained !== null && existingResult[0].marksObtained >= 0) {
-        console.log('❌ Attempt to modify completed result for student:', studentId);
-        return res.status(400).json({ 
-          message: 'This student has already completed the exam. Results cannot be modified.' 
-        });
-      }
-
-      let result;
-      // Base result data without percentage - will add it conditionally
-      const baseResultData = {
-        examId,
-        studentId,
-        marksObtained: numericTotalMarks,
-        answeredQuestions: answeredQuestions || (numericTotalMarks > 0 ? 'fully_answered' : 'not_answered'),
-        detailedResults: detailedResults ? JSON.stringify(detailedResults) : null,
-        submittedBy: req.user.userId,
-        submittedAt: new Date()
-      };
-
-      console.log('💾 Saving individual exam result with minimal schema (production optimized)');
-      
-      // Minimal result data matching actual database structure
-      const minimalResultData = {
-        examId,
-        studentId,
-        marksObtained: numericTotalMarks,
-        answeredQuestions: answeredQuestions || (numericTotalMarks > 0 ? 'fully_answered' : 'not_answered'),
-        detailedResults: detailedResults ? JSON.stringify(detailedResults) : null
-      };
-      
-      if (existingResult.length > 0) {
-        // Update existing result
-        [result] = await db.update(schema.examResults)
-          .set({
-            ...minimalResultData,
-            updatedAt: new Date()
-          })
-          .where(eq(schema.examResults.id, existingResult[0].id))
-          .returning();
-      } else {
-        // Create new result
-        [result] = await db.insert(schema.examResults)
-          .values(minimalResultData)
-          .returning();
-      }
-      
-      // Add calculated percentage to result object for API response
-      result.percentage = calculatedPercentage;
-
-      console.log('✅ Student exam result saved successfully:', result.id);
-
-      res.json({
-        message: 'Exam result saved successfully',
-        result: {
-          id: result.id,
-          examId: result.examId,
-          studentId: result.studentId,
-          totalMarks: result.marksObtained,
-          marksObtained: result.marksObtained,
-          percentage: result.percentage
-        }
-      });
-
-    } catch (error: any) {
-      console.error('❌ Error saving exam result:', error);
-      res.status(500).json({ 
-        message: 'Failed to save exam result',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-      });
-    }
-  });
-
-  // Bulk update exam results - New API endpoint for modal-based marks entry
-  app.post('/api/exams/:examId/results/update', authenticateToken, async (req, res) => {
-    try {
-      const examId = req.params.examId;
-      const { results } = req.body;
-
-      console.log('🔄 Bulk updating exam results for exam:', examId);
-      console.log('📊 Students data:', results);
-
-      if (!results || !Array.isArray(results)) {
-        return res.status(400).json({ message: 'Invalid students data' });
-      }
-
-      // Check if exam exists and user has access
-      const exam = await db.select().from(schema.exams).where(eq(schema.exams.id, examId)).limit(1);
-      if (!exam.length) {
-        return res.status(404).json({ message: 'Exam not found' });
-      }
-
-      // Verify SO Center access for this exam
-      if (req.user?.role === 'so_center') {
-        const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        if (!soCenter) {
-          return res.status(404).json({ message: 'SO Center not found' });
-        }
-
-        const soCenterIds = Array.isArray(exam[0].soCenterIds) ? exam[0].soCenterIds : [];
-        if (!soCenterIds.includes(soCenter.id)) {
-          return res.status(403).json({ message: 'Access denied to this exam' });
-        }
-      }
-
-      // Process each student's results
-      const savedResults = [];
-      for (const studentData of results) {
-        const { studentId, marks, totalScore, performance } = studentData;
-
-        if (!studentId) {
-          console.warn('⚠️ Skipping student with missing ID');
-          continue;
-        }
-
-        // Calculate percentage
-        const examTotalMarks = Number(exam[0]?.totalMarks || 100); // Default to 100 if not found
-        const calculatedPercentage = Math.round((totalScore / examTotalMarks) * 100);
-
-        // Prepare detailed results
-        const detailedResults = JSON.stringify({
-          questions: marks || [],
-          performance: performance || [],
-          totalScore,
-          percentage: calculatedPercentage
-        });
-
-        // Upsert exam result using the schema
-        try {
-          // Base data without percentage
-          const baseData = {
-            examId,
-            studentId,
-            marksObtained: totalScore || 0,
-            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
-            detailedResults,
-            submittedBy: req.user?.userId,
-            submittedAt: new Date()
-          };
-
-          const updateData = {
-            marksObtained: totalScore || 0,
-            detailedResults,
-            submittedBy: req.user?.userId,
-            updatedAt: new Date()
-          };
-
-          // Production-optimized minimal database operations
-          console.log('💾 Saving bulk exam results with minimal schema (production optimized)');
-          
-          // Minimal data matching actual database structure
-          const minimalData = {
-            examId,
-            studentId,
-            marksObtained: totalScore || 0,
-            answeredQuestions: totalScore > 0 ? 'fully_answered' : 'not_answered',
-            detailedResults
-          };
-
-          const minimalUpdateData = {
-            marksObtained: totalScore || 0,
-            detailedResults,
-            updatedAt: new Date()
-          };
-
-          let result;
-          [result] = await db.insert(schema.examResults)
-            .values(minimalData)
-            .onConflictDoUpdate({
-              target: [schema.examResults.examId, schema.examResults.studentId],
-              set: minimalUpdateData
-            })
-            .returning();
-          
-          // Add calculated percentage to result object for API response
-          result.percentage = calculatedPercentage;
-
-          savedResults.push({
-            studentId,
-            totalScore: totalScore || 0,
-            percentage: calculatedPercentage,
-            status: totalScore > 0 ? 'completed' : 'pending'
-          });
-
-          console.log('✅ Result saved for student:', studentId, 'Marks:', totalScore);
-        } catch (dbError) {
-          console.error('❌ Database error for student:', studentId, dbError);
-          // Continue with other students even if one fails
-        }
-      }
-
-      res.json({
-        message: 'Exam results updated successfully',
-        results: savedResults
-      });
-    } catch (error: any) {
-      console.error('❌ Error bulk updating exam results:', error);
-      res.status(500).json({ message: 'Failed to update exam results' });
-    }
-  });
-
-  // Submit exam results (for SO Centers)
-  app.post('/api/so-center/exams/:examId/results', authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: "SO Center access required" });
-      }
-
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        return res.status(404).json({ message: "SO Center not found" });
-      }
-
-      const { examId } = req.params;
-      const { results } = req.body;
-
-      if (!examId || !results || !Array.isArray(results)) {
-        return res.status(400).json({ message: "examId and results array are required" });
-      }
-
-      console.log('📝 Saving exam results for exam:', examId, 'from SO Center:', soCenter.centerId);
-
-      // Save exam results in bulk
-      const savedResults = [];
-      for (const result of results) {
-        const { studentId, questionResults, totalMarks, percentage, remarks } = result;
-
-        // Basic validation
-        if (!studentId || totalMarks === undefined || percentage === undefined) {
-          console.warn('⚠️ Skipping invalid result data:', result);
-          continue;
-        }
-
-        // Create or update exam result
-        const examResult = await sql`
-          INSERT INTO exam_results (
-            exam_id, 
-            student_id, 
-            total_marks, 
-            percentage, 
-            remarks,
-            question_results,
-            submitted_by,
-            submitted_at,
-            so_center_id 
-          ) VALUES (
-            ${examId},
-            ${studentId},
-            ${totalMarks},
-            ${percentage},
-            ${remarks || null},
-            ${JSON.stringify(questionResults)},
-            ${req.user.userId},
-            NOW(),
-            ${soCenter.id}
-          )
-          ON CONFLICT (exam_id, student_id) 
-          DO UPDATE SET 
-            total_marks = EXCLUDED.total_marks,
-            percentage = EXCLUDED.percentage,
-            remarks = EXCLUDED.remarks,
-            question_results = EXCLUDED.question_results,
-            submitted_by = EXCLUDED.submitted_by,
-            submitted_at = EXCLUDED.submitted_at,
-            updated_at = NOW()
-          RETURNING *
-        `;
-        savedResults.push(examResult[0]);
-      }
-
-      console.log('✅ Saved', savedResults.length, 'exam results');
-      res.json({ 
-        message: 'Exam results saved successfully',
-        savedCount: savedResults.length
-      });
-    } catch (error: any) {
-      console.error('❌ Error saving exam results:', error);
-      res.status(500).json({ message: "Failed to save exam results" });
-    }
-  });
-
-  // Delete exam endpoint  
-  app.delete("/api/admin/exams/:id", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: "Unauthorized: Admin access required" });
-      }
-
-      const examId = req.params.id;
-      await storage.deleteExam(examId);
-
-      res.json({ message: "Exam deleted successfully" });
-    } catch (error) {
-      console.error("Error deleting exam:", error);
-      res.status(500).json({ message: "Failed to delete exam" });
-    }
-  });
-
-  // ======================== ALL 7 NEW FEATURES API ROUTES ========================
-
-  // Feature 1: Topics Management with Moderate/Important flags
-  app.get("/api/topics-management", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const topics = await storage.getAllTopicsWithChapters();
-      res.json(topics);
-    } catch (error) {
-      console.error('Error fetching topics for management:', error);
-      res.status(500).json({ message: "Failed to fetch topics" });
-    }
-  });
-
-  app.patch("/api/topics/:topicId/flags", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'academic_admin')) {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const { topicId } = req.params;
-      const { isModerate, isImportant } = req.body;
-
-      const updates: any = {};
-      if (typeof isModerate === 'boolean') updates.isModerate = isModerate;
-      if (typeof isImportant === 'boolean') updates.isImportant = isImportant;
-
-      if (Object.keys(updates).length === 0) {
-        return res.status(400).json({ message: "No valid updates provided" });
-      }
-
-      const updatedTopic = await storage.updateTopicFlags(topicId, updates);
-      res.json(updatedTopic);
-    } catch (error) {
-      console.error('Error updating topic flags:', error);
-      res.status(500).json({ message: "Failed to update topic flags" });
-    }
-  });
-
-  // Feature 6: Exam Time Management
-  app.patch("/api/exams/:examId/time-settings", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'academic_admin') {
-        return res.status(403).json({ message: "Academic admin access required" });
-      }
-
-      const { examId } = req.params;
-      const { startTime, endTime } = req.body;
-
-      if (!startTime || !endTime) {
-        return res.status(400).json({ message: "Both startTime and endTime are required" });
-      }
-
-      const updatedExam = await storage.updateExamTimeSettings(examId, startTime, endTime);
-      res.json(updatedExam);
-    } catch (error) {
-      console.error('Error updating exam time settings:', error);
-      res.status(500).json({ message: "Failed to update exam time settings" });
-    }
-  });
-
-  app.get("/api/exams/:examId/access-check", authenticateToken, async (req, res) => {
-    try {
-      const { examId } = req.params;
-      const accessCheck = await storage.checkExamTimeAccess(examId);
-      res.json(accessCheck);
-    } catch (error) {
-      console.error('Error checking exam access:', error);
-      res.status(500).json({ message: "Failed to check exam access" });
-    }
-  });
-
-  // Feature 7: Student Dropout Management
-  app.post("/api/dropout-requests", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      if (req.user.role !== 'so_center') {
-        return res.status(403).json({ message: "SO Center access required" });
-      }
-
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        return res.status(404).json({ message: "SO Center not found" });
-      }
-
-      // CRITICAL: Check if student has zero pending balance before allowing dropout request
-      const { studentId } = req.body;
-      if (!studentId) {
-        return res.status(400).json({ message: "Student ID is required" });
-      }
-
-      const student = await storage.getStudent(studentId);
-      if (!student) {
-        return res.status(404).json({ message: "Student not found" });
-      }
-
-      // Verify student belongs to this SO Center
-      if (student.soCenterId !== soCenter.id) {
-        return res.status(403).json({ message: "Student does not belong to your SO Center" });
-      }
-
-      // Check if student has pending balance
-      const pendingAmount = parseFloat(student.totalAmount || '0') - parseFloat(student.paidAmount || '0');
-      if (pendingAmount > 0) {
-        return res.status(400).json({ 
-          message: `Cannot create dropout request. Student has pending balance of ₹${pendingAmount.toFixed(2)}. Please clear all dues before submitting dropout request.`,
-          pendingBalance: pendingAmount
-        });
-      }
-
-      const dropoutData = {
-        ...req.body,
-        soCenterId: soCenter.id,
-        requestedBy: req.user.userId,
-        status: 'pending'
-      };
-
-      const request = await storage.createDropoutRequest(dropoutData);
-      res.status(201).json(request);
-    } catch (error) {
-      console.error('Error creating dropout request:', error);
-      res.status(500).json({ message: error.message || "Failed to create dropout request" });
-    }
-  });
-
-  // SO Center Exam Results Management
-  app.get("/api/so-center/exams/:examId/students", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: "SO Center access required" });
-      }
-
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        return res.status(404).json({ message: "SO Center not found" });
-      }
-
-      const examId = req.params.examId;
-
-      // Get students for this exam who belong to this SO Center
-      const students = await sql`
-        SELECT DISTINCT 
-          s.id,
-          s.name,
-          s.student_id,
-          s.father_name,
-          s.parent_phone
-        FROM students s
-        INNER JOIN exams e ON e.id = ${examId}
-        WHERE s.so_center_id = ${soCenter.id}
-        AND s.is_active = true
-        ORDER BY s.name ASC
-      `;
-
-      res.json(students.map(s => ({
-        id: s.id,
-        name: s.name,
-        studentId: s.student_id,
-        fatherName: s.father_name,
-        parentPhone: s.parent_phone
-      })));
-    } catch (error: any) {
-      console.error('Error fetching exam students:', error);
-      res.status(500).json({ message: "Failed to fetch exam students" });
-    }
-  });
-
-  app.get("/api/so-center/exams/:examId/questions", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: "SO Center access required" });
-      }
-
-      const examId = req.params.examId;
-      console.log('📋 Fetching questions for exam:', examId);
-
-      // Get the exam with questions
-      const [exam] = await db.select({
-        id: schema.exams.id,
-        title: schema.exams.title,
-        questions: schema.exams.questions,
-        totalQuestions: schema.exams.totalQuestions,
-        totalMarks: schema.exams.totalMarks
-      }).from(schema.exams)
-        .where(eq(schema.exams.id, examId));
-
-      if (!exam) {
-        return res.status(404).json({ message: "Exam not found" });
-      }
-
-      // Parse questions from JSON string
-      let questions = [];
-      if (exam.questions) {
-        try {
-          questions = JSON.parse(exam.questions);
-        } catch (e) {
-          console.error('Error parsing exam questions JSON:', e);
-          questions = [];
-        }
-      }
-
-      // Format questions for the exam results component
-      const formattedQuestions = questions.map((q: any, index: number) => ({
-        questionNumber: q.questionNumber || index + 1,
-        marks: q.marks || 2, // Default to 2 marks per question
-        questionText: q.questionText || q.question || '',
-        questionType: q.questionType || q.type || 'descriptive'
-      }));
-
-      res.json({
-        examInfo: {
-          id: exam.id,
-          title: exam.title,
-          totalQuestions: exam.totalQuestions,
-          totalMarks: exam.totalMarks
-        },
-        questions: formattedQuestions
-      });
-    } catch (error: any) {
-      console.error('Error fetching exam questions:', error);
-      res.status(500).json({ message: "Failed to fetch exam questions" });
-    }
-  });
-
-  app.post("/api/so-center/exam-results", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || req.user.role !== 'so_center') {
-        return res.status(403).json({ message: "SO Center access required" });
-      }
-
-      const soCenter = await storage.getSoCenterByEmail(req.user.email);
-      if (!soCenter) {
-        return res.status(404).json({ message: "SO Center not found" });
-      }
-
-      const { examId, results } = req.body;
-
-      if (!examId || !results || !Array.isArray(results)) {
-        return res.status(400).json({ message: "examId and results array are required" });
-      }
-
-      console.log('📝 Saving exam results for exam:', examId, 'from SO Center:', soCenter.centerId);
-
-      // Save exam results in bulk
-      const savedResults = [];
-      for (const result of results) {
-        const { studentId, questionResults, totalMarks, percentage, remarks } = result;
-
-        // Basic validation
-        if (!studentId || totalMarks === undefined || percentage === undefined) {
-          console.warn('⚠️ Skipping invalid result data:', result);
-          continue;
-        }
-
-        // Create or update exam result
-        const examResult = await sql`
-          INSERT INTO exam_results (
-            exam_id, 
-            student_id, 
-            total_marks, 
-            percentage, 
-            remarks,
-            question_results,
-            submitted_by,
-            submitted_at,
-            so_center_id 
-          ) VALUES (
-            ${examId},
-            ${studentId},
-            ${totalMarks},
-            ${percentage},
-            ${remarks || null},
-            ${JSON.stringify(questionResults)},
-            ${req.user.userId},
-            NOW(),
-            ${soCenter.id}
-          )
-          ON CONFLICT (exam_id, student_id) 
-          DO UPDATE SET 
-            total_marks = EXCLUDED.total_marks,
-            percentage = EXCLUDED.percentage,
-            remarks = EXCLUDED.remarks,
-            question_results = EXCLUDED.question_results,
-            submitted_by = EXCLUDED.submitted_by,
-            submitted_at = EXCLUDED.submitted_at,
-            updated_at = NOW()
-          RETURNING *
-        `;
-        savedResults.push(examResult[0]);
-      }
-
-      console.log('✅ Saved', savedResults.length, 'exam results');
-      res.json({ 
-        message: 'Exam results saved successfully',
-        savedCount: savedResults.length
-      });
-    } catch (error: any) {
-      console.error('❌ Error saving exam results:', error);
-      res.status(500).json({ message: "Failed to save exam results" });
-    }
-  });
-
-  app.get("/api/dropout-requests", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      let requests;
-      if (req.user.role === 'admin') {
-        // Admin can see all requests
-        requests = await storage.getDropoutRequests();
-      } else if (req.user.role === 'so_center') {
-        // SO Center can only see their own requests
-        const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        if (!soCenter) {
-          return res.status(404).json({ message: "SO Center not found" });
-        }
-        requests = await storage.getDropoutRequests(soCenter.id);
-      } else {
-        return res.status(403).json({ message: "Unauthorized access" });
-      }
-
-      res.json(requests);
-    } catch (error) {
-      console.error('Error fetching dropout requests:', error);
-      res.status(500).json({ message: "Failed to fetch dropout requests" });
-    }
-  });
-
-  app.patch("/api/dropout-requests/:requestId", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: "User not authenticated" });
-      }
-
-      if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const { requestId } = req.params;
-      const { status, adminNotes } = req.body;
-
-      if (!['approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
-      }
-
-      const updatedRequest = await storage.processDropoutRequest(
-        requestId, 
-        status, 
-        req.user.userId, 
-        adminNotes
-      );
-
-      res.json(updatedRequest);
-    } catch (error) {
-      console.error('Error processing dropout request:', error);
-      res.status(500).json({ message: error.message || "Failed to process dropout request" });
-    }
-  });
-
   // Features 2-5: Enhanced Dashboard Statistics (Fixed)
   app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
     try {
@@ -7669,42 +6907,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔍 Looking for SO Center ID:', soCenter.id);
 
       // Get exams for this SO Center
-      const exams = await db.select().from(schema.exams);
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
 
       // Filter exams that include this SO Center
-      const availableExams = exams.filter(exam => {
-        const soCenterIds = Array.isArray(exam.soCenterIds) ? exam.soCenterIds : [];
-        return soCenterIds.includes(soCenter.id);
-      }).map(exam => ({
-        id: exam.id,
-        name: exam.title,
-        title: exam.title,
-        className: '', // Would need to join with classes table
-        date: exam.examDate,
-        totalQuestions: exam.totalQuestions,
-        totalMarks: exam.totalMarks,
-        status: exam.status || 'scheduled',
-        description: exam.description
-      }));
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
 
       console.log('✅ Found', availableExams.length, 'exams for SO Center');
       res.json(availableExams);
     } catch (error: any) {
       console.error('Error fetching SO Center exams:', error);
-      res.status(500).json({ message: "Failed to fetch exams" });
+      res.status(500).json({ message: 'Failed to fetch exams' });
     }
   });
 
   // Marketing Head API Endpoints
-  
+
   // Get SO Centers overview for Marketing Head
   app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
       const { stateId, districtId, mandalId, villageId } = req.query;
-      
+
       // Build filters for centers query
       let whereConditions = [eq(schema.soCenters.isActive, true)];
-      
+
       if (villageId) {
         whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
       } else if (mandalId) {
@@ -7714,8 +6959,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (stateId) {
         whereConditions.push(eq(schema.districts.stateId, stateId as string));
       }
-      
-      // Get SO Centers with location details
+
+      // Get SO Centers with location details and student counts
       const centers = await db
         .select({
           id: schema.soCenters.id,
@@ -7729,6 +6974,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           state: schema.states.name,
           phone: schema.soCenters.phone,
           registrationDate: schema.soCenters.createdAt,
+          totalActiveStudents: sql<number>`CAST(COUNT(DISTINCT s.id) FILTER (WHERE s.is_active = true) AS INTEGER)`,
+          newStudentsThisMonth: sql<number>`CAST(COUNT(DISTINCT CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN s.id END) AS INTEGER)`,
+          dropoutCount: sql<number>`CAST(COUNT(DISTINCT CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) AND s.is_active = false THEN s.id END) AS INTEGER)`,
         })
         .from(schema.soCenters)
         .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
@@ -7737,46 +6985,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
         .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
         .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
         .orderBy(desc(schema.soCenters.createdAt));
-      
-      // Get enriched data for each center
-      const enrichedCenters = await Promise.all(centers.map(async (center) => {
-        // Get all students for this center
-        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
-        const activeStudents = allStudents.filter(s => s.isActive);
-        
-        // Get class-wise count
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        const classWiseCountResult = await db.execute(sql`
+          SELECT 
+            c.name as class_name,
+            COUNT(s.id) as student_count
+          FROM students s
+          JOIN classes c ON s.class_id = c.id
+          WHERE s.so_center_id = ${center.id} AND s.is_active = true
+          GROUP BY c.id, c.name
+          ORDER BY c.name
+        `);
+
         const classWiseCount: Record<string, number> = {};
-        for (const student of activeStudents) {
-          if (student.classId) {
-            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
-            if (studentClass.length > 0) {
-              const className = studentClass[0].name;
-              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
-            }
+        classWiseCountResult.forEach((row: any) => {
+          if (row.class_name) {
+            classWiseCount[row.class_name] = parseInt(row.student_count) || 0;
           }
-        }
-        
-        // Get dropout count for current month
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
-        const dropoutStudents = allStudents.filter(s => {
-          if (!s.isActive && s.updatedAt) {
-            const updateDate = new Date(s.updatedAt);
-            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
-          }
-          return false;
         });
-        
+
         return {
           ...center,
-          classWiseCount,
-          dropoutCount: dropoutStudents.length,
-          totalActiveStudents: activeStudents.length
+          classWiseCount
         };
       }));
-      
-      res.json(enrichedCenters);
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
     } catch (error) {
       console.error('Error fetching centers overview:', error);
       res.status(500).json({ message: 'Failed to fetch centers overview' });
@@ -7784,14 +7035,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get attendance metrics for Marketing Head
-  app.get('/api/marketing/attendance-metrics', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
       const { dateRange } = req.query;
-      
+
       // Calculate date range based on selection
       let startDate = new Date();
       let endDate = new Date();
-      
+
       switch (dateRange) {
         case 'thisMonth':
           startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
@@ -7804,968 +7055,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
           startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
           break;
       }
-      
+
       const metrics = await executeRawQuery(sql`
         SELECT 
           sc.id,
           sc.name as "centerName",
           sc.center_id as "centerId",
-          COUNT(DISTINCT st.id) as "totalStudents",
-          COUNT(CASE WHEN a.is_present = true THEN 1 END) as "presentCount",
-          COUNT(CASE WHEN a.is_present = false THEN 1 END) as "absentCount",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
           ROUND(
-            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
              NULLIF(COUNT(a.id), 0)), 2
           ) as "attendancePercentage"
         FROM so_centers sc
-        LEFT JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
-        LEFT JOIN attendance a ON st.id = a.student_id 
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
           AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
           AND ${endDate.toISOString().split('T')[0]}
         WHERE sc.is_active = true
         GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
         ORDER BY "attendancePercentage" DESC
       `);
-      
-      res.json(metrics);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
     } catch (error) {
       console.error('Error fetching attendance metrics:', error);
       res.status(500).json({ message: 'Failed to fetch attendance metrics' });
     }
   });
 
-  // Get attendance summary for Marketing Head
-  app.get('/api/marketing/attendance-summary', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      const { dateRange } = req.query;
-      
-      let startDate = new Date();
-      let endDate = new Date();
-      
-      switch (dateRange) {
-        case 'thisMonth':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-          break;
-        case 'lastMonth':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
-          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
-          break;
-        case 'last3Months':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
-          break;
-      }
-      
-      const summary = await executeRawQuery(sql`
-        SELECT 
-          COUNT(CASE WHEN a.is_present = true THEN 1 END) as "totalPresentCount",
-          COUNT(CASE WHEN a.is_present = false THEN 1 END) as "totalAbsentCount",
-          ROUND(
-            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(a.id), 0)), 2
-          ) as "overallAttendancePercentage"
-        FROM attendance a
-        JOIN students st ON a.student_id = st.id AND st.is_active = true
-        WHERE a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
-        AND ${endDate.toISOString().split('T')[0]}
-      `);
-      
-      // Get best performing center
-      const bestCenter = await executeRawQuery(sql`
-        SELECT 
-          sc.name,
-          ROUND(
-            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(a.id), 0)), 2
-          ) as percentage
-        FROM so_centers sc
-        JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
-        JOIN attendance a ON st.id = a.student_id 
-          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
-          AND ${endDate.toISOString().split('T')[0]}
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.name
-        HAVING COUNT(a.id) > 0
-        ORDER BY percentage DESC
-        LIMIT 1
-      `);
-      
-      // Get centers needing attention (below 75%)
-      const attentionNeeded = await executeRawQuery(sql`
-        SELECT 
-          sc.name,
-          ROUND(
-            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(a.id), 0)), 2
-          ) as percentage
-        FROM so_centers sc
-        JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
-        JOIN attendance a ON st.id = a.student_id 
-          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
-          AND ${endDate.toISOString().split('T')[0]}
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.name
-        HAVING COUNT(a.id) > 0 AND 
-        (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / COUNT(a.id)) < 75
-        ORDER BY percentage ASC
-      `);
-      
-      res.json({
-        overallAttendancePercentage: parseFloat(summary[0]?.overallAttendancePercentage || '0'),
-        totalPresentCount: parseInt(summary[0]?.totalPresentCount || '0'),
-        totalAbsentCount: parseInt(summary[0]?.totalAbsentCount || '0'),
-        bestPerformingCenter: bestCenter[0] ? {
-          name: bestCenter[0].name,
-          percentage: parseFloat(bestCenter[0].percentage)
-        } : null,
-        attentionNeededCenters: attentionNeeded.map(center => ({
-          name: center.name,
-          percentage: parseFloat(center.percentage)
-        }))
-      });
-    } catch (error) {
-      console.error('Error fetching attendance summary:', error);
-      res.status(500).json({ message: 'Failed to fetch attendance summary' });
-    }
-  });
-
   // Get attendance trends for Marketing Head
-  app.get('/api/marketing/attendance-trends', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
     try {
-      const { dateRange } = req.query;
-      
-      let startDate = new Date();
-      let endDate = new Date();
-      
-      switch (dateRange) {
-        case 'thisMonth':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-          break;
-        case 'lastMonth':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
-          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
-          break;
-        case 'last3Months':
-          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
-          break;
-      }
-      
-      const trends = await executeRawQuery(sql`
-        SELECT 
-          a.date,
-          ROUND(
-            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(a.id), 0)), 2
-          ) as "attendancePercentage"
-        FROM attendance a
-        JOIN students st ON a.student_id = st.id AND st.is_active = true
-        JOIN so_centers sc ON st.so_center_id = sc.id AND sc.is_active = true
-        WHERE a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
-        AND ${endDate.toISOString().split('T')[0]}
-        GROUP BY a.date
-        ORDER BY a.date
-      `);
-      
-      res.json(trends);
-    } catch (error) {
-      console.error('Error fetching attendance trends:', error);
-      res.status(500).json({ message: 'Failed to fetch attendance trends' });
-    }
-  });
-
-  // Get office staff users for lead assignment
-  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      const officeStaff = await db
-        .select({
-          id: schema.users.id,
-          name: schema.users.name,
-          email: schema.users.email,
-        })
-        .from(schema.users)
-        .where(eq(schema.users.role, 'office_staff'));
-
-      res.json(officeStaff);
-    } catch (error) {
-      console.error('Error fetching office staff:', error);
-      res.status(500).json({ message: 'Failed to fetch office staff' });
-    }
-  });
-
-  // Create new lead for Marketing Head
-  app.post('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      const leadData = req.body;
-      const userId = req.user?.userId;
-      
-      const [lead] = await db.insert(schema.leads).values({
-        ...leadData,
-        createdBy: userId,
-        status: 'new'
-      }).returning();
-      
-      res.status(201).json(lead);
-    } catch (error) {
-      console.error('Error creating lead:', error);
-      res.status(500).json({ message: 'Failed to create lead' });
-    }
-  });
-
-  // Get leads for Marketing Head
-  app.get('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      console.log('📊 Marketing Head fetching leads...');
-      
-      const leads = await db
-        .select({
-          id: schema.leads.id,
-          studentName: schema.leads.studentName,
-          parentName: schema.leads.parentName,
-          mobileNumber: schema.leads.mobileNumber,
-          whatsappNumber: schema.leads.whatsappNumber,
-          email: schema.leads.email,
-          address: schema.leads.address,
-          interestedClass: schema.classes.name,
-          leadSource: schema.leads.leadSource,
-          priority: schema.leads.priority,
-          status: schema.leads.status,
-          expectedJoinDate: schema.leads.expectedJoinDate,
-          notes: schema.leads.notes,
-          createdAt: schema.leads.createdAt,
-          assignedToName: sql<string>`assigned_user.name`,
-          createdByName: sql<string>`created_user.name`,
-          village: schema.villages.name,
-          mandal: schema.mandals.name,
-          district: schema.districts.name,
-          state: schema.states.name
-        })
-        .from(schema.leads)
-        .leftJoin(schema.classes, eq(schema.leads.interestedClass, schema.classes.id))
-        .leftJoin(schema.villages, eq(schema.leads.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .leftJoin(sql`users assigned_user`, eq(schema.leads.assignedTo, sql`assigned_user.id`))
-        .leftJoin(sql`users created_user`, eq(schema.leads.createdBy, sql`created_user.id`))
-        .orderBy(desc(schema.leads.createdAt));
-
-      console.log(`✅ Retrieved ${leads.length} leads for marketing head`);
-      res.json(leads);
-    } catch (error) {
-      console.error('❌ Error fetching leads:', error);
-      res.status(500).json({ message: 'Failed to fetch leads' });
-    }
-  });
-
-  // Get lead metrics for Marketing Head
-  app.get('/api/marketing/lead-metrics', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      console.log('📈 Fetching lead metrics...');
-      
-      const allLeads = await db.select().from(schema.leads);
-      
-      const totalLeads = allLeads.length;
-      const newLeads = allLeads.filter(lead => lead.status === 'new').length;
-      const contactedLeads = allLeads.filter(lead => lead.status === 'contacted').length;
-      const convertedLeads = allLeads.filter(lead => lead.status === 'converted').length;
-      const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100 * 100) / 100 : 0;
-
-      const result = {
-        totalLeads,
-        newLeads,
-        contactedLeads,
-        convertedLeads,
-        conversionRate,
-      };
-
-      console.log('✅ Lead metrics calculated:', result);
-      res.json(result);
-    } catch (error) {
-      console.error('Error fetching lead metrics:', error);
-      res.status(500).json({ message: 'Failed to fetch lead metrics' });
-    }
-  });
-
-  // Assign lead to office staff
-  app.put('/api/marketing/leads/:id/assign', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { assignedTo } = req.body;
-      
-      await db.update(schema.leads)
-        .set({ assignedTo, updatedAt: new Date() })
-        .where(eq(schema.leads.id, id));
-      
-      res.json({ message: 'Lead assigned successfully' });
-    } catch (error) {
-      console.error('Error assigning lead:', error);
-      res.status(500).json({ message: 'Failed to assign lead' });
-    }
-  });
-
-  // Office Staff API Endpoints
-  
-  // Get assigned leads for Office Staff
-  app.get('/api/office/leads', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const { status, search } = req.query;
-      const userId = req.user?.userId;
-      
-      let query = sql`
-        SELECT 
-          l.*,
-          u.name as "createdByName",
-          c.name as "interestedClass",
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          s.name as state,
-          (
-            SELECT MAX(lf.follow_up_date)
-            FROM lead_follow_ups lf 
-            WHERE lf.lead_id = l.id
-          ) as "lastFollowUp"
-        FROM leads l
-        LEFT JOIN users u ON l.created_by = u.id
-        LEFT JOIN classes c ON l.interested_class = c.id
-        LEFT JOIN villages v ON l.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        WHERE l.assigned_to = ${userId}
-      `;
-      
-      if (status && status !== 'all') {
-        query = sql`${query} AND l.status = ${status as string}`;
-      }
-      
-      if (search) {
-        query = sql`${query} AND (
-          l.student_name ILIKE ${'%' + search + '%'} OR
-          l.parent_name ILIKE ${'%' + search + '%'} OR
-          l.mobile_number LIKE ${'%' + search + '%'}
-        )`;
-      }
-      
-      query = sql`${query} ORDER BY l.created_at DESC`;
-      
-      const leads = await executeRawQuery(query);
-      
-      // Get follow-up history for each lead
-      const enrichedLeads = await Promise.all(leads.map(async (lead) => {
-        const followUpHistory = await executeRawQuery(sql`
-          SELECT 
-            lf.*,
-            u.name as "performedByName"
-          FROM lead_follow_ups lf
-          LEFT JOIN users u ON lf.performed_by = u.id
-          WHERE lf.lead_id = ${lead.id}
-          ORDER BY lf.follow_up_date DESC
-        `);
-        
-        return {
-          ...lead,
-          followUpHistory
-        };
-      }));
-      
-      res.json(enrichedLeads);
-    } catch (error) {
-      console.error('Error fetching assigned leads:', error);
-      res.status(500).json({ message: 'Failed to fetch assigned leads' });
-    }
-  });
-
-  // Add follow-up to lead
-  app.post('/api/office/leads/:id/followup', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const followUpData = req.body;
-      const userId = req.user?.userId;
-      
-      await db.insert(schema.leadFollowUps).values({
-        leadId: id,
-        performedBy: userId,
-        ...followUpData
-      });
-      
-      res.status(201).json({ message: 'Follow-up added successfully' });
-    } catch (error) {
-      console.error('Error adding follow-up:', error);
-      res.status(500).json({ message: 'Failed to add follow-up' });
-    }
-  });
-
-  // Update lead status
-  app.put('/api/office/leads/:id/status', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { status, notes } = req.body;
-      
-      await db.update(schema.leads)
-        .set({ 
-          status, 
-          notes: notes ? notes : undefined,
-          updatedAt: new Date() 
-        })
-        .where(eq(schema.leads.id, id));
-      
-      res.json({ message: 'Lead status updated successfully' });
-    } catch (error) {
-      console.error('Error updating lead status:', error);
-      res.status(500).json({ message: 'Failed to update lead status' });
-    }
-  });
-
-  // Get lead analytics for Office Staff
-  app.get('/api/office/lead-analytics', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const userId = req.user?.userId;
-      
-      const analytics = await executeRawQuery(sql`
-        SELECT 
-          COUNT(*) as "totalAssignedLeads",
-          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
-          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
-          ROUND(
-            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(*), 0)), 2
-          ) as "conversionRate"
-        FROM leads
-        WHERE assigned_to = ${userId}
-      `);
-      
-      // Get status distribution
-      const statusDistribution = await executeRawQuery(sql`
-        SELECT 
-          status,
-          COUNT(*) as count
-        FROM leads
-        WHERE assigned_to = ${userId}
-        GROUP BY status
-        ORDER BY count DESC
-      `);
-      
-      // Calculate average response time (mock calculation)
-      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
-      
-      res.json({
-        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
-        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
-        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
-        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
-        avgResponseTime,
-        statusDistribution
-      });
-    } catch (error) {
-      console.error('Error fetching lead analytics:', error);
-      res.status(500).json({ message: 'Failed to fetch lead analytics' });
-    }
-  });
-
-  // Get progress reports for Office Staff
-  app.get('/api/office/progress-reports', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
-      
-      let query = sql`
-        SELECT 
-          st.id,
-          st.student_id as "studentId",
-          st.name,
-          c.name as class,
-          sc.name as "centerName",
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          s.name as state,
-          COUNT(DISTINCT t.id) as "totalTopics",
-          COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) as "completedTopics",
-          ROUND(
-            (COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
-             NULLIF(COUNT(DISTINCT t.id), 0)), 2
-          ) as "progressPercentage",
-          MAX(tp.updated_at) as "lastActivityDate"
-        FROM students st
-        JOIN classes c ON st.class_id = c.id
-        JOIN so_centers sc ON st.so_center_id = sc.id
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        LEFT JOIN subjects sub ON sub.class_id = c.id
-        LEFT JOIN chapters ch ON ch.subject_id = sub.id
-        LEFT JOIN topics t ON t.chapter_id = ch.id
-        LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
-        WHERE st.is_active = true AND sc.is_active = true
-      `;
-      
-      // Add filters
-      if (classId) {
-        query = sql`${query} AND st.class_id = ${classId as string}`;
-      }
-      if (centerId) {
-        query = sql`${query} AND sc.id = ${centerId as string}`;
-      }
-      if (villageId) {
-        query = sql`${query} AND sc.village_id = ${villageId as string}`;
-      } else if (mandalId) {
-        query = sql`${query} AND v.mandal_id = ${mandalId as string}`;
-      } else if (districtId) {
-        query = sql`${query} AND m.district_id = ${districtId as string}`;
-      } else if (stateId) {
-        query = sql`${query} AND d.state_id = ${stateId as string}`;
-      }
-      
-      query = sql`${query} 
-        GROUP BY st.id, st.student_id, st.name, c.name, sc.name, v.name, m.name, d.name, s.name
-        ORDER BY "progressPercentage" DESC
-      `;
-      
-      const progressReports = await executeRawQuery(query);
-      
-      // Get subject-wise progress for each student
-      const enrichedReports = await Promise.all(progressReports.map(async (report) => {
-        const subjectWiseProgress = await executeRawQuery(sql`
-          SELECT 
-            sub.name as "subjectName",
-            COUNT(DISTINCT t.id) as "totalTopics",
-            COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) as "completedTopics",
-            ROUND(
-              (COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
-               NULLIF(COUNT(DISTINCT t.id), 0)), 2
-            ) as percentage
-          FROM subjects sub
-          JOIN chapters ch ON ch.subject_id = sub.id
-          JOIN topics t ON t.chapter_id = ch.id
-          LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = ${report.id}
-          WHERE sub.class_id = (SELECT class_id FROM students WHERE id = ${report.id})
-          GROUP BY sub.id, sub.name
-          ORDER BY sub.name
-        `);
-        
-        return {
-          ...report,
-          totalTopics: parseInt(report.totalTopics),
-          completedTopics: parseInt(report.completedTopics),
-          progressPercentage: parseFloat(report.progressPercentage || '0'),
-          subjectWiseProgress: subjectWiseProgress.map(subj => ({
-            subjectName: subj.subjectName,
-            totalTopics: parseInt(subj.totalTopics),
-            completedTopics: parseInt(subj.completedTopics),
-            percentage: parseFloat(subj.percentage || '0')
-          }))
-        };
-      }));
-      
-      res.json(enrichedReports);
-    } catch (error) {
-      console.error('Error fetching progress reports:', error);
-      res.status(500).json({ message: 'Failed to fetch progress reports' });
-    }
-  });
-
-  // Get progress summary for Office Staff
-  app.get('/api/office/progress-summary', authenticateToken, requireRole(['office_staff', 'admin']), async (req, res) => {
-    try {
-      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
-      
-      let baseQuery = `
-        FROM students st
-        JOIN classes c ON st.class_id = c.id
-        JOIN so_centers sc ON st.so_center_id = sc.id
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        WHERE st.is_active = true AND sc.is_active = true
-      `;
-      
-      let filters = '';
-      if (classId) filters += ` AND st.class_id = '${classId}'`;
-      if (centerId) filters += ` AND sc.id = '${centerId}'`;
-      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
-      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
-      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
-      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
-      
-      baseQuery += filters;
-      
-      const summary = await executeRawQuery(sql.raw(`
-        SELECT 
-          COUNT(DISTINCT st.id) as total_students,
-          AVG(
-            COALESCE(
-              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
-                      NULLIF(COUNT(DISTINCT t.id), 0)
-               FROM subjects sub
-               JOIN chapters ch ON ch.subject_id = sub.id
-               JOIN topics t ON t.chapter_id = ch.id
-               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
-               WHERE sub.class_id = st.class_id), 0
-            )
-          ) as average_progress
-        ${baseQuery}
-      `));
-      
-      const performanceBreakdown = await executeRawQuery(sql.raw(`
-        WITH student_progress AS (
-          SELECT 
-            st.id,
-            COALESCE(
-              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
-                      NULLIF(COUNT(DISTINCT t.id), 0)
-               FROM subjects sub
-               JOIN chapters ch ON ch.subject_id = sub.id
-               JOIN topics t ON t.chapter_id = ch.id
-               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
-               WHERE sub.class_id = st.class_id), 0
-            ) as progress_percentage
-          ${baseQuery}
-        )
-        SELECT 
-          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
-          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
-        FROM student_progress
-      `));
-      
-      // Get class-wise progress
-      const classWiseProgress = await executeRawQuery(sql.raw(`
-        SELECT 
-          c.name as class_name,
-          COUNT(DISTINCT st.id) as student_count,
-          AVG(
-            COALESCE(
-              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
-                      NULLIF(COUNT(DISTINCT t.id), 0)
-               FROM subjects sub
-               JOIN chapters ch ON ch.subject_id = sub.id
-               JOIN topics t ON t.chapter_id = ch.id
-               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
-               WHERE sub.class_id = st.class_id), 0
-            )
-          ) as average_progress
-        ${baseQuery}
-        GROUP BY c.id, c.name
-        ORDER BY c.name
-      `));
-      
-      res.json({
-        totalStudents: parseInt(summary[0]?.total_students || '0'),
-        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
-        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
-        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
-        classWiseProgress: classWiseProgress.map(item => ({
-          className: item.class_name,
-          studentCount: parseInt(item.student_count),
-          averageProgress: parseFloat(item.average_progress || '0')
-        }))
-      });
-    } catch (error) {
-      console.error('Error fetching progress summary:', error);
-      res.status(500).json({ message: 'Failed to fetch progress summary' });
-    }
-  });
-
-  // =================== MARKETING HEAD ANALYTICS ENDPOINTS ===================
-
-  // Marketing Head - Get all leads with analytics
-  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      console.log('📊 Marketing Head fetching leads analytics...');
-
-      const query = `
-        SELECT 
-          l.*,
-          v.name as village_name,
-          m.name as mandal_name,
-          d.name as district_name,
-          s.name as state_name,
-          c.name as class_name,
-          assigned_user.name as assigned_to_name,
-          created_user.name as created_by_name
-        FROM leads l
-        LEFT JOIN villages v ON l.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        LEFT JOIN classes c ON l.interested_class = c.id
-        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
-        LEFT JOIN users created_user ON l.created_by = created_user.id
-        ORDER BY l.created_at DESC
-      `;
-
-      const leads = await executeRawQuery(query, []);
-      console.log(`✅ Retrieved ${leads.length} leads for marketing analytics`);
-      res.json(leads);
-    } catch (error) {
-      console.error('❌ Error fetching marketing leads:', error);
-      res.status(500).json({ message: 'Failed to fetch leads' });
-    }
-  });
-
-  // Marketing Head - Create new lead
-  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      const leadData = insertLeadSchema.parse({
-        ...req.body,
-        createdBy: req.user.userId
-      });
-
-      const [newLead] = await db.insert(schema.leads)
-        .values(leadData)
-        .returning();
-
-      console.log('✅ Marketing Head created new lead:', newLead.id);
-      res.status(201).json(newLead);
-    } catch (error) {
-      console.error('❌ Error creating lead:', error);
-      res.status(500).json({ message: 'Failed to create lead' });
-    }
-  });
-
-  // Marketing Head - Assign lead to office staff
-  app.put("/api/marketing/leads/:id/assign", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      const { assignedTo } = req.body;
-      const leadId = req.params.id;
-
-      // Update lead assignment
-      await db.update(schema.leads)
-        .set({ 
-          assignedTo,
-          updatedAt: new Date()
-        })
-        .where(eq(schema.leads.id, leadId));
-
-      // Create assignment record
-      await db.insert(schema.leadAssignments)
-        .values({
-          leadId,
-          assignedTo,
-          assignedBy: req.user.userId
-        });
-
-      console.log(`✅ Lead ${leadId} assigned to ${assignedTo} by marketing head`);
-      res.json({ message: 'Lead assigned successfully' });
-    } catch (error) {
-      console.error('❌ Error assigning lead:', error);
-      res.status(500).json({ message: 'Failed to assign lead' });
-    }
-  });
-
-  // Marketing Head - Lead conversion metrics
-  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      console.log('📈 Fetching lead conversion metrics...');
-
-      const metricsQuery = `
-        SELECT 
-          COUNT(*) as total_leads,
-          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
-          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
-          COUNT(CASE WHEN status = 'interested' THEN 1 END) as interested_leads,
-          COUNT(CASE WHEN status = 'visit_scheduled' THEN 1 END) as visit_scheduled,
-          COUNT(CASE WHEN status = 'joined' THEN 1 END) as joined_leads,
-          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads,
-          ROUND(
-            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(*), 0), 2
-          ) as conversion_rate,
-          COUNT(CASE WHEN lead_source = 'online' THEN 1 END) as online_leads,
-          COUNT(CASE WHEN lead_source = 'referral' THEN 1 END) as referral_leads,
-          COUNT(CASE WHEN lead_source = 'walk_in' THEN 1 END) as walk_in_leads,
-          COUNT(CASE WHEN lead_source = 'marketing_campaign' THEN 1 END) as campaign_leads
-        FROM leads
-        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      `;
-
-      const metrics = await executeRawQuery(metricsQuery, []);
-      console.log('✅ Lead metrics calculated');
-      res.json(metrics[0] || {});
-    } catch (error) {
-      console.error('❌ Error fetching lead metrics:', error);
-      res.status(500).json({ message: 'Failed to fetch lead metrics' });
-    }
-  });
-
-  // Marketing Head - Centers overview with performance data
-  app.get("/api/marketing/centers-overview", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      console.log('🏢 Fetching centers performance overview...');
-
-      const centersQuery = `
-        SELECT 
-          sc.id,
-          sc.center_id,
-          sc.name,
-          sc.address,
-          sc.phone,
-          sc.wallet_balance,
-          sc.created_at as registration_date,
-          v.name as village_name,
-          m.name as mandal_name,
-          d.name as district_name,
-          s.name as state_name,
-          u.name as manager_name,
-          COUNT(st.id) as total_active_students,
-          COUNT(CASE WHEN st.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_students_this_month,
-          COUNT(dr.id) as dropout_count,
-          COUNT(l.id) as total_leads,
-          COALESCE(AVG(attendance_summary.attendance_percentage), 0) as avg_attendance_percentage
-        FROM so_centers sc
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        LEFT JOIN users u ON sc.manager_id = u.id
-        LEFT JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
-        LEFT JOIN dropout_requests dr ON sc.id = dr.so_center_id AND dr.status = 'approved'
-        LEFT JOIN leads l ON v.id = l.village_id
-        LEFT JOIN (
-          SELECT 
-            student_id,
-            AVG(CASE WHEN status = 'present' THEN 100.0 ELSE 0.0 END) as attendance_percentage
-          FROM attendance
-          WHERE date >= CURRENT_DATE - INTERVAL '30 days'
-          GROUP BY student_id
-        ) attendance_summary ON st.id = attendance_summary.student_id
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.center_id, sc.name, sc.address, sc.phone, sc.wallet_balance, 
-                 sc.created_at, v.name, m.name, d.name, s.name, u.name
-        ORDER BY total_active_students DESC
-      `;
-
-      const centers = await executeRawQuery(centersQuery, []);
-      console.log(`✅ Retrieved ${centers.length} centers with performance data`);
-      res.json(centers);
-    } catch (error) {
-      console.error('❌ Error fetching centers overview:', error);
-      res.status(500).json({ message: 'Failed to fetch centers overview' });
-    }
-  });
-
-  // Marketing Head - Attendance analytics across centers
-  app.get("/api/marketing/attendance-metrics", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
       const { dateRange = 'thisMonth' } = req.query;
-      
-      console.log(`📊 Fetching attendance metrics for range: ${dateRange}`);
 
       let dateFilter = '';
       switch (dateRange) {
         case 'today':
           dateFilter = 'AND a.date = CURRENT_DATE';
           break;
-        case 'thisWeek':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
-          break;
-        case 'thisMonth':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
-          break;
-        case 'thisQuarter':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
-          break;
-        default:
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
-      }
-
-      const attendanceQuery = `
-        SELECT 
-          sc.id as center_id,
-          sc.center_id as center_code,
-          sc.name as center_name,
-          COUNT(DISTINCT s.id) as total_students,
-          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as total_present,
-          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as total_absent,
-          ROUND(
-            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(a.id), 0), 2
-          ) as attendance_percentage,
-          COUNT(DISTINCT a.date) as total_days
-        FROM so_centers sc
-        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
-        LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.center_id, sc.name
-        HAVING COUNT(a.id) > 0
-        ORDER BY attendance_percentage DESC
-      `;
-
-      const attendanceMetrics = await executeRawQuery(attendanceQuery, []);
-      
-      // Calculate summary metrics
-      const summaryQuery = `
-        SELECT 
-          ROUND(AVG(attendance_percentage), 2) as overall_attendance_percentage,
-          SUM(total_present) as total_present_count,
-          SUM(total_absent) as total_absent_count
-        FROM (
-          SELECT 
-            ROUND(
-              (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
-              NULLIF(COUNT(a.id), 0), 2
-            ) as attendance_percentage,
-            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as total_present,
-            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as total_absent
-          FROM so_centers sc
-          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
-          LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
-          WHERE sc.is_active = true
-          GROUP BY sc.id
-          HAVING COUNT(a.id) > 0
-        ) center_stats
-      `;
-
-      const summary = await executeRawQuery(summaryQuery, []);
-
-      console.log('✅ Attendance metrics calculated for marketing analytics');
-      res.json({
-        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
-        centerMetrics: attendanceMetrics,
-        bestPerformingCenter: attendanceMetrics[0] || null,
-        attentionNeededCenters: attendanceMetrics.filter(c => parseFloat(c.attendance_percentage) < 75)
-      });
-    } catch (error) {
-      console.error('❌ Error fetching attendance metrics:', error);
-      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
-    }
-  });
-
-  // Marketing Head - Attendance trends over time
-  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
-
-      const { dateRange = 'thisMonth' } = req.query;
-      
-      let dateFilter = '';
-      switch (dateRange) {
         case 'thisWeek':
           dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
           break;
@@ -8803,105 +7172,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Marketing Head - Attendance summary
-  app.get("/api/marketing/attendance-summary", authenticateToken, async (req, res) => {
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
-      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
-      }
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
 
-      const { dateRange = 'thisMonth' } = req.query;
-      
-      let dateFilter = '';
-      switch (dateRange) {
-        case 'today':
-          dateFilter = 'AND a.date = CURRENT_DATE';
-          break;
-        case 'thisWeek':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
-          break;
-        case 'thisMonth':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
-          break;
-        case 'thisQuarter':
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
-          break;
-        default:
-          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
-      }
-
-      const summaryQuery = `
-        WITH center_performance AS (
-          SELECT 
-            sc.name as center_name,
-            ROUND(
-              (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
-              NULLIF(COUNT(a.id), 0), 2
-            ) as attendance_percentage
-          FROM so_centers sc
-          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
-          LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
-          WHERE sc.is_active = true
-          GROUP BY sc.id, sc.name
-          HAVING COUNT(a.id) > 0
-        )
-        SELECT 
-          ROUND(AVG(attendance_percentage), 2) as overall_attendance_percentage,
-          (SELECT COUNT(CASE WHEN a.status = 'present' THEN 1 END) 
-           FROM attendance a 
-           JOIN students s ON a.student_id = s.id 
-           WHERE s.is_active = true ${dateFilter}) as total_present_count,
-          (SELECT COUNT(CASE WHEN a.status = 'absent' THEN 1 END) 
-           FROM attendance a 
-           JOIN students s ON a.student_id = s.id 
-           WHERE s.is_active = true ${dateFilter}) as total_absent_count,
-          (SELECT center_name FROM center_performance ORDER BY attendance_percentage DESC LIMIT 1) as best_performing_center_name,
-          (SELECT attendance_percentage FROM center_performance ORDER BY attendance_percentage DESC LIMIT 1) as best_performing_percentage
-        FROM center_performance
-      `;
-
-      const summary = await executeRawQuery(summaryQuery, []);
-      
-      // Get attention needed centers
-      const attentionQuery = `
-        SELECT 
-          sc.name as center_name,
-          ROUND(
-            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
-            NULLIF(COUNT(a.id), 0), 2
-          ) as attendance_percentage
-        FROM so_centers sc
-        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
-        LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
-        WHERE sc.is_active = true
-        GROUP BY sc.id, sc.name
-        HAVING COUNT(a.id) > 0 AND 
-               ROUND((COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / NULLIF(COUNT(a.id), 0), 2) < 75
-        ORDER BY attendance_percentage ASC
-        LIMIT 5
-      `;
-
-      const attentionNeeded = await executeRawQuery(attentionQuery, []);
-
-      const result = {
-        overallAttendancePercentage: parseFloat(summary[0]?.overall_attendance_percentage || '0'),
-        totalPresentCount: parseInt(summary[0]?.total_present_count || '0'),
-        totalAbsentCount: parseInt(summary[0]?.total_absent_count || '0'),
-        bestPerformingCenter: {
-          name: summary[0]?.best_performing_center_name || 'N/A',
-          percentage: parseFloat(summary[0]?.best_performing_percentage || '0')
-        },
-        attentionNeededCenters: attentionNeeded.map(center => ({
-          name: center.center_name,
-          percentage: parseFloat(center.attendance_percentage)
-        }))
-      };
-
-      console.log('✅ Attendance summary calculated for marketing dashboard');
-      res.json(result);
+      res.json(officeStaff);
     } catch (error) {
-      console.error('❌ Error fetching attendance summary:', error);
-      res.status(500).json({ message: 'Failed to fetch attendance summary' });
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
     }
   });
 
@@ -8918,7 +7204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let whereClause = '';
       const params = [];
-      
+
       if (req.user.role === 'office_staff') {
         whereClause = 'WHERE l.assigned_to = $1';
         params.push(req.user.userId);
@@ -9016,6 +7302,8466 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Error fetching lead follow-ups:', error);
       res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get enriched data for each center
+      const enrichedCenters = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${enrichedCenters.length} SO Centers for marketing overview`);
+      res.json(enrichedCenters);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  // =================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  // =================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  // =================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name,created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
+    }
+  });
+
+  //=================== PRODUCTS MANAGEMENT ===================
+
+  // Get all products (Admin only)
+  app.get("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product (Admin only)
+  app.post("/api/admin/products", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.createProduct(productData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ message: 'Failed to create product' });
+    }
+  });
+
+  // Update product (Admin only)
+  app.put("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const productData = req.body;
+      const product = await storage.updateProduct(req.params.id, productData);
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      res.status(500).json({ message: 'Failed to update product' });
+    }
+  });
+
+  // Delete product (Admin only)
+  app.delete("/api/admin/products/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      await storage.deleteProduct(req.params.id);
+      res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({ message: 'Failed to delete product' });
+    }
+  });
+
+  // Get products for SO centers (filtered by availability)
+  app.get("/api/products", authenticateToken, async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      // Filter only active products for SO centers
+      const activeProducts = products.filter(product => product.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  // Create product order (SO centers)
+  app.post("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const orderData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const order = await storage.createProductOrder(orderData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating product order:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create product order'
+      });
+    }
+  });
+
+  // Get product orders for SO center
+  app.get("/api/product-orders", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const orders = await storage.getProductOrdersBySoCenter(soCenterId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching product orders:', error);
+      res.status(500).json({ message: 'Failed to fetch product orders' });
+    }
+  });
+
+  // Get commission wallet for SO center
+  app.get("/api/commission-wallet", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const soCenterId = req.user.role === 'so_center' ? req.user.userId : req.query.soCenterId as string;
+
+      if (!soCenterId) {
+        return res.status(400).json({ message: 'SO Center ID required' });
+      }
+
+      const wallet = await storage.getCommissionWalletBySoCenter(soCenterId);
+
+      if (!wallet) {
+        // Create wallet if doesn't exist
+        const newWallet = await storage.getOrCreateCommissionWallet(soCenterId);
+        res.json(newWallet);
+      } else {
+        res.json(wallet);
+      }
+    } catch (error) {
+      console.error('Error fetching commission wallet:', error);
+      res.status(500).json({ message: 'Failed to fetch commission wallet' });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['so_center', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'SO Center or Admin access required' });
+      }
+
+      const requestData = {
+        ...req.body,
+        soCenterId: req.user.role === 'so_center' ? req.user.userId : req.body.soCenterId
+      };
+
+      const request = await storage.createWithdrawalRequest(requestData);
+      res.status(201).json(request);
+    } catch (error) {
+      console.error('Error creating withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to create withdrawal request'
+      });
+    }
+  });
+
+  // Get withdrawal requests for SO center
+  app.get("/api/withdrawal-requests", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      let requests;
+      if (req.user.role === 'admin') {
+        // Admin can see all requests
+        requests = await storage.getDropoutRequests();
+      } else if (req.user.role === 'so_center') {
+        // SO Center can only see their own requests
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: "SO Center not found" });
+        }
+        requests = await storage.getDropoutRequests(soCenter.id);
+      } else {
+        return res.status(403).json({ message: "Unauthorized access" });
+      }
+
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching dropout requests:', error);
+      res.status(500).json({ message: "Failed to fetch dropout requests" });
+    }
+  });
+
+  // Process withdrawal request (Admin only)
+  app.put("/api/admin/withdrawal-requests/:id/process", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Admin access required' });
+      }
+
+      const { id } = req.params;
+      const { status, notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: 'Invalid status. Must be approved or rejected' });
+      }
+
+      const request = await storage.processWithdrawalRequest(
+        id, 
+        status, 
+        req.user.userId, 
+        notes
+      );
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error processing withdrawal request:', error);
+      res.status(500).json({ 
+        message: error.message || 'Failed to process withdrawal request'
+      });
+    }
+  });
+
+  // Features 2-5: Enhanced Dashboard Statistics (Fixed)
+  app.get("/api/so-center/detailed-students", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      const students = await storage.getStudentsBySOCenterDetailed(soCenter.id);
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching detailed students:', error);
+      res.status(500).json({ message: "Failed to fetch detailed students" });
+    }
+  });
+
+  // SO Center API for exams list
+  app.get("/api/so-center/exams", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== 'so_center') {
+        return res.status(403).json({ message: "SO Center access required" });
+      }
+
+      const soCenter = await storage.getSoCenterByEmail(req.user.email);
+      if (!soCenter) {
+        return res.status(404).json({ message: "SO Center not found" });
+      }
+
+      console.log('🔍 Looking for SO Center ID:', soCenter.id);
+
+      // Get exams for this SO Center
+      const exams = await db.select()
+        .from(schema.exams)
+        .leftJoin(schema.classes, eq(schema.exams.classId, schema.classes.id))
+        .leftJoin(schema.subjects, eq(schema.exams.subjectId, schema.subjects.id))
+        .orderBy(desc(schema.exams.examDate));
+
+      // Filter exams that include this SO Center
+      const availableExams = exams
+        .filter(examRow => {
+          const soCenterIds = Array.isArray(examRow.exams.soCenterIds) ? examRow.exams.soCenterIds : [];
+          return soCenterIds.includes(soCenter.id);
+        })
+        .map(examRow => ({
+          id: examRow.exams.id,
+          name: examRow.exams.title,
+          title: examRow.exams.title,
+          className: examRow.classes?.name || 'N/A',
+          subjectName: examRow.subjects?.name || 'N/A',
+          date: examRow.exams.examDate,
+          totalQuestions: examRow.exams.totalQuestions,
+          totalMarks: examRow.exams.totalMarks,
+          status: examRow.exams.status || 'scheduled',
+          description: examRow.exams.description
+        }));
+
+      console.log('✅ Found', availableExams.length, 'exams for SO Center');
+      res.json(availableExams);
+    } catch (error: any) {
+      console.error('Error fetching SO Center exams:', error);
+      res.status(500).json({ message: 'Failed to fetch exams' });
+    }
+  });
+
+  // Marketing Head API Endpoints
+
+  // Get SO Centers overview for Marketing Head
+  app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId } = req.query;
+
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
+
+      if (villageId) {
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
+      } else if (mandalId) {
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
+      } else if (districtId) {
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
+      } else if (stateId) {
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
+      }
+
+      // Get SO Centers with location details and student counts
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .groupBy(
+          schema.soCenters.id,
+          schema.soCenters.centerId,
+          schema.soCenters.name,
+          schema.users.name,
+          schema.soCenters.address,
+          schema.soCenters.phone,
+          schema.soCenters.createdAt,
+          schema.villages.name,
+          schema.mandals.name,
+          schema.districts.name,
+          schema.states.name
+        )
+        .orderBy(desc(schema.soCenters.createdAt));
+
+      // Get class-wise student count for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center) => {
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
+
+        // Get dropout count for current month
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
+
+        return {
+          ...center,
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
+        };
+      }));
+
+      console.log(`✅ Found ${centersWithClassData.length} SO Centers for marketing overview`);
+      res.json(centersWithClassData);
+    } catch (error) {
+      console.error('Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Get attendance metrics for Marketing Head
+  app.get("/api/marketing/attendance-metrics", authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+
+      // Calculate date range based on selection
+      let startDate = new Date();
+      let endDate = new Date();
+
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          sc.id,
+          sc.name as "centerName",
+          sc.center_id as "centerId",
+          COUNT(DISTINCT s.id) as "totalStudents",
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as "presentCount",
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as "absentCount",
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id 
+          AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+          AND ${endDate.toISOString().split('T')[0]}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name, sc.center_id
+        HAVING COUNT(a.id) > 0
+        ORDER BY "attendancePercentage" DESC
+      `);
+
+      // Calculate summary metrics
+      const summary = await executeRawQuery(sql`
+        SELECT 
+          ROUND(AVG(center_stats.attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(center_stats.presentCount) as total_present_count,
+          SUM(center_stats.absentCount) as total_absent_count
+        FROM (
+          SELECT 
+            sc.id,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as presentCount,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as absentCount
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id 
+            AND a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+            AND ${endDate.toISOString().split('T')[0]}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `);
+
+      // Get best performing center
+      const bestCenter = metrics.length > 0 ? metrics[0] : null;
+
+      // Get centers needing attention (below 75% attendance)
+      const attentionNeededCenters = metrics.filter(center => parseFloat(center.attendancePercentage) < 75);
+
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: metrics,
+        bestPerformingCenter: bestCenter ? {
+          name: bestCenter.centerName,
+          percentage: parseFloat(bestCenter.attendancePercentage)
+        } : null,
+        attentionNeededCenters: attentionNeededCenters.map(center => ({
+          name: center.centerName,
+          percentage: parseFloat(center.attendancePercentage)
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Get attendance trends for Marketing Head
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      const { dateRange = 'thisMonth' } = req.query;
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
+  //=================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
+  // Office Staff - Get lead analytics
+  app.get('/api/office/lead-analytics', authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const analytics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalAssignedLeads",
+          COUNT(CASE WHEN status IN ('new', 'contacted', 'interested') THEN 1 END) as "pendingFollowUps",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(*), 0)), 2
+          ) as "conversionRate"
+        FROM leads
+        WHERE assigned_to = ${userId}
+      `);
+
+      // Get status distribution
+      const statusDistribution = await executeRawQuery(sql`
+        SELECT 
+          status,
+          COUNT(*) as count
+        FROM leads
+        WHERE assigned_to = ${userId}
+        GROUP BY status
+        ORDER BY count DESC
+      `);
+
+      // Calculate average response time (mock calculation)
+      const avgResponseTime = 2.5; // This would need proper calculation based on follow-up dates
+
+      res.json({
+        totalAssignedLeads: parseInt(analytics[0]?.totalAssignedLeads || '0'),
+        pendingFollowUps: parseInt(analytics[0]?.pendingFollowUps || '0'),
+        convertedLeads: parseInt(analytics[0]?.convertedLeads || '0'),
+        conversionRate: parseFloat(analytics[0]?.conversionRate || '0'),
+        avgResponseTime,
+        statusDistribution
+      });
+    } catch (error) {
+      console.error('Error fetching lead analytics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead analytics' });
+    }
+  });
+
+  // Get progress reports for Office Staff
+  app.get('/api/office/progress-reports', authenticateToken, async (req, res) => {
+    try {
+      const { stateId, districtId, mandalId, villageId, centerId, classId } = req.query;
+
+      let baseQuery = `
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+      `;
+
+      let filters = '';
+      if (classId) filters += ` AND st.class_id = '${classId}'`;
+      if (centerId) filters += ` AND sc.id = '${centerId}'`;
+      if (villageId) filters += ` AND sc.village_id = '${villageId}'`;
+      else if (mandalId) filters += ` AND v.mandal_id = '${mandalId}'`;
+      else if (districtId) filters += ` AND m.district_id = '${districtId}'`;
+      else if (stateId) filters += ` AND d.state_id = '${stateId}'`;
+
+      baseQuery += filters;
+
+      const summary = await executeRawQuery(sql.raw(`
+        SELECT 
+          COUNT(DISTINCT st.id) as total_students,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        ${baseQuery}
+      `));
+
+      const performanceBreakdown = await executeRawQuery(sql.raw(`
+        WITH student_progress AS (
+          SELECT 
+            st.id,
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            ) as progress_percentage
+          ${baseQuery}
+        )
+        SELECT 
+          COUNT(CASE WHEN progress_percentage >= 80 THEN 1 END) as high_performers,
+          COUNT(CASE WHEN progress_percentage < 50 THEN 1 END) as needs_attention
+        FROM student_progress
+      `));
+
+      // Get class-wise progress
+      const classWiseProgress = await executeRawQuery(sql.raw(`
+        SELECT 
+          c.name as class_name,
+          COUNT(DISTINCT st.id) as student_count,
+          AVG(
+            COALESCE(
+              (SELECT COUNT(DISTINCT CASE WHEN tp.status = 'learned' THEN tp.topic_id END) * 100.0 / 
+                      NULLIF(COUNT(DISTINCT t.id), 0)
+               FROM subjects sub
+               JOIN chapters ch ON ch.subject_id = sub.id
+               JOIN topics t ON t.chapter_id = ch.id
+               LEFT JOIN topic_progress tp ON tp.topic_id = t.id AND tp.student_id = st.id
+               WHERE sub.class_id = st.class_id), 0
+            )
+          ) as average_progress
+        FROM students st
+        JOIN classes c ON st.class_id = c.id
+        JOIN so_centers sc ON st.so_center_id = sc.id
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        WHERE st.is_active = true AND sc.is_active = true
+        ${filters.replace('WHERE', 'AND')}
+        GROUP BY c.id, c.name
+        ORDER BY c.name
+      `));
+
+      res.json({
+        totalStudents: parseInt(summary[0]?.total_students || '0'),
+        averageProgress: parseFloat(summary[0]?.average_progress || '0'),
+        highPerformers: parseInt(performanceBreakdown[0]?.high_performers || '0'),
+        needsAttention: parseInt(performanceBreakdown[0]?.needs_attention || '0'),
+        classWiseProgress: classWiseProgress.map(item => ({
+          className: item.class_name,
+          studentCount: parseInt(item.student_count),
+          averageProgress: parseFloat(item.average_progress || '0')
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching progress summary:', error);
+      res.status(500).json({ message: 'Failed to fetch progress summary' });
     }
   });
 

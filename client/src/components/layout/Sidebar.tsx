@@ -107,6 +107,7 @@ const navigation: NavItem[] = [
   {
     title: 'Finance',
     icon: DollarSign,
+    roles: ['so_center', 'admin', 'super_admin'], // Exclude marketing_head
     children: [
       { title: 'Fee Collection', href: '/fee-payments', icon: CreditCard, roles: ['so_center'] },
       { title: 'Expenses', href: '/expenses', icon: FileText, roles: ['so_center'] },
