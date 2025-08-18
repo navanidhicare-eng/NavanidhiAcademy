@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -55,15 +55,47 @@ export default function AdminUsers() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch users from API
+  // Fetch users with proper error handling
   const { data: users = [], isLoading, error } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
+    queryFn: async () => {
+      console.log('🔄 Fetching users from API...');
+      try {
+        const response = await apiRequest('GET', '/api/admin/users');
+        console.log('👥 Raw API response:', response);
+
+        // Handle different response formats
+        if (Array.isArray(response)) {
+          console.log('✅ Users fetched successfully:', response.length, 'users');
+          return response;
+        } else if (response && Array.isArray(response.data)) {
+          console.log('✅ Users fetched successfully:', response.data.length, 'users');
+          return response.data;
+        } else {
+          console.log('⚠️ Unexpected response format:', response);
+          return [];
+        }
+      } catch (error) {
+        console.error('❌ Error fetching users:', error);
+        throw error;
+      }
+    },
     refetchOnWindowFocus: false,
+    staleTime: 30000, // 30 seconds
     retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
-  
-  // Debug log to check data loading
-  console.log('👥 Users data:', { users: users.length, isLoading, error });
+
+  // Debug logging
+  useEffect(() => {
+    console.log('👥 Users component state:', { 
+      usersCount: users?.length || 0, 
+      isLoading, 
+      hasError: !!error,
+      errorMessage: error?.message || null,
+      actualUsersData: users
+    });
+  }, [users, isLoading, error]);
 
   // Add user mutation (assuming this exists and is handled elsewhere or will be added)
   // Placeholder for addUserMutation if it's not defined in the original snippet

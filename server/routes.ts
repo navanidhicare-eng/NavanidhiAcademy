@@ -3135,16 +3135,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
+        console.log('❌ Admin access denied for role:', req.user?.role);
         return res.status(403).json({ message: 'Admin access required' });
       }
+      
       console.log('👥 Admin fetching users list...');
+      console.log('🔍 Admin user info:', { userId: req.user.userId, email: req.user.email, role: req.user.role });
+      
       const users = await storage.getAllUsers();
-      console.log(`✅ Found ${users.length} users`);
-      console.log('📊 Sample user data:', users.slice(0, 2).map(u => ({ id: u.id, email: u.email, role: u.role })));
-      res.json(users);
+      console.log(`✅ Found ${users?.length || 0} users from storage`);
+      
+      if (users && users.length > 0) {
+        console.log('📊 Sample user data:', users.slice(0, 2).map(u => ({ 
+          id: u.id, 
+          email: u.email, 
+          role: u.role,
+          name: u.name 
+        })));
+      } else {
+        console.log('⚠️ No users found in database, checking if current admin exists...');
+        
+        // Try to get the current admin user from database
+        try {
+          const currentAdminUser = await storage.getUserByEmail(req.user.email);
+          if (currentAdminUser) {
+            console.log('✅ Found current admin user, including in response');
+            return res.json([currentAdminUser]);
+          }
+        } catch (error) {
+          console.log('⚠️ Could not find current admin user:', error.message);
+        }
+      }
+      
+      // Ensure we return an array
+      const usersArray = Array.isArray(users) ? users : [];
+      console.log(`📤 Sending ${usersArray.length} users to frontend`);
+      res.json(usersArray);
     } catch (error) {
       console.error('❌ Error fetching users:', error);
-      res.status(500).json({ message: 'Failed to fetch users' });
+      console.error('❌ Error stack:', error.stack);
+      res.status(500).json({ message: 'Failed to fetch users', error: error.message });
     }
   });
 

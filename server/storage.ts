@@ -1761,15 +1761,26 @@ export class DrizzleStorage implements IStorage {
 
   // Enhanced User methods
   async getAllUsers(): Promise<User[]> {
-    console.log('🔍 Storage: Querying users table...');
-    const users = await db.select().from(schema.users)
-      .where(eq(schema.users.isActive, true))
-      .orderBy(asc(schema.users.name));
-    console.log('📊 Storage: Users query result:', users.length, 'users found');
-    if (users.length > 0) {
-      console.log('📋 Sample user roles:', users.map(u => u.role).slice(0, 5));
+    try {
+      console.log('🔍 Storage: Fetching all users from database...');
+      const users = await db.select().from(schema.users).orderBy(schema.users.createdAt);
+      console.log(`🔍 Storage: Found ${users?.length || 0} users in database`);
+
+      if (users && users.length > 0) {
+        console.log('🔍 Storage: Sample user data:', users.slice(0, 2).map(u => ({
+          id: u.id,
+          email: u.email,
+          role: u.role,
+          isActive: u.isActive
+        })));
+      }
+
+      return users || [];
+    } catch (error) {
+      console.error('❌ Storage: Error fetching users:', error);
+      console.error('❌ Storage: Error details:', error.message);
+      throw error;
     }
-    return users;
   }
 
   async deleteUser(id: string): Promise<void> {
