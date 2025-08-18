@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
@@ -235,6 +235,7 @@ const navigation: NavItem[] = [
       { title: 'Progress Reports', href: '/office/progress-reports', icon: TrendingUp },
       { title: 'Attendance Reports', href: '/office/attendance-reports', icon: Calendar },
       { title: 'Lead Follow-up', href: '/office/lead-followup', icon: Phone },
+      { title: 'Student Balance & Dues', href: '/student-balance-dues', icon: AlertTriangle },
     ],
   },
   {
@@ -287,12 +288,8 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
     return false;
   };
 
-  // Auto-expand parent menu if current page is a submenu item
-  // The original code had a useState hook here which is not the correct way to handle side effects in React.
-  // It should be useEffect. If it's intended to run only once on mount, an empty dependency array is needed.
-  // For this correction, I'll assume it's meant to run on mount to set initial expanded state.
-  // If the original intent was different, this might need further adjustment.
-  useState(() => {
+  // Auto-expand parent menu if current page is a submenu item using useEffect
+  useEffect(() => {
     navigation.forEach(item => {
       if (item.children && item.children.some(child => 
         isItemVisible(child) && child.href && isActive(child.href)
@@ -302,7 +299,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         );
       }
     });
-  });
+  }, [location]);
 
 
   const toggleExpanded = (title: string) => {

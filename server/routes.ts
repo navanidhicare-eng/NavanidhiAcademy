@@ -4179,6 +4179,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student balance dues endpoint with contact information for admin and office staff
+  app.get("/api/student-balance-dues", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['admin', 'office_staff'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Admin or Office Staff access required' });
+      }
+
+      console.log(`📊 Fetching student balance dues for role: ${req.user.role}`);
+      
+      // Get all students with balance dues including contact information
+      const studentsQuery = `
+        SELECT 
+          s.id,
+          s.student_id as student_code,
+          s.name,
+          s.email,
+          s.phone,
+          s.parent_phone,
+          s.father_name,
+          s.father_mobile,
+          s.mother_name,
+          s.mother_mobile,
+          s.date_of_birth,
+          s.enrollment_date,
+          s.pending_amount,
+          s.paid_amount,
+          s.total_fee_amount,
+          c.name as class_name,
+          c.id as class_id,
+          sc.name as so_center_name,
+          sc.center_id as so_center_code,
+          st.name as state_name,
+          d.name as district_name,
+          m.name as mandal_name,
+          v.name as village_name
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN villages v ON s.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        WHERE s.is_active = true
+        ORDER BY s.name
+      `;
+
+      const students = await executeRawQuery(studentsQuery);
+      
+      // Transform the results to include proper contact information
+      const transformedStudents = students.map((student: any) => ({
+        id: student.id,
+        name: student.name,
+        studentId: student.student_code,
+        fatherName: student.father_name,
+        fatherMobile: student.father_mobile,
+        motherName: student.mother_name,
+        motherMobile: student.mother_mobile,
+        email: student.email,
+        phone: student.phone,
+        parentPhone: student.parent_phone,
+        className: student.class_name,
+        soCenterName: student.so_center_name,
+        paidAmount: student.paid_amount || '0',
+        pendingAmount: student.pending_amount || '0',
+        totalFeeAmount: student.total_fee_amount || '0',
+        enrollmentDate: student.enrollment_date,
+        stateName: student.state_name,
+        districtName: student.district_name,
+        mandalName: student.mandal_name,
+        villageName: student.village_name
+      }));
+
+      console.log(`✅ Found ${transformedStudents.length} students for balance dues`);
+      res.json(transformedStudents);
+    } catch (error: any) {
+      console.error('❌ Error fetching student balance dues:', error);
+      res.status(500).json({ message: 'Failed to fetch student balance dues' });
+    }
+  });
+
   // Students CRUD for admin
   app.get("/api/admin/students", authenticateToken, async (req, res) => {
     try {
