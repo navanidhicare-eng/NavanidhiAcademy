@@ -43,7 +43,7 @@ export default function CentersOverview() {
 
   // Fetch SO Centers data
   const { data: centers, isLoading } = useQuery<SOCenter[]>({
-    queryKey: ['/api/marketing/centers-overview', filters],
+    queryKey: ['/api/marketing/centers-overview'],
     enabled: true,
   });
 

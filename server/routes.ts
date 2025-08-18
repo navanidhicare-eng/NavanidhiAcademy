@@ -6036,10 +6036,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sc.is_active as "isActive",
           sc.created_at as "registrationDate",
           COALESCE(sc.wallet_balance::numeric, 0) as "walletBalance",
-          v.name as "villageName",
-          m.name as "mandalName",
-          d.name as "districtName",
-          st.name as "stateName",
+          COALESCE(v.name, 'N/A') as "villageName",
+          COALESCE(m.name, 'N/A') as "mandalName",
+          COALESCE(d.name, 'N/A') as "districtName",
+          COALESCE(st.name, 'N/A') as "stateName",
           COUNT(DISTINCT s.id) FILTER (WHERE s.is_active = true) as "activeStudents",
           COUNT(DISTINCT CASE 
             WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) 

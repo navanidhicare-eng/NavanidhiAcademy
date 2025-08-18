@@ -240,6 +240,7 @@ const navigation: NavItem[] = [
       { title: 'Lead Management', href: '/marketing/leads', icon: Users },
       { title: 'Centers Overview', href: '/marketing/centers-overview', icon: Building },
       { title: 'Attendance Analytics', href: '/marketing/attendance-metrics', icon: BarChart3 },
+      { title: 'Products', href: '/products', icon: Package },
     ],
   },
   {

@@ -49,6 +49,18 @@ function Products() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  // Check if user has access to products
+  if (!user || !['so_center', 'agent', 'marketing_head'].includes(user.role)) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Access Restricted</h2>
+        <p className="text-gray-600">
+          This page is only accessible to SO Centers, Agents, and Marketing Head.
+        </p>
+      </div>
+    );
+  }
+
   const form = useForm<PurchaseFormData>({
     resolver: zodResolver(purchaseFormSchema),
     defaultValues: {
