@@ -287,6 +287,7 @@ function AddAddressModal({ isOpen, onClose, type, editing }: AddModalProps) {
 
 export default function Addresses() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('states');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'state' | 'district' | 'mandal' | 'village'>('state');

@@ -268,7 +268,7 @@ function Router() {
           <AdminStudentBalanceDues />
         </ProtectedRoute>
       </Route>
-      
+
       {/* General Student Balance Dues accessible by admin and office staff */}
       <Route path="/student-balance-dues">
         <ProtectedRoute>
