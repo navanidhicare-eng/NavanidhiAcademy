@@ -173,7 +173,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                 <FormItem>
                   <FormLabel>Topic Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter topic name" {...field} />
+                    <Input placeholder="Enter topic name" {...field} className="border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -185,11 +185,11 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Enter topic description"
-                      className="min-h-[100px] resize-none"
+                      placeholder="Describe the topic..."
+                      className="min-h-[100px] resize-none border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       {...field} 
                     />
                   </FormControl>
@@ -206,7 +206,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                   <FormLabel>Class</FormLabel>
                   <FormControl>
                     <Select onValueChange={handleClassChange} value={field.value}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <SelectValue placeholder="Select class" />
                       </SelectTrigger>
                       <SelectContent>
@@ -231,7 +231,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                   <FormLabel>Subject</FormLabel>
                   <FormControl>
                     <Select onValueChange={handleSubjectChange} value={field.value} disabled={!selectedClassId}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <SelectValue placeholder={selectedClassId ? "Select subject" : "Select class first"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -257,7 +257,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                     <FormLabel>Chapter</FormLabel>
                     <FormControl>
                       <Select onValueChange={field.onChange} value={field.value} disabled={!selectedSubjectId}>
-                        <SelectTrigger>
+                        <SelectTrigger className="border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                           <SelectValue placeholder={selectedSubjectId ? "Select chapter" : "Select subject first"} />
                         </SelectTrigger>
                         <SelectContent>
@@ -286,6 +286,7 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
                         placeholder="1" 
                         min="1"
                         {...field} 
+                        className="border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                     </FormControl>
                     <FormMessage />

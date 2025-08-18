@@ -91,7 +91,7 @@ export default function PublicProgress() {
                 <div>
                   <h1 className="text-xl sm:text-3xl font-bold">{student.name}</h1>
                   <p className="text-green-100 text-sm sm:text-base">
-                    Student ID: {student.studentId} • Class: {student.className}
+                    Student ID: {student.studentId} • Class: {student.className || student.classId}
                   </p>
                 </div>
               </div>

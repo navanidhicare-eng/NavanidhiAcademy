@@ -104,7 +104,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Phone className="h-4 w-4" />
                       <span>Phone</span>
                     </div>
-                    <p className="font-medium">{student.phone || 'Not provided'}</p>
+                    <p className="font-medium">{student.fatherMobile || student.motherMobile || student.phone || 'Not provided'}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -147,7 +147,14 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <MapPin className="h-4 w-4" />
                       <span>Address</span>
                     </div>
-                    <p className="font-medium">{student.address || 'Not provided'}</p>
+                    <p className="font-medium">
+                      {student.address && student.address !== 'Not provided' 
+                        ? student.address 
+                        : studentDetails?.location 
+                          ? `${studentDetails.location.village || ''}, ${studentDetails.location.mandal || ''}, ${studentDetails.location.district || ''}, ${studentDetails.location.state || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',')
+                          : 'Not provided'
+                      }
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -166,7 +173,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Building2 className="h-4 w-4" />
                       <span>SO Center</span>
                     </div>
-                    <p className="font-medium">{student.soCenterName || 'Not assigned'}</p>
+                    <p className="font-medium">{studentDetails?.soCenterName || student.soCenterName || 'Not assigned'}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -174,7 +181,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Calendar className="h-4 w-4" />
                       <span>Enrollment Date</span>
                     </div>
-                    <p className="font-medium">{student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : 'Not provided'}</p>
+                    <p className="font-medium">{studentDetails?.enrollmentDate ? new Date(studentDetails.enrollmentDate).toLocaleDateString() : student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : 'Not provided'}</p>
                   </div>
 
                   <div className="space-y-2">

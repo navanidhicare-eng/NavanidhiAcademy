@@ -3693,16 +3693,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: schema.students.name,
           email: schema.students.email,
           phone: schema.students.phone,
+          fatherMobile: schema.students.fatherMobile,
+          motherMobile: schema.students.motherMobile,
+          fatherName: schema.students.fatherName,
+          motherName: schema.students.motherName,
           dateOfBirth: schema.students.dateOfBirth,
           enrollmentDate: schema.students.enrollmentDate,
+          address: schema.students.address,
+          gender: schema.students.gender,
+          aadharNumber: schema.students.aadharNumber,
+          courseType: schema.students.courseType,
+          qrCode: schema.students.qrCode,
           className: schema.classes.name,
           soCenterName: schema.soCenters.name,
-          stateName: sql`COALESCE(${schema.states.name}, 'N/A')`.as('stateName'),
-          districtName: sql`COALESCE(${schema.districts.name}, 'N/A')`.as('districtName'),
-          mandalName: sql`COALESCE(${schema.mandals.name}, 'N/A')`.as('mandalName'),
-          villageName: sql`COALESCE(${schema.villages.name}, 'N/A')`.as('villageName'),
+          stateName: schema.states.name,
+          districtName: schema.districts.name,
+          mandalName: schema.mandals.name,
+          villageName: schema.villages.name,
           pendingAmount: schema.students.pendingAmount,
           paidAmount: schema.students.paidAmount,
+          totalFeeAmount: schema.students.totalFeeAmount,
         })
         .from(schema.students)
         .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
@@ -4103,7 +4113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const studentDetails = {
         ...student,
-        className: student.class_name,
+        className: student.class_name || student.classId,
         soCenterName: student.so_center_name,
         soCenterCode: student.so_center_code,
         progressSummary: {

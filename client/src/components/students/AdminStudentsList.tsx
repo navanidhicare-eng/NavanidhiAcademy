@@ -48,6 +48,7 @@ export function AdminStudentsList() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [studentToView, setStudentToView] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,7 +132,7 @@ export function AdminStudentsList() {
     if (selectedState === 'all' && selectedDistrict === 'all' && selectedMandal === 'all' && selectedVillage === 'all') {
       return true;
     }
-    
+
     // Use the joined location data from the center
     const stateMatch = selectedState === 'all' || center.stateName === (states as any[]).find(s => s.id === selectedState)?.name;
     const districtMatch = selectedDistrict === 'all' || center.districtName === (districts as any[]).find(d => d.id === selectedDistrict)?.name;
@@ -180,8 +181,8 @@ export function AdminStudentsList() {
     setIsEditModalOpen(true);
   };
 
-  const handleView = (student: Student) => {
-    setSelectedStudent(student);
+  const handleViewStudent = (student: Student) => {
+    setStudentToView(student);
     setIsViewModalOpen(true);
   };
 
@@ -234,7 +235,7 @@ export function AdminStudentsList() {
 
   const handleExport = () => {
     // Create CSV content
-    const headers = ['Student ID', 'Name', 'Father Name', 'Phone', 'Class', 'School', 'Address', 'Created Date'];
+    const headers = ['Student ID', 'Name', 'Father Name', 'Phone', 'Class', 'School', 'Address', 'Created Date', 'QR Code'];
     const csvContent = [
       headers.join(','),
       ...filteredStudents.map(student => [
@@ -242,11 +243,12 @@ export function AdminStudentsList() {
         student.name,
         student.fatherName,
         student.parentPhone,
-        student.classId,
-        student.presentSchoolName,
-        student.address,
-        new Date(student.createdAt || '').toLocaleDateString()
-      ].map(field => `"${field}"`).join(','))
+        classesData.find((c: any) => c.id === student.classId)?.name || 'Unknown Class',
+        student.presentSchoolName || 'Not Provided',
+        student.address || 'Not Provided',
+        new Date(student.createdAt || '').toLocaleDateString(),
+        student.qrCode || 'Not Provided'
+      ].map(field => `"${String(field || '').replace(/"/g, '""')}"`).join(','))
     ].join('\n');
 
     // Download CSV
@@ -421,7 +423,7 @@ export function AdminStudentsList() {
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={classFilter} onValueChange={setClassFilter}>
               <SelectTrigger className="w-48">
                 <SelectValue placeholder="All Classes" />
@@ -512,7 +514,7 @@ export function AdminStudentsList() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(student)}>
+                            <DropdownMenuItem onClick={() => handleViewStudent(student)}>
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
@@ -572,17 +574,17 @@ export function AdminStudentsList() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
       />
-      
+
       <EditStudentModal 
         isOpen={isEditModalOpen} 
         onClose={() => setIsEditModalOpen(false)}
         student={selectedStudent}
       />
-      
+
       <ViewStudentDetailsModal 
         isOpen={isViewModalOpen} 
         onClose={() => setIsViewModalOpen(false)}
-        student={selectedStudent}
+        student={studentToView}
       />
 
       {/* Delete Confirmation Dialog */}
