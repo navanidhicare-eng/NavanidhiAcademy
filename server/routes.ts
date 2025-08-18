@@ -3720,15 +3720,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           COALESCE(s.mother_mobile, 'Not provided') as "motherMobile",
           COALESCE(s.father_qualification, 'Not provided') as "fatherQualification",
           COALESCE(s.mother_qualification, 'Not provided') as "motherQualification",
-          COALESCE(s.gender, 'Not provided') as gender,
+          CASE 
+            WHEN s.gender IS NULL THEN 'Not provided'
+            ELSE s.gender::text
+          END as gender,
           s.date_of_birth as "dateOfBirth",
           COALESCE(s.present_school_name, 'Not provided') as "presentSchoolName",
-          COALESCE(s.school_type::text, 'Not provided') as "schoolType",
+          CASE 
+            WHEN s.school_type IS NULL THEN 'Not provided'
+            ELSE s.school_type::text
+          END as "schoolType",
           COALESCE(s.landmark, 'Not provided') as landmark,
           COALESCE(s.address, 'Not provided') as address,
           COALESCE(s.parent_phone, 'Not provided') as "parentPhone",
           COALESCE(s.parent_name, s.father_name, 'Not provided') as "parentName",
-          COALESCE(s.course_type::text, 'monthly') as "courseType",
+          CASE 
+            WHEN s.course_type IS NULL THEN 'monthly'
+            ELSE s.course_type::text
+          END as "courseType",
           COALESCE(s.qr_code, 'Not generated') as "qrCode",
           COALESCE(s.total_fee_amount::text, '0.00') as "totalFeeAmount",
           COALESCE(s.paid_amount::text, '0.00') as "paidAmount", 
