@@ -275,7 +275,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   const isParentActive = (item: NavItem) => {
     if (item.href && isActive(item.href)) return true;
     if (item.children) {
-      return item.children.some(child => 
+      return item.children.some(child =>
         isItemVisible(child) && child.href && isActive(child.href)
       );
     }
@@ -289,10 +289,10 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
   // If the original intent was different, this might need further adjustment.
   useState(() => {
     navigation.forEach(item => {
-      if (item.children && item.children.some(child => 
+      if (item.children && item.children.some(child =>
         isItemVisible(child) && child.href && isActive(child.href)
       )) {
-        setExpandedItems(prev => 
+        setExpandedItems(prev =>
           prev.includes(item.title) ? prev : [...prev, item.title]
         );
       }
@@ -323,11 +323,11 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
     // Keep sidebar open for marketing and office staff pages to maintain workflow
     const keepSidebarOpen = [
       '/marketing/leads',
-      '/marketing/centers-overview', 
+      '/marketing/centers-overview',
       '/marketing/attendance-metrics',
       '/office/lead-followup'
     ];
-    
+
     // Only close sidebar on mobile for non-workflow pages
     if (isMobile && onMobileClose && !keepSidebarOpen.includes(href)) {
       onMobileClose();

@@ -16,13 +16,27 @@ interface Product {
 }
 
 interface ProductsListProps {
-  userRole: 'so_center' | 'agent';
+  userRole: 'so_center' | 'agent' | 'marketing_head';
 }
 
 export function ProductsList({ userRole }: ProductsListProps) {
+  // Determine API endpoint based on role
+  const getApiEndpoint = () => {
+    switch (userRole) {
+      case 'marketing_head':
+        return '/api/marketing/products';
+      case 'so_center':
+        return '/api/so_center/products';
+      case 'agent':
+        return '/api/agent/products';
+      default:
+        return '/api/so_center/products';
+    }
+  };
+
   // Fetch active products
   const { data: products = [], isLoading } = useQuery<Product[]>({
-    queryKey: [`/api/${userRole}/products`],
+    queryKey: [getApiEndpoint()],
   });
 
   if (isLoading) {
@@ -53,7 +67,9 @@ export function ProductsList({ userRole }: ProductsListProps) {
         <p className="text-gray-600">
           {userRole === 'so_center' 
             ? 'No products are currently available for sale at your center.'
-            : 'No products are currently available for commission-based sales.'
+            : userRole === 'agent'
+            ? 'No products are currently available for commission-based sales.'
+            : 'No products are currently available in the product portfolio.'
           }
         </p>
       </div>
@@ -96,7 +112,7 @@ export function ProductsList({ userRole }: ProductsListProps) {
                   <div className="flex items-center gap-2 mb-1">
                     <Percent className="h-4 w-4 text-green-600" />
                     <span className="text-xs font-medium text-green-600 uppercase tracking-wide">
-                      {userRole === 'agent' ? 'Commission' : 'Margin'}
+                      {userRole === 'agent' ? 'Commission' : userRole === 'marketing_head' ? 'Commission' : 'Margin'}
                     </span>
                   </div>
                   <div className="font-bold text-green-700">{product.commissionPercentage}%</div>
@@ -114,11 +130,11 @@ export function ProductsList({ userRole }: ProductsListProps) {
                 </div>
               )}
 
-              {/* Earnings Potential (for agents) */}
-              {userRole === 'agent' && (
+              {/* Earnings Potential (for agents and marketing_head) */}
+              {(userRole === 'agent' || userRole === 'marketing_head') && (
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                   <div className="text-xs text-purple-600 font-medium uppercase tracking-wide mb-1">
-                    Commission Earnings
+                    {userRole === 'marketing_head' ? 'Commission per Sale' : 'Commission Earnings'}
                   </div>
                   <div className="font-bold text-purple-700">
                     ₹{(Number(product.price) * Number(product.commissionPercentage) / 100).toLocaleString()} per sale
@@ -131,7 +147,7 @@ export function ProductsList({ userRole }: ProductsListProps) {
                 className="w-full mt-4" 
                 variant={userRole === 'agent' ? 'default' : 'outline'}
               >
-                {userRole === 'agent' ? 'Promote Product' : 'View Details'}
+                {userRole === 'agent' ? 'Promote Product' : userRole === 'marketing_head' ? 'Analyze Product' : 'View Details'}
               </Button>
             </div>
           </CardContent>

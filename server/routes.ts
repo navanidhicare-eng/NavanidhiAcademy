@@ -2583,7 +2583,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Products endpoints for SO Centers and Agents (Active products only)
+  // Products endpoints for SO Centers, Agents, and Marketing Head (Active products only)
   app.get('/api/so_center/products', authenticateToken, async (req, res) => {
     try {
       const result = await sql`
@@ -2608,6 +2608,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       console.error('Error fetching products for agent:', error);
+      res.status(500).json({ message: 'Failed to fetch products' });
+    }
+  });
+
+  app.get('/api/marketing/products', authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing head or admin access required' });
+      }
+
+      const result = await sql`
+        SELECT * FROM products 
+        WHERE is_active = true
+        ORDER BY created_at DESC
+      `;
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching products for marketing head:', error);
       res.status(500).json({ message: 'Failed to fetch products' });
     }
   });
@@ -6014,6 +6032,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sc.manager_name as "managerName",
           sc.phone,
           sc.location,
+          sc.address,
           sc.is_active as "isActive",
           sc.created_at as "registrationDate",
           COALESCE(sc.wallet_balance::numeric, 0) as "walletBalance",
@@ -6021,21 +6040,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
           m.name as "mandalName",
           d.name as "districtName",
           st.name as "stateName",
-          COUNT(DISTINCT s.id) as "activeStudents",
-          COUNT(DISTINCT CASE WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) THEN s.id END) as "thisMonthDropouts"
+          COUNT(DISTINCT s.id) FILTER (WHERE s.is_active = true) as "activeStudents",
+          COUNT(DISTINCT CASE 
+            WHEN s.created_at >= DATE_TRUNC('month', CURRENT_DATE) 
+            AND s.is_active = false 
+            THEN s.id 
+          END) as "thisMonthDropouts"
         FROM so_centers sc
         LEFT JOIN villages v ON sc.village_id = v.id
         LEFT JOIN mandals m ON v.mandal_id = m.id
         LEFT JOIN districts d ON m.district_id = d.id
         LEFT JOIN states st ON d.state_id = st.id
-        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN students s ON sc.id = s.so_center_id
+        WHERE sc.is_active = true
         GROUP BY sc.id, sc.center_id, sc.name, sc.manager_name, sc.phone, sc.location, 
-                 sc.is_active, sc.created_at, sc.wallet_balance, v.name, m.name, d.name, st.name
+                 sc.address, sc.is_active, sc.created_at, sc.wallet_balance, v.name, m.name, d.name, st.name
         ORDER BY sc.created_at DESC
       `;
 
-      console.log(`✅ Retrieved ${centers.length} centers for overview`);
-      res.json(centers);
+      // Get class-wise student counts for each center
+      const centersWithClassData = await Promise.all(centers.map(async (center: any) => {
+        const classWiseCount = await sql`
+          SELECT 
+            c.name as class_name,
+            COUNT(s.id) as student_count
+          FROM students s
+          LEFT JOIN classes c ON s.class_id = c.id
+          WHERE s.so_center_id = ${center.id} AND s.is_active = true
+          GROUP BY c.id, c.name
+          ORDER BY c.name
+        `;
+
+        const classWiseCountObj: Record<string, number> = {};
+        classWiseCount.forEach((row: any) => {
+          if (row.class_name) {
+            classWiseCountObj[row.class_name] = parseInt(row.student_count) || 0;
+          }
+        });
+
+        return {
+          ...center,
+          totalActiveStudents: parseInt(center.activeStudents) || 0,
+          dropoutCount: parseInt(center.thisMonthDropouts) || 0,
+          classWiseCount: classWiseCountObj,
+          village: center.villageName || 'N/A',
+          mandal: center.mandalName || 'N/A',
+          district: center.districtName || 'N/A',
+          state: center.stateName || 'N/A'
+        };
+      }));
+
+      console.log(`✅ Retrieved ${centersWithClassData.length} centers with complete data for overview`);
+      res.json(centersWithClassData);
     } catch (error: any) {
       console.error('❌ Error fetching centers overview:', error);
       res.status(500).json({ message: 'Failed to fetch centers overview' });

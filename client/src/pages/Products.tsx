@@ -74,7 +74,7 @@ function Products() {
     },
     onSuccess: (result: any) => {
       console.log('Purchase success result:', result);
-      
+
       // Play success sound
       const audio = new Audio('/phone_pe_notification.mp3');
       audio.play().catch(() => {
@@ -109,7 +109,7 @@ function Products() {
       form.reset();
       setShowPurchaseForm(false);
       setSelectedProduct(null);
-      
+
       // Show invoice
       setShowInvoice(true);
 
@@ -133,7 +133,7 @@ function Products() {
 
   const handleSubmitPurchase = (data: PurchaseFormData) => {
     if (!selectedProduct) return;
-    
+
     purchaseProductMutation.mutate({
       ...data,
       productId: selectedProduct.id,
@@ -192,7 +192,7 @@ function Products() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.map((product) => {
           const commission = calculateCommission(product.price, product.commission_percentage);
-          
+
           return (
             <Card key={product.id} className="group hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
               <CardHeader>
@@ -210,7 +210,7 @@ function Products() {
                   </Badge>
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {/* Price and Commission */}
                 <div className="grid grid-cols-2 gap-3">
@@ -221,7 +221,7 @@ function Products() {
                     </div>
                     <div className="font-bold text-blue-700">{formatCurrency(Number(product.price))}</div>
                   </div>
-                  
+
                   <div className="bg-green-50 rounded-lg p-3 border border-green-100">
                     <div className="flex items-center gap-2 mb-1">
                       <Percent className="h-4 w-4 text-green-600" />
@@ -253,7 +253,7 @@ function Products() {
                 </div>
 
                 {/* Buy Now Button */}
-                <Button 
+                <Button
                   className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
                   onClick={() => handleBuyNow(product)}
                 >
@@ -272,7 +272,7 @@ function Products() {
           <DialogHeader>
             <DialogTitle>Purchase Course - {selectedProduct?.name}</DialogTitle>
           </DialogHeader>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmitPurchase)} className="space-y-4">
               <FormField
@@ -362,10 +362,10 @@ function Products() {
                       Address
                     </FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Enter complete address" 
+                      <Textarea
+                        placeholder="Enter complete address"
                         className="min-h-[80px]"
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -383,10 +383,10 @@ function Products() {
                       Mobile Number
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter 10-digit mobile number" 
+                      <Input
+                        placeholder="Enter 10-digit mobile number"
                         maxLength={10}
-                        {...field} 
+                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -413,15 +413,15 @@ function Products() {
               )}
 
               <div className="flex gap-3 pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setShowPurchaseForm(false)}
                   className="flex-1"
                 >
                   Cancel
                 </Button>
-                <Button 
+                <Button
                   type="submit"
                   disabled={purchaseProductMutation.isPending}
                   className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
@@ -435,7 +435,7 @@ function Products() {
       </Dialog>
 
       {/* Invoice Generator */}
-      <InvoiceGenerator 
+      <InvoiceGenerator
         invoiceData={invoiceData}
         isOpen={showInvoice}
         onClose={() => setShowInvoice(false)}
