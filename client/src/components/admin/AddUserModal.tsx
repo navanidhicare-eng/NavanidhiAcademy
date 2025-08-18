@@ -175,6 +175,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     { value: 'office_staff', label: 'Office Staff' },
     { value: 'collection_agent', label: 'Collection Agent' },
     { value: 'marketing_staff', label: 'Marketing Staff' },
+    { value: 'marketing_head', label: 'Marketing Head' },
   ];
 
   const maritalStatusOptions = [

@@ -118,7 +118,7 @@ export class AuthService {
   static async createUser(userData: {
     email: string;
     password: string;
-    role: 'admin' | 'so_center' | 'teacher' | 'agent';
+    role: 'admin' | 'so_center' | 'teacher' | 'agent' | 'academic_admin' | 'office_staff' | 'collection_agent' | 'marketing_staff' | 'marketing_head';
     name: string;
     phone?: string;
     address?: string;
