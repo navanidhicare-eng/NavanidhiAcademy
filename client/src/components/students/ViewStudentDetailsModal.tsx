@@ -65,10 +65,10 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
     setShowQRModal(true);
   };
 
-  // Use combined data from both sources
+  // Use detailed student data with fallback to original student data
   const combinedStudent = {
     ...student,
-    ...studentDetails?.student
+    ...(studentDetails?.student || {})
   };
 
   return (
@@ -225,8 +225,16 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="h-4 w-4" />
+                      <span>Phone Number</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.parentPhone || combinedStudent.fatherMobile || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Home className="h-4 w-4" />
-                      <span>House Address</span>
+                      <span>Address</span>
                     </div>
                     <p className="font-medium">{combinedStudent.address || 'Not provided'}</p>
                   </div>
@@ -237,10 +245,10 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <span>Location</span>
                     </div>
                     <p className="font-medium">
-                      {combinedStudent.villageName || combinedStudent.village || 'Village not provided'}, {' '}
-                      {combinedStudent.mandalName || combinedStudent.mandal || 'Mandal not provided'}, {' '}
-                      {combinedStudent.districtName || combinedStudent.district || 'District not provided'}, {' '}
-                      {combinedStudent.stateName || combinedStudent.state || 'State not provided'}
+                      {combinedStudent.villageName || 'Village not provided'}, {' '}
+                      {combinedStudent.mandalName || 'Mandal not provided'}, {' '}
+                      {combinedStudent.districtName || 'District not provided'}, {' '}
+                      {combinedStudent.stateName || 'State not provided'}
                     </p>
                   </div>
 
@@ -299,7 +307,12 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Building2 className="h-4 w-4" />
                       <span>SO Center</span>
                     </div>
-                    <p className="font-medium">{combinedStudent.soCenterName || 'Not assigned'}</p>
+                    <p className="font-medium">
+                      {combinedStudent.soCenterName || 'Not assigned'}
+                      {combinedStudent.soCenterCode && (
+                        <span className="text-sm text-gray-500 ml-2">({combinedStudent.soCenterCode})</span>
+                      )}
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -309,7 +322,11 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                     </div>
                     <p className="font-medium">
                       {combinedStudent.enrollmentDate 
-                        ? new Date(combinedStudent.enrollmentDate).toLocaleDateString() 
+                        ? new Date(combinedStudent.enrollmentDate).toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          })
                         : 'Not provided'
                       }
                     </p>
@@ -332,6 +349,16 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                     </div>
                     <Badge variant={combinedStudent.isActive ? "default" : "secondary"}>
                       {combinedStudent.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Admission Fee</span>
+                    </div>
+                    <Badge variant={combinedStudent.admissionFeePaid ? "default" : "destructive"}>
+                      {combinedStudent.admissionFeePaid ? "Paid" : "Not Paid"}
                     </Badge>
                   </div>
                 </CardContent>
@@ -379,7 +406,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
               )}
 
               {/* Progress Summary */}
-              {studentDetails?.progressSummary && (
+              {(studentDetails?.student?.progressSummary || combinedStudent.progressSummary) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -391,25 +418,25 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center p-3 bg-green-50 rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {studentDetails.progressSummary.totalTopics || 0}
+                          {(studentDetails?.student?.progressSummary?.totalTopics || combinedStudent.progressSummary?.totalTopics) || 0}
                         </div>
                         <div className="text-sm text-green-600">Total Topics</div>
                       </div>
                       <div className="text-center p-3 bg-blue-50 rounded-lg">
                         <div className="text-2xl font-bold text-blue-600">
-                          {studentDetails.progressSummary.completedTopics || 0}
+                          {(studentDetails?.student?.progressSummary?.completedTopics || combinedStudent.progressSummary?.completedTopics) || 0}
                         </div>
                         <div className="text-sm text-blue-600">Completed</div>
                       </div>
                       <div className="text-center p-3 bg-orange-50 rounded-lg">
                         <div className="text-2xl font-bold text-orange-600">
-                          {studentDetails.progressSummary.pendingTopics || 0}
+                          {(studentDetails?.student?.progressSummary?.pendingTopics || combinedStudent.progressSummary?.pendingTopics) || 0}
                         </div>
                         <div className="text-sm text-orange-600">Pending</div>
                       </div>
                       <div className="text-center p-3 bg-purple-50 rounded-lg">
                         <div className="text-2xl font-bold text-purple-600">
-                          {studentDetails.progressSummary.completionPercentage || 0}%
+                          {(studentDetails?.student?.progressSummary?.completionPercentage || combinedStudent.progressSummary?.completionPercentage) || 0}%
                         </div>
                         <div className="text-sm text-purple-600">Progress</div>
                       </div>

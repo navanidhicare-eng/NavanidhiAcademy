@@ -4072,25 +4072,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get student details for admin view modal
+  // Get student details for admin view modal with complete hierarchical address
   app.get("/api/admin/students/:id/details", authenticateToken, async (req, res) => {
     try {
       const studentId = req.params.id;
       
-      // Get basic student data with class and SO center info
-      const studentQuery = `
-        SELECT 
-          s.*,
-          c.name as class_name,
-          sc.center_name as so_center_name,
-          sc.center_id as so_center_code
-        FROM students s
-        LEFT JOIN classes c ON s.class_id = c.id
-        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
-        WHERE s.id = $1
-      `;
-      
-      const studentResults = await executeRawQuery(studentQuery, [studentId]);
+      // Get complete student data with hierarchical address and SO center info using Drizzle
+      const studentResults = await db
+        .select({
+          // Student basic info
+          id: schema.students.id,
+          studentId: schema.students.studentId,
+          name: schema.students.name,
+          aadharNumber: schema.students.aadharNumber,
+          fatherName: schema.students.fatherName,
+          motherName: schema.students.motherName,
+          fatherMobile: schema.students.fatherMobile,
+          motherMobile: schema.students.motherMobile,
+          fatherQualification: schema.students.fatherQualification,
+          motherQualification: schema.students.motherQualification,
+          gender: schema.students.gender,
+          dateOfBirth: schema.students.dateOfBirth,
+          presentSchoolName: schema.students.presentSchoolName,
+          schoolType: schema.students.schoolType,
+          landmark: schema.students.landmark,
+          address: schema.students.address,
+          email: schema.students.email,
+          parentPhone: schema.students.parentPhone,
+          parentName: schema.students.parentName,
+          courseType: schema.students.courseType,
+          qrCode: schema.students.qrCode,
+          totalFeeAmount: schema.students.totalFeeAmount,
+          paidAmount: schema.students.paidAmount,
+          pendingAmount: schema.students.pendingAmount,
+          paymentStatus: schema.students.paymentStatus,
+          isActive: schema.students.isActive,
+          enrollmentDate: schema.students.enrollmentDate,
+          admissionFeePaid: schema.students.admissionFeePaid,
+          createdAt: schema.students.createdAt,
+          
+          // Class info
+          className: schema.classes.name,
+          classId: schema.students.classId,
+          
+          // SO Center info
+          soCenterName: schema.soCenters.name,
+          soCenterCode: schema.soCenters.centerId,
+          
+          // Complete hierarchical address
+          villageName: schema.villages.name,
+          mandalName: schema.mandals.name,
+          districtName: schema.districts.name,
+          stateName: schema.states.name,
+        })
+        .from(schema.students)
+        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
+        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
+        .leftJoin(schema.villages, eq(schema.students.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(eq(schema.students.id, studentId))
+        .limit(1);
       
       if (studentResults.length === 0) {
         return res.status(404).json({ message: 'Student not found' });
@@ -4114,19 +4157,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE sub.class_id = $2
       `;
       
-      const progressResults = await executeRawQuery(progressQuery, [studentId, student.class_id]);
+      const progressResults = await executeRawQuery(progressQuery, [studentId, student.classId]);
       const progress = progressResults[0] || {};
       
       const studentDetails = {
-        ...student,
-        className: student.class_name || student.classId,
-        soCenterName: student.so_center_name,
-        soCenterCode: student.so_center_code,
-        progressSummary: {
-          totalTopics: parseInt(progress.total_topics) || 0,
-          completedTopics: parseInt(progress.completed_topics) || 0,
-          pendingTopics: (parseInt(progress.total_topics) || 0) - (parseInt(progress.completed_topics) || 0),
-          completionPercentage: parseFloat(progress.completion_percentage) || 0
+        student: {
+          ...student,
+          progressSummary: {
+            totalTopics: parseInt(progress.total_topics) || 0,
+            completedTopics: parseInt(progress.completed_topics) || 0,
+            pendingTopics: (parseInt(progress.total_topics) || 0) - (parseInt(progress.completed_topics) || 0),
+            completionPercentage: parseFloat(progress.completion_percentage) || 0
+          }
         }
       };
 
