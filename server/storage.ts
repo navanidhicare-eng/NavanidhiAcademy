@@ -78,10 +78,17 @@ async function getUsersByRole(role: string) {
   }
 }
 
-// Temporarily disabled raw query function - use Drizzle ORM instead
-async function executeRawQuery(query: string, params: any[] = []) {
-  console.warn('executeRawQuery is deprecated - using empty response');
-  return [];
+// Enable raw SQL queries for complex joins and analytics
+export async function executeRawQuery(query: any, params: any[] = []) {
+  try {
+    console.log('📊 Executing raw SQL query for analytics...');
+    const result = await sql.unsafe(query, params);
+    console.log(`✅ Raw query executed successfully, returned ${result.length} rows`);
+    return result;
+  } catch (error) {
+    console.error('❌ Raw query execution error:', error);
+    throw error;
+  }
 }
 
 // Initialize database with default data
@@ -3328,4 +3335,4 @@ export const storage = new DrizzleStorage();
 // Initialize the database - DISABLED temporarily to fix login timeout
 // initializeDatabase();
 
-export { getUsersByRole, executeRawQuery, sql };
+export { getUsersByRole, sql };
