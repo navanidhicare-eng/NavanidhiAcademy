@@ -8,7 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Calendar, Download, Users, TrendingUp, TrendingDown, Phone, MapPin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface AttendanceReport {
   studentId: string;
@@ -67,6 +67,30 @@ export default function AttendanceReports() {
   const [availableSOCenters, setAvailableSOCenters] = useState<any[]>([]);
   const { toast } = useToast();
 
+  // Fetch location data
+  const { data: states = [] } = useQuery({
+    queryKey: ['/api/states'],
+  });
+
+  const { data: districts = [] } = useQuery({
+    queryKey: ['/api/districts', filters.stateId],
+    enabled: !!filters.stateId,
+  });
+
+  const { data: mandals = [] } = useQuery({
+    queryKey: ['/api/mandals', filters.districtId],
+    enabled: !!filters.districtId,
+  });
+
+  const { data: villages = [] } = useQuery({
+    queryKey: ['/api/villages', filters.mandalId],
+    enabled: !!filters.mandalId,
+  });
+
+  const { data: classes = [] } = useQuery({
+    queryKey: ['/api/classes'],
+  });
+
   // Fetch attendance data
   const { data: attendanceReports, isLoading } = useQuery<AttendanceReport[]>({
     queryKey: ['/api/office/attendance-reports', selectedMonth, selectedYear, filters],
@@ -80,25 +104,7 @@ export default function AttendanceReports() {
     queryKey: ['/api/office/attendance-trends', selectedMonth, selectedYear, filters],
   });
 
-  // Fetch dropdown data
-  const { data: states } = useQuery({ queryKey: ['/api/admin/addresses/states'] });
-  const { data: districts } = useQuery({
-    queryKey: ['/api/admin/addresses/districts', filters.stateId],
-    enabled: !!filters.stateId,
-  });
-  const { data: mandals } = useQuery({
-    queryKey: ['/api/admin/addresses/mandals', filters.districtId],
-    enabled: !!filters.districtId,
-  });
-  const { data: villages } = useQuery({
-    queryKey: ['/api/admin/addresses/villages', filters.mandalId],
-    enabled: !!filters.mandalId,
-  });
-  const { data: centers } = useQuery({
-    queryKey: ['/api/so-centers/by-village', filters.villageId],
-    enabled: !!filters.villageId,
-  });
-  const { data: classes } = useQuery({ queryKey: ['/api/classes'] });
+
 
   const getAttendanceColor = (percentage: number) => {
     if (percentage >= 90) return 'text-green-600';

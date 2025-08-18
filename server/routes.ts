@@ -278,10 +278,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })(),
         timeoutPromise
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
       if (!res.headersSent) {
-        if (error.message.includes('timeout')) {
+        if (error.message && error.message.includes('timeout')) {
           res.status(408).json({ message: "Login request timed out - please try again" });
         } else {
           res.status(500).json({ message: "Login failed" });
