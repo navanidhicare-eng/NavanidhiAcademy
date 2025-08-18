@@ -216,6 +216,20 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Background image optimization */
+.login-background {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+@media (max-width: 768px) {
+  .login-background {
+    background-attachment: scroll;
+  }
+}
+
 /* Improve performance on mobile */
 .gpu-accelerate {
   transform: translateZ(0);

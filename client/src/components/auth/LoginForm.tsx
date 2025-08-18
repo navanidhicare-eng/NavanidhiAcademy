@@ -71,12 +71,12 @@ export function LoginForm() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Full Background Image */}
-      <div className="absolute inset-0">
-        <img 
-          src="/login-background.jpg" 
-          alt="Educational Excellence" 
-          className="w-full h-full object-cover"
-        />
+      <div 
+        className="absolute inset-0 login-background"
+        style={{
+          backgroundImage: 'url(/login-background.jpg)'
+        }}
+      >
         <div className="absolute inset-0 bg-black/50"></div>
       </div>
       
