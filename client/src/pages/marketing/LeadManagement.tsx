@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -112,6 +112,48 @@ export default function LeadManagement() {
   const { data: officeStaff } = useQuery({
     queryKey: ['/api/users/office-staff'],
   });
+
+  // Location state management
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [selectedMandal, setSelectedMandal] = useState('');
+
+  // Fetch districts based on selected state
+  const { data: districts } = useQuery({
+    queryKey: ['/api/admin/addresses/districts', selectedState],
+    enabled: !!selectedState,
+  });
+
+  // Fetch mandals based on selected district
+  const { data: mandals } = useQuery({
+    queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
+    enabled: !!selectedDistrict,
+  });
+
+  // Fetch villages based on selected mandal
+  const { data: villages } = useQuery({
+    queryKey: ['/api/admin/addresses/villages', selectedMandal],
+    enabled: !!selectedMandal,
+  });
+
+  // Handle address cascade changes
+  const handleStateChange = (stateId: string) => {
+    setSelectedState(stateId);
+    setSelectedDistrict('');
+    setSelectedMandal('');
+    form.setValue('villageId', '');
+  };
+
+  const handleDistrictChange = (districtId: string) => {
+    setSelectedDistrict(districtId);
+    setSelectedMandal('');
+    form.setValue('villageId', '');
+  };
+
+  const handleMandalChange = (mandalId: string) => {
+    setSelectedMandal(mandalId);
+    form.setValue('villageId', '');
+  };
 
   // Create lead mutation
   const createLeadMutation = useMutation({
@@ -287,36 +329,84 @@ export default function LeadManagement() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="villageId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Village *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select village" />
-                            </SelectTrigger>
-                          </FormControl>
+                  {/* Location Selection - Cascading Dropdowns */}
+                  <div className="col-span-2">
+                    <h4 className="text-sm font-medium mb-3">Location Details</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="state">State *</Label>
+                        <Select onValueChange={handleStateChange} value={selectedState}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
                           <SelectContent>
-                            {states?.map((state: any) => 
-                              state.districts?.map((district: any) =>
-                                district.mandals?.map((mandal: any) =>
-                                  mandal.villages?.map((village: any) => (
-                                    <SelectItem key={village.id} value={village.id}>
-                                      {village.name}, {mandal.name}, {district.name}
-                                    </SelectItem>
-                                  ))
-                                )
-                              )
-                            )}
+                            {states?.map((state: any) => (
+                              <SelectItem key={state.id} value={state.id}>
+                                {state.name} ({state.code})
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="district">District *</Label>
+                        <Select onValueChange={handleDistrictChange} value={selectedDistrict} disabled={!selectedState}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select district" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {districts?.map((district: any) => (
+                              <SelectItem key={district.id} value={district.id}>
+                                {district.name} ({district.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="mandal">Mandal *</Label>
+                        <Select onValueChange={handleMandalChange} value={selectedMandal} disabled={!selectedDistrict}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select mandal" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mandals?.map((mandal: any) => (
+                              <SelectItem key={mandal.id} value={mandal.id}>
+                                {mandal.name} ({mandal.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name="villageId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Village *</FormLabel>
+                            <FormControl>
+                              <Select onValueChange={field.onChange} value={field.value} disabled={!selectedMandal}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select village" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {villages?.map((village: any) => (
+                                    <SelectItem key={village.id} value={village.id}>
+                                      {village.name} ({village.code})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
 
                   <FormField
                     control={form.control}

@@ -7643,6 +7643,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get attendance trends for Marketing Head
+  app.get('/api/marketing/attendance-trends', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const { dateRange } = req.query;
+      
+      let startDate = new Date();
+      let endDate = new Date();
+      
+      switch (dateRange) {
+        case 'thisMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+          break;
+        case 'lastMonth':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1);
+          endDate = new Date(endDate.getFullYear(), endDate.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(endDate.getFullYear(), endDate.getMonth() - 3, 1);
+          break;
+      }
+      
+      const trends = await executeRawQuery(sql`
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.is_present = true THEN 1 END) * 100.0 / 
+             NULLIF(COUNT(a.id), 0)), 2
+          ) as "attendancePercentage"
+        FROM attendance a
+        JOIN students st ON a.student_id = st.id AND st.is_active = true
+        JOIN so_centers sc ON st.so_center_id = sc.id AND sc.is_active = true
+        WHERE a.date BETWEEN ${startDate.toISOString().split('T')[0]} 
+        AND ${endDate.toISOString().split('T')[0]}
+        GROUP BY a.date
+        ORDER BY a.date
+      `);
+      
+      res.json(trends);
+    } catch (error) {
+      console.error('Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
   // Get office staff users for lead assignment
   app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
