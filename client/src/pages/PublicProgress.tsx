@@ -68,13 +68,13 @@ export default function PublicProgress() {
   // Helper to get pending topics for a selected subject
   const getPendingTopicsForSubject = () => {
     if (!selectedSubject) return [];
-    const subject = subjectProgress.find(subj => subj.name === selectedSubject);
+    const subject = subjectProgress.find((subj: any) => subj.name === selectedSubject);
     return subject?.pendingTopics || [];
   };
 
   // Helper to get details of the selected exam
   const getSelectedExamResult = () => {
-    return examResults.find(exam => exam.examTitle === selectedExam);
+    return examResults.find((exam: any) => exam.examTitle === selectedExam);
   };
 
   return (
@@ -191,7 +191,7 @@ export default function PublicProgress() {
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base"
                   >
                     <option value="">Select Subject</option>
-                    {subjectProgress.map((subject) => (
+                    {subjectProgress.map((subject: any) => (
                       <option key={subject.id} value={subject.name}>
                         {subject.name} ({subject.pendingTopics?.length || 0} pending)
                       </option>
@@ -210,7 +210,7 @@ export default function PublicProgress() {
                           <p className="text-sm">No pending topics in this subject!</p>
                         </div>
                       ) : (
-                        getPendingTopicsForSubject().map((topic, index) => (
+                        getPendingTopicsForSubject().map((topic: any, index: number) => (
                           <div key={index} className="p-3 sm:p-4 bg-orange-50 rounded-md border-l-4 border-orange-400 shadow-sm">
                             <div className="font-medium text-orange-800 text-sm sm:text-base">
                               <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
@@ -253,7 +253,7 @@ export default function PublicProgress() {
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base"
                   >
                     <option value="">Select Exam</option>
-                    {examResults.map((exam, index) => (
+                    {examResults.map((exam: any, index: number) => (
                       <option key={index} value={exam.examTitle}>
                         {exam.examTitle} - {exam.percentage}%
                       </option>
@@ -303,7 +303,7 @@ export default function PublicProgress() {
                         <p className="text-sm">No exam results available</p>
                       </div>
                     ) : (
-                      examResults.map((exam, index) => (
+                      examResults.map((exam: any, index: number) => (
                         <div key={index} className="p-3 bg-white rounded-md border shadow-sm">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
                             <div className="flex-1">

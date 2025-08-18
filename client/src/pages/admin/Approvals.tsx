@@ -96,7 +96,7 @@ function WithdrawalApprovalModal({ isOpen, onClose, withdrawal }: WithdrawalAppr
     mutationFn: async (data: PaymentFormData) => {
       return apiRequest('POST', `/api/admin/withdrawal-requests/${withdrawal.id}/approve`, data);
     },
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       toast({
         title: 'Withdrawal Approved',
         description: `Payment issued successfully. Transaction ID: ${response.transactionId}`,

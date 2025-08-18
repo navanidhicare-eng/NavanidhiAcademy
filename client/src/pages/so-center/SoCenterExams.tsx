@@ -61,8 +61,8 @@ export default function SoCenterExams() {
     queryKey: ['/api/admin/academic/classes'],
   });
 
-  // Filter exams based on search and filters
-  const filteredExams = exams.filter((exam: Exam) => {
+  // Filter exams based on search and filters  
+  const filteredExams = (exams as Exam[]).filter((exam: Exam) => {
     const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          exam.subject.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSubject = selectedSubject === 'all' || exam.subject === selectedSubject;
@@ -92,7 +92,7 @@ export default function SoCenterExams() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout title="Exams">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -104,7 +104,7 @@ export default function SoCenterExams() {
   }
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Exams">
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -135,7 +135,7 @@ export default function SoCenterExams() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Subjects</SelectItem>
-                  {subjects.map((subject: any) => (
+                  {(subjects as any[]).map((subject: any) => (
                     <SelectItem key={subject.id} value={subject.name}>
                       {subject.name}
                     </SelectItem>
@@ -148,7 +148,7 @@ export default function SoCenterExams() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Classes</SelectItem>
-                  {classes.map((cls: any) => (
+                  {(classes as any[]).map((cls: any) => (
                     <SelectItem key={cls.id} value={cls.name}>
                       {cls.name}
                     </SelectItem>
