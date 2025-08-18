@@ -289,6 +289,37 @@ export default function LeadManagement() {
 
                   <FormField
                     control={form.control}
+                    name="villageId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Village *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select village" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {states?.map((state: any) => 
+                              state.districts?.map((district: any) =>
+                                district.mandals?.map((mandal: any) =>
+                                  mandal.villages?.map((village: any) => (
+                                    <SelectItem key={village.id} value={village.id}>
+                                      {village.name}, {mandal.name}, {district.name}
+                                    </SelectItem>
+                                  ))
+                                )
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="interestedClass"
                     render={({ field }) => (
                       <FormItem>

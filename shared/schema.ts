@@ -2,11 +2,12 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, integer, timestamp, decimal, pgEnum, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { desc } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", [
   "admin",
   "so_center",
-  "teacher", 
+  "teacher",
   "academic_admin",
   "agent",
   "office_staff",
@@ -125,29 +126,29 @@ export const soCenterExpenses = pgTable("so_center_expenses", {
   expenseType: expenseTypeEnum("expense_type").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   description: text("description"),
-  
+
   // Electric Bill specific fields
   electricBillNumber: text("electric_bill_number"),
-  
+
   // Internet Bill specific fields
   internetBillNumber: text("internet_bill_number"),
   internetServiceProvider: text("internet_service_provider"),
-  
+
   // Others specific fields
   serviceName: text("service_name"),
   serviceDescription: text("service_description"),
   servicePhone: text("service_phone"),
-  
+
   status: expenseStatusEnum("status").default("pending"),
   adminNotes: text("admin_notes"),
-  
+
   // Payment details (when paid)
   paymentMethod: paymentMethodEnum("payment_method"),
   paymentReference: text("payment_reference"), // Bill number, UPI transaction ID, etc.
   transactionId: varchar("transaction_id"),
   paidAt: timestamp("paid_at"),
   paidBy: varchar("paid_by").references(() => users.id), // Admin who marked as paid
-  
+
   requestedAt: timestamp("requested_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
   approvedBy: varchar("approved_by").references(() => users.id),
@@ -563,8 +564,8 @@ export const examResults = pgTable("exam_results", {
   examId: varchar("exam_id").references(() => exams.id).notNull(),
   studentId: varchar("student_id").references(() => students.id).notNull(),
   marksObtained: integer("marks_obtained").notNull().default(0),
-  answeredQuestions: varchar("answered_questions", { 
-    enum: ["not_answered", "partially_answered", "fully_answered"] 
+  answeredQuestions: varchar("answered_questions", {
+    enum: ["not_answered", "partially_answered", "fully_answered"]
   }).notNull().default("not_answered"),
   detailedResults: text("detailed_results"), // JSON string for question-level results
   createdAt: timestamp("created_at").defaultNow(),
@@ -883,7 +884,7 @@ export type StudentDropoutRequest = typeof studentDropoutRequests.$inferSelect;
 
 
 
-// SO Center Expense Wallet schemas  
+// SO Center Expense Wallet schemas
 export const insertSoCenterExpenseWalletSchema = createInsertSchema(soCenterExpenseWallet).omit({
   id: true,
   lastUpdated: true,

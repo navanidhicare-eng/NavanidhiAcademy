@@ -7643,6 +7643,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get office staff users for lead assignment
+  app.get('/api/users/office-staff', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
+    try {
+      const officeStaff = await db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          email: schema.users.email,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.role, 'office_staff'));
+
+      res.json(officeStaff);
+    } catch (error) {
+      console.error('Error fetching office staff:', error);
+      res.status(500).json({ message: 'Failed to fetch office staff' });
+    }
+  });
+
   // Create new lead for Marketing Head
   app.post('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
@@ -7665,30 +7684,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get leads for Marketing Head
   app.get('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
-      const leads = await executeRawQuery(sql`
-        SELECT 
-          l.*,
-          u.name as "createdByName",
-          uo.name as "assignedToName",
-          c.name as "interestedClass",
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          s.name as state
-        FROM leads l
-        LEFT JOIN users u ON l.created_by = u.id
-        LEFT JOIN users uo ON l.assigned_to = uo.id
-        LEFT JOIN classes c ON l.interested_class = c.id
-        LEFT JOIN villages v ON l.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        ORDER BY l.created_at DESC
-      `);
+      console.log('📊 Marketing Head fetching leads...');
       
+      const leads = await db
+        .select({
+          id: schema.leads.id,
+          studentName: schema.leads.studentName,
+          parentName: schema.leads.parentName,
+          mobileNumber: schema.leads.mobileNumber,
+          whatsappNumber: schema.leads.whatsappNumber,
+          email: schema.leads.email,
+          address: schema.leads.address,
+          interestedClass: schema.classes.name,
+          leadSource: schema.leads.leadSource,
+          priority: schema.leads.priority,
+          status: schema.leads.status,
+          expectedJoinDate: schema.leads.expectedJoinDate,
+          notes: schema.leads.notes,
+          createdAt: schema.leads.createdAt,
+          assignedToName: sql<string>`assigned_user.name`,
+          createdByName: sql<string>`created_user.name`,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+        })
+        .from(schema.leads)
+        .leftJoin(schema.classes, eq(schema.leads.interestedClass, schema.classes.id))
+        .leftJoin(schema.villages, eq(schema.leads.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .leftJoin(sql`users as assigned_user`, eq(schema.leads.assignedTo, sql`assigned_user.id`))
+        .leftJoin(sql`users as created_user`, eq(schema.leads.createdBy, sql`created_user.id`))
+        .orderBy(desc(schema.leads.createdAt));
+
+      console.log(`✅ Retrieved ${leads.length} leads for marketing head`);
       res.json(leads);
     } catch (error) {
-      console.error('Error fetching leads:', error);
+      console.error('❌ Error fetching leads:', error);
       res.status(500).json({ message: 'Failed to fetch leads' });
     }
   });
@@ -7696,14 +7730,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get lead metrics for Marketing Head
   app.get('/api/marketing/lead-metrics', authenticateToken, requireRole(['marketing_head', 'admin']), async (req, res) => {
     try {
-      const metrics = await executeRawQuery(sql`
-        SELECT 
-          COUNT(*) as "totalLeads",
-          COUNT(CASE WHEN status = 'new' THEN 1 END) as "newLeads",
-          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as "contactedLeads",
-          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
-          ROUND(
-            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0 / 
+      console.log('📈 Fetching lead metrics...');
+      
+      const metrics = await db
+        .select({
+          totalLeads: sql<number>`COUNT(*)`,
+          newLeads: sql<number>`COUNT(CASE WHEN status = 'new' THEN 1 END)`,
+          contactedLeads: sql<number>`COUNT(CASE WHEN status = 'contacted' THEN 1 END)`,
+          convertedLeads: sql<number>`COUNT(CASE WHEN status = 'converted' THEN 1 END)`,
+          conversionRate: sql<number>`ROUND((COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / NULLIF(COUNT(*), 0), 2)`,
+        })
+        .from(schema.leads);
+
+      const result = metrics[0] || {
+        totalLeads: 0,
+        newLeads: 0,
+        contactedLeads: 0,
+        convertedLeads: 0,
+        conversionRate: 0,
+      };
+
+      console.log('✅ Lead metrics calculated:', result);
+      res.json(result);rted' THEN 1 END) * 100.0 / 
              NULLIF(COUNT(*), 0)), 2
           ) as "conversionRate"
         FROM leads

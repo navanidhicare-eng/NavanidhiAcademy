@@ -245,7 +245,7 @@ const navigation: NavItem[] = [
   {
     title: 'Office Staff',
     icon: FileText,
-    roles: ['office_staff', 'marketing_head', 'admin'],
+    roles: ['office_staff', 'admin'],
     children: [
       { title: 'Lead Follow-up', href: '/office/lead-followup', icon: Clock },
     ],
@@ -320,7 +320,14 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       }
     });
 
-    if (isMobile && onMobileClose) {
+    // Don't close sidebar for marketing and office pages to maintain navigation flow
+    const keepSidebarOpen = [
+      '/marketing/leads',
+      '/marketing/centers-overview', 
+      '/marketing/attendance-metrics'
+    ];
+    
+    if (isMobile && onMobileClose && !keepSidebarOpen.includes(href)) {
       onMobileClose();
     }
   };
