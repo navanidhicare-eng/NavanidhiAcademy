@@ -74,10 +74,13 @@ export function LoginForm() {
       <div 
         className="absolute inset-0 login-background"
         style={{
-          backgroundImage: 'url(/login-background.jpg)'
+          backgroundImage: 'url(/login-background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
         }}
       >
-        <div className="absolute inset-0 bg-black/50"></div>
+        <div className="absolute inset-0 bg-black/40"></div>
       </div>
       
       {/* Content Container */}
@@ -86,11 +89,11 @@ export function LoginForm() {
         <div className="hidden lg:flex lg:w-3/5 flex-col justify-center px-12 text-white">
           {/* Top Logo */}
           <div className="absolute top-8 left-8">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center p-2 border border-white/20">
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center p-3 border border-white/20 shadow-lg">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
-              <span className="text-white text-xl font-semibold drop-shadow-lg">Navanidhi Academy</span>
+              <span className="text-white text-2xl font-bold drop-shadow-lg">Navanidhi Academy</span>
             </div>
           </div>
           
@@ -136,18 +139,18 @@ export function LoginForm() {
           <div className="w-full max-w-md mx-auto bg-white/15 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-10 space-y-6">
           {/* Mobile Logo (visible on small screens) */}
           <div className="lg:hidden text-center">
-            <div className="flex justify-center items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-2 shadow-lg border border-white/30">
+            <div className="flex justify-center items-center space-x-4 mb-6">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-3 shadow-lg border border-white/30">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
-              <span className="text-xl font-bold text-white drop-shadow-lg">Navanidhi Academy</span>
+              <span className="text-2xl font-bold text-white drop-shadow-lg">Navanidhi Academy</span>
             </div>
           </div>
 
           {/* Welcome Section */}
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-2 shadow-lg border border-white/30">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-3 shadow-lg border border-white/30">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
             </div>
