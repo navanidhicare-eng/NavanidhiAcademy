@@ -8103,6 +8103,559 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =================== MARKETING HEAD ANALYTICS ENDPOINTS ===================
+
+  // Marketing Head - Get all leads with analytics
+  app.get("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📊 Marketing Head fetching leads analytics...');
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, []);
+      console.log(`✅ Retrieved ${leads.length} leads for marketing analytics`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching marketing leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Marketing Head - Create new lead
+  app.post("/api/marketing/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const leadData = insertLeadSchema.parse({
+        ...req.body,
+        createdBy: req.user.userId
+      });
+
+      const [newLead] = await db.insert(schema.leads)
+        .values(leadData)
+        .returning();
+
+      console.log('✅ Marketing Head created new lead:', newLead.id);
+      res.status(201).json(newLead);
+    } catch (error) {
+      console.error('❌ Error creating lead:', error);
+      res.status(500).json({ message: 'Failed to create lead' });
+    }
+  });
+
+  // Marketing Head - Assign lead to office staff
+  app.put("/api/marketing/leads/:id/assign", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { assignedTo } = req.body;
+      const leadId = req.params.id;
+
+      // Update lead assignment
+      await db.update(schema.leads)
+        .set({ 
+          assignedTo,
+          updatedAt: new Date()
+        })
+        .where(eq(schema.leads.id, leadId));
+
+      // Create assignment record
+      await db.insert(schema.leadAssignments)
+        .values({
+          leadId,
+          assignedTo,
+          assignedBy: req.user.userId
+        });
+
+      console.log(`✅ Lead ${leadId} assigned to ${assignedTo} by marketing head`);
+      res.json({ message: 'Lead assigned successfully' });
+    } catch (error) {
+      console.error('❌ Error assigning lead:', error);
+      res.status(500).json({ message: 'Failed to assign lead' });
+    }
+  });
+
+  // Marketing Head - Lead conversion metrics
+  app.get("/api/marketing/lead-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('📈 Fetching lead conversion metrics...');
+
+      const metricsQuery = `
+        SELECT 
+          COUNT(*) as total_leads,
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as new_leads,
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as contacted_leads,
+          COUNT(CASE WHEN status = 'interested' THEN 1 END) as interested_leads,
+          COUNT(CASE WHEN status = 'visit_scheduled' THEN 1 END) as visit_scheduled,
+          COUNT(CASE WHEN status = 'joined' THEN 1 END) as joined_leads,
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as converted_leads,
+          ROUND(
+            (COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(*), 0), 2
+          ) as conversion_rate,
+          COUNT(CASE WHEN lead_source = 'online' THEN 1 END) as online_leads,
+          COUNT(CASE WHEN lead_source = 'referral' THEN 1 END) as referral_leads,
+          COUNT(CASE WHEN lead_source = 'walk_in' THEN 1 END) as walk_in_leads,
+          COUNT(CASE WHEN lead_source = 'marketing_campaign' THEN 1 END) as campaign_leads
+        FROM leads
+        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      `;
+
+      const metrics = await executeRawQuery(metricsQuery, []);
+      console.log('✅ Lead metrics calculated');
+      res.json(metrics[0] || {});
+    } catch (error) {
+      console.error('❌ Error fetching lead metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch lead metrics' });
+    }
+  });
+
+  // Marketing Head - Centers overview with performance data
+  app.get("/api/marketing/centers-overview", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      console.log('🏢 Fetching centers performance overview...');
+
+      const centersQuery = `
+        SELECT 
+          sc.id,
+          sc.center_id,
+          sc.name,
+          sc.address,
+          sc.phone,
+          sc.wallet_balance,
+          sc.created_at as registration_date,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          u.name as manager_name,
+          COUNT(st.id) as total_active_students,
+          COUNT(CASE WHEN st.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_students_this_month,
+          COUNT(dr.id) as dropout_count,
+          COUNT(l.id) as total_leads,
+          COALESCE(AVG(attendance_summary.attendance_percentage), 0) as avg_attendance_percentage
+        FROM so_centers sc
+        LEFT JOIN villages v ON sc.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN users u ON sc.manager_id = u.id
+        LEFT JOIN students st ON sc.id = st.so_center_id AND st.is_active = true
+        LEFT JOIN dropout_requests dr ON sc.id = dr.so_center_id AND dr.status = 'approved'
+        LEFT JOIN leads l ON v.id = l.village_id
+        LEFT JOIN (
+          SELECT 
+            student_id,
+            AVG(CASE WHEN status = 'present' THEN 100.0 ELSE 0.0 END) as attendance_percentage
+          FROM attendance
+          WHERE date >= CURRENT_DATE - INTERVAL '30 days'
+          GROUP BY student_id
+        ) attendance_summary ON st.id = attendance_summary.student_id
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.center_id, sc.name, sc.address, sc.phone, sc.wallet_balance, 
+                 sc.created_at, v.name, m.name, d.name, s.name, u.name
+        ORDER BY total_active_students DESC
+      `;
+
+      const centers = await executeRawQuery(centersQuery, []);
+      console.log(`✅ Retrieved ${centers.length} centers with performance data`);
+      res.json(centers);
+    } catch (error) {
+      console.error('❌ Error fetching centers overview:', error);
+      res.status(500).json({ message: 'Failed to fetch centers overview' });
+    }
+  });
+
+  // Marketing Head - Attendance analytics across centers
+  app.get("/api/marketing/attendance-metrics", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { dateRange = 'thisMonth' } = req.query;
+      
+      console.log(`📊 Fetching attendance metrics for range: ${dateRange}`);
+
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const attendanceQuery = `
+        SELECT 
+          sc.id as center_id,
+          sc.center_id as center_code,
+          sc.name as center_name,
+          COUNT(DISTINCT s.id) as total_students,
+          COUNT(CASE WHEN a.status = 'present' THEN 1 END) as total_present,
+          COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as total_absent,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage,
+          COUNT(DISTINCT a.date) as total_days
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.center_id, sc.name
+        HAVING COUNT(a.id) > 0
+        ORDER BY attendance_percentage DESC
+      `;
+
+      const attendanceMetrics = await executeRawQuery(attendanceQuery, []);
+      
+      // Calculate summary metrics
+      const summaryQuery = `
+        SELECT 
+          ROUND(AVG(attendance_percentage), 2) as overall_attendance_percentage,
+          SUM(total_present) as total_present_count,
+          SUM(total_absent) as total_absent_count
+        FROM (
+          SELECT 
+            ROUND(
+              (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+              NULLIF(COUNT(a.id), 0), 2
+            ) as attendance_percentage,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as total_present,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as total_absent
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
+          WHERE sc.is_active = true
+          GROUP BY sc.id
+          HAVING COUNT(a.id) > 0
+        ) center_stats
+      `;
+
+      const summary = await executeRawQuery(summaryQuery, []);
+
+      console.log('✅ Attendance metrics calculated for marketing analytics');
+      res.json({
+        summary: summary[0] || { overall_attendance_percentage: 0, total_present_count: 0, total_absent_count: 0 },
+        centerMetrics: attendanceMetrics,
+        bestPerformingCenter: attendanceMetrics[0] || null,
+        attentionNeededCenters: attendanceMetrics.filter(c => parseFloat(c.attendance_percentage) < 75)
+      });
+    } catch (error) {
+      console.error('❌ Error fetching attendance metrics:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance metrics' });
+    }
+  });
+
+  // Marketing Head - Attendance trends over time
+  app.get("/api/marketing/attendance-trends", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { dateRange = 'thisMonth' } = req.query;
+      
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const trendsQuery = `
+        SELECT 
+          a.date,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM attendance a
+        JOIN students s ON a.student_id = s.id
+        JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE sc.is_active = true ${dateFilter}
+        GROUP BY a.date
+        ORDER BY a.date
+      `;
+
+      const trends = await executeRawQuery(trendsQuery, []);
+      console.log(`✅ Retrieved ${trends.length} attendance trend data points`);
+      res.json(trends);
+    } catch (error) {
+      console.error('❌ Error fetching attendance trends:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance trends' });
+    }
+  });
+
+  // Marketing Head - Attendance summary
+  app.get("/api/marketing/attendance-summary", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Marketing Head or Admin access required' });
+      }
+
+      const { dateRange = 'thisMonth' } = req.query;
+      
+      let dateFilter = '';
+      switch (dateRange) {
+        case 'today':
+          dateFilter = 'AND a.date = CURRENT_DATE';
+          break;
+        case 'thisWeek':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'7 days\'';
+          break;
+        case 'thisMonth':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+          break;
+        case 'thisQuarter':
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'90 days\'';
+          break;
+        default:
+          dateFilter = 'AND a.date >= CURRENT_DATE - INTERVAL \'30 days\'';
+      }
+
+      const summaryQuery = `
+        WITH center_performance AS (
+          SELECT 
+            sc.name as center_name,
+            ROUND(
+              (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+              NULLIF(COUNT(a.id), 0), 2
+            ) as attendance_percentage
+          FROM so_centers sc
+          LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+          LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
+          WHERE sc.is_active = true
+          GROUP BY sc.id, sc.name
+          HAVING COUNT(a.id) > 0
+        )
+        SELECT 
+          ROUND(AVG(attendance_percentage), 2) as overall_attendance_percentage,
+          (SELECT COUNT(CASE WHEN a.status = 'present' THEN 1 END) 
+           FROM attendance a 
+           JOIN students s ON a.student_id = s.id 
+           WHERE s.is_active = true ${dateFilter}) as total_present_count,
+          (SELECT COUNT(CASE WHEN a.status = 'absent' THEN 1 END) 
+           FROM attendance a 
+           JOIN students s ON a.student_id = s.id 
+           WHERE s.is_active = true ${dateFilter}) as total_absent_count,
+          (SELECT center_name FROM center_performance ORDER BY attendance_percentage DESC LIMIT 1) as best_performing_center_name,
+          (SELECT attendance_percentage FROM center_performance ORDER BY attendance_percentage DESC LIMIT 1) as best_performing_percentage
+        FROM center_performance
+      `;
+
+      const summary = await executeRawQuery(summaryQuery, []);
+      
+      // Get attention needed centers
+      const attentionQuery = `
+        SELECT 
+          sc.name as center_name,
+          ROUND(
+            (COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / 
+            NULLIF(COUNT(a.id), 0), 2
+          ) as attendance_percentage
+        FROM so_centers sc
+        LEFT JOIN students s ON sc.id = s.so_center_id AND s.is_active = true
+        LEFT JOIN attendance a ON s.id = a.student_id ${dateFilter}
+        WHERE sc.is_active = true
+        GROUP BY sc.id, sc.name
+        HAVING COUNT(a.id) > 0 AND 
+               ROUND((COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0) / NULLIF(COUNT(a.id), 0), 2) < 75
+        ORDER BY attendance_percentage ASC
+        LIMIT 5
+      `;
+
+      const attentionNeeded = await executeRawQuery(attentionQuery, []);
+
+      const result = {
+        overallAttendancePercentage: parseFloat(summary[0]?.overall_attendance_percentage || '0'),
+        totalPresentCount: parseInt(summary[0]?.total_present_count || '0'),
+        totalAbsentCount: parseInt(summary[0]?.total_absent_count || '0'),
+        bestPerformingCenter: {
+          name: summary[0]?.best_performing_center_name || 'N/A',
+          percentage: parseFloat(summary[0]?.best_performing_percentage || '0')
+        },
+        attentionNeededCenters: attentionNeeded.map(center => ({
+          name: center.center_name,
+          percentage: parseFloat(center.attendance_percentage)
+        }))
+      };
+
+      console.log('✅ Attendance summary calculated for marketing dashboard');
+      res.json(result);
+    } catch (error) {
+      console.error('❌ Error fetching attendance summary:', error);
+      res.status(500).json({ message: 'Failed to fetch attendance summary' });
+    }
+  });
+
+  // =================== OFFICE STAFF LEAD FOLLOW-UP ENDPOINTS ===================
+
+  // Office Staff - Get assigned leads for follow-up
+  app.get("/api/office/leads", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      console.log('📋 Office staff fetching assigned leads...');
+
+      let whereClause = '';
+      const params = [];
+      
+      if (req.user.role === 'office_staff') {
+        whereClause = 'WHERE l.assigned_to = $1';
+        params.push(req.user.userId);
+      }
+
+      const query = `
+        SELECT 
+          l.*,
+          v.name as village_name,
+          m.name as mandal_name,
+          d.name as district_name,
+          s.name as state_name,
+          c.name as class_name,
+          assigned_user.name as assigned_to_name,
+          created_user.name as created_by_name,
+          COUNT(lf.id) as follow_up_count,
+          MAX(lf.follow_up_date) as last_follow_up_date
+        FROM leads l
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        LEFT JOIN lead_follow_ups lf ON l.id = lf.lead_id
+        ${whereClause}
+        GROUP BY l.id, v.name, m.name, d.name, s.name, c.name, assigned_user.name, created_user.name
+        ORDER BY l.created_at DESC
+      `;
+
+      const leads = await executeRawQuery(query, params);
+      console.log(`✅ Retrieved ${leads.length} leads for office staff follow-up`);
+      res.json(leads);
+    } catch (error) {
+      console.error('❌ Error fetching office leads:', error);
+      res.status(500).json({ message: 'Failed to fetch leads' });
+    }
+  });
+
+  // Office Staff - Add lead follow-up
+  app.post("/api/office/lead-followup", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const followUpData = insertLeadFollowUpSchema.parse({
+        ...req.body,
+        performedBy: req.user.userId
+      });
+
+      const [newFollowUp] = await db.insert(schema.leadFollowUps)
+        .values(followUpData)
+        .returning();
+
+      // Update lead status if provided
+      if (req.body.newStatus) {
+        await db.update(schema.leads)
+          .set({ 
+            status: req.body.newStatus,
+            updatedAt: new Date()
+          })
+          .where(eq(schema.leads.id, followUpData.leadId));
+      }
+
+      console.log('✅ Office staff added lead follow-up:', newFollowUp.id);
+      res.status(201).json(newFollowUp);
+    } catch (error) {
+      console.error('❌ Error creating lead follow-up:', error);
+      res.status(500).json({ message: 'Failed to create lead follow-up' });
+    }
+  });
+
+  // Office Staff - Get follow-up history for a lead
+  app.get("/api/office/leads/:leadId/followups", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || !['office_staff', 'marketing_head', 'admin'].includes(req.user.role)) {
+        return res.status(403).json({ message: 'Office Staff, Marketing Head, or Admin access required' });
+      }
+
+      const query = `
+        SELECT 
+          lf.*,
+          u.name as performed_by_name
+        FROM lead_follow_ups lf
+        LEFT JOIN users u ON lf.performed_by = u.id
+        WHERE lf.lead_id = $1
+        ORDER BY lf.follow_up_date DESC
+      `;
+
+      const followUps = await executeRawQuery(query, [req.params.leadId]);
+      console.log(`✅ Retrieved ${followUps.length} follow-ups for lead ${req.params.leadId}`);
+      res.json(followUps);
+    } catch (error) {
+      console.error('❌ Error fetching lead follow-ups:', error);
+      res.status(500).json({ message: 'Failed to fetch lead follow-ups' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

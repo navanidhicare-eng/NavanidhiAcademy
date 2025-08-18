@@ -724,7 +724,6 @@ export const insertExamResultSchema = createInsertSchema(examResults).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-  submittedAt: true,
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
@@ -933,7 +932,6 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 // Withdrawal Request schemas
 export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests).omit({
   id: true,
-  createdAt: true,
 });
 
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
@@ -958,8 +956,6 @@ export const insertCommissionTransactionSchema = createInsertSchema(commissionTr
 
 export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
   id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
 // Admin Notification schemas (using announcements as base)
@@ -1021,7 +1017,24 @@ export const insertLeadFollowUpSchema = createInsertSchema(leadFollowUps).omit({
   createdAt: true,
 });
 
+// Lead Assignments table (as specified in marketing head requirements)
+export const leadAssignments = pgTable("lead_assignments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  assignedTo: varchar("assigned_to").references(() => users.id).notNull(),
+  assignedBy: varchar("assigned_by").references(() => users.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+});
+
+// Lead assignment schemas
+export const insertLeadAssignmentSchema = createInsertSchema(leadAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;
 export type InsertLeadFollowUp = z.infer<typeof insertLeadFollowUpSchema>;
 export type LeadFollowUp = typeof leadFollowUps.$inferSelect;
+export type InsertLeadAssignment = z.infer<typeof insertLeadAssignmentSchema>;
+export type LeadAssignment = typeof leadAssignments.$inferSelect;

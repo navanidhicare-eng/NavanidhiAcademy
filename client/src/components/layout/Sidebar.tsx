@@ -233,6 +233,24 @@ const navigation: NavItem[] = [
     roles: ['admin', 'super_admin', 'academic_admin'],
   },
   {
+    title: 'Marketing',
+    icon: TrendingUp,
+    roles: ['marketing_head', 'admin'],
+    children: [
+      { title: 'Lead Management', href: '/marketing/leads', icon: Users },
+      { title: 'Centers Overview', href: '/marketing/centers-overview', icon: Building },
+      { title: 'Attendance Analytics', href: '/marketing/attendance-metrics', icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Office Staff',
+    icon: FileText,
+    roles: ['office_staff', 'marketing_head', 'admin'],
+    children: [
+      { title: 'Lead Follow-up', href: '/office/lead-followup', icon: Clock },
+    ],
+  },
+  {
     title: 'Settings',
     href: '/settings',
     icon: Settings,

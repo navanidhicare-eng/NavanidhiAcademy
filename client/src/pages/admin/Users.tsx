@@ -312,8 +312,6 @@ export default function AdminUsers() {
       <AddUserModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)}
-        onSubmit={handleAddUser}
-        isLoading={addUserMutation.isPending}
       />
 
       {/* Edit User Modal */}
@@ -323,8 +321,6 @@ export default function AdminUsers() {
           setIsEditModalOpen(false);
           setEditingUser(null);
         }}
-        onSubmit={handleUpdateUser}
-        isLoading={editUserMutation.isPending}
         user={editingUser}
       />
 
