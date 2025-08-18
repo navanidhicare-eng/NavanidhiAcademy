@@ -112,7 +112,7 @@ export function AddChapterModal({ isOpen, onClose }: AddChapterModalProps) {
                 <FormItem>
                   <FormLabel>Chapter Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Quadratic Equations, Light - Reflection and Refraction" {...field} />
+                    <Input placeholder="Enter chapter name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

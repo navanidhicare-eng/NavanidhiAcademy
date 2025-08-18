@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { AddStudentModal } from './AddStudentModal';
 import { EditStudentModal } from './EditStudentModal';
-// import { ViewStudentModal } from './ViewStudentModal';
+import { ViewStudentDetailsModal } from './ViewStudentDetailsModal';
 import type { Student } from '@shared/schema';
 
 export function AdminStudentsList() {
@@ -579,11 +579,11 @@ export function AdminStudentsList() {
         student={selectedStudent}
       />
       
-      {/* <ViewStudentModal 
+      <ViewStudentDetailsModal 
         isOpen={isViewModalOpen} 
         onClose={() => setIsViewModalOpen(false)}
         student={selectedStudent}
-      /> */}
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

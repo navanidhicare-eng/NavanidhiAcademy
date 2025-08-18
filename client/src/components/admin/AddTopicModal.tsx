@@ -171,15 +171,10 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Topic Name (LaTeX Math Support)</FormLabel>
+                  <FormLabel>Topic Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter topic name with LaTeX: e.g., Quadratic Formula $ax^2 + bx + c = 0$" {...field} />
+                    <Input placeholder="Enter topic name" {...field} />
                   </FormControl>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    <strong>LaTeX Examples for Title:</strong><br />
-                    • Use $...$ for inline math: $E = mc^2$<br />
-                    • Formulas: $x^2 + y^2 = z^2$ or $\frac{a}{b}$
-                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -190,22 +185,14 @@ export function AddTopicModal({ isOpen, onClose }: AddTopicModalProps) {
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (LaTeX Math Support)</FormLabel>
+                  <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Enter topic description with LaTeX math formulas.
-Use $...$ for inline math: $x^2 + y^2 = z^2$
-Use $$...$$ for block math: $$\frac{numerator}{denominator}$$"
+                      placeholder="Enter topic description"
                       className="min-h-[100px] resize-none"
                       {...field} 
                     />
                   </FormControl>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    <strong>LaTeX Examples:</strong><br />
-                    • Inline: $x^2 + y^2 = z^2$ or $\frac{numerator}{denominator}$<br />
-                    • Block: $$\int_0^1 x^2 dx = \frac{1}{3}$$<br />
-                    • Equations: $$E = mc^2$$
-                  </div>
                   <FormMessage />
                 </FormItem>
               )}

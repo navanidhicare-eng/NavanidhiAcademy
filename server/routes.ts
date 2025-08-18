@@ -1373,7 +1373,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      console.log(`🔍 Fetching progress for student: ${student.name} (${student.id}), Class: ${student.classId}`);
+      // Get class name for student
+      const classQuery = await db
+        .select({ className: schema.classes.name })
+        .from(schema.classes)
+        .where(eq(schema.classes.id, student.classId || ""))
+        .limit(1);
+      
+      const className = classQuery[0]?.className || 'Unknown Class';
+      
+      console.log(`🔍 Fetching progress for student: ${student.name} (${student.id}), Class: ${className}`);
 
       // Get all topics for the student's class with their progress status using Drizzle
       const allTopicsResults = await db
@@ -1523,7 +1532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         student: {
           id: student.id,
           name: student.name,
-          className: student.classId,
+          className: className,
           studentId: student.studentId
         },
         progressStats: {
@@ -4041,6 +4050,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       res.json(studentData);
+    } catch (error) {
+      console.error('Error fetching student details:', error);
+      res.status(500).json({ message: 'Failed to fetch student details' });
+    }
+  });
+
+  // Get student details for admin view modal
+  app.get("/api/admin/students/:id/details", authenticateToken, async (req, res) => {
+    try {
+      const studentId = req.params.id;
+      
+      // Get basic student data with class and SO center info
+      const studentQuery = `
+        SELECT 
+          s.*,
+          c.name as class_name,
+          sc.center_name as so_center_name,
+          sc.center_id as so_center_code
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        WHERE s.id = $1
+      `;
+      
+      const studentResults = await executeRawQuery(studentQuery, [studentId]);
+      
+      if (studentResults.length === 0) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+      
+      const student = studentResults[0];
+      
+      // Get progress summary
+      const progressQuery = `
+        SELECT 
+          COUNT(DISTINCT tp.topic_id) as completed_topics,
+          COUNT(DISTINCT t.id) as total_topics,
+          ROUND(
+            (COUNT(DISTINCT tp.topic_id)::float / NULLIF(COUNT(DISTINCT t.id)::float, 0)) * 100, 
+            2
+          ) as completion_percentage
+        FROM topics t
+        LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1 AND tp.status = 'learned'
+        JOIN chapters ch ON t.chapter_id = ch.id
+        JOIN subjects sub ON ch.subject_id = sub.id
+        WHERE sub.class_id = $2
+      `;
+      
+      const progressResults = await executeRawQuery(progressQuery, [studentId, student.class_id]);
+      const progress = progressResults[0] || {};
+      
+      const studentDetails = {
+        ...student,
+        className: student.class_name,
+        soCenterName: student.so_center_name,
+        soCenterCode: student.so_center_code,
+        progressSummary: {
+          totalTopics: parseInt(progress.total_topics) || 0,
+          completedTopics: parseInt(progress.completed_topics) || 0,
+          pendingTopics: (parseInt(progress.total_topics) || 0) - (parseInt(progress.completed_topics) || 0),
+          completionPercentage: parseFloat(progress.completion_percentage) || 0
+        }
+      };
+
+      res.json(studentDetails);
     } catch (error) {
       console.error('Error fetching student details:', error);
       res.status(500).json({ message: 'Failed to fetch student details' });

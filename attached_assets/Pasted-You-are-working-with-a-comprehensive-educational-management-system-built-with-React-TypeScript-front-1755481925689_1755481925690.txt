@@ -1,0 +1,143 @@
+You are working with a comprehensive educational management system built with React TypeScript frontend, Express.js backend, PostgreSQL database via Supabase, and role-based authentication. The system manages students, SO centers, academic content, and has QR code functionality for progress tracking.
+
+Required Changes Implementation
+1. Remove LaTeX Examples from Forms
+Target Files:
+
+client/src/components/admin/AddTopicModal.tsx
+client/src/pages/admin/TopicsManagement.tsx (AddChapterModal and AddTopicModal components)
+Requirements:
+
+Remove all LaTeX example text and help content from topic name and description fields
+Remove example placeholders containing LaTeX syntax
+Keep LaTeX functionality intact, only remove UI examples
+Simplify labels from "Topic Name (LaTeX Math Support)" to just "Topic Name"
+Remove the <div className="text-xs text-muted-foreground mt-1"> sections containing LaTeX examples
+2. Fix QR Page Class Display
+Target Files:
+
+client/src/pages/PublicProgress.tsx
+client/src/components/qr/QRModal.tsx
+Requirements:
+
+Currently showing student.classId - change to display actual class name
+Fetch class name from the classes API endpoint
+Update student data structure to include className field
+Ensure backend API /api/public/progress/:qrCode returns class name instead of class ID
+Update QR modal to show readable class name
+3. Implement Functional Eye Icon for Student Details
+Target Files:
+
+client/src/components/students/AdminStudentsList.tsx
+Create new component: client/src/components/students/ViewStudentDetailsModal.tsx
+Requirements:
+
+Make eye icon in admin students list functional
+Create modal showing complete student details including QR code
+Include QR code generation and download functionality
+Show student information: personal details, academic info, progress summary
+Add QR code with download button using the existing QRModal pattern
+Ensure modal is responsive and well-designed
+4. Separate Product Management by Role
+Target Files:
+
+client/src/components/layout/Sidebar.tsx
+client/src/pages/admin/Products.tsx (Admin product creation)
+client/src/pages/Products.tsx (SO Center/Agent product viewing)
+Requirements:
+
+Admin sidebar: Link to "Product Management" page with create/edit/delete functionality
+SO Center/Agent sidebar: Link to "Products" page with view/purchase functionality only
+Create separate admin product management page with CRUD operations
+Existing Products.tsx should remain for SO Centers/Agents (view and purchase only)
+Add proper role-based routing and access control
+5. SO Center Admission Fee Functionality
+Target Files:
+
+client/src/components/admin/AddSoCenterModal.tsx
+client/src/components/admin/EditSoCenterModal.tsx
+client/src/components/students/AddStudentModal.tsx
+server/routes.ts (SO Center creation/update endpoints)
+Database schema update for admission_fee_applicable field
+Requirements:
+
+Add admissionFeeApplicable boolean field to SO Center creation/edit forms
+When creating student in SO Center with admissionFeeApplicable: false, hide admission fee input
+When admissionFeeApplicable: true, show admission fee input as required field
+Make this setting editable in SO Center edit modal
+Update backend validation to respect this setting
+Ensure proper database column exists and is properly handled
+6. Force Password Change on First Login
+Target Files:
+
+client/src/hooks/useAuth.ts
+client/src/components/auth/LoginForm.tsx
+Create new component: client/src/components/auth/PasswordChangeModal.tsx
+server/routes.ts (authentication endpoints)
+server/authService.ts
+Requirements:
+
+Detect if user is using default password or first-time login
+Show mandatory password change modal that cannot be dismissed
+Block access to dashboard until password is changed
+Update password in Supabase Auth system
+Add passwordChanged boolean field to user schema
+Handle password change for existing users with default passwords
+Integrate with existing Supabase authentication flow
+7. Mobile Responsive Design
+Target Files:
+
+client/src/pages/Students.tsx (SO Center)
+client/src/components/students/AddStudentModal.tsx
+client/src/components/progress/ProgressTracker.tsx
+client/src/pages/Progress.tsx
+Requirements:
+
+Implement responsive grid layouts for mobile screens
+Optimize form layouts for mobile input
+Ensure tables are horizontally scrollable on mobile
+Use responsive typography and spacing
+Add mobile-friendly navigation and interactions
+Test layouts on various screen sizes (320px to 768px)
+Implement proper touch targets and mobile UX patterns
+Technical Implementation Guidelines
+Database Changes Required
+-- Add admission fee applicable column if not exists
+ALTER TABLE so_centers ADD COLUMN IF NOT EXISTS admission_fee_applicable BOOLEAN DEFAULT true;
+-- Add password changed tracking
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS default_password BOOLEAN DEFAULT true;
+API Endpoints to Update/Create
+PUT /api/admin/so-centers/:id - Handle admission fee applicable updates
+POST /api/auth/change-password - Force password change endpoint
+GET /api/public/progress/:qrCode - Return class name instead of class ID
+GET /api/admin/students/:id/details - Complete student details for view modal
+Component Architecture
+Maintain existing component patterns and styling
+Use shadcn/ui components for consistency
+Implement proper error handling and loading states
+Follow existing TypeScript patterns and interfaces
+Use TanStack Query for data fetching
+Implement proper form validation with zod schemas
+Authentication Flow Updates
+Integrate with existing Supabase Auth system
+Maintain JWT token-based authentication
+Add middleware for password change enforcement
+Handle role-based redirects properly
+Responsive Design Patterns
+Use Tailwind CSS responsive utilities
+Implement mobile-first design approach
+Use CSS Grid and Flexbox for layouts
+Ensure proper touch targets (minimum 44px)
+Optimize for both portrait and landscape orientations
+Expected Output
+After implementation, the system should have:
+
+Clean Forms: Chapter and Topic creation forms without LaTeX examples, maintaining functionality but with cleaner UI
+Proper QR Display: QR codes showing "Class: Mathematics" instead of "Class ID: class-123"
+Functional Student Details: Clicking eye icon opens comprehensive modal with student info and downloadable QR code
+Role-Based Product Management: Admins see product creation interface, SO Centers/Agents see purchase interface
+Dynamic Admission Fee: SO Centers can toggle admission fee requirement, affecting student enrollment forms
+Secure First Login: All non-admin users forced to change password on first login, updating Supabase Auth
+Mobile-Ready Interface: All SO Center pages fully responsive and optimized for mobile devices
+The system should maintain all existing functionality while adding these enhancements, with proper error handling, loading states, and user feedback throughout the application.
