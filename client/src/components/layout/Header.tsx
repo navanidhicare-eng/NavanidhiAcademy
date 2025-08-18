@@ -1,6 +1,5 @@
-
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Bell, User } from 'lucide-react';
+import { Plus, Settings, Bell, User, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useScreenSize } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -23,7 +22,7 @@ interface HeaderProps {
 export function Header({ title, subtitle, showAddButton, onAddClick, isMobile }: HeaderProps) {
   const { user, logout } = useAuth();
   const { breakpoint } = useScreenSize();
-  
+
   const getInitials = (name: string) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
@@ -53,7 +52,7 @@ export function Header({ title, subtitle, showAddButton, onAddClick, isMobile }:
             </p>
           )}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* Add Button */}
           {showAddButton && onAddClick && (
@@ -68,7 +67,7 @@ export function Header({ title, subtitle, showAddButton, onAddClick, isMobile }:
               {breakpoint !== 'mobile' && "Add"}
             </Button>
           )}
-          
+
           {/* Notifications */}
           <Button 
             variant="ghost" 
@@ -79,7 +78,7 @@ export function Header({ title, subtitle, showAddButton, onAddClick, isMobile }:
               breakpoint === 'mobile' ? "h-4 w-4" : "h-5 w-5"
             )} />
           </Button>
-          
+
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
