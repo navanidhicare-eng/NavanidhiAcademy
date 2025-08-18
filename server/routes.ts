@@ -413,6 +413,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Forgot Password API endpoint
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      // Special check for SO Center system accounts
+      if (email.toLowerCase().startsWith('nnasoc') && email.toLowerCase().endsWith('@navanidhi.org')) {
+        return res.status(400).json({ 
+          message: "This is a system-generated account. Please contact an administrator for assistance at +91 9492537164 or email navanidhi.care@gmail.com."
+        });
+      }
+
+      console.log('🔐 Processing forgot password request for:', email);
+
+      // Use Supabase Admin to send reset email
+      const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:5000'}/reset-password`
+      });
+
+      if (error) {
+        console.error('❌ Supabase forgot password error:', error);
+        // Don't expose internal errors to user for security
+      }
+
+      // Always return success message for security (don't reveal if email exists)
+      res.json({ 
+        message: "If an account exists with this email, you will receive a password reset link shortly."
+      });
+
+    } catch (error: any) {
+      console.error('❌ Forgot password error:', error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
   // Legacy user creation endpoint - REDIRECTS TO SUPABASE AUTH
   app.post("/api/admin/users-legacy", authenticateToken, async (req, res) => {
     res.status(410).json({ 

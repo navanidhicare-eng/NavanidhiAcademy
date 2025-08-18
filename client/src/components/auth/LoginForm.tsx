@@ -7,9 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { GraduationCap, Eye, EyeOff, LogIn, BookOpen, Brain, Sparkles, CheckCircle, Users, TrendingUp } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
+import { GraduationCap, Eye, EyeOff, LogIn, BookOpen, Brain, Sparkles, CheckCircle, Users, TrendingUp, Mail } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 const loginSchema = z.object({
@@ -17,10 +19,17 @@ const loginSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
 type LoginFormData = z.infer<typeof loginSchema>;
+type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>;
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isSubmittingReset, setIsSubmittingReset] = useState(false);
   const { login, isLoginLoading, loginError } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -30,6 +39,13 @@ export function LoginForm() {
     defaultValues: {
       email: '',
       password: '',
+    },
+  });
+
+  const forgotPasswordForm = useForm<ForgotPasswordData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: '',
     },
   });
 
@@ -65,6 +81,30 @@ export function LoginForm() {
         description: error?.message || loginError?.message || 'Invalid credentials',
         variant: 'destructive',
       });
+    }
+  };
+
+  const onForgotPasswordSubmit = async (data: ForgotPasswordData) => {
+    try {
+      setIsSubmittingReset(true);
+      
+      const response = await apiRequest('POST', '/api/auth/forgot-password', data);
+      
+      toast({
+        title: 'Reset Link Sent',
+        description: 'If an account exists with this email, you will receive a password reset link shortly.',
+      });
+      
+      setShowForgotPassword(false);
+      forgotPasswordForm.reset();
+    } catch (error: any) {
+      toast({
+        title: 'Request Failed',
+        description: error?.message || 'Failed to send reset link. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingReset(false);
     }
   };
 
@@ -224,6 +264,17 @@ export function LoginForm() {
               )}
             </Button>
 
+            {/* Forgot Password Link */}
+            <div className="text-center">
+              <Button
+                type="button"
+                variant="link"
+                className="text-white/80 hover:text-white text-sm underline p-0 h-auto"
+                onClick={() => setShowForgotPassword(true)}
+              >
+                Forgot Password?
+              </Button>
+            </div>
             
           </form>
 
@@ -249,6 +300,64 @@ export function LoginForm() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <Dialog open={showForgotPassword} onOpenChange={setShowForgotPassword}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-green-600" />
+              Reset Your Password
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email Address</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                placeholder="Enter your email address"
+                {...forgotPasswordForm.register('email')}
+                className="w-full"
+              />
+              {forgotPasswordForm.formState.errors.email && (
+                <p className="text-xs text-red-600">
+                  {forgotPasswordForm.formState.errors.email.message}
+                </p>
+              )}
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              We'll send you a secure link to reset your password.
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForgotPassword(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingReset}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {isSubmittingReset ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
+                    Sending...
+                  </div>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

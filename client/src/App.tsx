@@ -53,6 +53,7 @@ import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 import AdminProgressTracking from '@/pages/admin/ProgressTracking';
 import AdminWalletBalances from "@/pages/admin/WalletBalances";
 import MathPreview from "@/pages/MathPreview";
+import ResetPassword from "@/pages/ResetPassword";
 import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TermsOfUse } from '@/pages/TermsOfUse';
 
@@ -83,6 +84,7 @@ function Router() {
     <Switch>
       {/* Public route for QR code progress */}
       <Route path="/progress/:qrCode" component={PublicProgress} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* Protected routes */}
       <Route path="/login" component={LoginForm} />

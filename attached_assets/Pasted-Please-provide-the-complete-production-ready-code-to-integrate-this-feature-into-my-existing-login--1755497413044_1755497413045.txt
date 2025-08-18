@@ -1,0 +1,48 @@
+Please provide the complete, production-ready code to integrate this feature into my existing login form.
+
+Part 1: Frontend Changes (in LoginForm.tsx)
+Add a "Forgot Password?" Link:
+
+Modify my existing LoginForm.tsx component.
+
+Add a simple link or button below the password field that says "Forgot Password?".
+
+Create the "Forgot Password" Modal/Form:
+
+When the user clicks the link, it should open a modal.
+
+This modal will contain a simple form with one email input field and a "Send Reset Link" button.
+
+When this form is submitted, it must make a POST request to a new /api/auth/forgot-password endpoint.
+
+After a successful submission, it should show a confirmation message to the user.
+
+Create the "Reset Password" Page:
+
+Generate a new, simple page component at the route /reset-password.
+
+This page's component should have a form with a "New Password" input and a "Set New Password" button.
+
+The logic must use the official Supabase client-side library (supabase.auth.updateUser()) to handle the password update. The Supabase library will automatically and securely read the reset token from the URL.
+
+After a successful password change, it should show a success message and redirect the user back to the /login page.
+
+Part 2: Backend Changes (in server/routes.ts)
+Create the API Endpoint:
+
+Add one new API route to my server/routes.ts file.
+
+Endpoint: POST /api/auth/forgot-password
+
+Logic: This endpoint must perform the following steps:
+
+a. Take an email from the request body.
+
+b. Add a special check: If the email address starts with nnasoc and ends with @navanidhi.org, do not proceed. Instead, immediately return a specific error message: "This is a system-generated account. Please contact an administrator for assistance at +91 9492537164 or email navanidhi.care@gmail.com."
+
+c. If the email does not match that pattern, then proceed with the normal flow: use the supabaseAdmin.auth.resetPasswordForEmail() method to send the reset link.
+
+d. For security, for all other emails, it should always return a generic success message, even if the email doesn't exist.
+
+Part 3: Required Configuration
+In your final response, please include a clear reminder for me to configure the URL Configuration settings in my Supabase dashboard. I need to set my Site URL and add my reset password page to the Redirect URLs.
