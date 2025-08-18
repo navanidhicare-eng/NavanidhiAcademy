@@ -68,26 +68,26 @@ export default function AttendanceReports() {
   const { toast } = useToast();
 
   // Fetch location data
-  const { data: states = [] } = useQuery({
-    queryKey: ['/api/states'],
+  const { data: states = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/states'],
   });
 
-  const { data: districts = [] } = useQuery({
-    queryKey: ['/api/districts', filters.stateId],
+  const { data: districts = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/districts', filters.stateId],
     enabled: !!filters.stateId,
   });
 
-  const { data: mandals = [] } = useQuery({
-    queryKey: ['/api/mandals', filters.districtId],
+  const { data: mandals = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/mandals', filters.districtId],
     enabled: !!filters.districtId,
   });
 
-  const { data: villages = [] } = useQuery({
-    queryKey: ['/api/villages', filters.mandalId],
+  const { data: villages = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/addresses/villages', filters.mandalId],
     enabled: !!filters.mandalId,
   });
 
-  const { data: classes = [] } = useQuery({
+  const { data: classes = [] } = useQuery<any[]>({
     queryKey: ['/api/classes'],
   });
 
@@ -310,7 +310,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
               <SelectContent>
-                {states?.map((state: any) => (
+                {(states || []).map((state: any) => (
                   <SelectItem key={state.id} value={state.id}>{state.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -325,7 +325,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select District" />
               </SelectTrigger>
               <SelectContent>
-                {districts?.map((district: any) => (
+                {(districts || []).map((district: any) => (
                   <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -340,7 +340,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Mandal" />
               </SelectTrigger>
               <SelectContent>
-                {mandals?.map((mandal: any) => (
+                {(mandals || []).map((mandal: any) => (
                   <SelectItem key={mandal.id} value={mandal.id}>{mandal.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -395,7 +395,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Village" />
               </SelectTrigger>
               <SelectContent>
-                {villages?.map((village: any) => (
+                {(villages || []).map((village: any) => (
                   <SelectItem key={village.id} value={village.id}>{village.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -410,7 +410,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Center" />
               </SelectTrigger>
               <SelectContent>
-                {availableSOCenters?.map((center: any) => (
+                {(availableSOCenters || []).map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -424,7 +424,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Class" />
               </SelectTrigger>
               <SelectContent>
-                {classes?.map((cls: any) => (
+                {(classes || []).map((cls: any) => (
                   <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                 ))}
               </SelectContent>

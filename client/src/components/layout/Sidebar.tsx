@@ -299,7 +299,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
         );
       }
     });
-  }, [location]);
+  }, [location, user?.role]); // Add user role as dependency to re-run when role changes
 
 
   const toggleExpanded = (title: string) => {

@@ -73,24 +73,24 @@ export default function ProgressReports() {
   });
 
   // Fetch dropdown data
-  const { data: states } = useQuery({ queryKey: ['/api/admin/addresses/states'] });
-  const { data: districts } = useQuery({
+  const { data: states = [] } = useQuery<any[]>({ queryKey: ['/api/admin/addresses/states'] });
+  const { data: districts = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/districts', filters.stateId],
     enabled: !!filters.stateId,
   });
-  const { data: mandals } = useQuery({
+  const { data: mandals = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/mandals', filters.districtId],
     enabled: !!filters.districtId,
   });
-  const { data: villages } = useQuery({
+  const { data: villages = [] } = useQuery<any[]>({
     queryKey: ['/api/admin/addresses/villages', filters.mandalId],
     enabled: !!filters.mandalId,
   });
-  const { data: centers } = useQuery({
+  const { data: centers = [] } = useQuery<any[]>({
     queryKey: ['/api/so-centers/by-village', filters.villageId],
     enabled: !!filters.villageId,
   });
-  const { data: classes } = useQuery({ queryKey: ['/api/classes'] });
+  const { data: classes = [] } = useQuery<any[]>({ queryKey: ['/api/classes'] });
 
   const toggleRowExpansion = (studentId: string) => {
     const newExpanded = new Set(expandedRows);
@@ -274,7 +274,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
               <SelectContent>
-                {states?.map((state: any) => (
+                {(states || []).map((state: any) => (
                   <SelectItem key={state.id} value={state.id}>{state.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -289,7 +289,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select District" />
               </SelectTrigger>
               <SelectContent>
-                {districts?.map((district: any) => (
+                {(districts || []).map((district: any) => (
                   <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -304,7 +304,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select Mandal" />
               </SelectTrigger>
               <SelectContent>
-                {mandals?.map((mandal: any) => (
+                {(mandals || []).map((mandal: any) => (
                   <SelectItem key={mandal.id} value={mandal.id}>{mandal.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -319,7 +319,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select Village" />
               </SelectTrigger>
               <SelectContent>
-                {villages?.map((village: any) => (
+                {(villages || []).map((village: any) => (
                   <SelectItem key={village.id} value={village.id}>{village.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -334,7 +334,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select Center" />
               </SelectTrigger>
               <SelectContent>
-                {centers?.map((center: any) => (
+                {(centers || []).map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -348,7 +348,7 @@ export default function ProgressReports() {
                 <SelectValue placeholder="Select Class" />
               </SelectTrigger>
               <SelectContent>
-                {classes?.map((cls: any) => (
+                {(classes || []).map((cls: any) => (
                   <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                 ))}
               </SelectContent>
