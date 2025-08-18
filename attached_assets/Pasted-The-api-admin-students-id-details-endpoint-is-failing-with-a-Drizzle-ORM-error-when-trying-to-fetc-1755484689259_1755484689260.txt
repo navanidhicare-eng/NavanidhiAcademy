@@ -1,0 +1,107 @@
+The /api/admin/students/:id/details endpoint is failing with a Drizzle ORM error when trying to fetch student details. The error occurs due to null/undefined values in the selected fields causing the query builder to crash.
+
+Error Details:
+Endpoint: GET /api/admin/students/788c6620-2ce7-4dcc-9fea-ff3f2c03a3fc/details
+Error: TypeError: Cannot convert undefined or null to object
+Location: Drizzle ORM orderSelectedFields function
+Status: Returns 500 instead of student data
+Current Implementation Location:
+File: server/routes.ts
+Function: /api/admin/students/:id/details endpoint handler (around line 2800+)
+Requirements for Production-Ready Solution:
+1. Robust Error Handling:
+Implement comprehensive try-catch blocks
+Handle null/undefined database values gracefully
+Return meaningful error messages
+Log detailed error information for debugging
+2. Data Validation:
+Validate student ID parameter format
+Check if student exists before querying related data
+Handle missing foreign key relationships (class, SO center, address hierarchy)
+3. Query Optimization:
+Use proper LEFT JOINs for optional relationships
+Handle null values in SELECT statements with COALESCE
+Implement fallback values for missing data
+4. Expected Response Format:
+{
+  "student": {
+    "id": "string",
+    "studentId": "string",
+    "name": "string",
+    "aadharNumber": "string",
+    "fatherName": "string",
+    "motherName": "string",
+    "fatherMobile": "string",
+    "motherMobile": "string",
+    "fatherQualification": "string",
+    "motherQualification": "string",
+    "gender": "string",
+    "dateOfBirth": "string",
+    "presentSchoolName": "string",
+    "schoolType": "string",
+    "landmark": "string",
+    "address": "string",
+    "email": "string",
+    "parentPhone": "string",
+    "parentName": "string",
+    "courseType": "string",
+    "qrCode": "string",
+    "totalFeeAmount": "string",
+    "paidAmount": "string",
+    "pendingAmount": "string",
+    "paymentStatus": "string",
+    "isActive": "boolean",
+    "enrollmentDate": "string",
+    "admissionFeePaid": "boolean",
+    "createdAt": "string",
+    "classId": "string",
+    "className": "string",
+    "soCenterName": "string",
+    "soCenterCode": "string",
+    "villageName": "string",
+    "mandalName": "string",
+    "districtName": "string",
+    "stateName": "string",
+    "progressSummary": {
+      "totalTopics": "number",
+      "completedTopics": "number",
+      "pendingTopics": "number",
+      "completionPercentage": "number"
+    }
+  }
+}
+5. Fallback Values:
+Use "Not provided" for missing address fields
+Use "N/A" for missing contact information
+Use 0 for missing numeric values
+Use false for missing boolean values
+6. Database Schema Awareness:
+Handle the hierarchical address structure (State → District → Mandal → Village)
+Account for optional relationships in SO Centers and Classes
+Manage student progress calculation from topics and tuition_progress tables
+7. Performance Requirements:
+Single database query or optimized multiple queries
+Response time under 500ms
+Memory efficient data processing
+Proper connection management
+8. Security Considerations:
+Validate user permissions (admin role required)
+Sanitize input parameters
+Prevent SQL injection through parameterized queries
+Log security-relevant events
+9. Production Standards:
+Comprehensive logging with appropriate log levels
+Consistent error response format
+Proper HTTP status codes
+Input validation and sanitization
+Memory leak prevention
+Connection pooling awareness
+10. Testing Expectations:
+Handle edge cases (non-existent student IDs)
+Test with various data completeness scenarios
+Verify null value handling
+Confirm response format consistency
+Deliverable:
+Write a complete, production-ready implementation of the /api/admin/students/:id/details endpoint that resolves the Drizzle ORM error and provides robust student detail fetching with proper error handling, data validation, and comprehensive response formatting.
+
+Note: The solution should maintain compatibility with the existing frontend components that consume this endpoint, particularly ViewStudentDetailsModal.tsx and related student management features.

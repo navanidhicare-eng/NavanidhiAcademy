@@ -3675,92 +3675,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // API endpoint to fetch student details and payment history
+  // API endpoint to fetch student details and payment history - Production Ready Implementation
   app.get("/api/admin/students/:studentId/details", authenticateToken, async (req, res) => {
     try {
+      // 1. Security: Validate user permissions
       if (!req.user || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Admin access required' });
+        console.log('❌ Access denied for role:', req.user?.role);
+        return res.status(403).json({ 
+          message: 'Admin access required',
+          error: 'INSUFFICIENT_PERMISSIONS'
+        });
       }
 
+      // 2. Input validation: Check student ID format
       const studentId = req.params.studentId;
+      if (!studentId || typeof studentId !== 'string' || studentId.trim().length === 0) {
+        console.log('❌ Invalid student ID format:', studentId);
+        return res.status(400).json({ 
+          message: 'Invalid student ID format',
+          error: 'INVALID_STUDENT_ID'
+        });
+      }
+
       console.log(`📊 Fetching student details for ID: ${studentId}`);
 
-      // Get student basic details with SO center and location info
-      const studentDetails = await db
-        .select({
-          id: schema.students.id,
-          studentId: schema.students.studentId,
-          name: schema.students.name,
-          email: schema.students.email,
-          phone: schema.students.phone,
-          fatherMobile: schema.students.fatherMobile,
-          motherMobile: schema.students.motherMobile,
-          fatherName: schema.students.fatherName,
-          motherName: schema.students.motherName,
-          fatherQualification: schema.students.fatherQualification,
-          motherQualification: schema.students.motherQualification,
-          dateOfBirth: schema.students.dateOfBirth,
-          enrollmentDate: schema.students.enrollmentDate,
-          address: schema.students.address,
-          landmark: schema.students.landmark,
-          gender: schema.students.gender,
-          aadharNumber: schema.students.aadharNumber,
-          courseType: schema.students.courseType,
-          qrCode: schema.students.qrCode,
-          presentSchoolName: schema.students.presentSchoolName,
-          schoolType: schema.students.schoolType,
-          isActive: schema.students.isActive,
-          className: schema.classes.name,
-          soCenterName: schema.soCenters.name,
-          stateName: schema.states.name,
-          districtName: schema.districts.name,
-          mandalName: schema.mandals.name,
-          villageName: schema.villages.name,
-          pendingAmount: schema.students.pendingAmount,
-          paidAmount: schema.students.paidAmount,
-          totalFeeAmount: schema.students.totalFeeAmount,
-        })
-        .from(schema.students)
-        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
-        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
-        .leftJoin(schema.villages, eq(schema.students.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .where(eq(schema.students.id, studentId))
-        .limit(1);
+      // 3. Use raw SQL to avoid Drizzle null handling issues
+      const studentDetailsRaw = await sql`
+        SELECT 
+          s.id,
+          s.student_id as "studentId",
+          COALESCE(s.name, 'N/A') as name,
+          COALESCE(s.aadhar_number, 'Not provided') as "aadharNumber", 
+          COALESCE(s.father_name, 'Not provided') as "fatherName",
+          COALESCE(s.mother_name, 'Not provided') as "motherName",
+          COALESCE(s.father_mobile, 'Not provided') as "fatherMobile",
+          COALESCE(s.mother_mobile, 'Not provided') as "motherMobile",
+          COALESCE(s.father_qualification, 'Not provided') as "fatherQualification",
+          COALESCE(s.mother_qualification, 'Not provided') as "motherQualification",
+          COALESCE(s.gender, 'Not specified') as gender,
+          COALESCE(s.date_of_birth, 'Not provided') as "dateOfBirth",
+          COALESCE(s.present_school_name, 'Not provided') as "presentSchoolName",
+          COALESCE(s.school_type, 'Not provided') as "schoolType",
+          COALESCE(s.landmark, 'Not provided') as landmark,
+          COALESCE(s.address, 'Not provided') as address,
+          COALESCE(s.email, 'Not provided') as email,
+          COALESCE(s.phone, 'Not provided') as "parentPhone",
+          COALESCE(s.parent_name, s.father_name, 'Not provided') as "parentName",
+          COALESCE(s.course_type, 'Regular') as "courseType",
+          s.qr_code as "qrCode",
+          COALESCE(s.total_fee_amount::text, '0.00') as "totalFeeAmount",
+          COALESCE(s.paid_amount::text, '0.00') as "paidAmount", 
+          COALESCE(s.pending_amount::text, '0.00') as "pendingAmount",
+          CASE 
+            WHEN s.paid_amount >= s.total_fee_amount THEN 'Paid'
+            WHEN s.paid_amount > 0 THEN 'Partial'
+            ELSE 'Pending'
+          END as "paymentStatus",
+          s.is_active as "isActive",
+          s.enrollment_date as "enrollmentDate",
+          COALESCE(s.admission_fee_paid, false) as "admissionFeePaid",
+          s.created_at as "createdAt",
+          s.class_id as "classId",
+          COALESCE(c.name, 'Class not assigned') as "className",
+          COALESCE(soc.name, 'SO Center not assigned') as "soCenterName",
+          COALESCE(soc.center_id, 'N/A') as "soCenterCode",
+          COALESCE(v.name, 'Village not provided') as "villageName",
+          COALESCE(m.name, 'Mandal not provided') as "mandalName",
+          COALESCE(d.name, 'District not provided') as "districtName",
+          COALESCE(st.name, 'State not provided') as "stateName"
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers soc ON s.so_center_id = soc.id
+        LEFT JOIN villages v ON s.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        WHERE s.id = ${studentId}
+        LIMIT 1
+      `;
 
-      if (!studentDetails.length) {
-        return res.status(404).json({ message: 'Student not found' });
+      // 4. Check if student exists
+      if (!studentDetailsRaw || studentDetailsRaw.length === 0) {
+        console.log('❌ Student not found:', studentId);
+        return res.status(404).json({ 
+          message: 'Student not found',
+          error: 'STUDENT_NOT_FOUND'
+        });
       }
 
-      // Get payment history for this student
-      const paymentHistory = await db
-        .select({
-          id: schema.payments.id,
-          amount: schema.payments.amount,
-          paymentMethod: schema.payments.paymentMethod,
-          description: schema.payments.description,
-          month: schema.payments.month,
-          year: schema.payments.year,
-          receiptNumber: schema.payments.receiptNumber,
-          transactionId: schema.payments.transactionId,
-          createdAt: schema.payments.createdAt,
-          recordedByName: sql`COALESCE(${schema.users.name}, 'N/A')`.as('recordedByName'),
-        })
-        .from(schema.payments)
-        .leftJoin(schema.users, eq(schema.payments.recordedBy, schema.users.id))
-        .where(eq(schema.payments.studentId, studentId))
-        .orderBy(desc(schema.payments.createdAt));
+      const studentData = studentDetailsRaw[0];
 
-      res.json({
-        student: studentDetails[0],
+      // 5. Get progress summary safely
+      let progressSummary = {
+        totalTopics: 0,
+        completedTopics: 0,
+        pendingTopics: 0,
+        completionPercentage: 0
+      };
+
+      try {
+        if (studentData.classId) {
+          const progressStats = await sql`
+            SELECT 
+              COUNT(*) as total_topics,
+              COUNT(CASE WHEN tp.status = 'learned' THEN 1 END) as completed_topics
+            FROM topics t
+            INNER JOIN chapters ch ON t.chapter_id = ch.id
+            INNER JOIN subjects sub ON ch.subject_id = sub.id
+            LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = ${studentId}
+            WHERE sub.class_id = ${studentData.classId}
+              AND t.is_active = true
+          `;
+
+          if (progressStats && progressStats.length > 0) {
+            const stats = progressStats[0];
+            progressSummary = {
+              totalTopics: parseInt(stats.total_topics) || 0,
+              completedTopics: parseInt(stats.completed_topics) || 0,
+              pendingTopics: (parseInt(stats.total_topics) || 0) - (parseInt(stats.completed_topics) || 0),
+              completionPercentage: stats.total_topics > 0 
+                ? Math.round(((parseInt(stats.completed_topics) || 0) / parseInt(stats.total_topics)) * 100)
+                : 0
+            };
+          }
+        }
+      } catch (progressError) {
+        console.error('⚠️ Non-critical error fetching progress summary:', progressError);
+        // Keep default values
+      }
+
+      // 6. Get payment history safely
+      let paymentHistory = [];
+      try {
+        const paymentsRaw = await sql`
+          SELECT 
+            p.id,
+            COALESCE(p.amount::text, '0.00') as amount,
+            COALESCE(p.payment_method, 'Not specified') as "paymentMethod",
+            COALESCE(p.description, 'No description') as description,
+            p.month,
+            p.year,
+            p.receipt_number as "receiptNumber",
+            p.transaction_id as "transactionId",
+            p.created_at as "createdAt",
+            COALESCE(u.name, 'System') as "recordedByName"
+          FROM payments p
+          LEFT JOIN users u ON p.recorded_by = u.id
+          WHERE p.student_id = ${studentId}
+          ORDER BY p.created_at DESC
+          LIMIT 50
+        `;
+        paymentHistory = paymentsRaw || [];
+      } catch (paymentError) {
+        console.error('⚠️ Non-critical error fetching payment history:', paymentError);
+        // Keep empty array
+      }
+
+      // 7. Format comprehensive response
+      const response = {
+        student: {
+          ...studentData,
+          progressSummary
+        },
         payments: paymentHistory
-      });
+      };
+
+      console.log(`✅ Student details fetched successfully for: ${studentData.name}`);
+      res.status(200).json(response);
 
     } catch (error: any) {
-      console.error('❌ Error fetching student details:', error);
-      res.status(500).json({ message: 'Failed to fetch student details' });
+      console.error('❌ Critical error fetching student details:', {
+        studentId: req.params.studentId,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      res.status(500).json({ 
+        message: 'Failed to fetch student details',
+        error: 'INTERNAL_SERVER_ERROR',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
