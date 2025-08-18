@@ -144,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Database health check failed:", error);
       res.status(500).json({ 
         status: "failed", 
-        error: error.message,
+        error: (error as Error).message,
         timestamp: new Date().toISOString() 
       });
     }
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               setTimeout(() => reject(new Error('Database query timeout')), 5000);
             });
 
-            let user = await Promise.race([dbQueryPromise, dbTimeoutPromise]);
+            let user = await Promise.race([dbQueryPromise, dbTimeoutPromise]) as any;
             console.log(`✅ Database query completed successfully`);
 
             if (!user) {
@@ -279,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Login error:", error);
       if (!res.headersSent) {
-        if (error.message.includes('timeout')) {
+        if ((error as Error).message.includes('timeout')) {
           res.status(408).json({ message: "Login request timed out - please try again" });
         } else {
           res.status(500).json({ message: "Login failed" });
@@ -299,8 +299,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: userData.password,
         role: userData.role || 'agent',
         name: userData.name,
-        phone: userData.phone,
-        address: userData.address
+        phone: userData.phone || undefined,
+        address: userData.address || undefined
       });
 
       console.log('✅ User created through Supabase Auth:', result.dbUser.id);
