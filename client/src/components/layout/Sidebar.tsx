@@ -42,7 +42,8 @@ import {
   AlertTriangle,
   Plus,
   Activity,
-  Clock
+  Clock,
+  Phone
 } from 'lucide-react';
 
 // Assuming SidebarMenuButton and Link are imported from appropriate libraries
@@ -213,6 +214,28 @@ const navigation: NavItem[] = [
     href: '/admin/academic-dashboard',
     icon: GraduationCap,
     roles: ['academic_admin'],
+  },
+  // Marketing Head Navigation
+  {
+    title: 'Marketing',
+    icon: Target,
+    roles: ['marketing_head'],
+    children: [
+      { title: 'Centers Overview', href: '/marketing/centers-overview', icon: Building },
+      { title: 'Attendance Metrics', href: '/marketing/attendance-metrics', icon: BarChart3 },
+      { title: 'Lead Management', href: '/marketing/leads', icon: Users },
+    ],
+  },
+  // Office Staff Navigation
+  {
+    title: 'Reports & Analytics',
+    icon: FileText,
+    roles: ['office_staff'],
+    children: [
+      { title: 'Progress Reports', href: '/office/progress-reports', icon: TrendingUp },
+      { title: 'Attendance Reports', href: '/office/attendance-reports', icon: Calendar },
+      { title: 'Lead Follow-up', href: '/office/lead-followup', icon: Phone },
+    ],
   },
   {
     title: 'Class & Subject Management',

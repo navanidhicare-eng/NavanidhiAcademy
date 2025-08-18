@@ -239,12 +239,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dashboardRoute = '/dashboard';
                 break;
               case 'office_staff':
+                dashboardRoute = '/office/progress-reports';
+                break;
+              case 'marketing_head':
+                dashboardRoute = '/marketing/centers-overview';
+                break;
+              case 'marketing_staff':
                 dashboardRoute = '/dashboard';
                 break;
               case 'collection_agent':
-                dashboardRoute = '/dashboard';
-                break;
-              case 'marketing_staff':
                 dashboardRoute = '/dashboard';
                 break;
               default:
