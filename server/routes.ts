@@ -7417,77 +7417,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { stateId, districtId, mandalId, villageId } = req.query;
       
-      let query = sql`
-        SELECT 
-          sc.id,
-          sc.center_id as "centerId",
-          sc.name,
-          u.name as "managerName",
-          sc.address,
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          s.name as state,
-          sc.phone,
-          sc.created_at as "registrationDate",
-          COUNT(st.id) as "totalActiveStudents"
-        FROM so_centers sc
-        LEFT JOIN users u ON sc.manager_id = u.id
-        LEFT JOIN villages v ON sc.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        LEFT JOIN students st ON st.so_center_id = sc.id AND st.is_active = true
-        WHERE sc.is_active = true
-      `;
+      // Build filters for centers query
+      let whereConditions = [eq(schema.soCenters.isActive, true)];
       
-      // Add filters if provided
       if (villageId) {
-        query = sql`${query} AND sc.village_id = ${villageId as string}`;
+        whereConditions.push(eq(schema.soCenters.villageId, villageId as string));
       } else if (mandalId) {
-        query = sql`${query} AND v.mandal_id = ${mandalId as string}`;
+        whereConditions.push(eq(schema.villages.mandalId, mandalId as string));
       } else if (districtId) {
-        query = sql`${query} AND m.district_id = ${districtId as string}`;
+        whereConditions.push(eq(schema.mandals.districtId, districtId as string));
       } else if (stateId) {
-        query = sql`${query} AND d.state_id = ${stateId as string}`;
+        whereConditions.push(eq(schema.districts.stateId, stateId as string));
       }
       
-      query = sql`${query} GROUP BY sc.id, u.name, v.name, m.name, d.name, s.name ORDER BY sc.created_at DESC`;
+      // Get SO Centers with location details
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          centerId: schema.soCenters.centerId,
+          name: schema.soCenters.name,
+          managerName: schema.users.name,
+          address: schema.soCenters.address,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name,
+          phone: schema.soCenters.phone,
+          registrationDate: schema.soCenters.createdAt,
+        })
+        .from(schema.soCenters)
+        .leftJoin(schema.users, eq(schema.soCenters.managerId, schema.users.id))
+        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .where(and(...whereConditions))
+        .orderBy(desc(schema.soCenters.createdAt));
       
-      const centers = await executeRawQuery(query);
-      
-      // Get class-wise count and dropout count for each center
+      // Get enriched data for each center
       const enrichedCenters = await Promise.all(centers.map(async (center) => {
-        // Get class-wise student count
-        const classWiseCount = await executeRawQuery(sql`
-          SELECT c.name as class_name, COUNT(st.id) as student_count
-          FROM students st
-          JOIN classes c ON st.class_id = c.id
-          WHERE st.so_center_id = ${center.id} AND st.is_active = true
-          GROUP BY c.id, c.name
-        `);
+        // Get all students for this center
+        const allStudents = await db.select().from(schema.students).where(eq(schema.students.soCenterId, center.id));
+        const activeStudents = allStudents.filter(s => s.isActive);
+        
+        // Get class-wise count
+        const classWiseCount: Record<string, number> = {};
+        for (const student of activeStudents) {
+          if (student.classId) {
+            const studentClass = await db.select().from(schema.classes).where(eq(schema.classes.id, student.classId)).limit(1);
+            if (studentClass.length > 0) {
+              const className = studentClass[0].name;
+              classWiseCount[className] = (classWiseCount[className] || 0) + 1;
+            }
+          }
+        }
         
         // Get dropout count for current month
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
-        
-        const dropoutCount = await executeRawQuery(sql`
-          SELECT COUNT(*) as count
-          FROM students st
-          WHERE st.so_center_id = ${center.id} 
-          AND st.is_active = false
-          AND EXTRACT(MONTH FROM st.updated_at) = ${currentMonth}
-          AND EXTRACT(YEAR FROM st.updated_at) = ${currentYear}
-        `);
+        const dropoutStudents = allStudents.filter(s => {
+          if (!s.isActive && s.updatedAt) {
+            const updateDate = new Date(s.updatedAt);
+            return updateDate.getMonth() + 1 === currentMonth && updateDate.getFullYear() === currentYear;
+          }
+          return false;
+        });
         
         return {
           ...center,
-          classWiseCount: classWiseCount.reduce((acc, item) => {
-            acc[item.class_name] = parseInt(item.student_count);
-            return acc;
-          }, {}),
-          dropoutCount: parseInt(dropoutCount[0]?.count || '0'),
-          totalActiveStudents: parseInt(center.totalActiveStudents)
+          classWiseCount,
+          dropoutCount: dropoutStudents.length,
+          totalActiveStudents: activeStudents.length
         };
       }));
       
@@ -7730,38 +7730,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📊 Marketing Head fetching leads...');
       
-      const leads = await executeRawQuery(sql`
-        SELECT 
-          l.id,
-          l.student_name as "studentName",
-          l.parent_name as "parentName",
-          l.mobile_number as "mobileNumber",
-          l.whatsapp_number as "whatsappNumber",
-          l.email,
-          l.address,
-          c.name as "interestedClass",
-          l.lead_source as "leadSource",
-          l.priority,
-          l.status,
-          l.expected_join_date as "expectedJoinDate",
-          l.notes,
-          l.created_at as "createdAt",
-          assigned_user.name as "assignedToName",
-          created_user.name as "createdByName",
-          v.name as village,
-          m.name as mandal,
-          d.name as district,
-          s.name as state
-        FROM leads l
-        LEFT JOIN classes c ON l.interested_class = c.id
-        LEFT JOIN villages v ON l.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states s ON d.state_id = s.id
-        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
-        LEFT JOIN users created_user ON l.created_by = created_user.id
-        ORDER BY l.created_at DESC
-      `);
+      const leads = await db
+        .select({
+          id: schema.leads.id,
+          studentName: schema.leads.studentName,
+          parentName: schema.leads.parentName,
+          mobileNumber: schema.leads.mobileNumber,
+          whatsappNumber: schema.leads.whatsappNumber,
+          email: schema.leads.email,
+          address: schema.leads.address,
+          interestedClass: schema.classes.name,
+          leadSource: schema.leads.leadSource,
+          priority: schema.leads.priority,
+          status: schema.leads.status,
+          expectedJoinDate: schema.leads.expectedJoinDate,
+          notes: schema.leads.notes,
+          createdAt: schema.leads.createdAt,
+          assignedToName: sql<string>`assigned_user.name`,
+          createdByName: sql<string>`created_user.name`,
+          village: schema.villages.name,
+          mandal: schema.mandals.name,
+          district: schema.districts.name,
+          state: schema.states.name
+        })
+        .from(schema.leads)
+        .leftJoin(schema.classes, eq(schema.leads.interestedClass, schema.classes.id))
+        .leftJoin(schema.villages, eq(schema.leads.villageId, schema.villages.id))
+        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
+        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
+        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
+        .leftJoin(sql`users assigned_user`, eq(schema.leads.assignedTo, sql`assigned_user.id`))
+        .leftJoin(sql`users created_user`, eq(schema.leads.createdBy, sql`created_user.id`))
+        .orderBy(desc(schema.leads.createdAt));
 
       console.log(`✅ Retrieved ${leads.length} leads for marketing head`);
       res.json(leads);
@@ -7776,22 +7776,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📈 Fetching lead metrics...');
       
-      const metrics = await executeRawQuery(sql`
-        SELECT 
-          COUNT(*) as "totalLeads",
-          COUNT(CASE WHEN status = 'new' THEN 1 END) as "newLeads",
-          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as "contactedLeads",
-          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
-          ROUND((COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / NULLIF(COUNT(*), 0), 2) as "conversionRate"
-        FROM leads
-      `);
+      const allLeads = await db.select().from(schema.leads);
+      
+      const totalLeads = allLeads.length;
+      const newLeads = allLeads.filter(lead => lead.status === 'new').length;
+      const contactedLeads = allLeads.filter(lead => lead.status === 'contacted').length;
+      const convertedLeads = allLeads.filter(lead => lead.status === 'converted').length;
+      const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100 * 100) / 100 : 0;
 
-      const result = metrics[0] || {
-        totalLeads: 0,
-        newLeads: 0,
-        contactedLeads: 0,
-        convertedLeads: 0,
-        conversionRate: 0,
+      const result = {
+        totalLeads,
+        newLeads,
+        contactedLeads,
+        convertedLeads,
+        conversionRate,
       };
 
       console.log('✅ Lead metrics calculated:', result);
