@@ -1,0 +1,184 @@
+Update the existing educational management system to modify user roles and implement specific dashboard functionalities for Marketing Head and Office Staff roles.
+
+Role Modifications Required
+Change Role Name: Update collection_agent role to marketing_head in the schema and throughout the codebase
+Rename Office Staff Features: Enhance office_staff role with specific dashboard features
+Marketing Head Dashboard Requirements
+Create a dedicated dashboard accessible only to users with marketing_head role with the following pages:
+
+1. SO Centers Overview Page (/marketing/centers-overview)
+Features:
+
+Display table of all SO Centers with columns:
+SO Center ID (e.g., NNASOC00001)
+Center Name
+Manager Name
+Complete Address (Village, Mandal, District, State)
+Phone Number
+Class-wise student count (e.g., "1st: 5, 2nd: 8, 3rd: 12")
+Current month dropout count (number only)
+Total active students
+Registration date
+Filtering options: State → District → Mandal → Village
+Search functionality by Center ID or Name
+Export to Excel capability
+2. Attendance Metrics Page (/marketing/attendance-metrics)
+Features:
+
+Summary cards showing:
+Overall attendance percentage across all centers
+This month's total present/absent counts
+Best performing center (highest attendance %)
+Attention needed centers (lowest attendance %)
+SO Center-wise attendance table with columns:
+SO Center Name & ID
+Total Students
+Present Count (This Month)
+Absent Count (This Month)
+Attendance Percentage
+Class-wise breakdown (expandable rows)
+Date range filters (This Month, Last Month, Custom Range)
+Visual charts showing attendance trends
+3. Lead Management Page (/marketing/leads)
+Features:
+
+Lead entry form with fields:
+Student Name
+Parent Name
+Mobile Number
+WhatsApp Number
+Email (optional)
+Address (Village, Mandal, District, State)
+Interested Class
+Lead Source (Online, Referral, Walk-in, Marketing Campaign)
+Priority Level (High, Medium, Low)
+Expected Join Date
+Notes/Comments
+Lead status tracking: New → Contacted → Interested → Visit Scheduled → Joined → Converted
+Leads dashboard showing conversion metrics
+Office Staff Dashboard Requirements
+Create a comprehensive dashboard for office_staff role with the following pages:
+
+1. Student Progress Reports (/office/progress-reports)
+Features:
+
+Advanced filtering system:
+State → District → Mandal → Village → SO Center → Class
+Student progress table showing:
+Student ID, Name, Class
+SO Center Name
+Total Topics in Curriculum
+Completed Topics Count
+Progress Percentage
+Last Activity Date
+Subject-wise breakdown (expandable)
+Export functionality for progress reports
+Visual progress charts and analytics
+2. Monthly Attendance Reports (/office/attendance-reports)
+Features:
+
+Comprehensive attendance table with columns:
+Student ID, Name, Class
+SO Center Name
+Address (Village, Mandal, District)
+Days Present (This Month)
+Days Absent (This Month)
+Attendance Percentage
+Parent Contact Details
+Multi-level filtering: Address → Center → Class
+Month/Year selection
+Attendance trend analysis
+Export to Excel with detailed breakdown
+3. Fee Management Reports (/office/fee-reports)
+Features:
+
+Student fee status table:
+Student Details (ID, Name, Class, SO Center)
+Total Fee Amount
+Paid Amount
+Due Balance
+Last Payment Date
+Payment Status (Completed/Pending)
+Overdue Days (if applicable)
+Filters:
+Center-wise and Class-wise
+Payment Status: Completed/Pending/Overdue
+Due amount ranges
+Summary cards showing total collections, pending amounts
+Payment history details in expandable rows
+4. Lead Follow-up Management (/office/lead-followup)
+Features:
+
+View all leads created by Marketing Head
+Lead action management:
+Update follow-up date
+Change conversion status
+Add remarks/notes
+Schedule callbacks
+Mark as converted with student registration
+Lead analytics and conversion tracking
+Communication history log
+5. Teacher Records Management (/office/teacher-records)
+Features:
+
+Same functionality as Admin's teacher management:
+View all teachers
+Add daily teaching records
+Track teaching hours and subjects covered
+Generate teacher performance reports
+Class and subject assignment management
+Technical Implementation Requirements
+Database Schema Updates:
+Update userRoleEnum to replace collection_agent with marketing_head
+Create new tables:
+leads table for lead management
+lead_follow_ups table for tracking actions
+Extend existing authentication to support new role permissions
+Frontend Components to Create:
+MarketingDashboard.tsx - Main dashboard layout
+CentersOverview.tsx - SO Centers metrics page
+AttendanceMetrics.tsx - Attendance analytics
+LeadManagement.tsx - Lead entry and tracking
+OfficeDashboard.tsx - Office staff main dashboard
+ProgressReports.tsx - Student progress analytics
+AttendanceReports.tsx - Detailed attendance reports
+FeeReports.tsx - Fee management and tracking
+LeadFollowup.tsx - Lead management for office staff
+Backend API Endpoints to Create:
+Marketing Head endpoints:
+
+GET /api/marketing/centers-overview
+GET /api/marketing/attendance-metrics
+POST /api/marketing/leads
+GET /api/marketing/leads
+Office Staff endpoints:
+
+GET /api/office/progress-reports
+GET /api/office/attendance-reports
+GET /api/office/fee-reports
+GET /api/office/leads
+PUT /api/office/leads/:id/followup
+Expected File Structure:
+client/src/pages/
+├── marketing/
+│   ├── CentersOverview.tsx
+│   ├── AttendanceMetrics.tsx
+│   └── LeadManagement.tsx
+├── office/
+│   ├── ProgressReports.tsx
+│   ├── AttendanceReports.tsx
+│   ├── FeeReports.tsx
+│   ├── LeadFollowup.tsx
+│   └── TeacherRecords.tsx
+Authentication & Routing Updates:
+Update role-based routing in App.tsx
+Modify login redirection logic for new roles
+Update sidebar navigation based on user roles
+Implement proper authorization middleware for new endpoints
+Expected Output:
+Two distinct dashboard experiences with role-specific navigation
+Real-time data visualization and reporting capabilities
+Comprehensive filtering and export functionalities
+Seamless integration with existing authentication system
+Responsive design maintaining current UI/UX standards
+Complete CRUD operations for lead management workflow

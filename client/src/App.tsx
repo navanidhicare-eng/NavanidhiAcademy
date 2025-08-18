@@ -57,6 +57,16 @@ import ResetPassword from "@/pages/ResetPassword";
 import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TermsOfUse } from '@/pages/TermsOfUse';
 
+// Marketing Head Pages
+import CentersOverview from "@/pages/marketing/CentersOverview";
+import AttendanceMetrics from "@/pages/marketing/AttendanceMetrics";
+import LeadManagement from "@/pages/marketing/LeadManagement";
+
+// Office Staff Pages
+import ProgressReports from "@/pages/office/ProgressReports";
+import OfficeAttendanceReports from "@/pages/office/AttendanceReports";
+import LeadFollowup from "@/pages/office/LeadFollowup";
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -333,6 +343,40 @@ function Router() {
       <Route path="/admin/wallet-balances">
         <ProtectedRoute>
           <AdminWalletBalances />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Marketing Head Routes */}
+      <Route path="/marketing/centers-overview">
+        <ProtectedRoute>
+          <CentersOverview />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/marketing/attendance-metrics">
+        <ProtectedRoute>
+          <AttendanceMetrics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/marketing/leads">
+        <ProtectedRoute>
+          <LeadManagement />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Office Staff Routes */}
+      <Route path="/office/progress-reports">
+        <ProtectedRoute>
+          <ProgressReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/office/attendance-reports">
+        <ProtectedRoute>
+          <OfficeAttendanceReports />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/office/lead-followup">
+        <ProtectedRoute>
+          <LeadFollowup />
         </ProtectedRoute>
       </Route>
 

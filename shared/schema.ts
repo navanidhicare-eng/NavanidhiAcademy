@@ -10,7 +10,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "academic_admin",
   "agent",
   "office_staff",
-  "collection_agent",
+  "marketing_head",
   "marketing_staff"
 ]);
 
@@ -29,6 +29,9 @@ export const expenseStatusEnum = pgEnum("expense_status", ["pending", "approved"
 export const paymentMethodEnum = pgEnum("payment_method", ["bill", "voucher", "upi", "cash", "online"]);
 export const announcementTargetAudienceEnum = pgEnum("announcement_target_audience", ["students", "teachers", "so_centers", "admin", "all"]);
 export const announcementPriorityEnum = pgEnum("announcement_priority", ["low", "normal", "high", "urgent"]);
+export const leadSourceEnum = pgEnum("lead_source", ["online", "referral", "walk_in", "marketing_campaign"]);
+export const leadPriorityEnum = pgEnum("lead_priority", ["high", "medium", "low"]);
+export const leadStatusEnum = pgEnum("lead_status", ["new", "contacted", "interested", "visit_scheduled", "joined", "converted"]);
 
 // Address hierarchy tables
 export const states = pgTable("states", {
@@ -968,3 +971,57 @@ export const insertAdminNotificationSchema = createInsertSchema(announcements).o
 
 export type InsertAdminNotification = z.infer<typeof insertAdminNotificationSchema>;
 export type AdminNotification = typeof announcements.$inferSelect;
+
+// Lead Management Tables
+
+// Leads table
+export const leads = pgTable("leads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentName: text("student_name").notNull(),
+  parentName: text("parent_name").notNull(),
+  mobileNumber: text("mobile_number").notNull(),
+  whatsappNumber: text("whatsapp_number"),
+  email: text("email"),
+  address: text("address"),
+  villageId: varchar("village_id").references(() => villages.id),
+  interestedClass: varchar("interested_class").references(() => classes.id),
+  leadSource: leadSourceEnum("lead_source").notNull(),
+  priority: leadPriorityEnum("priority").default("medium"),
+  expectedJoinDate: date("expected_join_date"),
+  notes: text("notes"),
+  status: leadStatusEnum("status").default("new"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  assignedTo: varchar("assigned_to").references(() => users.id), // Office staff assigned for follow-up
+  convertedStudentId: varchar("converted_student_id").references(() => students.id), // If converted to student
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Lead Follow-ups table
+export const leadFollowUps = pgTable("lead_follow_ups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id).notNull(),
+  followUpDate: date("follow_up_date").notNull(),
+  action: text("action").notNull(), // Called, Visited, Scheduled, etc.
+  remarks: text("remarks"),
+  nextFollowUpDate: date("next_follow_up_date"),
+  performedBy: varchar("performed_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Lead schemas
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLeadFollowUpSchema = createInsertSchema(leadFollowUps).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type Lead = typeof leads.$inferSelect;
+export type InsertLeadFollowUp = z.infer<typeof insertLeadFollowUpSchema>;
+export type LeadFollowUp = typeof leadFollowUps.$inferSelect;
