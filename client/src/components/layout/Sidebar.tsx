@@ -39,7 +39,10 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Activity,
+  Clock
 } from 'lucide-react';
 
 // Assuming SidebarMenuButton and Link are imported from appropriate libraries
