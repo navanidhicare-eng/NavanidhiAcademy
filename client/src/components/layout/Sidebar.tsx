@@ -100,7 +100,6 @@ const navigation: NavItem[] = [
     roles: ['so_center', 'admin', 'super_admin'],
     children: [
       { title: 'Exam Management', href: '/exam-management', icon: Award, roles: ['so_center'] },
-      { title: 'SO Center Exams', href: '/so-center/exams', icon: ClipboardList, roles: ['so_center'] },
       { title: 'Admin Exam Management', href: '/admin/exam-management', icon: Award, roles: ['admin', 'super_admin'] },
       { title: 'Academic Dashboard', href: '/admin/academic-dashboard', icon: BarChart3, roles: ['admin', 'super_admin'] },
     ],

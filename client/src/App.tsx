@@ -154,11 +154,6 @@ function Router() {
           <SoCenterExamManagement />
         </ProtectedRoute>
       </Route>
-      <Route path="/so-center/exams">
-        <ProtectedRoute>
-          <SoCenterExams />
-        </ProtectedRoute>
-      </Route>
       <Route path="/post-exam-result/:examId">
         <ProtectedRoute>
           <PostExamResult />
