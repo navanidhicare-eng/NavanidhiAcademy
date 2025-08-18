@@ -75,7 +75,7 @@ export function LoginForm() {
         {/* Background Image */}
         <div className="absolute inset-0">
           <img 
-            src="/education-brain.jpg" 
+            src="/login-background.jpg" 
             alt="Educational Excellence" 
             className="w-full h-full object-cover opacity-60"
           />
@@ -85,8 +85,8 @@ export function LoginForm() {
         {/* Top Logo */}
         <div className="absolute top-8 left-8 z-20">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-              <Brain className="w-6 h-6 text-blue-600" />
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center p-1">
+              <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
             </div>
             <span className="text-white text-xl font-semibold">Navanidhi Academy</span>
           </div>
@@ -137,8 +137,8 @@ export function LoginForm() {
           {/* Mobile Logo (visible on small screens) */}
           <div className="lg:hidden text-center">
             <div className="flex justify-center items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-                <Brain className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 shadow-md">
+                <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
               <span className="text-2xl font-bold text-gray-900">Navanidhi Academy</span>
             </div>
@@ -147,8 +147,8 @@ export function LoginForm() {
           {/* Welcome Section */}
           <div className="text-center lg:text-left space-y-2">
             <div className="flex items-center justify-center lg:justify-start mb-4">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                <GraduationCap className="w-7 h-7 text-white" />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 shadow-md border">
+                <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
             </div>
             <p className="text-sm text-gray-500 uppercase tracking-wide font-medium">Welcome to Navanidhi Academy</p>
