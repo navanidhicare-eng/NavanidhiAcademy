@@ -4076,72 +4076,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/students/:id/details", authenticateToken, async (req, res) => {
     try {
       const studentId = req.params.id;
+      console.log(`📊 Fetching student details for ID: ${studentId}`);
       
-      // Get complete student data with hierarchical address and SO center info using Drizzle
-      const studentResults = await db
-        .select({
-          // Student basic info
-          id: schema.students.id,
-          studentId: schema.students.studentId,
-          name: schema.students.name,
-          aadharNumber: schema.students.aadharNumber,
-          fatherName: schema.students.fatherName,
-          motherName: schema.students.motherName,
-          fatherMobile: schema.students.fatherMobile,
-          motherMobile: schema.students.motherMobile,
-          fatherQualification: schema.students.fatherQualification,
-          motherQualification: schema.students.motherQualification,
-          gender: schema.students.gender,
-          dateOfBirth: schema.students.dateOfBirth,
-          presentSchoolName: schema.students.presentSchoolName,
-          schoolType: schema.students.schoolType,
-          landmark: schema.students.landmark,
-          address: schema.students.address,
-          email: schema.students.email,
-          parentPhone: schema.students.parentPhone,
-          parentName: schema.students.parentName,
-          courseType: schema.students.courseType,
-          qrCode: schema.students.qrCode,
-          totalFeeAmount: schema.students.totalFeeAmount,
-          paidAmount: schema.students.paidAmount,
-          pendingAmount: schema.students.pendingAmount,
-          paymentStatus: schema.students.paymentStatus,
-          isActive: schema.students.isActive,
-          enrollmentDate: schema.students.enrollmentDate,
-          admissionFeePaid: schema.students.admissionFeePaid,
-          createdAt: schema.students.createdAt,
+      // Use raw SQL query to avoid Drizzle ordering issues with null values
+      const studentQuery = `
+        SELECT 
+          s.id,
+          s.student_id as "studentId",
+          s.name,
+          s.aadhar_number as "aadharNumber",
+          s.father_name as "fatherName",
+          s.mother_name as "motherName",
+          s.father_mobile as "fatherMobile",
+          s.mother_mobile as "motherMobile",
+          s.father_qualification as "fatherQualification",
+          s.mother_qualification as "motherQualification",
+          s.gender,
+          s.date_of_birth as "dateOfBirth",
+          s.present_school_name as "presentSchoolName",
+          s.school_type as "schoolType",
+          s.landmark,
+          s.address,
+          s.email,
+          s.parent_phone as "parentPhone",
+          s.parent_name as "parentName",
+          s.course_type as "courseType",
+          s.qr_code as "qrCode",
+          s.total_fee_amount as "totalFeeAmount",
+          s.paid_amount as "paidAmount",
+          s.pending_amount as "pendingAmount",
+          s.payment_status as "paymentStatus",
+          s.is_active as "isActive",
+          s.enrollment_date as "enrollmentDate",
+          s.admission_fee_paid as "admissionFeePaid",
+          s.created_at as "createdAt",
+          s.class_id as "classId",
           
-          // Class info
-          className: schema.classes.name,
-          classId: schema.students.classId,
+          -- Class info
+          c.name as "className",
           
-          // SO Center info
-          soCenterName: schema.soCenters.name,
-          soCenterCode: schema.soCenters.centerId,
+          -- SO Center info
+          sc.name as "soCenterName",
+          sc.center_id as "soCenterCode",
           
-          // Complete hierarchical address
-          villageName: schema.villages.name,
-          mandalName: schema.mandals.name,
-          districtName: schema.districts.name,
-          stateName: schema.states.name,
-        })
-        .from(schema.students)
-        .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
-        .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
-        .leftJoin(schema.villages, eq(schema.students.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .where(eq(schema.students.id, studentId))
-        .limit(1);
+          -- Complete hierarchical address with null safety
+          COALESCE(v.name, 'Not provided') as "villageName",
+          COALESCE(m.name, 'Not provided') as "mandalName", 
+          COALESCE(d.name, 'Not provided') as "districtName",
+          COALESCE(st.name, 'Not provided') as "stateName"
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
+        LEFT JOIN villages v ON s.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states st ON d.state_id = st.id
+        WHERE s.id = $1
+        LIMIT 1
+      `;
+      
+      const studentResults = await executeRawQuery(studentQuery, [studentId]);
       
       if (studentResults.length === 0) {
+        console.log('❌ Student not found:', studentId);
         return res.status(404).json({ message: 'Student not found' });
       }
       
       const student = studentResults[0];
+      console.log('✅ Student data retrieved successfully');
       
-      // Get progress summary
+      // Get progress summary with null safety
       const progressQuery = `
         SELECT 
           COUNT(DISTINCT tp.topic_id) as completed_topics,
@@ -4154,7 +4158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         LEFT JOIN tuition_progress tp ON t.id = tp.topic_id AND tp.student_id = $1 AND tp.status = 'learned'
         JOIN chapters ch ON t.chapter_id = ch.id
         JOIN subjects sub ON ch.subject_id = sub.id
-        WHERE sub.class_id = $2
+        WHERE sub.class_id = $2 AND t.is_active = true
       `;
       
       const progressResults = await executeRawQuery(progressQuery, [studentId, student.classId]);
@@ -4172,9 +4176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
+      console.log('✅ Student details compiled successfully');
       res.json(studentDetails);
     } catch (error) {
-      console.error('Error fetching student details:', error);
+      console.error('❌ Error fetching student details:', error);
       res.status(500).json({ message: 'Failed to fetch student details' });
     }
   });
