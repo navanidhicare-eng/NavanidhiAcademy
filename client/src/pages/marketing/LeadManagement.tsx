@@ -649,19 +649,19 @@ export default function LeadManagement() {
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Lead Source</Label>
                       <Badge variant="secondary" className="ml-2">
-                        {selectedLead.leadSource.replace('_', ' ').toUpperCase()}
+                        {(selectedLead.leadSource || 'unknown').replace(/[_-]/g, ' ').toUpperCase()}
                       </Badge>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Priority</Label>
-                      <Badge className={`ml-2 ${getPriorityColor(selectedLead.priority)}`}>
-                        {selectedLead.priority.toUpperCase()}
+                      <Badge className={`ml-2 ${getPriorityColor(selectedLead.priority || 'medium')}`}>
+                        {(selectedLead.priority || 'medium').toUpperCase()}
                       </Badge>
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-gray-600">Status</Label>
-                      <Badge className={`ml-2 ${getStatusColor(selectedLead.status)}`}>
-                        {selectedLead.status.replace('_', ' ').toUpperCase()}
+                      <Badge className={`ml-2 ${getStatusColor(selectedLead.status || 'new')}`}>
+                        {(selectedLead.status || 'new').replace(/[_-]/g, ' ').toUpperCase()}
                       </Badge>
                     </div>
                     <div>
@@ -784,15 +784,15 @@ export default function LeadManagement() {
                   <TableRow key={lead.id}>
                     <TableCell>
                       <div>
-                        <p className="font-semibold">{lead.studentName || lead.student_name || 'N/A'}</p>
-                        <p className="text-sm text-gray-500">Parent: {lead.parentName || lead.parent_name || 'N/A'}</p>
+                        <p className="font-semibold">{lead.studentName || (lead as any).student_name || 'N/A'}</p>
+                        <p className="text-sm text-gray-500">Parent: {lead.parentName || (lead as any).parent_name || 'N/A'}</p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
                           <Phone size={12} />
-                          {lead.mobileNumber || lead.mobile_number || 'N/A'}
+                          {lead.mobileNumber || (lead as any).mobile_number || 'N/A'}
                         </div>
                         {lead.email && (
                           <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -804,12 +804,12 @@ export default function LeadManagement() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {classes?.find((cls: any) => cls.id === (lead.interestedClass || lead.interested_class))?.name || 'N/A'}
+                        {classes?.find((cls: any) => cls.id === (lead.interestedClass || (lead as any).interested_class))?.name || 'N/A'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {(lead.leadSource || lead.lead_source || 'unknown').replace(/[_-]/g, ' ').toUpperCase()}
+                        {(lead.leadSource || (lead as any).lead_source || 'unknown').replace(/[_-]/g, ' ').toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -823,8 +823,8 @@ export default function LeadManagement() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {(lead.assignedToName || lead.assigned_to_name) ? (
-                        <span className="text-sm">{lead.assignedToName || lead.assigned_to_name}</span>
+                      {(lead.assignedToName || (lead as any).assigned_to_name) ? (
+                        <span className="text-sm">{lead.assignedToName || (lead as any).assigned_to_name}</span>
                       ) : (
                         <Select onValueChange={(value) => handleAssignLead(lead.id, value)}>
                           <SelectTrigger className="w-32">
@@ -843,8 +843,8 @@ export default function LeadManagement() {
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar size={12} />
-                        {lead.createdAt || lead.created_at ? 
-                          new Date(lead.createdAt || lead.created_at).toLocaleDateString() : 
+                        {lead.createdAt || (lead as any).created_at ? 
+                          new Date(lead.createdAt || (lead as any).created_at).toLocaleDateString() : 
                           'N/A'
                         }
                       </div>
