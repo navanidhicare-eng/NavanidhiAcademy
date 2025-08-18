@@ -784,15 +784,15 @@ export default function LeadManagement() {
                   <TableRow key={lead.id}>
                     <TableCell>
                       <div>
-                        <p className="font-semibold">{lead.studentName}</p>
-                        <p className="text-sm text-gray-500">Parent: {lead.parentName}</p>
+                        <p className="font-semibold">{lead.studentName || lead.student_name || 'N/A'}</p>
+                        <p className="text-sm text-gray-500">Parent: {lead.parentName || lead.parent_name || 'N/A'}</p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
                           <Phone size={12} />
-                          {lead.mobileNumber}
+                          {lead.mobileNumber || lead.mobile_number || 'N/A'}
                         </div>
                         {lead.email && (
                           <div className="flex items-center gap-1 text-sm text-gray-500">
@@ -804,27 +804,27 @@ export default function LeadManagement() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {classes?.find(cls => cls.id === lead.interestedClass)?.name || lead.interestedClass}
+                        {classes?.find((cls: any) => cls.id === (lead.interestedClass || lead.interested_class))?.name || 'N/A'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {lead.leadSource.replace('_', ' ').toUpperCase()}
+                        {(lead.leadSource || lead.lead_source || 'unknown').replace(/[_-]/g, ' ').toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getPriorityColor(lead.priority)}>
-                        {lead.priority.toUpperCase()}
+                      <Badge className={getPriorityColor(lead.priority || 'medium')}>
+                        {(lead.priority || 'medium').toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(lead.status)}>
-                        {lead.status.replace('_', ' ').toUpperCase()}
+                      <Badge className={getStatusColor(lead.status || 'new')}>
+                        {(lead.status || 'new').replace(/[_-]/g, ' ').toUpperCase()}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {lead.assignedToName ? (
-                        <span className="text-sm">{lead.assignedToName}</span>
+                      {(lead.assignedToName || lead.assigned_to_name) ? (
+                        <span className="text-sm">{lead.assignedToName || lead.assigned_to_name}</span>
                       ) : (
                         <Select onValueChange={(value) => handleAssignLead(lead.id, value)}>
                           <SelectTrigger className="w-32">
@@ -843,7 +843,10 @@ export default function LeadManagement() {
                     <TableCell>
                       <div className="flex items-center gap-1 text-sm">
                         <Calendar size={12} />
-                        {new Date(lead.createdAt).toLocaleDateString()}
+                        {lead.createdAt || lead.created_at ? 
+                          new Date(lead.createdAt || lead.created_at).toLocaleDateString() : 
+                          'N/A'
+                        }
                       </div>
                     </TableCell>
                     <TableCell>
