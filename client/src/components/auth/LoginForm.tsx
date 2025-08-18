@@ -132,33 +132,33 @@ export function LoginForm() {
       </div>
 
       {/* Right Section - Login Form */}
-      <div className="w-full lg:w-2/5 flex items-center justify-center bg-white p-8">
-        <div className="w-full max-w-md space-y-8">
+      <div className="w-full lg:w-2/5 flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-blue-50 p-8">
+        <div className="w-full max-w-sm mx-auto bg-white/70 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 p-8 space-y-6">
           {/* Mobile Logo (visible on small screens) */}
           <div className="lg:hidden text-center">
-            <div className="flex justify-center items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 shadow-md">
+            <div className="flex justify-center items-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
-              <span className="text-2xl font-bold text-gray-900">Navanidhi Academy</span>
+              <span className="text-xl font-bold text-gray-800">Navanidhi Academy</span>
             </div>
           </div>
 
           {/* Welcome Section */}
-          <div className="text-center lg:text-left space-y-2">
-            <div className="flex items-center justify-center lg:justify-start mb-4">
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-1 shadow-md border">
+          <div className="text-center space-y-3">
+            <div className="flex items-center justify-center mb-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center p-1 shadow-lg">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
             </div>
-            <p className="text-sm text-gray-500 uppercase tracking-wide font-medium">Welcome to Navanidhi Academy</p>
-            <h2 className="text-3xl font-bold text-gray-900">
+            <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Welcome to Navanidhi Academy</p>
+            <h2 className="text-2xl font-bold text-gray-800 leading-tight">
               Get started with your email<br />or SO Center ID
             </h2>
           </div>
 
           {/* Login Form */}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-gray-700 sr-only">
                 Email or SO Center ID
@@ -168,10 +168,10 @@ export function LoginForm() {
                 type="text"
                 placeholder="Enter your email or SO Center ID"
                 {...form.register('email')}
-                className="h-12 text-base border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
+                className="h-11 text-sm border-gray-200 rounded-xl focus:border-blue-400 focus:ring-blue-400 bg-white/80 focus:bg-white transition-all shadow-sm backdrop-blur-sm"
               />
               {form.formState.errors.email && (
-                <p className="text-sm text-red-600 mt-1">
+                <p className="text-xs text-red-500 mt-1">
                   {form.formState.errors.email.message}
                 </p>
               )}
@@ -187,20 +187,20 @@ export function LoginForm() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
                   {...form.register('password')}
-                  className="h-12 text-base border-gray-300 rounded-lg focus:border-blue-500 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors pr-12"
+                  className="h-11 text-sm border-gray-200 rounded-xl focus:border-blue-400 focus:ring-blue-400 bg-white/80 focus:bg-white transition-all shadow-sm backdrop-blur-sm pr-12"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-1 top-1 h-10 w-10 p-0 hover:bg-gray-100 rounded-md"
+                  className="absolute right-1 top-1 h-9 w-9 p-0 hover:bg-gray-100/80 rounded-lg"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff size={18} className="text-gray-500" /> : <Eye size={18} className="text-gray-500" />}
+                  {showPassword ? <EyeOff size={16} className="text-gray-500" /> : <Eye size={16} className="text-gray-500" />}
                 </Button>
               </div>
               {form.formState.errors.password && (
-                <p className="text-sm text-red-600 mt-1">
+                <p className="text-xs text-red-500 mt-1">
                   {form.formState.errors.password.message}
                 </p>
               )}
@@ -208,12 +208,12 @@ export function LoginForm() {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium text-base rounded-lg shadow-sm transition-colors"
+              className="w-full h-11 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium text-sm rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
               disabled={isLoginLoading}
             >
               {isLoginLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+                  <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
                   Signing In...
                 </div>
               ) : (
@@ -225,24 +225,25 @@ export function LoginForm() {
           </form>
 
           {/* Footer */}
-          <div className="text-center text-sm text-gray-500 leading-relaxed">
+          <div className="text-center text-xs text-gray-500 leading-relaxed">
             By continuing, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:underline">privacy policy</a>{' '}
+            <a href="#" className="text-blue-500 hover:text-blue-600 transition-colors">privacy policy</a>{' '}
             and{' '}
-            <a href="#" className="text-blue-600 hover:underline">terms of use</a>.
+            <a href="#" className="text-blue-500 hover:text-blue-600 transition-colors">terms of use</a>.
           </div>
 
           {/* Help Section */}
-          <div className="border-t pt-6">
+          <div className="border-t border-gray-100 pt-4">
             <div className="text-center">
-              <p className="text-sm text-gray-600 mb-3">Need help logging in?</p>
-              <div className="space-y-2 text-sm">
+              <p className="text-xs text-gray-600 mb-2">Need help logging in?</p>
+              <div className="space-y-1 text-xs">
                 <p className="text-gray-500">• Use your registered email address</p>
                 <p className="text-gray-500">• SO Centers can use their Center ID (e.g., NAV001)</p>
                 <p className="text-gray-500">• Contact support for password reset</p>
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
