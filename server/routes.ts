@@ -255,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
 
             console.log(`📍 Redirecting ${user.role} to: ${dashboardRoute}`);
-            consoleP.log(`🚀 Sending login response...`);
+            console.log(`🚀 Sending login response...`);
 
             res.json({
               token,
@@ -500,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       console.error('❌ Error fetching SO Center dashboard stats:', error);
-      res.status(500).json({ message: 'Failed to fetch dashboard stats', error: error.message });
+      res.status(500).json({ message: 'Failed to fetch dashboard stats', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -917,12 +917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               `;
 
               if (results.length > 0) {
-                soCenter = {
-                  id: results[0].id,
-                  centerId: results[0].center_id,
-                  name: results[0].name,
-                  email: results[0].email
-                };
+                soCenter = results[0] as any;
                 console.log('✅ Found SO Center via fallback:', soCenter.centerId);
               }
             }
@@ -1181,10 +1176,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               const userExists = await storage.getUser(req.user.userId);
               if (!userExists) {
-                recordedByUserId = null;
+                recordedByUserId = "";
               }
             } catch (error) {
-              recordedByUserId = null;
+              recordedByUserId = "";
             }
 
             await storage.createPayment({
@@ -1965,7 +1960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error fetching location data:', error);
-      res.status(500).json({ message: 'Error fetching location data', error: error.message });
+      res.status(500).json({ message: 'Error fetching location data', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -2475,7 +2470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedCenter);
     } catch (error) {
       console.error('❌ Error updating SO Center:', error);
-      res.status(500).json({ message: 'Failed to update SO center', error: error.message });
+      res.status(500).json({ message: 'Failed to update SO center', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

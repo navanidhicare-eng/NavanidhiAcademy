@@ -103,15 +103,15 @@ export default function LeadManagement() {
   });
 
   // Fetch dropdown data
-  const { data: states } = useQuery({
+  const { data: states = [] } = useQuery({
     queryKey: ['/api/admin/addresses/states'],
   });
 
-  const { data: classes } = useQuery({
+  const { data: classes = [] } = useQuery({
     queryKey: ['/api/classes'],
   });
 
-  const { data: officeStaff } = useQuery({
+  const { data: officeStaff = [] } = useQuery({
     queryKey: ['/api/users/office-staff'],
   });
 
@@ -121,19 +121,19 @@ export default function LeadManagement() {
   const [selectedMandal, setSelectedMandal] = useState('');
 
   // Fetch districts based on selected state
-  const { data: districts } = useQuery({
+  const { data: districts = [] } = useQuery({
     queryKey: ['/api/admin/addresses/districts', selectedState],
     enabled: !!selectedState,
   });
 
   // Fetch mandals based on selected district
-  const { data: mandals } = useQuery({
+  const { data: mandals = [] } = useQuery({
     queryKey: ['/api/admin/addresses/mandals', selectedDistrict],
     enabled: !!selectedDistrict,
   });
 
   // Fetch villages based on selected mandal
-  const { data: villages } = useQuery({
+  const { data: villages = [] } = useQuery({
     queryKey: ['/api/admin/addresses/villages', selectedMandal],
     enabled: !!selectedMandal,
   });
@@ -702,7 +702,6 @@ export default function LeadManagement() {
           )}
         </DialogContent>
       </Dialog>
-      </div>
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
