@@ -7751,19 +7751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       console.log('✅ Lead metrics calculated:', result);
-      res.json(result);rted' THEN 1 END) * 100.0 / 
-             NULLIF(COUNT(*), 0)), 2
-          ) as "conversionRate"
-        FROM leads
-      `);
-      
-      res.json({
-        totalLeads: parseInt(metrics[0]?.totalLeads || '0'),
-        newLeads: parseInt(metrics[0]?.newLeads || '0'),
-        contactedLeads: parseInt(metrics[0]?.contactedLeads || '0'),
-        convertedLeads: parseInt(metrics[0]?.convertedLeads || '0'),
-        conversionRate: parseFloat(metrics[0]?.conversionRate || '0')
-      });
+      res.json(result);
     } catch (error) {
       console.error('Error fetching lead metrics:', error);
       res.status(500).json({ message: 'Failed to fetch lead metrics' });
