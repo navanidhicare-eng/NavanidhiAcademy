@@ -140,7 +140,7 @@ export function LoginForm() {
           {/* Mobile Logo (visible on small screens) */}
           <div className="lg:hidden text-center">
             <div className="flex justify-center items-center space-x-4 mb-6">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-3 shadow-lg border border-white/30">
+              <div className="w-20 h-20 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center p-3 shadow-lg border border-white/30">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
               <span className="text-2xl font-bold text-white drop-shadow-lg">Navanidhi Academy</span>
@@ -150,7 +150,7 @@ export function LoginForm() {
           {/* Welcome Section */}
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center p-3 shadow-lg border border-white/30">
+              <div className="w-24 h-24 bg-black/60 backdrop-blur-md rounded-xl flex items-center justify-center p-4 shadow-lg border border-white/30">
                 <img src="/navanidhi-logo.png" alt="Navanidhi Academy" className="w-full h-full object-contain" />
               </div>
             </div>
@@ -230,9 +230,9 @@ export function LoginForm() {
           {/* Footer */}
           <div className="text-center text-xs text-white/70 leading-relaxed drop-shadow-md">
             By continuing, you agree to our{' '}
-            <a href="#" className="text-green-300 hover:text-green-200 transition-colors">privacy policy</a>{' '}
+            <a href="/privacy-policy" className="text-green-300 hover:text-green-200 transition-colors">privacy policy</a>{' '}
             and{' '}
-            <a href="#" className="text-green-300 hover:text-green-200 transition-colors">terms of use</a>.
+            <a href="/terms-of-use" className="text-green-300 hover:text-green-200 transition-colors">terms of use</a>.
           </div>
 
           {/* Help Section */}

@@ -53,6 +53,9 @@ import ClassSubjectManagement from '@/pages/admin/ClassSubjectManagement';
 import AdminProgressTracking from '@/pages/admin/ProgressTracking';
 import AdminWalletBalances from "@/pages/admin/WalletBalances";
 import MathPreview from "@/pages/MathPreview";
+import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
+import { TermsOfUse } from '@/pages/TermsOfUse';
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -331,6 +334,9 @@ function Router() {
         </ProtectedRoute>
       </Route>
 
+      {/* Privacy Policy and Terms of Use */}
+      <Route path="/privacy-policy" component={PrivacyPolicy} />
+      <Route path="/terms-of-use" component={TermsOfUse} />
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />
