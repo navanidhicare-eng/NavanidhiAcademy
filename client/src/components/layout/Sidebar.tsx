@@ -38,7 +38,8 @@ import {
   Building,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
 
 // Assuming SidebarMenuButton and Link are imported from appropriate libraries
