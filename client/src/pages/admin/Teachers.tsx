@@ -40,7 +40,8 @@ import {
   Clock,
   CalendarDays,
   UserCheck,
-  Settings
+  Settings,
+  Plus
 } from 'lucide-react';
 // Import components inline to avoid missing module errors
 import type { Teacher } from '@shared/schema';

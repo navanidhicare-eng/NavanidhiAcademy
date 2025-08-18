@@ -55,13 +55,13 @@ import {
 // import { Link } from 'react-router-dom'; // Or your routing library
 // const SidebarMenuButton = ({ asChild, children }) => children;
 
-// Dummy imports for demonstration if not available in the original context
-import { Link } from 'wouter-preact';
-const SidebarMenuButton = ({ asChild, children }) => {
+// Link component from wouter
+import { Link } from 'wouter';
+const SidebarMenuButton = ({ asChild, children, ...props }: { asChild?: boolean; children: React.ReactNode; [key: string]: any }) => {
   if (asChild) {
     return children;
   }
-  return <button>{children}</button>;
+  return <button {...props}>{children}</button>;
 };
 
 
