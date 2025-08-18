@@ -1,0 +1,69 @@
+Role ID: marketing_head
+Primary Purpose: System-wide lead management, center performance analysis, marketing analytics
+Access Level: Full system visibility across all centers and leads
+Key Responsibilities: Lead generation oversight, center performance monitoring, marketing ROI analysis
+Database Schema Extensions
+-- Marketing analytics tables
+CREATE TABLE lead_assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  lead_id UUID REFERENCES leads(id),
+  assigned_to UUID REFERENCES users(id),
+  assigned_by UUID REFERENCES users(id),
+  assigned_at TIMESTAMP DEFAULT NOW()
+);
+-- Center performance metrics (computed views)
+CREATE VIEW center_performance AS 
+SELECT 
+  sc.id,
+  sc.name,
+  COUNT(st.id) as total_students,
+  AVG(attendance_percentage) as avg_attendance,
+  COUNT(leads.id) as total_leads
+FROM so_centers sc
+LEFT JOIN students st ON sc.id = st.so_center_id
+LEFT JOIN leads ON leads.village_id = sc.village_id
+GROUP BY sc.id, sc.name;
+Backend API Endpoints Structure
+// Marketing Head specific endpoints
+app.get('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']))
+app.post('/api/marketing/leads', authenticateToken, requireRole(['marketing_head', 'admin']))
+app.put('/api/marketing/leads/:id/assign', authenticateToken, requireRole(['marketing_head', 'admin']))
+app.get('/api/marketing/lead-metrics', authenticateToken, requireRole(['marketing_head', 'admin']))
+app.get('/api/marketing/centers-overview', authenticateToken, requireRole(['marketing_head', 'admin']))
+app.get('/api/marketing/attendance-metrics', authenticateToken, requireRole(['marketing_head', 'admin']))
+Frontend Component Architecture
+Main Pages: LeadManagement.tsx, CentersOverview.tsx, AttendanceMetrics.tsx
+Analytics Dashboard: Lead funnel visualization, center performance comparison, ROI metrics
+Key Features: Lead assignment workflow, center performance tracking, attendance analytics
+Data Visualization: Charts for conversion rates, geographic distribution, performance trends
+System Integration Points
+Connect with existing student and attendance data
+Geographic hierarchy filtering (State→District→Mandal→Village→Center)
+Real-time analytics with automatic data refresh
+Export functionality for reports and analytics
+IMPLEMENTATION SEQUENCE
+Phase 1: Database & Authentication (Week 1)
+Create leads and lead_follow_ups tables
+Add office_staff and marketing_head roles to users table
+Update authentication middleware for new roles
+Create role-based route protection
+Phase 2: Backend APIs (Week 2)
+Implement Office Staff endpoints for lead management
+Create Marketing Head endpoints for analytics
+Add data filtering based on user roles and territories
+Implement lead assignment workflow
+Phase 3: Frontend Components (Week 3)
+Build Office Staff dashboard and lead follow-up interface
+Create Marketing Head analytics and center overview pages
+Implement role-based sidebar navigation
+Add data visualization components
+Phase 4: Integration & Testing (Week 4)
+Connect frontend components with backend APIs
+Test role-based access control
+Validate data filtering and territory restrictions
+Performance optimization and error handling
+Security Considerations
+Territory-based data access restrictions
+Lead assignment audit trail
+Role hierarchy enforcement (marketing_head > office_staff)
+Secure API endpoint access with proper authentication

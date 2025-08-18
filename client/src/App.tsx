@@ -28,8 +28,7 @@ import TopicsManagement from '@/pages/admin/TopicsManagement';
 import AdminCenters from '@/pages/admin/Centers';
 import AdminAllStudents from "@/pages/admin/AllStudents";
 import AdminAllPayments from "@/pages/admin/AllPayments";
-import AdminStudentBalanceDues from '@/pages/admin/StudentBalanceDues';
-import StudentBalanceDues from '@/pages/StudentBalanceDues';
+import StudentBalanceDues from '@/pages/admin/StudentBalanceDues';
 import AdminFees from "@/pages/admin/Fees";
 import AdminExpenses from "@/pages/admin/Expenses";
 import AdminAcademics from "@/pages/admin/Academics";
@@ -264,13 +263,6 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/admin/student-balance-dues">
-        <ProtectedRoute>
-          <AdminStudentBalanceDues />
-        </ProtectedRoute>
-      </Route>
-
-      {/* General Student Balance Dues accessible by admin and office staff */}
-      <Route path="/student-balance-dues">
         <ProtectedRoute>
           <StudentBalanceDues />
         </ProtectedRoute>

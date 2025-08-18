@@ -127,44 +127,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
   });
 
-  // Enhanced database health check endpoint
+  // Database health check endpoint
   app.get("/api/health/db", async (req, res) => {
     try {
       const startTime = Date.now();
-      
-      // Check multiple tables
-      const [users, states, classes, soCenters] = await Promise.all([
-        db.select().from(schema.users).limit(5),
-        db.select().from(schema.states).limit(5),
-        db.select().from(schema.classes).limit(5),
-        db.select().from(schema.soCenters).limit(5)
-      ]);
-      
+      const result = await db.select().from(schema.users).limit(1);
       const duration = Date.now() - startTime;
-      
-      const tableStats = {
-        users: users.length,
-        states: states.length,
-        classes: classes.length,
-        soCenters: soCenters.length
-      };
-      
-      console.log('💊 Database health check completed:', tableStats);
-      
       res.json({ 
         status: "connected", 
         duration: `${duration}ms`,
-        tables: tableStats,
-        timestamp: new Date().toISOString(),
-        sampleData: {
-          hasUsers: users.length > 0,
-          hasStates: states.length > 0,
-          hasClasses: classes.length > 0,
-          hasSoCenters: soCenters.length > 0
-        }
+        recordCount: result.length,
+        timestamp: new Date().toISOString() 
       });
     } catch (error) {
-      console.error("❌ Database health check failed:", error);
+      console.error("Database health check failed:", error);
       res.status(500).json({ 
         status: "failed", 
         error: error.message,
@@ -257,21 +233,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dashboardRoute = '/dashboard';
                 break;
               case 'academic_admin':
-                dashboardRoute = '/admin/academic-dashboard';
+                dashboardRoute = '/dashboard';
                 break;
               case 'agent':
                 dashboardRoute = '/dashboard';
                 break;
               case 'office_staff':
-                dashboardRoute = '/office/progress-reports';
-                break;
-              case 'marketing_head':
-                dashboardRoute = '/marketing/centers-overview';
-                break;
-              case 'marketing_staff':
-                dashboardRoute = '/marketing/centers-overview';
+                dashboardRoute = '/dashboard';
                 break;
               case 'collection_agent':
+                dashboardRoute = '/dashboard';
+                break;
+              case 'marketing_staff':
                 dashboardRoute = '/dashboard';
                 break;
               default:
@@ -302,10 +275,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })(),
         timeoutPromise
       ]);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Login error:", error);
       if (!res.headersSent) {
-        if (error.message && error.message.includes('timeout')) {
+        if (error.message.includes('timeout')) {
           res.status(408).json({ message: "Login request timed out - please try again" });
         } else {
           res.status(500).json({ message: "Login failed" });
@@ -1996,12 +1969,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Address hierarchy endpoints
   app.get("/api/admin/addresses/states", authenticateToken, async (req, res) => {
     try {
-      console.log('📍 Fetching states from database...');
       const states = await storage.getAllStates();
-      console.log(`✅ Found ${states.length} states:`, states.map(s => s.name));
       res.json(states);
     } catch (error) {
-      console.error('❌ Error fetching states:', error);
+      console.error('Error fetching states:', error);
       res.status(500).json({ message: 'Failed to fetch states' });
     }
   });
@@ -2332,15 +2303,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (req.user.role === 'admin') {
         // Admin can see all SO Centers
         console.log('📋 Admin fetching SO Centers list...');
-        try {
-          const centers = await storage.getAllSoCenters();
-          console.log(`✅ Found ${centers.length} SO Centers`);
-          console.log('📊 Sample SO Center data:', centers.slice(0, 2));
-          res.json(centers);
-        } catch (storageError) {
-          console.error('❌ Storage error fetching SO Centers:', storageError);
-          res.status(500).json({ message: 'Database error fetching SO Centers' });
-        }
+        const centers = await storage.getAllSoCenters();
+        console.log(`✅ Found ${centers.length} SO Centers`);
+        res.json(centers);
       } else {
         return res.status(403).json({ message: 'Access denied' });
       }
@@ -3135,46 +3100,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
-        console.log('❌ Admin access denied for role:', req.user?.role);
         return res.status(403).json({ message: 'Admin access required' });
       }
-      
-      console.log('👥 Admin fetching users list...');
-      console.log('🔍 Admin user info:', { userId: req.user.userId, email: req.user.email, role: req.user.role });
-      
       const users = await storage.getAllUsers();
-      console.log(`✅ Found ${users?.length || 0} users from storage`);
-      
-      if (users && users.length > 0) {
-        console.log('📊 Sample user data:', users.slice(0, 2).map(u => ({ 
-          id: u.id, 
-          email: u.email, 
-          role: u.role,
-          name: u.name 
-        })));
-      } else {
-        console.log('⚠️ No users found in database, checking if current admin exists...');
-        
-        // Try to get the current admin user from database
-        try {
-          const currentAdminUser = await storage.getUserByEmail(req.user.email);
-          if (currentAdminUser) {
-            console.log('✅ Found current admin user, including in response');
-            return res.json([currentAdminUser]);
-          }
-        } catch (error) {
-          console.log('⚠️ Could not find current admin user:', error.message);
-        }
-      }
-      
-      // Ensure we return an array
-      const usersArray = Array.isArray(users) ? users : [];
-      console.log(`📤 Sending ${usersArray.length} users to frontend`);
-      res.json(usersArray);
+      res.json(users);
     } catch (error) {
-      console.error('❌ Error fetching users:', error);
-      console.error('❌ Error stack:', error.stack);
-      res.status(500).json({ message: 'Failed to fetch users', error: error.message });
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: 'Failed to fetch users' });
     }
   });
 
@@ -4119,48 +4051,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { villageId } = req.query;
       
-      let query = db.select().from(schema.soCenters).where(eq(schema.soCenters.isActive, true));
+      let query = db.select().from(schema.soCenters);
       
       if (villageId) {
-        query = query.where(
-          and(
-            eq(schema.soCenters.villageId, villageId as string),
-            eq(schema.soCenters.isActive, true)
-          )
-        );
+        query = query.where(eq(schema.soCenters.villageId, villageId as string));
       }
       
       const centers = await query.orderBy(schema.soCenters.name);
       res.json(centers);
     } catch (error: any) {
       console.error('❌ Error fetching SO centers:', error);
-      res.status(500).json({ message: 'Failed to fetch SO centers' });
-    }
-  });
-
-  // Add specific endpoint for SO Centers by village for attendance reports
-  app.get("/api/so-centers/by-village/:villageId", authenticateToken, async (req, res) => {
-    try {
-      const { villageId } = req.params;
-      
-      const centers = await db
-        .select({
-          id: schema.soCenters.id,
-          name: schema.soCenters.name,
-          centerId: schema.soCenters.centerId
-        })
-        .from(schema.soCenters)
-        .where(
-          and(
-            eq(schema.soCenters.villageId, villageId),
-            eq(schema.soCenters.isActive, true)
-          )
-        )
-        .orderBy(schema.soCenters.name);
-      
-      res.json(centers);
-    } catch (error: any) {
-      console.error('❌ Error fetching SO centers by village:', error);
       res.status(500).json({ message: 'Failed to fetch SO centers' });
     }
   });
@@ -4241,86 +4141,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error('❌ Error fetching students:', error);
       res.status(500).json({ message: 'Failed to fetch students' });
-    }
-  });
-
-  // Student balance dues endpoint with contact information for admin and office staff
-  app.get("/api/student-balance-dues", authenticateToken, async (req, res) => {
-    try {
-      if (!req.user || !['admin', 'office_staff'].includes(req.user.role)) {
-        return res.status(403).json({ message: 'Admin or Office Staff access required' });
-      }
-
-      console.log(`📊 Fetching student balance dues for role: ${req.user.role}`);
-      
-      // Get all students with balance dues including contact information
-      const studentsQuery = `
-        SELECT 
-          s.id,
-          s.student_id as student_code,
-          s.name,
-          s.email,
-          s.phone,
-          s.parent_phone,
-          s.father_name,
-          s.father_mobile,
-          s.mother_name,
-          s.mother_mobile,
-          s.date_of_birth,
-          s.enrollment_date,
-          s.pending_amount,
-          s.paid_amount,
-          s.total_fee_amount,
-          c.name as class_name,
-          c.id as class_id,
-          sc.name as so_center_name,
-          sc.center_id as so_center_code,
-          st.name as state_name,
-          d.name as district_name,
-          m.name as mandal_name,
-          v.name as village_name
-        FROM students s
-        LEFT JOIN classes c ON s.class_id = c.id
-        LEFT JOIN so_centers sc ON s.so_center_id = sc.id
-        LEFT JOIN villages v ON s.village_id = v.id
-        LEFT JOIN mandals m ON v.mandal_id = m.id
-        LEFT JOIN districts d ON m.district_id = d.id
-        LEFT JOIN states st ON d.state_id = st.id
-        WHERE s.is_active = true
-        ORDER BY s.name
-      `;
-
-      const students = await executeRawQuery(studentsQuery);
-      
-      // Transform the results to include proper contact information
-      const transformedStudents = students.map((student: any) => ({
-        id: student.id,
-        name: student.name,
-        studentId: student.student_code,
-        fatherName: student.father_name,
-        fatherMobile: student.father_mobile,
-        motherName: student.mother_name,
-        motherMobile: student.mother_mobile,
-        email: student.email,
-        phone: student.phone,
-        parentPhone: student.parent_phone,
-        className: student.class_name,
-        soCenterName: student.so_center_name,
-        paidAmount: student.paid_amount || '0',
-        pendingAmount: student.pending_amount || '0',
-        totalFeeAmount: student.total_fee_amount || '0',
-        enrollmentDate: student.enrollment_date,
-        stateName: student.state_name,
-        districtName: student.district_name,
-        mandalName: student.mandal_name,
-        villageName: student.village_name
-      }));
-
-      console.log(`✅ Found ${transformedStudents.length} students for balance dues`);
-      res.json(transformedStudents);
-    } catch (error: any) {
-      console.error('❌ Error fetching student balance dues:', error);
-      res.status(500).json({ message: 'Failed to fetch student balance dues' });
     }
   });
 
@@ -4776,115 +4596,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced database seeding endpoint for Supabase
+  // Database seeding endpoint for Supabase
   app.post("/api/admin/seed-database", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
-      console.log('🌱 Starting database seeding process...');
-
-      // Check current database state
+      // Check if states already exist
       const existingStates = await storage.getAllStates();
-      const existingClasses = await storage.getAllClasses();
-      const existingUsers = await storage.getAllUsers();
-      const existingSoCenters = await storage.getAllSoCenters();
-
-      console.log('📊 Current database state:', {
-        states: existingStates.length,
-        classes: existingClasses.length,
-        users: existingUsers.length,
-        soCenters: existingSoCenters.length
-      });
-
-      const seedResults = {
-        states: 0,
-        classes: 0,
-        districts: 0,
-        mandals: 0,
-        villages: 0
-      };
-
-      // Seed states if none exist
-      if (existingStates.length === 0) {
-        console.log('🗺️ Seeding states...');
-        const initialStates = [
-          { name: 'Andhra Pradesh', code: 'AP' },
-          { name: 'Telangana', code: 'TS' },
-          { name: 'Karnataka', code: 'KA' },
-          { name: 'Tamil Nadu', code: 'TN' },
-          { name: 'Kerala', code: 'KL' }
-        ];
-
-        for (const stateData of initialStates) {
-          await storage.createState(stateData);
-          seedResults.states++;
-        }
-        console.log('✅ States seeded successfully');
+      if (existingStates.length > 0) {
+        return res.json({ message: 'Database already seeded', existingStates: existingStates.length });
       }
 
-      // Seed classes if none exist
-      if (existingClasses.length === 0) {
-        console.log('🎓 Seeding classes...');
-        const initialClasses = [
-          { name: '1st Class', description: 'First standard' },
-          { name: '2nd Class', description: 'Second standard' },
-          { name: '3rd Class', description: 'Third standard' },
-          { name: '4th Class', description: 'Fourth standard' },
-          { name: '5th Class', description: 'Fifth standard' },
-          { name: '6th Class', description: 'Sixth standard' },
-          { name: '7th Class', description: 'Seventh standard' },
-          { name: '8th Class', description: 'Eighth standard' },
-          { name: '9th Class', description: 'Ninth standard' },
-          { name: '10th Class', description: 'Tenth standard' }
-        ];
+      // Seed initial states for India
+      const initialStates = [
+        { name: 'Andhra Pradesh', code: 'AP' },
+        { name: 'Telangana', code: 'TS' },
+        { name: 'Karnataka', code: 'KA' },
+        { name: 'Tamil Nadu', code: 'TN' },
+        { name: 'Kerala', code: 'KL' }
+      ];
 
-        for (const classData of initialClasses) {
-          await storage.createClass(classData);
-          seedResults.classes++;
-        }
-        console.log('✅ Classes seeded successfully');
+      const createdStates = [];
+      for (const stateData of initialStates) {
+        const state = await storage.createState(stateData);
+        createdStates.push(state);
       }
 
-      // Seed some sample geographic data
-      const states = await storage.getAllStates();
-      if (states.length > 0) {
-        const apState = states.find(s => s.code === 'AP');
-        if (apState) {
-          // Check if districts exist for AP
-          const existingDistricts = await storage.getDistrictsByState(apState.id);
-          if (existingDistricts.length === 0) {
-            console.log('🏙️ Seeding sample districts...');
-            const sampleDistricts = [
-              { name: 'Krishna', stateId: apState.id },
-              { name: 'Guntur', stateId: apState.id },
-              { name: 'West Godavari', stateId: apState.id }
-            ];
+      // Seed initial classes
+      const initialClasses = [
+        { name: '1st Class', description: 'First standard' },
+        { name: '2nd Class', description: 'Second standard' },
+        { name: '3rd Class', description: 'Third standard' },
+        { name: '4th Class', description: 'Fourth standard' },
+        { name: '5th Class', description: 'Fifth standard' },
+        { name: '6th Class', description: 'Sixth standard' },
+        { name: '7th Class', description: 'Seventh standard' },
+        { name: '8th Class', description: 'Eighth standard' },
+        { name: '9th Class', description: 'Ninth standard' },
+        { name: '10th Class', description: 'Tenth standard' }
+      ];
 
-            for (const districtData of sampleDistricts) {
-              await storage.createDistrict(districtData);
-              seedResults.districts++;
-            }
-            console.log('✅ Sample districts seeded successfully');
-          }
-        }
+      const createdClasses = [];
+      for (const classData of initialClasses) {
+        const classItem = await storage.createClass(classData);
+        createdClasses.push(classItem);
       }
 
-      console.log('🎉 Database seeding completed!');
       res.json({ 
-        message: 'Database seeding completed successfully',
-        seeded: seedResults,
-        existing: {
-          states: existingStates.length,
-          classes: existingClasses.length,
-          users: existingUsers.length,
-          soCenters: existingSoCenters.length
+        message: 'Database seeded successfully',
+        seeded: {
+          states: createdStates.length,
+          classes: createdClasses.length
         }
       });
     } catch (error) {
-      console.error('❌ Error seeding database:', error);
-      res.status(500).json({ message: 'Failed to seed database', error: error.message });
+      console.error('Error seeding database:', error);
+      res.status(500).json({ message: 'Failed to seed database' });
     }
   });
 

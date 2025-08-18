@@ -724,6 +724,7 @@ export const insertExamResultSchema = createInsertSchema(examResults).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+  submittedAt: true,
 });
 
 export const insertPaymentSchema = createInsertSchema(payments).omit({
@@ -932,7 +933,7 @@ export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 // Withdrawal Request schemas
 export const insertWithdrawalRequestSchema = createInsertSchema(withdrawalRequests).omit({
   id: true,
-  requestedAt: true,
+  createdAt: true,
 });
 
 export type InsertWithdrawalRequest = z.infer<typeof insertWithdrawalRequestSchema>;
@@ -957,6 +958,7 @@ export const insertCommissionTransactionSchema = createInsertSchema(commissionTr
 
 export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
   id: true,
+  createdAt: true,
   updatedAt: true,
 });
 

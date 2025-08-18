@@ -94,7 +94,7 @@ export class AuthService {
 
       // Step 3: Create JWT token for API access
       const jwt = require('jsonwebtoken');
-      const JWT_SECRET = process.env.JWT_SECRET || "navanidhi-academy-secret-key-2024";
+      const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         JWT_SECRET,

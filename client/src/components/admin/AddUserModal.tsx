@@ -175,7 +175,6 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
     { value: 'office_staff', label: 'Office Staff' },
     { value: 'collection_agent', label: 'Collection Agent' },
     { value: 'marketing_staff', label: 'Marketing Staff' },
-    { value: 'marketing_head', label: 'Marketing Head' },
   ];
 
   const maritalStatusOptions = [
@@ -218,13 +217,13 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
         </DialogHeader>
-
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* Personal Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
-
+              
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -300,7 +299,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
             {/* Contact Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Contact Information</h3>
-
+              
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -335,7 +334,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
             {/* Address Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
-
+              
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="state">State</Label>
@@ -431,7 +430,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
             {/* Authentication Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Authentication</h3>
-
+              
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -466,7 +465,7 @@ export function AddUserModal({ isOpen, onClose }: AddUserModalProps) {
             {/* Role and Salary Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Role & Compensation</h3>
-
+              
               <FormField
                 control={form.control}
                 name="role"

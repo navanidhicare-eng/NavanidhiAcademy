@@ -8,7 +8,6 @@ import { Progress } from '@/components/ui/progress';
 import { Calendar, Download, Users, TrendingUp, TrendingDown, Phone, MapPin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
-import { useToast } from '@/hooks/use-toast';
 
 interface AttendanceReport {
   studentId: string;
@@ -64,32 +63,6 @@ export default function AttendanceReports() {
     centerId: '',
     classId: ''
   });
-  const [availableSOCenters, setAvailableSOCenters] = useState<any[]>([]);
-  const { toast } = useToast();
-
-  // Fetch location data
-  const { data: states = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/states'],
-  });
-
-  const { data: districts = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/districts', filters.stateId],
-    enabled: !!filters.stateId,
-  });
-
-  const { data: mandals = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/mandals', filters.districtId],
-    enabled: !!filters.districtId,
-  });
-
-  const { data: villages = [] } = useQuery<any[]>({
-    queryKey: ['/api/admin/addresses/villages', filters.mandalId],
-    enabled: !!filters.mandalId,
-  });
-
-  const { data: classes = [] } = useQuery<any[]>({
-    queryKey: ['/api/classes'],
-  });
 
   // Fetch attendance data
   const { data: attendanceReports, isLoading } = useQuery<AttendanceReport[]>({
@@ -104,7 +77,25 @@ export default function AttendanceReports() {
     queryKey: ['/api/office/attendance-trends', selectedMonth, selectedYear, filters],
   });
 
-
+  // Fetch dropdown data
+  const { data: states } = useQuery({ queryKey: ['/api/admin/addresses/states'] });
+  const { data: districts } = useQuery({
+    queryKey: ['/api/admin/addresses/districts', filters.stateId],
+    enabled: !!filters.stateId,
+  });
+  const { data: mandals } = useQuery({
+    queryKey: ['/api/admin/addresses/mandals', filters.districtId],
+    enabled: !!filters.districtId,
+  });
+  const { data: villages } = useQuery({
+    queryKey: ['/api/admin/addresses/villages', filters.mandalId],
+    enabled: !!filters.mandalId,
+  });
+  const { data: centers } = useQuery({
+    queryKey: ['/api/so-centers/by-village', filters.villageId],
+    enabled: !!filters.villageId,
+  });
+  const { data: classes } = useQuery({ queryKey: ['/api/classes'] });
 
   const getAttendanceColor = (percentage: number) => {
     if (percentage >= 90) return 'text-green-600';
@@ -131,7 +122,6 @@ export default function AttendanceReports() {
       centerId: '',
       classId: ''
     });
-    setAvailableSOCenters([]);
   };
 
   // Generate month and year options
@@ -310,7 +300,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
               <SelectContent>
-                {(states || []).map((state: any) => (
+                {states?.map((state: any) => (
                   <SelectItem key={state.id} value={state.id}>{state.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -325,7 +315,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select District" />
               </SelectTrigger>
               <SelectContent>
-                {(districts || []).map((district: any) => (
+                {districts?.map((district: any) => (
                   <SelectItem key={district.id} value={district.id}>{district.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -340,7 +330,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Mandal" />
               </SelectTrigger>
               <SelectContent>
-                {(mandals || []).map((mandal: any) => (
+                {mandals?.map((mandal: any) => (
                   <SelectItem key={mandal.id} value={mandal.id}>{mandal.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -348,54 +338,14 @@ export default function AttendanceReports() {
 
             <Select
               value={filters.villageId}
-              onValueChange={(value) => {
-                setFilters(prev => ({ ...prev, villageId: value, centerId: '' }));
-                // Fetch SO Centers when village changes
-                if (value) {
-                  const fetchSOCenters = async (villageId: string) => {
-                    if (!villageId) {
-                      setAvailableSOCenters([]);
-                      return;
-                    }
-
-                    try {
-                      // Use the specific endpoint for SO Centers by village
-                      const response = await fetch(`/api/so-centers/by-village/${villageId}`, {
-                        headers: {
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
-                      });
-
-                      if (!response.ok) {
-                        console.error('API Response not OK:', response.status, response.statusText);
-                        throw new Error(`Failed to fetch SO Centers: ${response.status}`);
-                      }
-
-                      const centers = await response.json();
-                      console.log('Fetched SO Centers:', centers);
-                      setAvailableSOCenters(centers);
-                    } catch (error) {
-                      console.error('Error fetching SO Centers:', error);
-                      setAvailableSOCenters([]);
-                      toast({
-                        title: "Error",
-                        description: "Failed to fetch SO Centers. Please try again.",
-                        variant: "destructive"
-                      });
-                    }
-                  };
-                  fetchSOCenters(value);
-                } else {
-                  setAvailableSOCenters([]);
-                }
-              }}
+              onValueChange={(value) => setFilters(prev => ({ ...prev, villageId: value, centerId: '' }))}
               disabled={!filters.mandalId}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Village" />
               </SelectTrigger>
               <SelectContent>
-                {(villages || []).map((village: any) => (
+                {villages?.map((village: any) => (
                   <SelectItem key={village.id} value={village.id}>{village.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -410,7 +360,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Center" />
               </SelectTrigger>
               <SelectContent>
-                {(availableSOCenters || []).map((center: any) => (
+                {centers?.map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -424,7 +374,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Class" />
               </SelectTrigger>
               <SelectContent>
-                {(classes || []).map((cls: any) => (
+                {classes?.map((cls: any) => (
                   <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
                 ))}
               </SelectContent>
