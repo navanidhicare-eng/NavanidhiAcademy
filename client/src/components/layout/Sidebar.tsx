@@ -325,7 +325,7 @@ export function Sidebar({ onMobileClose }: SidebarProps) {
       }
     });
 
-    // Always close mobile sidebar when navigating
+    // Only close sidebar on mobile devices when navigating
     if (isMobile && onMobileClose) {
       onMobileClose();
     }
