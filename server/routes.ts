@@ -127,20 +127,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: "Server is working!", timestamp: new Date().toISOString() });
   });
 
-  // Database health check endpoint
+  // Enhanced database health check endpoint
   app.get("/api/health/db", async (req, res) => {
     try {
       const startTime = Date.now();
-      const result = await db.select().from(schema.users).limit(1);
+      
+      // Check multiple tables
+      const [users, states, classes, soCenters] = await Promise.all([
+        db.select().from(schema.users).limit(5),
+        db.select().from(schema.states).limit(5),
+        db.select().from(schema.classes).limit(5),
+        db.select().from(schema.soCenters).limit(5)
+      ]);
+      
       const duration = Date.now() - startTime;
+      
+      const tableStats = {
+        users: users.length,
+        states: states.length,
+        classes: classes.length,
+        soCenters: soCenters.length
+      };
+      
+      console.log('💊 Database health check completed:', tableStats);
+      
       res.json({ 
         status: "connected", 
         duration: `${duration}ms`,
-        recordCount: result.length,
-        timestamp: new Date().toISOString() 
+        tables: tableStats,
+        timestamp: new Date().toISOString(),
+        sampleData: {
+          hasUsers: users.length > 0,
+          hasStates: states.length > 0,
+          hasClasses: classes.length > 0,
+          hasSoCenters: soCenters.length > 0
+        }
       });
     } catch (error) {
-      console.error("Database health check failed:", error);
+      console.error("❌ Database health check failed:", error);
       res.status(500).json({ 
         status: "failed", 
         error: error.message,
@@ -1972,10 +1996,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Address hierarchy endpoints
   app.get("/api/admin/addresses/states", authenticateToken, async (req, res) => {
     try {
+      console.log('📍 Fetching states from database...');
       const states = await storage.getAllStates();
+      console.log(`✅ Found ${states.length} states:`, states.map(s => s.name));
       res.json(states);
     } catch (error) {
-      console.error('Error fetching states:', error);
+      console.error('❌ Error fetching states:', error);
       res.status(500).json({ message: 'Failed to fetch states' });
     }
   });
@@ -2306,9 +2332,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (req.user.role === 'admin') {
         // Admin can see all SO Centers
         console.log('📋 Admin fetching SO Centers list...');
-        const centers = await storage.getAllSoCenters();
-        console.log(`✅ Found ${centers.length} SO Centers`);
-        res.json(centers);
+        try {
+          const centers = await storage.getAllSoCenters();
+          console.log(`✅ Found ${centers.length} SO Centers`);
+          console.log('📊 Sample SO Center data:', centers.slice(0, 2));
+          res.json(centers);
+        } catch (storageError) {
+          console.error('❌ Storage error fetching SO Centers:', storageError);
+          res.status(500).json({ message: 'Database error fetching SO Centers' });
+        }
       } else {
         return res.status(403).json({ message: 'Access denied' });
       }
@@ -3105,10 +3137,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
+      console.log('👥 Admin fetching users list...');
       const users = await storage.getAllUsers();
+      console.log(`✅ Found ${users.length} users`);
+      console.log('📊 Sample user data:', users.slice(0, 2).map(u => ({ id: u.id, email: u.email, role: u.role })));
       res.json(users);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('❌ Error fetching users:', error);
       res.status(500).json({ message: 'Failed to fetch users' });
     }
   });
@@ -4711,64 +4746,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Database seeding endpoint for Supabase
+  // Enhanced database seeding endpoint for Supabase
   app.post("/api/admin/seed-database", authenticateToken, async (req, res) => {
     try {
       if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Admin access required' });
       }
 
-      // Check if states already exist
+      console.log('🌱 Starting database seeding process...');
+
+      // Check current database state
       const existingStates = await storage.getAllStates();
-      if (existingStates.length > 0) {
-        return res.json({ message: 'Database already seeded', existingStates: existingStates.length });
+      const existingClasses = await storage.getAllClasses();
+      const existingUsers = await storage.getAllUsers();
+      const existingSoCenters = await storage.getAllSoCenters();
+
+      console.log('📊 Current database state:', {
+        states: existingStates.length,
+        classes: existingClasses.length,
+        users: existingUsers.length,
+        soCenters: existingSoCenters.length
+      });
+
+      const seedResults = {
+        states: 0,
+        classes: 0,
+        districts: 0,
+        mandals: 0,
+        villages: 0
+      };
+
+      // Seed states if none exist
+      if (existingStates.length === 0) {
+        console.log('🗺️ Seeding states...');
+        const initialStates = [
+          { name: 'Andhra Pradesh', code: 'AP' },
+          { name: 'Telangana', code: 'TS' },
+          { name: 'Karnataka', code: 'KA' },
+          { name: 'Tamil Nadu', code: 'TN' },
+          { name: 'Kerala', code: 'KL' }
+        ];
+
+        for (const stateData of initialStates) {
+          await storage.createState(stateData);
+          seedResults.states++;
+        }
+        console.log('✅ States seeded successfully');
       }
 
-      // Seed initial states for India
-      const initialStates = [
-        { name: 'Andhra Pradesh', code: 'AP' },
-        { name: 'Telangana', code: 'TS' },
-        { name: 'Karnataka', code: 'KA' },
-        { name: 'Tamil Nadu', code: 'TN' },
-        { name: 'Kerala', code: 'KL' }
-      ];
+      // Seed classes if none exist
+      if (existingClasses.length === 0) {
+        console.log('🎓 Seeding classes...');
+        const initialClasses = [
+          { name: '1st Class', description: 'First standard' },
+          { name: '2nd Class', description: 'Second standard' },
+          { name: '3rd Class', description: 'Third standard' },
+          { name: '4th Class', description: 'Fourth standard' },
+          { name: '5th Class', description: 'Fifth standard' },
+          { name: '6th Class', description: 'Sixth standard' },
+          { name: '7th Class', description: 'Seventh standard' },
+          { name: '8th Class', description: 'Eighth standard' },
+          { name: '9th Class', description: 'Ninth standard' },
+          { name: '10th Class', description: 'Tenth standard' }
+        ];
 
-      const createdStates = [];
-      for (const stateData of initialStates) {
-        const state = await storage.createState(stateData);
-        createdStates.push(state);
+        for (const classData of initialClasses) {
+          await storage.createClass(classData);
+          seedResults.classes++;
+        }
+        console.log('✅ Classes seeded successfully');
       }
 
-      // Seed initial classes
-      const initialClasses = [
-        { name: '1st Class', description: 'First standard' },
-        { name: '2nd Class', description: 'Second standard' },
-        { name: '3rd Class', description: 'Third standard' },
-        { name: '4th Class', description: 'Fourth standard' },
-        { name: '5th Class', description: 'Fifth standard' },
-        { name: '6th Class', description: 'Sixth standard' },
-        { name: '7th Class', description: 'Seventh standard' },
-        { name: '8th Class', description: 'Eighth standard' },
-        { name: '9th Class', description: 'Ninth standard' },
-        { name: '10th Class', description: 'Tenth standard' }
-      ];
+      // Seed some sample geographic data
+      const states = await storage.getAllStates();
+      if (states.length > 0) {
+        const apState = states.find(s => s.code === 'AP');
+        if (apState) {
+          // Check if districts exist for AP
+          const existingDistricts = await storage.getDistrictsByState(apState.id);
+          if (existingDistricts.length === 0) {
+            console.log('🏙️ Seeding sample districts...');
+            const sampleDistricts = [
+              { name: 'Krishna', stateId: apState.id },
+              { name: 'Guntur', stateId: apState.id },
+              { name: 'West Godavari', stateId: apState.id }
+            ];
 
-      const createdClasses = [];
-      for (const classData of initialClasses) {
-        const classItem = await storage.createClass(classData);
-        createdClasses.push(classItem);
+            for (const districtData of sampleDistricts) {
+              await storage.createDistrict(districtData);
+              seedResults.districts++;
+            }
+            console.log('✅ Sample districts seeded successfully');
+          }
+        }
       }
 
+      console.log('🎉 Database seeding completed!');
       res.json({ 
-        message: 'Database seeded successfully',
-        seeded: {
-          states: createdStates.length,
-          classes: createdClasses.length
+        message: 'Database seeding completed successfully',
+        seeded: seedResults,
+        existing: {
+          states: existingStates.length,
+          classes: existingClasses.length,
+          users: existingUsers.length,
+          soCenters: existingSoCenters.length
         }
       });
     } catch (error) {
-      console.error('Error seeding database:', error);
-      res.status(500).json({ message: 'Failed to seed database' });
+      console.error('❌ Error seeding database:', error);
+      res.status(500).json({ message: 'Failed to seed database', error: error.message });
     }
   });
 

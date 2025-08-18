@@ -47,6 +47,10 @@ import type {
   InsertHomeworkActivity,
   TuitionProgress,
   InsertTuitionProgress,
+  State, // Added import for State type
+  District, // Added import for District type
+  Mandal, // Added import for Mandal type
+  Village, // Added import for Village type
 } from "@shared/schema";
 
 // MANDATORY SUPABASE DATABASE CONNECTION - NEON COMPLETELY DISABLED  
@@ -153,7 +157,7 @@ export interface IStorage {
   // SO Center methods
   getSoCenter(id: string): Promise<SoCenter | undefined>;
   getAllSoCenters(): Promise<SoCenter[]>;
-  createSoCenter(center: InsertSoCenter): Promise<SoCenter>;
+  createSoCenter(center: InsertSoCenter, nearbySchools?: any[], nearbyTuitions?: any[], equipment?: any[]): Promise<SoCenter>;
   updateSoCenterWallet(id: string, amount: number): Promise<SoCenter>;
 
   // Academic structure methods
@@ -274,13 +278,13 @@ export interface IStorage {
   getWalletTransactions(soCenterId: string): Promise<WalletTransaction[]>;
 
   // Address hierarchy methods
-  getAllStates(): Promise<any[]>;
-  getAllDistricts(): Promise<any[]>;
-  getAllMandals(): Promise<any[]>;
-  getAllVillages(): Promise<any[]>;
-  getDistrictsByState(stateId: string): Promise<any[]>;
-  getMandalsByDistrict(districtId: string): Promise<any[]>;
-  getVillagesByMandal(mandalId: string): Promise<any[]>;
+  getAllStates(): Promise<State[]>;
+  getAllDistricts(): Promise<District[]>;
+  getAllMandals(): Promise<Mandal[]>;
+  getAllVillages(): Promise<Village[]>;
+  getDistrictsByState(stateId: string): Promise<District[]>;
+  getMandalsByDistrict(districtId: string): Promise<Mandal[]>;
+  getVillagesByMandal(mandalId: string): Promise<Village[]>;
   createState(data: any): Promise<any>;
   createDistrict(data: any): Promise<any>;
   createMandal(data: any): Promise<any>;
@@ -293,21 +297,31 @@ export interface IStorage {
   getSoCentersByVillage(villageId: string): Promise<SoCenter[]>;
 
   // Products methods (for commission calculation)
-  getAllProducts(): Promise<any[]>;
-  createProduct(data: any): Promise<any>;
+  getAllProducts(): Promise<Product[]>;
+  createProduct(data: InsertProduct): Promise<Product>;
+  updateProduct(id: string, productData: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(id: string): Promise<void>;
+  getProductById(id: string): Promise<Product | null>;
 
   // Enhanced SO Center methods
   getNextSoCenterId(): Promise<string>;
   getSoCenterByCenterId(centerId: string): Promise<SoCenter | undefined>;
+  getSoCenterByEmail(email: string): Promise<SoCenter | undefined>;
   getAvailableManagers(): Promise<User[]>;
   getUnassignedManagers(): Promise<User[]>;
-  updateSoCenter(id: string, updates: Partial<InsertSoCenter>): Promise<SoCenter>;
+  updateSoCenter(id: string, updates: Partial<InsertSoCenter & {
+    nearbySchools?: any[];
+    nearbyTuitions?: any[];
+    equipment?: any[];
+  }>): Promise<SoCenter>;
   deleteSoCenter(id: string): Promise<void>;
+  getSoCenterDashboardStats(soCenterId: string): Promise<any>;
 
   // Enhanced User methods
   getAllUsers(): Promise<User[]>;
   updateUser(id: string, updates: Partial<InsertUser>): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  getUsersByRole(role: string): Promise<User[]>;
 
   // Enhanced Academic structure methods
   updateClass(id: string, updates: Partial<InsertClass>): Promise<Class>;
@@ -321,6 +335,8 @@ export interface IStorage {
   getAllSubjects(): Promise<Subject[]>;
   getAllChapters(): Promise<Chapter[]>;
   getAllTopics(): Promise<any[]>;
+  getAllTopicsWithChapters(): Promise<any[]>;
+  updateTopicFlags(topicId: string, updates: { isModerate?: boolean; isImportant?: boolean }): Promise<Topic>;
 
   // Fee Structure methods
   getAllFeeStructures(): Promise<any[]>;
@@ -336,6 +352,15 @@ export interface IStorage {
   createStudentWithSiblings(studentData: InsertStudent, siblings?: InsertStudentSibling[]): Promise<Student>;
   validateAadharNumber(aadharNumber: string): Promise<boolean>;
   getStudentSiblings(studentId: string): Promise<StudentSibling[]>;
+  updateStudentBalances(studentId: string): Promise<void>;
+  getStudentFeeSchedule(studentId: string): Promise<any[]>;
+  getStudentFeeHistory(studentId: string): Promise<any[]>;
+  processMonthlyFeeAutomation(): Promise<void>;
+  updateStudentFeesWithTotalDue(studentId: string, updates: {
+    totalFeeAmount?: string;
+    pendingAmount?: string;
+    paymentStatus?: 'paid' | 'pending' | 'overdue';
+  }): Promise<void>;
 
   // Homework Activity methods
   createHomeworkActivity(activities: InsertHomeworkActivity[]): Promise<HomeworkActivity[]>;
@@ -367,10 +392,39 @@ export interface IStorage {
   getAllPayments(): Promise<Payment[]>;
   updatePayment(id: string, updates: Partial<InsertPayment>): Promise<Payment>;
   deletePayment(id: string): Promise<void>;
+  getStudentPaymentHistory(studentId: string): Promise<any[]>;
 
   // Dashboard stats methods
   getDashboardStats(userEmail: string, userRole: string): Promise<any>;
-  getSoCenterDashboardStats(soCenterId: string): Promise<any>;
+
+  // Fee Calculation and Scheduling
+  calculateMonthlyFee(studentId: string, enrollmentDate: Date, classId: string): Promise<{ amount: number; reason: string }>;
+  createFeeCalculationHistory(studentId: string, calculationData: any): Promise<any>;
+  scheduleMonthlyFees(studentId: string, enrollmentDate: Date, classId: string): Promise<void>;
+
+  // Exam Management
+  deleteExam(examId: string): Promise<void>;
+  updateExamTimeSettings(examId: string, startTime: string, endTime: string): Promise<any>;
+  checkExamTimeAccess(examId: string): Promise<{ canAccess: boolean; message?: string }>;
+
+  // Dropout Requests Management
+  createDropoutRequest(data: any): Promise<any>;
+  getDropoutRequests(soCenterId?: string): Promise<any[]>;
+  processDropoutRequest(requestId: string, status: 'approved' | 'rejected', approvedBy: string, adminNotes?: string): Promise<any>;
+
+  // Commission Management
+  getOrCreateCommissionWallet(soCenterId: string): Promise<CommissionWallet>;
+  getCommissionWalletBySoCenter(soCenterId: string): Promise<CommissionWallet | null>;
+  createProductOrder(orderData: InsertProductOrder): Promise<ProductOrder>;
+  getProductOrdersBySoCenter(soCenterId: string): Promise<any[]>;
+  createWithdrawalRequest(requestData: InsertWithdrawalRequest): Promise<WithdrawalRequest>;
+  getWithdrawalRequestsBySoCenter(soCenterId: string): Promise<WithdrawalRequest[]>;
+  getAllWithdrawalRequests(): Promise<any[]>;
+  processWithdrawalRequest(id: string, status: 'approved' | 'rejected', processedBy: string, notes?: string): Promise<WithdrawalRequest>;
+
+  // System Settings Management
+  getSystemSetting(key: string): Promise<SystemSetting | null>;
+  setSystemSetting(key: string, value: string, description?: string, updatedBy?: string): Promise<SystemSetting>;
 }
 
 export class DrizzleStorage implements IStorage {
@@ -422,7 +476,8 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getAllSoCenters(): Promise<any[]> {
+  async getAllSoCenters(): Promise<SoCenter[]> {
+    console.log('🔍 Storage: Querying so_centers table...');
     // Get SO Centers with manager info and student counts
     const centers = await db
       .select({
@@ -444,7 +499,6 @@ export class DrizzleStorage implements IStorage {
         rentalAdvance: schema.soCenters.rentalAdvance,
         dateOfHouseTaken: schema.soCenters.dateOfHouseTaken,
         monthlyRentDate: schema.soCenters.monthlyRentDate,
-        electricBillAccountNumber: schema.soCenters.electricBillAccountNumber,
         internetBillAccountNumber: schema.soCenters.internetBillAccountNumber,
         capacity: schema.soCenters.capacity,
         facilities: schema.soCenters.facilities,
@@ -469,6 +523,15 @@ export class DrizzleStorage implements IStorage {
       .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
       .where(eq(schema.soCenters.isActive, true))
       .orderBy(desc(schema.soCenters.createdAt));
+
+    console.log('📊 Storage: SO Centers query result:', centers.length, 'centers found');
+    if (centers.length > 0) {
+      console.log('📋 Sample SO Center:', { 
+        id: centers[0].id, 
+        centerId: centers[0].centerId, 
+        name: centers[0].name 
+      });
+    }
 
     // Get student counts for each center
     const centerIds = centers.map(c => c.id);
@@ -721,7 +784,7 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getStudentsBySoCenter(soCenterId: string): Promise<any[]> {
+  async getStudentsBySoCenter(soCenterId: string): Promise<Student[]> {
     try {
       console.log('🔍 Storage: Fetching students for SO Center:', soCenterId);
 
@@ -776,7 +839,7 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getAllStudents(): Promise<any[]> {
+  async getAllStudents(): Promise<Student[]> {
     const results = await db.select({
       id: schema.students.id,
       name: schema.students.name,
@@ -1141,35 +1204,38 @@ export class DrizzleStorage implements IStorage {
     });
   }
   // Address hierarchy methods
-  async getAllStates(): Promise<any[]> {
-    return await db.select().from(schema.states).where(eq(schema.states.isActive, true)).orderBy(asc(schema.states.name));
+  async getAllStates(): Promise<State[]> {
+    console.log('🔍 Storage: Querying states table...');
+    const states = await db.select().from(schema.states).where(eq(schema.states.isActive, true)).orderBy(asc(schema.states.name));
+    console.log('📊 Storage: States query result:', states.length, 'states found');
+    return states;
   }
 
-  async getAllDistricts(): Promise<any[]> {
+  async getAllDistricts(): Promise<District[]> {
     return await db.select().from(schema.districts).where(eq(schema.districts.isActive, true)).orderBy(asc(schema.districts.name));
   }
 
-  async getAllMandals(): Promise<any[]> {
+  async getAllMandals(): Promise<Mandal[]> {
     return await db.select().from(schema.mandals).where(eq(schema.mandals.isActive, true)).orderBy(asc(schema.mandals.name));
   }
 
-  async getAllVillages(): Promise<any[]> {
+  async getAllVillages(): Promise<Village[]> {
     return await db.select().from(schema.villages).where(eq(schema.villages.isActive, true)).orderBy(asc(schema.villages.name));
   }
 
-  async getDistrictsByState(stateId: string): Promise<any[]> {
+  async getDistrictsByState(stateId: string): Promise<District[]> {
     return await db.select().from(schema.districts).where(
       and(eq(schema.districts.stateId, stateId), eq(schema.districts.isActive, true))
     ).orderBy(asc(schema.districts.name));
   }
 
-  async getMandalsByDistrict(districtId: string): Promise<any[]> {
+  async getMandalsByDistrict(districtId: string): Promise<Mandal[]> {
     return await db.select().from(schema.mandals).where(
       and(eq(schema.mandals.districtId, districtId), eq(schema.mandals.isActive, true))
     ).orderBy(asc(schema.mandals.name));
   }
 
-  async getVillagesByMandal(mandalId: string): Promise<any[]> {
+  async getVillagesByMandal(mandalId: string): Promise<Village[]> {
     return await db.select().from(schema.villages).where(
       and(eq(schema.villages.mandalId, mandalId), eq(schema.villages.isActive, true))
     ).orderBy(asc(schema.villages.name));
@@ -1222,16 +1288,31 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Products methods (for commission calculation)
-  /* async getAllProducts(): Promise<any[]> {
-    return await db.select().from(schema.products).where(eq(schema.products.isActive, true)).orderBy(asc(schema.products.name));
-  } 
-    */
-
- /* async createProduct(data: any): Promise<any> {
-    const result = await db.insert(schema.products).values(data).returning();
-    return result[0];
+  async getAllProducts(): Promise<Product[]> {
+    return await db.select().from(schema.products).orderBy(desc(schema.products.createdAt));
   }
-    */
+
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const [product] = await db.insert(schema.products).values(productData).returning();
+    return product;
+  }
+
+  async updateProduct(id: string, productData: Partial<InsertProduct>): Promise<Product> {
+    const [product] = await db.update(schema.products)
+      .set(productData)
+      .where(eq(schema.products.id, id))
+      .returning();
+    return product;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await db.delete(schema.products).where(eq(schema.products.id, id));
+  }
+
+  async getProductById(id: string): Promise<Product | null> {
+    const [product] = await db.select().from(schema.products).where(eq(schema.products.id, id));
+    return product || null;
+  }
 
   // Enhanced SO Center methods with atomic number generation
   async getNextAvailableSoCenterNumber(): Promise<{ centerId: string; email: string }> {
@@ -1534,7 +1615,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   // Add missing location lookup functions for EditSoCenterModal
-  async getVillageById(id: string): Promise<any> {
+  async getVillageById(id: string): Promise<Village | undefined> {
     try {
       const [village] = await db.select().from(schema.villages).where(eq(schema.villages.id, id)).limit(1);
       return village;
@@ -1544,7 +1625,7 @@ export class DrizzleStorage implements IStorage {
     }
   }
 
-  async getMandalById(id: string): Promise<any> {
+  async getMandalById(id: string): Promise<Mandal | undefined> {
     try {
       const [mandal] = await db.select().from(schema.mandals).where(eq(schema.mandals.id, id)).limit(1);
       return mandal;
@@ -1554,7 +1635,7 @@ export class DrizzleStorage implements IStorage {
     }
   }
 
-  async getDistrictById(id: string): Promise<any> {
+  async getDistrictById(id: string): Promise<District | undefined> {
     try {
       const [district] = await db.select().from(schema.districts).where(eq(schema.districts.id, id)).limit(1);
       return district;
@@ -1630,7 +1711,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteSoCenter(id: string): Promise<void> {
-    return await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       // Get SO Center details first
       const [soCenter] = await tx.select()
         .from(schema.soCenters)
@@ -1680,9 +1761,15 @@ export class DrizzleStorage implements IStorage {
 
   // Enhanced User methods
   async getAllUsers(): Promise<User[]> {
-    return await db.select().from(schema.users)
+    console.log('🔍 Storage: Querying users table...');
+    const users = await db.select().from(schema.users)
       .where(eq(schema.users.isActive, true))
       .orderBy(asc(schema.users.name));
+    console.log('📊 Storage: Users query result:', users.length, 'users found');
+    if (users.length > 0) {
+      console.log('📋 Sample user roles:', users.map(u => u.role).slice(0, 5));
+    }
+    return users;
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -1804,7 +1891,7 @@ export class DrizzleStorage implements IStorage {
       const simpleResults = await db.select().from(schema.topics)
         .where(eq(schema.topics.isActive, true))
         .orderBy(asc(schema.topics.name));
-      
+
       return simpleResults.map(topic => ({
         ...topic,
         order: topic.orderIndex,
@@ -2756,282 +2843,6 @@ export class DrizzleStorage implements IStorage {
       .where(eq(schema.students.id, studentId));
 
     console.log('✅ Student fees updated successfully');
-  }
-
-  // Product Management Methods
-  async getAllProducts(): Promise<Product[]> {
-    return await db.select().from(schema.products).orderBy(desc(schema.products.createdAt));
-  }
-
-  async createProduct(productData: InsertProduct): Promise<Product> {
-    const [product] = await db.insert(schema.products).values(productData).returning();
-    return product;
-  }
-
-  async updateProduct(id: string, productData: Partial<InsertProduct>): Promise<Product> {
-    const [product] = await db.update(schema.products)
-      .set(productData)
-      .where(eq(schema.products.id, id))
-      .returning();
-    return product;
-  }
-
-  async deleteProduct(id: string): Promise<void> {
-    await db.delete(schema.products).where(eq(schema.products.id, id));
-  }
-
-  async getProductById(id: string): Promise<Product | null> {
-    const [product] = await db.select().from(schema.products).where(eq(schema.products.id, id));
-    return product || null;
-  }
-
-  // Commission Wallet Management
-  async getOrCreateCommissionWallet(soCenterId: string): Promise<CommissionWallet> {
-    // Check if wallet exists
-    const [existingWallet] = await db.select()
-      .from(schema.commissionWallets)
-      .where(eq(schema.commissionWallets.soCenterId, soCenterId));
-
-    if (existingWallet) {
-      return existingWallet;
-    }
-
-    // Create new wallet
-    const [newWallet] = await db.insert(schema.commissionWallets)
-      .values({
-        soCenterId,
-        totalEarned: "0",
-        availableBalance: "0",
-        totalWithdrawn: "0"
-      })
-      .returning();
-
-    return newWallet;
-  }
-
-  async getCommissionWalletBySoCenter(soCenterId: string): Promise<CommissionWallet | null> {
-    const [wallet] = await db.select()
-      .from(schema.commissionWallets)
-      .where(eq(schema.commissionWallets.soCenterId, soCenterId));
-    return wallet || null;
-  }
-
-  // Product Orders Management
-  async createProductOrder(orderData: InsertProductOrder): Promise<ProductOrder> {
-    return await db.transaction(async (tx) => {
-      // Create the product order
-      const [order] = await tx.insert(schema.productOrders).values(orderData).returning();
-
-      // Update commission wallet
-      const wallet = await this.getOrCreateCommissionWallet(orderData.soCenterId);
-      const newEarned = Number(wallet.totalEarned) + Number(orderData.commissionAmount);
-      const newAvailable = Number(wallet.availableBalance) + Number(orderData.commissionAmount);
-
-      await tx.update(schema.commissionWallets)
-        .set({
-          totalEarned: newEarned.toString(),
-          availableBalance: newAvailable.toString(),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.commissionWallets.id, wallet.id));
-
-      // Create commission transaction
-      await tx.insert(schema.commissionTransactions).values({
-        commissionWalletId: wallet.id,
-        productOrderId: order.id,
-        amount: orderData.commissionAmount,
-        type: "earned",
-        description: `Commission earned from product order: ${orderData.receiptNumber}`
-      });
-
-      return order;
-    });
-  }
-
-  async getProductOrdersBySoCenter(soCenterId: string): Promise<any[]> {
-    return await db.select({
-      id: schema.productOrders.id,
-      productName: schema.products.name,
-      amount: schema.productOrders.amount,
-      receiptNumber: schema.productOrders.receiptNumber,
-      commissionAmount: schema.productOrders.commissionAmount,
-      orderStatus: schema.productOrders.orderStatus,
-      createdAt: schema.productOrders.createdAt
-    })
-    .from(schema.productOrders)
-    .leftJoin(schema.products, eq(schema.productOrders.productId, schema.products.id))
-    .where(eq(schema.productOrders.soCenterId, soCenterId))
-    .orderBy(desc(schema.productOrders.createdAt));
-  }
-
-  // Withdrawal Requests Management
-  async createWithdrawalRequest(requestData: InsertWithdrawalRequest): Promise<WithdrawalRequest> {
-    return await db.transaction(async (tx) => {
-      // Check if wallet has sufficient balance
-      const [wallet] = await tx.select()
-        .from(schema.commissionWallets)
-        .where(eq(schema.commissionWallets.id, requestData.commissionWalletId));
-
-      if (!wallet) {
-        throw new Error('Commission wallet not found');
-      }
-
-      const availableBalance = Number(wallet.availableBalance);
-      const requestAmount = Number(requestData.amount);
-
-      if (requestAmount > availableBalance) {
-        throw new Error('Insufficient balance for withdrawal');
-      }
-
-      // Create withdrawal request
-      const [request] = await tx.insert(schema.withdrawalRequests)
-        .values(requestData)
-        .returning();
-
-      // Update wallet available balance (reserve the amount)
-      await tx.update(schema.commissionWallets)
-        .set({
-          availableBalance: (availableBalance - requestAmount).toString(),
-          updatedAt: new Date()
-        })
-        .where(eq(schema.commissionWallets.id, wallet.id));
-
-      return request;
-    });
-  }
-
-  async getWithdrawalRequestsBySoCenter(soCenterId: string): Promise<WithdrawalRequest[]> {
-    return await db.select()
-      .from(schema.withdrawalRequests)
-      .where(eq(schema.withdrawalRequests.soCenterId, soCenterId))
-      .orderBy(desc(schema.withdrawalRequests.requestedAt));
-  }
-
-  async getAllWithdrawalRequests(): Promise<any[]> {
-    return await db.select({
-      id: schema.withdrawalRequests.id,
-      soCenterName: schema.soCenters.name,
-      amount: schema.withdrawalRequests.amount,
-      status: schema.withdrawalRequests.status,
-      requestedAt: schema.withdrawalRequests.requestedAt,
-      processedAt: schema.withdrawalRequests.processedAt,
-      notes: schema.withdrawalRequests.notes
-    })
-    .from(schema.withdrawalRequests)
-    .leftJoin(schema.soCenters, eq(schema.withdrawalRequests.soCenterId, schema.soCenters.id))
-    .orderBy(desc(schema.withdrawalRequests.requestedAt));
-  }
-
-  async processWithdrawalRequest(id: string, status: 'approved' | 'rejected', processedBy: string, notes?: string): Promise<WithdrawalRequest> {
-    return await db.transaction(async (tx) => {
-      const [request] = await tx.select()
-        .from(schema.withdrawalRequests)
-        .where(eq(schema.withdrawalRequests.id, id));
-
-      if (!request) {
-        throw new Error('Withdrawal request not found');
-      }
-
-      if (request.status !== 'pending') {
-        throw new Error('Request has already been processed');
-      }
-
-      // Update request status
-      const [updatedRequest] = await tx.update(schema.withdrawalRequests)
-        .set({
-          status,
-          processedAt: new Date(),
-          processedBy,
-          notes
-        })
-        .where(eq(schema.withdrawalRequests.id, id))
-        .returning();
-
-      const [wallet] = await tx.select()
-        .from(schema.commissionWallets)
-        .where(eq(schema.commissionWallets.id, request.commissionWalletId));
-
-      if (status === 'approved') {
-        // Update wallet totals for approved withdrawal
-        const newTotalWithdrawn = Number(wallet.totalWithdrawn) + Number(request.amount);
-
-        await tx.update(schema.commissionWallets)
-          .set({
-            totalWithdrawn: newTotalWithdrawn.toString(),
-            updatedAt: new Date()
-          })
-          .where(eq(schema.commissionWallets.id, wallet.id));
-
-        // Create withdrawal transaction
-        await tx.insert(schema.commissionTransactions).values({
-          commissionWalletId: wallet.id,
-          amount: request.amount,
-          type: "withdrawn",
-          description: `Withdrawal approved - Request ID: ${id}`
-        });
-      } else {
-        // For rejected requests, restore the available balance
-        const currentAvailable = Number(wallet.availableBalance);
-        const restoredBalance = currentAvailable + Number(request.amount);
-
-        await tx.update(schema.commissionWallets)
-          .set({
-            availableBalance: restoredBalance.toString(),
-            updatedAt: new Date()
-          })
-          .where(eq(schema.commissionWallets.id, wallet.id));
-      }
-
-      return updatedRequest;
-    });
-  }
-
-  // System Settings Management
-  async getSystemSetting(key: string): Promise<SystemSetting | null> {
-    const [setting] = await db.select()
-      .from(schema.systemSettings)
-      .where(eq(schema.systemSettings.key, key));
-    return setting || null;
-  }
-
-  async setSystemSetting(key: string, value: string, description?: string, updatedBy?: string): Promise<SystemSetting> {
-    const existingSetting = await this.getSystemSetting(key);
-
-    if (existingSetting) {
-      const [updated] = await db.update(schema.systemSettings)
-        .set({
-          value,
-          description: description || existingSetting.description,
-          updatedAt: new Date(),
-          updatedBy
-        })
-        .where(eq(schema.systemSettings.key, key))
-        .returning();
-      return updated;
-    } else {
-      const [created] = await db.insert(schema.systemSettings)
-        .values({
-          key,
-          value,
-          description,
-          updatedBy
-        })
-        .returning();
-      return created;
-    }
-  }
-
-  async deleteExam(examId: string): Promise<void> {
-    console.log('🗑️ Deleting exam with ID:', examId);
-    try {
-      await db
-        .delete(schema.exams)
-        .where(eq(schema.exams.id, examId));
-      console.log('✅ Deleted exam successfully');
-    } catch (error) {
-      console.error('❌ Error deleting exam:', error);
-      throw error;
-    }
   }
 
   // Feature 1: Topics Management with Moderate/Important flags
