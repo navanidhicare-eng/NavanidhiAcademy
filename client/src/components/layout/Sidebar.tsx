@@ -29,7 +29,16 @@ import {
   BarChart3,
   ShoppingCart,
   ClipboardList,
-  Package
+  Package,
+  Award,
+  Bell,
+  CheckCircle,
+  Target,
+  UserCheck,
+  Building,
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 
 // Assuming SidebarMenuButton and Link are imported from appropriate libraries
@@ -107,7 +116,13 @@ const navigation: NavItem[] = [
     title: 'Products',
     href: '/products',
     icon: Package,
-    roles: ['so_center', 'agent', 'admin', 'super_admin'],
+    roles: ['so_center', 'agent'],
+  },
+  {
+    title: 'Products Management',
+    href: '/admin/products',
+    icon: Package,
+    roles: ['admin', 'super_admin'],
   },
   {
     title: 'Teachers',
