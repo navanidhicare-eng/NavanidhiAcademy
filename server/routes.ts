@@ -7730,38 +7730,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📊 Marketing Head fetching leads...');
       
-      const leads = await db
-        .select({
-          id: schema.leads.id,
-          studentName: schema.leads.studentName,
-          parentName: schema.leads.parentName,
-          mobileNumber: schema.leads.mobileNumber,
-          whatsappNumber: schema.leads.whatsappNumber,
-          email: schema.leads.email,
-          address: schema.leads.address,
-          interestedClass: schema.classes.name,
-          leadSource: schema.leads.leadSource,
-          priority: schema.leads.priority,
-          status: schema.leads.status,
-          expectedJoinDate: schema.leads.expectedJoinDate,
-          notes: schema.leads.notes,
-          createdAt: schema.leads.createdAt,
-          assignedToName: sql<string>`assigned_user.name`,
-          createdByName: sql<string>`created_user.name`,
-          village: schema.villages.name,
-          mandal: schema.mandals.name,
-          district: schema.districts.name,
-          state: schema.states.name,
-        })
-        .from(schema.leads)
-        .leftJoin(schema.classes, eq(schema.leads.interestedClass, schema.classes.id))
-        .leftJoin(schema.villages, eq(schema.leads.villageId, schema.villages.id))
-        .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
-        .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
-        .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
-        .leftJoin(sql`users as assigned_user`, eq(schema.leads.assignedTo, sql`assigned_user.id`))
-        .leftJoin(sql`users as created_user`, eq(schema.leads.createdBy, sql`created_user.id`))
-        .orderBy(desc(schema.leads.createdAt));
+      const leads = await executeRawQuery(sql`
+        SELECT 
+          l.id,
+          l.student_name as "studentName",
+          l.parent_name as "parentName",
+          l.mobile_number as "mobileNumber",
+          l.whatsapp_number as "whatsappNumber",
+          l.email,
+          l.address,
+          c.name as "interestedClass",
+          l.lead_source as "leadSource",
+          l.priority,
+          l.status,
+          l.expected_join_date as "expectedJoinDate",
+          l.notes,
+          l.created_at as "createdAt",
+          assigned_user.name as "assignedToName",
+          created_user.name as "createdByName",
+          v.name as village,
+          m.name as mandal,
+          d.name as district,
+          s.name as state
+        FROM leads l
+        LEFT JOIN classes c ON l.interested_class = c.id
+        LEFT JOIN villages v ON l.village_id = v.id
+        LEFT JOIN mandals m ON v.mandal_id = m.id
+        LEFT JOIN districts d ON m.district_id = d.id
+        LEFT JOIN states s ON d.state_id = s.id
+        LEFT JOIN users assigned_user ON l.assigned_to = assigned_user.id
+        LEFT JOIN users created_user ON l.created_by = created_user.id
+        ORDER BY l.created_at DESC
+      `);
 
       console.log(`✅ Retrieved ${leads.length} leads for marketing head`);
       res.json(leads);
@@ -7776,15 +7776,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('📈 Fetching lead metrics...');
       
-      const metrics = await db
-        .select({
-          totalLeads: sql<number>`COUNT(*)`,
-          newLeads: sql<number>`COUNT(CASE WHEN status = 'new' THEN 1 END)`,
-          contactedLeads: sql<number>`COUNT(CASE WHEN status = 'contacted' THEN 1 END)`,
-          convertedLeads: sql<number>`COUNT(CASE WHEN status = 'converted' THEN 1 END)`,
-          conversionRate: sql<number>`ROUND((COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / NULLIF(COUNT(*), 0), 2)`,
-        })
-        .from(schema.leads);
+      const metrics = await executeRawQuery(sql`
+        SELECT 
+          COUNT(*) as "totalLeads",
+          COUNT(CASE WHEN status = 'new' THEN 1 END) as "newLeads",
+          COUNT(CASE WHEN status = 'contacted' THEN 1 END) as "contactedLeads",
+          COUNT(CASE WHEN status = 'converted' THEN 1 END) as "convertedLeads",
+          ROUND((COUNT(CASE WHEN status = 'converted' THEN 1 END) * 100.0) / NULLIF(COUNT(*), 0), 2) as "conversionRate"
+        FROM leads
+      `);
 
       const result = metrics[0] || {
         totalLeads: 0,
