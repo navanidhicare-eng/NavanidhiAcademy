@@ -80,7 +80,7 @@ export function LoginForm() {
           backgroundRepeat: 'no-repeat'
         }}
       >
-        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-black/50"></div>
       </div>
       
       {/* Content Container */}
@@ -101,8 +101,8 @@ export function LoginForm() {
           <div className="max-w-lg space-y-8">
             <div className="space-y-6">
               <h1 className="text-5xl font-bold leading-tight drop-shadow-lg">
-                Join <span className="text-green-400 drop-shadow-lg">8 Million+</span> Students that Trust<br />
-                <span className="text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text drop-shadow-lg">
+                Join <span className="text-transparent bg-gradient-to-r from-green-400 via-green-300 to-emerald-400 bg-clip-text drop-shadow-lg font-bold">8 Million+</span> Students that Trust<br />
+                <span className="text-transparent bg-gradient-to-r from-green-400 via-green-300 to-emerald-400 bg-clip-text drop-shadow-lg">
                   Navanidhi Academy
                 </span> to Supercharge their Learning
               </h1>
@@ -114,21 +114,21 @@ export function LoginForm() {
                 <div className="w-7 h-7 bg-green-500/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-green-400/30">
                   <CheckCircle className="w-5 h-5 text-white drop-shadow-md" />
                 </div>
-                <span className="text-lg text-green-100 drop-shadow-md font-medium">500+ Learning Modules</span>
+                <span className="text-lg text-transparent bg-gradient-to-r from-green-200 to-green-100 bg-clip-text drop-shadow-md font-medium">500+ Learning Modules</span>
               </div>
               
               <div className="flex items-center space-x-4">
                 <div className="w-7 h-7 bg-green-500/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-green-400/30">
                   <CheckCircle className="w-5 h-5 text-white drop-shadow-md" />
                 </div>
-                <span className="text-lg text-green-100 drop-shadow-md font-medium">Smart Progress Tracking</span>
+                <span className="text-lg text-transparent bg-gradient-to-r from-green-200 to-green-100 bg-clip-text drop-shadow-md font-medium">Smart Progress Tracking</span>
               </div>
               
               <div className="flex items-center space-x-4">
                 <div className="w-7 h-7 bg-green-500/90 backdrop-blur-sm rounded-full flex items-center justify-center border border-green-400/30">
                   <CheckCircle className="w-5 h-5 text-white drop-shadow-md" />
                 </div>
-                <span className="text-lg text-green-100 drop-shadow-md font-medium">Comprehensive Assessment System</span>
+                <span className="text-lg text-transparent bg-gradient-to-r from-green-200 to-green-100 bg-clip-text drop-shadow-md font-medium">Comprehensive Assessment System</span>
               </div>
             </div>
           </div>
