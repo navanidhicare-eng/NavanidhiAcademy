@@ -1,18 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
+// Check for required environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.VITE_NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.VITE_NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error('Supabase URL is required (NEXT_PUBLIC_SUPABASE_URL or VITE_NEXT_PUBLIC_SUPABASE_URL)');
 }
 
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (!supabaseServiceKey) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
 }
 
+if (!supabaseAnonKey) {
+  throw new Error('Supabase anon key is required (NEXT_PUBLIC_SUPABASE_ANON_KEY or VITE_NEXT_PUBLIC_SUPABASE_ANON_KEY)');
+}
+
+console.log('🔗 Supabase URL configured:', supabaseUrl.slice(0, 30) + '...');
+
 // Create Supabase client with service role key for server-side operations
-// NOW USING CORRECT ENVIRONMENT VARIABLES
 export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!, // Correct URL
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  supabaseUrl,
+  supabaseServiceKey,
   {
     auth: {
       autoRefreshToken: false,
@@ -22,8 +32,7 @@ export const supabaseAdmin = createClient(
 );
 
 // Create public client for regular operations  
-// NOW USING CORRECT ENVIRONMENT VARIABLES
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!, // Correct URL
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // Correct anon key
+  supabaseUrl,
+  supabaseAnonKey
 );
