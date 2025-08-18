@@ -3697,13 +3697,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           motherMobile: schema.students.motherMobile,
           fatherName: schema.students.fatherName,
           motherName: schema.students.motherName,
+          fatherQualification: schema.students.fatherQualification,
+          motherQualification: schema.students.motherQualification,
           dateOfBirth: schema.students.dateOfBirth,
           enrollmentDate: schema.students.enrollmentDate,
           address: schema.students.address,
+          landmark: schema.students.landmark,
           gender: schema.students.gender,
           aadharNumber: schema.students.aadharNumber,
           courseType: schema.students.courseType,
           qrCode: schema.students.qrCode,
+          presentSchoolName: schema.students.presentSchoolName,
+          schoolType: schema.students.schoolType,
+          isActive: schema.students.isActive,
           className: schema.classes.name,
           soCenterName: schema.soCenters.name,
           stateName: schema.states.name,
@@ -3717,7 +3723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(schema.students)
         .leftJoin(schema.classes, eq(schema.students.classId, schema.classes.id))
         .leftJoin(schema.soCenters, eq(schema.students.soCenterId, schema.soCenters.id))
-        .leftJoin(schema.villages, eq(schema.soCenters.villageId, schema.villages.id))
+        .leftJoin(schema.villages, eq(schema.students.villageId, schema.villages.id))
         .leftJoin(schema.mandals, eq(schema.villages.mandalId, schema.mandals.id))
         .leftJoin(schema.districts, eq(schema.mandals.districtId, schema.districts.id))
         .leftJoin(schema.states, eq(schema.districts.stateId, schema.states.id))
@@ -3740,7 +3746,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           receiptNumber: schema.payments.receiptNumber,
           transactionId: schema.payments.transactionId,
           createdAt: schema.payments.createdAt,
-          recordedByName: sql`COALESCE(${schema.users.fullName}, 'N/A')`.as('recordedByName'),
+          recordedByName: sql`COALESCE(${schema.users.name}, 'N/A')`.as('recordedByName'),
         })
         .from(schema.payments)
         .leftJoin(schema.users, eq(schema.payments.recordedBy, schema.users.id))

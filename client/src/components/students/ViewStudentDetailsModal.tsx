@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,7 +20,11 @@ import {
   CreditCard,
   BookOpen,
   Target,
-  Users
+  Users,
+  School,
+  Heart,
+  IdCard,
+  Home
 } from 'lucide-react';
 import { QRModal } from '../qr/QRModal';
 
@@ -32,12 +37,23 @@ interface ViewStudentDetailsModalProps {
 export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStudentDetailsModalProps) {
   const [showQRModal, setShowQRModal] = useState(false);
 
-  // Fetch detailed student data
+  // Fetch detailed student data including siblings
   const { data: studentDetails, isLoading } = useQuery({
     queryKey: ['/api/admin/students', student?.id, 'details'],
     queryFn: async () => {
       if (!student?.id) return null;
       const response = await apiRequest('GET', `/api/admin/students/${student.id}/details`);
+      return response.json();
+    },
+    enabled: !!student?.id && isOpen,
+  });
+
+  // Fetch siblings separately
+  const { data: siblings = [] } = useQuery({
+    queryKey: ['/api/students', student?.id, 'siblings'],
+    queryFn: async () => {
+      if (!student?.id) return [];
+      const response = await apiRequest('GET', `/api/students/${student.id}/siblings`);
       return response.json();
     },
     enabled: !!student?.id && isOpen,
@@ -49,14 +65,20 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
     setShowQRModal(true);
   };
 
+  // Use combined data from both sources
+  const combinedStudent = {
+    ...student,
+    ...studentDetails?.student
+  };
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
               <User className="h-5 w-5" />
-              Student Details - {student.name}
+              Student Details - {combinedStudent.name}
             </DialogTitle>
           </DialogHeader>
 
@@ -80,7 +102,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <User className="h-4 w-4" />
                       <span>Student Name</span>
                     </div>
-                    <p className="font-medium">{student.name}</p>
+                    <p className="font-medium">{combinedStudent.name}</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -88,7 +110,15 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <CreditCard className="h-4 w-4" />
                       <span>Student ID</span>
                     </div>
-                    <p className="font-medium">{student.studentId}</p>
+                    <p className="font-medium">{combinedStudent.studentId}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <IdCard className="h-4 w-4" />
+                      <span>Aadhar Number</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.aadharNumber || 'Not provided'}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -96,15 +126,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <GraduationCap className="h-4 w-4" />
                       <span>Class</span>
                     </div>
-                    <Badge variant="outline">{student.className}</Badge>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Phone className="h-4 w-4" />
-                      <span>Phone</span>
-                    </div>
-                    <p className="font-medium">{student.fatherMobile || student.motherMobile || student.phone || 'Not provided'}</p>
+                    <Badge variant="outline">{combinedStudent.className}</Badge>
                   </div>
 
                   <div className="space-y-2">
@@ -112,15 +134,74 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Calendar className="h-4 w-4" />
                       <span>Date of Birth</span>
                     </div>
-                    <p className="font-medium">{student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : 'Not provided'}</p>
+                    <p className="font-medium">{combinedStudent.dateOfBirth ? new Date(combinedStudent.dateOfBirth).toLocaleDateString() : 'Not provided'}</p>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="h-4 w-4" />
+                      <User className="h-4 w-4" />
+                      <span>Gender</span>
+                    </div>
+                    <p className="font-medium capitalize">{combinedStudent.gender || 'Not provided'}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Family Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Family Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <User className="h-4 w-4" />
                       <span>Father's Name</span>
                     </div>
-                    <p className="font-medium">{student.fatherName || 'Not provided'}</p>
+                    <p className="font-medium">{combinedStudent.fatherName || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Heart className="h-4 w-4" />
+                      <span>Mother's Name</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.motherName || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="h-4 w-4" />
+                      <span>Father's Mobile</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.fatherMobile || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="h-4 w-4" />
+                      <span>Mother's Mobile</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.motherMobile || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <BookOpen className="h-4 w-4" />
+                      <span>Father's Qualification</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.fatherQualification || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <BookOpen className="h-4 w-4" />
+                      <span>Mother's Qualification</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.motherQualification || 'Not provided'}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -139,22 +220,67 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Mail className="h-4 w-4" />
                       <span>Email</span>
                     </div>
-                    <p className="font-medium">{student.email || 'Not provided'}</p>
+                    <p className="font-medium">{combinedStudent.email || 'Not provided'}</p>
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Home className="h-4 w-4" />
+                      <span>House Address</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.address || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <MapPin className="h-4 w-4" />
-                      <span>Address</span>
+                      <span>Location</span>
                     </div>
                     <p className="font-medium">
-                      {student.address && student.address !== 'Not provided' 
-                        ? student.address 
-                        : studentDetails?.location 
-                          ? `${studentDetails.location.village || ''}, ${studentDetails.location.mandal || ''}, ${studentDetails.location.district || ''}, ${studentDetails.location.state || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',')
-                          : 'Not provided'
-                      }
+                      {combinedStudent.villageName || combinedStudent.village || 'Village not provided'}, {' '}
+                      {combinedStudent.mandalName || combinedStudent.mandal || 'Mandal not provided'}, {' '}
+                      {combinedStudent.districtName || combinedStudent.district || 'District not provided'}, {' '}
+                      {combinedStudent.stateName || combinedStudent.state || 'State not provided'}
                     </p>
+                  </div>
+
+                  {combinedStudent.landmark && (
+                    <div className="space-y-2 md:col-span-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <MapPin className="h-4 w-4" />
+                        <span>Landmark</span>
+                      </div>
+                      <p className="font-medium">{combinedStudent.landmark}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* School Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <School className="h-4 w-4" />
+                    School Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <School className="h-4 w-4" />
+                      <span>Present School Name</span>
+                    </div>
+                    <p className="font-medium">{combinedStudent.presentSchoolName || 'Not provided'}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Building2 className="h-4 w-4" />
+                      <span>School Type</span>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {combinedStudent.schoolType || 'Not provided'}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -173,7 +299,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Building2 className="h-4 w-4" />
                       <span>SO Center</span>
                     </div>
-                    <p className="font-medium">{studentDetails?.soCenterName || student.soCenterName || 'Not assigned'}</p>
+                    <p className="font-medium">{combinedStudent.soCenterName || 'Not assigned'}</p>
                   </div>
 
                   <div className="space-y-2">
@@ -181,7 +307,22 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Calendar className="h-4 w-4" />
                       <span>Enrollment Date</span>
                     </div>
-                    <p className="font-medium">{studentDetails?.enrollmentDate ? new Date(studentDetails.enrollmentDate).toLocaleDateString() : student.enrollmentDate ? new Date(student.enrollmentDate).toLocaleDateString() : 'Not provided'}</p>
+                    <p className="font-medium">
+                      {combinedStudent.enrollmentDate 
+                        ? new Date(combinedStudent.enrollmentDate).toLocaleDateString() 
+                        : 'Not provided'
+                      }
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <BookOpen className="h-4 w-4" />
+                      <span>Course Type</span>
+                    </div>
+                    <Badge variant="outline" className="capitalize">
+                      {combinedStudent.courseType || 'Not provided'}
+                    </Badge>
                   </div>
 
                   <div className="space-y-2">
@@ -189,12 +330,53 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                       <Target className="h-4 w-4" />
                       <span>Status</span>
                     </div>
-                    <Badge variant={student.isActive ? "default" : "secondary"}>
-                      {student.isActive ? "Active" : "Inactive"}
+                    <Badge variant={combinedStudent.isActive ? "default" : "secondary"}>
+                      {combinedStudent.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Siblings Information */}
+              {siblings && siblings.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Siblings Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {siblings.map((sibling: any, index: number) => (
+                        <div key={index} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                          <h4 className="font-medium text-gray-800 mb-3">Sibling {index + 1}</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                              <span className="text-sm text-gray-600">Name:</span>
+                              <p className="font-medium">{sibling.name}</p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-gray-600">Class:</span>
+                              <p className="font-medium">{sibling.className}</p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-gray-600">School:</span>
+                              <p className="font-medium">{sibling.schoolName}</p>
+                            </div>
+                            <div>
+                              <span className="text-sm text-gray-600">School Type:</span>
+                              <Badge variant="outline" className="capitalize">
+                                {sibling.schoolType}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Progress Summary */}
               {studentDetails?.progressSummary && (
@@ -253,7 +435,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
                         Generate and download QR code for student progress tracking
                       </p>
                       <p className="text-xs text-gray-500">
-                        QR Code: {student.qrCode || 'Not generated'}
+                        QR Code: {combinedStudent.qrCode || 'Not generated'}
                       </p>
                     </div>
                     <Button onClick={handleDownloadQR} className="flex items-center gap-2">
@@ -280,7 +462,7 @@ export function ViewStudentDetailsModal({ isOpen, onClose, student }: ViewStuden
         <QRModal
           isOpen={showQRModal}
           onClose={() => setShowQRModal(false)}
-          student={student}
+          student={combinedStudent}
         />
       )}
     </>
