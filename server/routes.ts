@@ -233,7 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dashboardRoute = '/dashboard';
                 break;
               case 'academic_admin':
-                dashboardRoute = '/dashboard';
+                dashboardRoute = '/admin/academic-dashboard';
                 break;
               case 'agent':
                 dashboardRoute = '/dashboard';
@@ -245,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 dashboardRoute = '/marketing/centers-overview';
                 break;
               case 'marketing_staff':
-                dashboardRoute = '/dashboard';
+                dashboardRoute = '/marketing/centers-overview';
                 break;
               case 'collection_agent':
                 dashboardRoute = '/dashboard';
@@ -4054,16 +4054,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { villageId } = req.query;
       
-      let query = db.select().from(schema.soCenters);
+      let query = db.select().from(schema.soCenters).where(eq(schema.soCenters.isActive, true));
       
       if (villageId) {
-        query = query.where(eq(schema.soCenters.villageId, villageId as string));
+        query = query.where(
+          and(
+            eq(schema.soCenters.villageId, villageId as string),
+            eq(schema.soCenters.isActive, true)
+          )
+        );
       }
       
       const centers = await query.orderBy(schema.soCenters.name);
       res.json(centers);
     } catch (error: any) {
       console.error('❌ Error fetching SO centers:', error);
+      res.status(500).json({ message: 'Failed to fetch SO centers' });
+    }
+  });
+
+  // Add specific endpoint for SO Centers by village for attendance reports
+  app.get("/api/so-centers/by-village/:villageId", authenticateToken, async (req, res) => {
+    try {
+      const { villageId } = req.params;
+      
+      const centers = await db
+        .select({
+          id: schema.soCenters.id,
+          name: schema.soCenters.name,
+          centerId: schema.soCenters.centerId
+        })
+        .from(schema.soCenters)
+        .where(
+          and(
+            eq(schema.soCenters.villageId, villageId),
+            eq(schema.soCenters.isActive, true)
+          )
+        )
+        .orderBy(schema.soCenters.name);
+      
+      res.json(centers);
+    } catch (error: any) {
+      console.error('❌ Error fetching SO centers by village:', error);
       res.status(500).json({ message: 'Failed to fetch SO centers' });
     }
   });

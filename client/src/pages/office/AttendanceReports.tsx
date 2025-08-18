@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { Calendar, Download, Users, TrendingUp, TrendingDown, Phone, MapPin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AttendanceReport {
   studentId: string;
@@ -63,6 +64,8 @@ export default function AttendanceReports() {
     centerId: '',
     classId: ''
   });
+  const [availableSOCenters, setAvailableSOCenters] = useState<any[]>([]);
+  const { toast } = useToast();
 
   // Fetch attendance data
   const { data: attendanceReports, isLoading } = useQuery<AttendanceReport[]>({
@@ -122,6 +125,7 @@ export default function AttendanceReports() {
       centerId: '',
       classId: ''
     });
+    setAvailableSOCenters([]);
   };
 
   // Generate month and year options
@@ -338,7 +342,47 @@ export default function AttendanceReports() {
 
             <Select
               value={filters.villageId}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, villageId: value, centerId: '' }))}
+              onValueChange={(value) => {
+                setFilters(prev => ({ ...prev, villageId: value, centerId: '' }));
+                // Fetch SO Centers when village changes
+                if (value) {
+                  const fetchSOCenters = async (villageId: string) => {
+                    if (!villageId) {
+                      setAvailableSOCenters([]);
+                      return;
+                    }
+
+                    try {
+                      // Use the specific endpoint for SO Centers by village
+                      const response = await fetch(`/api/so-centers/by-village/${villageId}`, {
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      });
+
+                      if (!response.ok) {
+                        console.error('API Response not OK:', response.status, response.statusText);
+                        throw new Error(`Failed to fetch SO Centers: ${response.status}`);
+                      }
+
+                      const centers = await response.json();
+                      console.log('Fetched SO Centers:', centers);
+                      setAvailableSOCenters(centers);
+                    } catch (error) {
+                      console.error('Error fetching SO Centers:', error);
+                      setAvailableSOCenters([]);
+                      toast({
+                        title: "Error",
+                        description: "Failed to fetch SO Centers. Please try again.",
+                        variant: "destructive"
+                      });
+                    }
+                  };
+                  fetchSOCenters(value);
+                } else {
+                  setAvailableSOCenters([]);
+                }
+              }}
               disabled={!filters.mandalId}
             >
               <SelectTrigger>
@@ -360,7 +404,7 @@ export default function AttendanceReports() {
                 <SelectValue placeholder="Select Center" />
               </SelectTrigger>
               <SelectContent>
-                {centers?.map((center: any) => (
+                {availableSOCenters?.map((center: any) => (
                   <SelectItem key={center.id} value={center.id}>{center.name}</SelectItem>
                 ))}
               </SelectContent>

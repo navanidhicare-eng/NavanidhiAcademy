@@ -9,7 +9,7 @@ async function throwIfResNotOk(res: Response) {
 
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = {};
-  
+
   // Use JWT token from localStorage (our custom JWT, not Supabase token)
   const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
   if (token) {
@@ -18,7 +18,7 @@ function getAuthHeaders(): Record<string, string> {
   } else {
     console.warn('⚠️ No JWT token found in localStorage');
   }
-  
+
   return headers;
 }
 
@@ -67,14 +67,27 @@ export const getQueryFn: <T>(options: {
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 30, // 30 minutes
+      retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      // Add caching for location data
+      refetchOnMount: false,
+      refetchOnReconnect: false,
     },
     mutations: {
       retry: false,
     },
   },
 });
+
+// Cache keys for consistent data fetching
+export const CACHE_KEYS = {
+  states: 'states',
+  districts: (stateId?: string) => ['districts', stateId].filter(Boolean),
+  mandals: (districtId?: string) => ['mandals', districtId].filter(Boolean),
+  villages: (mandalId?: string) => ['villages', mandalId].filter(Boolean),
+  soCenters: (villageId?: string) => ['so-centers', villageId].filter(Boolean),
+  classes: 'classes',
+  dashboardStats: 'dashboard-stats',
+};
