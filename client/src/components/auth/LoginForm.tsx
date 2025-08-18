@@ -74,7 +74,7 @@ export function LoginForm() {
       <div 
         className="absolute inset-0 login-background"
         style={{
-          backgroundImage: 'url(/login-background.jpg)',
+          backgroundImage: 'url(https://freeimage.host/i/FmewOrJ)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
