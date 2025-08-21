@@ -821,19 +821,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
+      console.log('📊 Monthly attendance report request:', {
+        userRole: req.user.role,
+        userId: req.user.userId,
+        email: req.user.email,
+        query: req.query
+      });
+
       const { soCenterId, month, classId } = req.query;
-      const actualSoCenterId = soCenterId || (req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId);
+      
+      // Validate required fields
+      if (!month || !classId) {
+        return res.status(400).json({ 
+          message: 'Missing required fields: month and classId' 
+        });
+      }
+
+      // Get actual SO Center ID for SO Center users
+      let actualSoCenterId = soCenterId as string;
+      if (req.user.role === 'so_center') {
+        const soCenter = await storage.getSoCenterByEmail(req.user.email);
+        if (!soCenter) {
+          return res.status(404).json({ message: 'SO Center not found for user' });
+        }
+        actualSoCenterId = soCenter.id;
+        console.log('✅ Found SO Center for monthly report:', { id: soCenter.id, name: soCenter.name });
+      } else {
+        // For admin/academic_admin, use provided soCenterId or default to user ID
+        actualSoCenterId = actualSoCenterId || req.user.userId;
+      }
 
       const monthlyReport = await storage.getMonthlyAttendanceReport({
-        soCenterId: actualSoCenterId as string,
+        soCenterId: actualSoCenterId,
         month: month as string,
         classId: classId as string
       });
 
+      console.log('✅ Monthly report generated:', { 
+        studentCount: monthlyReport.students.length,
+        soCenterId: actualSoCenterId,
+        month,
+        classId 
+      });
       res.json(monthlyReport);
     } catch (error) {
-      console.error('Error fetching monthly attendance report:', error);
-      res.status(500).json({ message: 'Failed to fetch monthly attendance report' });
+      console.error('❌ Error fetching monthly attendance report:', error);
+      res.status(500).json({ 
+        message: 'Failed to fetch monthly attendance report',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

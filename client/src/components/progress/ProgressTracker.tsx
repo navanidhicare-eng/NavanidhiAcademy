@@ -90,6 +90,15 @@ export function ProgressTracker() {
     enabled: !!selectedChapter,
   });
 
+  // Filter out already completed topics to prevent duplicate marking
+  const availableTopics = topics.filter((topic: any) => {
+    const existing = existingProgress.find((p: any) => p.topicId === topic.id);
+    return !existing || !existing.completed;
+  });
+
+  // Calculate total completed topics for the selected student
+  const totalCompletedTopics = existingProgress.filter((p: any) => p.completed).length;
+
   // Fetch existing progress for selected student
   const { data: existingProgress = [] } = useQuery({
     queryKey: ['/api/progress', selectedStudent],
@@ -179,6 +188,21 @@ export function ProgressTracker() {
       <CardHeader>
         <CardTitle>Progress Tracking</CardTitle>
         <p className="text-gray-600 mt-1">Update student topic completion status</p>
+        {selectedStudent && (
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                Total Topics Completed: <span className="text-lg font-bold">{totalCompletedTopics}</span>
+              </span>
+              <span className="text-xs text-blue-700">
+                {availableTopics.length > 0 
+                  ? `${availableTopics.length} topics available to mark`
+                  : 'All topics in this chapter completed'
+                }
+              </span>
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -234,61 +258,114 @@ export function ProgressTracker() {
         </div>
 
         {/* Topic Checklist */}
-        {selectedChapter && topics.length > 0 && (
+        {selectedChapter && (
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="font-semibold text-gray-900 mb-4">
               Chapter: {chapters.find((c: any) => c.id === selectedChapter)?.name || 'Selected Chapter'}
             </h3>
-            <div className="space-y-3">
-              {topics.map((topic: any) => {
-                const isCompleted = getTopicCompletion(topic.id);
-                return (
-                  <div
-                    key={topic.id}
-                    className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Checkbox
-                        checked={isCompleted}
-                        onCheckedChange={(checked) => handleTopicToggle(topic.id, checked as boolean)}
-                      />
-                      <div>
-                        <h3 className="font-medium">
-                          <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
-                        </h3>
-                        <p className="text-sm text-gray-600">{topic.description}</p>
+            
+            {availableTopics.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-2xl">✅</span>
+                </div>
+                <p className="text-lg font-medium">All Topics Completed!</p>
+                <p className="text-sm">This student has completed all topics in this chapter.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Note:</strong> Only showing topics that haven't been completed yet to prevent duplicate marking.
+                  </p>
+                </div>
+                
+                {availableTopics.map((topic: any) => {
+                  const isCompleted = getTopicCompletion(topic.id);
+                  return (
+                    <div
+                      key={topic.id}
+                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          checked={isCompleted}
+                          onCheckedChange={(checked) => handleTopicToggle(topic.id, checked as boolean)}
+                        />
+                        <div>
+                          <h3 className="font-medium">
+                            <MathJaxComponent inline={true}>{topic.name}</MathJaxComponent>
+                          </h3>
+                          <p className="text-sm text-gray-600">{topic.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                          isCompleted 
+                            ? 'bg-success bg-opacity-10 text-success' 
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {isCompleted ? 'Learned' : 'Pending'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {getLastUpdated(topic.id)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${
-                        isCompleted 
-                          ? 'bg-success bg-opacity-10 text-success' 
-                          : 'bg-gray-100 text-gray-600'
-                      }`}>
-                        {isCompleted ? 'Learned' : 'Pending'}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {getLastUpdated(topic.id)}
+                  );
+                })}
+              </div>
+            )}
+            </div>
+          )}
+
+        {/* Show completed topics in a separate section */}
+        {selectedChapter && existingProgress.length > 0 && (
+          <div className="bg-green-50 rounded-lg p-6 mt-6">
+            <h3 className="font-semibold text-green-900 mb-4">
+              ✅ Completed Topics ({existingProgress.filter((p: any) => p.completed).length})
+            </h3>
+            <div className="space-y-2">
+              {existingProgress
+                .filter((p: any) => p.completed)
+                .map((progress: any) => {
+                  const topic = topics.find((t: any) => t.id === progress.topicId);
+                  return (
+                    <div key={progress.topicId} className="flex items-center justify-between p-3 bg-white rounded border border-green-200">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-green-900">
+                            <MathJaxComponent inline={true}>{topic?.name || 'Unknown Topic'}</MathJaxComponent>
+                          </h4>
+                        </div>
+                      </div>
+                      <span className="text-xs text-green-700">
+                        {new Date(progress.completedDate).toLocaleDateString()}
                       </span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
 
-            <div className="mt-6 flex justify-end space-x-3">
-              <Button variant="outline">
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSaveProgress} 
-                disabled={saveProgressMutation.isPending}
-                className="bg-primary text-white hover:bg-blue-700"
-              >
-                <Save className="mr-2" size={16} />
-                {saveProgressMutation.isPending ? 'Saving...' : 'Save Progress'}
-              </Button>
-            </div>
+            
+            {availableTopics.length > 0 && (
+              <div className="mt-6 flex justify-end space-x-3">
+                <Button variant="outline" onClick={() => setTopicProgress({})}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveProgress} 
+                  disabled={saveProgressMutation.isPending || Object.keys(topicProgress).length === 0}
+                  className="bg-primary text-white hover:bg-blue-700"
+                >
+                  <Save className="mr-2" size={16} />
+                  {saveProgressMutation.isPending ? 'Saving...' : 'Save Progress'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

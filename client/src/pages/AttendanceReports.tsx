@@ -149,25 +149,43 @@ export default function AttendanceReports() {
   };
 
   // Fetch monthly attendance report data
-  const { data: monthlyReportData } = useQuery({
-    queryKey: ['/api/attendance/monthly-report', selectedMonth, selectedClass],
+  const { data: monthlyReportData, isLoading: monthlyReportLoading } = useQuery({
+    queryKey: ['/api/attendance/monthly-report', selectedMonth, selectedClass, user?.id],
     queryFn: async () => {
-      const soCenterId = user?.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : user?.id;
+      console.log('🔄 Fetching monthly attendance report:', {
+        selectedMonth,
+        selectedClass,
+        userRole: user?.role,
+        userId: user?.id
+      });
+
       const params = new URLSearchParams();
-      if (soCenterId) params.append('soCenterId', soCenterId);
       if (selectedMonth) params.append('month', selectedMonth);
       if (selectedClass) params.append('classId', selectedClass);
+      
+      // For admin/academic_admin, they can specify soCenterId if needed
+      if (user?.role !== 'so_center' && user?.id) {
+        params.append('soCenterId', user.id);
+      }
       
       const response = await fetch(`/api/attendance/monthly-report?${params}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         },
       });
-      if (!response.ok) throw new Error('Failed to fetch monthly report');
-      return await response.json();
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        throw new Error(errorData.message || 'Failed to fetch monthly report');
+      }
+      
+      const data = await response.json();
+      console.log('✅ Monthly report received:', data);
+      return data;
     },
     enabled: !!selectedMonth && !!selectedClass && !!user,
-    staleTime: 30000,
+    staleTime: 10000, // Reduced stale time for more frequent updates
+    retry: 2,
   });
 
   // Get student attendance for the entire month
