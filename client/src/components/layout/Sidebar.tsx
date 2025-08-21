@@ -150,14 +150,14 @@ const navigation: NavItem[] = [
     title: 'SO Centers',
     href: '/admin/centers',
     icon: Building,
-    roles: ['admin', 'super_admin'],
+    roles: ['admin', 'super_admin', 'academic_admin'],
   },
 
   {
     title: 'All Students',
     href: '/admin/students',
     icon: GraduationCap,
-    roles: ['admin', 'super_admin'],
+    roles: ['admin', 'super_admin', 'academic_admin'],
   },
   {
     title: 'Course Purchases',

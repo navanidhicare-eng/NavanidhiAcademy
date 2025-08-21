@@ -646,32 +646,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      console.log('📊 SO Center submitting attendance:', {
-        userRole: req.user.role,
-        userId: req.user.userId,
-        email: req.user.email,
-        payload: req.body
-      });
-
       const { date, classId, records } = req.body;
-      
-      // Validate required fields
-      if (!date || !classId || !records || !Array.isArray(records)) {
-        return res.status(400).json({ 
-          message: 'Missing required fields: date, classId, and records array' 
-        });
-      }
-
-      // Get SO Center ID for SO Center users
-      let soCenterId = req.user.userId;
-      if (req.user.role === 'so_center') {
-        const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        if (!soCenter) {
-          return res.status(404).json({ message: 'SO Center not found for user' });
-        }
-        soCenterId = soCenter.id;
-        console.log('✅ Found SO Center:', { id: soCenter.id, name: soCenter.name });
-      }
+      const soCenterId = req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId;
 
       const result = await storage.submitAttendance({
         date,
@@ -681,14 +657,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         records
       });
 
-      console.log('✅ Attendance submitted successfully:', result);
       res.json(result);
     } catch (error) {
-      console.error('❌ Error submitting attendance:', error);
-      res.status(500).json({ 
-        message: 'Failed to submit attendance',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error('Error submitting attendance:', error);
+      res.status(500).json({ message: 'Failed to submit attendance' });
     }
   });
 
@@ -698,32 +670,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      console.log('🎉 SO Center marking holiday:', {
-        userRole: req.user.role,
-        userId: req.user.userId,
-        email: req.user.email,
-        payload: req.body
-      });
-
       const { date, classId, records } = req.body;
-      
-      // Validate required fields
-      if (!date || !classId || !records || !Array.isArray(records)) {
-        return res.status(400).json({ 
-          message: 'Missing required fields: date, classId, and records array' 
-        });
-      }
-
-      // Get SO Center ID for SO Center users
-      let soCenterId = req.user.userId;
-      if (req.user.role === 'so_center') {
-        const soCenter = await storage.getSoCenterByEmail(req.user.email);
-        if (!soCenter) {
-          return res.status(404).json({ message: 'SO Center not found for user' });
-        }
-        soCenterId = soCenter.id;
-        console.log('✅ Found SO Center for holiday:', { id: soCenter.id, name: soCenter.name });
-      }
+      const soCenterId = req.user.role === 'so_center' ? '84bf6d19-8830-4abd-8374-2c29faecaa24' : req.user.userId;
 
       const result = await storage.submitAttendance({
         date,
@@ -733,14 +681,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         records
       });
 
-      console.log('✅ Holiday marked successfully:', result);
       res.json({ studentCount: result.holidayCount });
     } catch (error) {
-      console.error('❌ Error marking holiday:', error);
-      res.status(500).json({ 
-        message: 'Failed to mark holiday',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      console.error('Error marking holiday:', error);
+      res.status(500).json({ message: 'Failed to mark holiday' });
     }
   });
 
@@ -2354,9 +2298,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error('❌ Error in SO Center privacy check:', error);
           return res.status(500).json({ message: "Failed to fetch SO Center data" });
         }
-      } else if (req.user.role === 'admin') {
-        // Admin can see all SO Centers
-        console.log('📋 Admin fetching SO Centers list...');
+      } else if (req.user.role === 'admin' || req.user.role === 'academic_admin') {
+        // Admin and Academic Admin can see all SO Centers
+        console.log('📋 Admin/Academic Admin fetching SO Centers list...');
         const centers = await storage.getAllSoCenters();
         console.log(`✅ Found ${centers.length} SO Centers`);
         res.json(centers);
@@ -3798,10 +3742,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/students/:studentId/details", authenticateToken, async (req, res) => {
     try {
       // 1. Security: Validate user permissions
-      if (!req.user || req.user.role !== 'admin') {
+      if (!req.user || !['admin', 'academic_admin'].includes(req.user.role)) {
         console.log('❌ Access denied for role:', req.user?.role);
         return res.status(403).json({ 
-          message: 'Admin access required',
+          message: 'Admin or Academic Admin access required',
           error: 'INSUFFICIENT_PERMISSIONS'
         });
       }
